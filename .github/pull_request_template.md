@@ -20,7 +20,7 @@
 
 # Check List (Check all the applicable boxes)
 
-🚨Please review the [contribution guideline](CONTRIBUTING.md) for this repository.
+🚨Please review the [contribution guideline](../CONTRIBUTING.md) for this repository.
 
 <!-- Mark all the applicable boxes. To mark the box as done follow the following conventions -->
 
