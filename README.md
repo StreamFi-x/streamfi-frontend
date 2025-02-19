@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StreamFi
 
-## Getting Started
+## Overview
 
-First, run the development server:
+StreamFi is a decentralized live-streaming platform that empowers content creators and viewers through blockchain technology. Our mission is to create a fair, transparent, and user-driven streaming ecosystem where creators retain full ownership of their content and earnings. 
+
+It is designed for content creators and gamers that empowers users with Web3-native monetization, eliminating middlemen through direct crypto tipping and blockchain-based interactions, while ensuring transparency, security, and censorship resistance in content creation and distribution.
+
+### 🌍 Ecosystem and Integrations
+
+- Integrates with **StarkNet** for blockchain scalability.
+- Engages with **Worldcoin** for user identity verification.
+
+## 🏗 Project Structure
+
+- **Frontend**: Built with React, Next.js (Web), Flutter (Mobile).
+- **Backend**: Node.js, FastAPI, GraphQL.
+- **Smart Contracts**: Cairo (StarkNet).
+- **Storage**: IPFS/Filecoin integration for decentralized content storage.
+
+## 🔧 Installation & Setup
+
+To set up the project locally:
 
 ```bash
+# Clone the repository
+git clone https://github.com/StreamFi-x/streamfi-frontend.git
+cd streamfi
+
+# Install dependencies
+npm install
+
+# Start the development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+If you encounter installation issues, try these steps:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm cache clean --force
+rm -rf node_modules
+rm package-lock.json
+npm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🛠 Branch Naming Convention
 
-## Learn More
+We follow a structured branch naming format:
 
-To learn more about Next.js, take a look at the following resources:
+```
+[fix|feat|chore]-[issue-number]-[short-description]
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Example:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+feat-23-livepeer-integration
+fix-45-streaming-bug
+```
 
-## Deploy on Vercel
+## 🤝 Contributing
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+We are always excited to welcome passionate developers and contributors to help shape the future of StreamFi. Whether you're improving existing features, fixing bugs, or bringing innovative ideas to the table, your contributions are invaluable. To get started, check out our [📜 Contribution Guide](https://github.com/StreamFi-x/streamfi-frontend/blob/main/CONTRIBUTING.md) for detailed instructions on how to contribute effectively.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 💬 Community & Support
+
+- Join our [Telegram](https://t.me/+slCXibBFWF05NDQ0) for discussions and support.
+
+## 📜 License
+
+This project is licensed under the MIT License.
+
