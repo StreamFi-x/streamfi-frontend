@@ -18,20 +18,7 @@ const Community = () => {
 
     return (
         <div id="community" className="pt-20">
-            {/* <div className="stars-container absolute inset-0 w-full h-full"></div>
-            {starPositions.map((pos, index) => (
-                <div
-                    key={index}
-                    className={`absolute bg-white rounded-full ${index % 2 === 0 ? 'animate-twinkle' : 'animate-twinkle-slow'}`}
-                    style={{
-                        top: pos.top,
-                        left: pos.left,
-                        width: pos.size,
-                        height: pos.size,
-                        animationDelay: pos.animationDelay,
-                    }}
-                />
-            ))} */}
+           
             <div className="text-center flex flex-col justify-center items-center gap-4">
                 <h1 className="text-3xl font-bold w-[27%] tracking-wide font-helvetica">Join Our Community - Be Part Of The Future Of Streaming</h1>
                 <p className="w-[40%] opacity-60 text-sm">StreamFi is more than just a platform, it’s a movement. By joining our community, you become part of an ecosystem built for creators, viewers, and Web3 enthusiasts who believe in decentralized, creator-first streaming</p>

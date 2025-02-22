@@ -38,8 +38,8 @@ const Navbar = () => {
               <li key={index}>
                 <Link
                   href={link.href}
-                  className={` ${ 
-                    pathname === link.href ? "text-white font-medium " : "text-white/60 hover:text-white/50 font-normal"
+                  className={`transition-colors duration-500 ${ 
+                    pathname === link.href ? "text-white font-medium " : "text-white/60 hover:text-white/80 font-normal"
                   }`}
                 >
                   {link.name}
@@ -58,20 +58,18 @@ const Navbar = () => {
 
           {/* Mobile Menu Button */}
           <button className="md:hidden" onClick={() => setIsOpen(!isOpen)}>
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isOpen ? <X className="w-6 h-6 transition duration-500" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
 
         {/* Mobile Menu */}
-        {isOpen && (
-          <ul className="md:hidden flex flex-col items-center space-y-4 mt-4 bg-[#0D0216] py-4">
+        <div className={`md:hidden overflow-hidden transition-all duration-500 ease-in-out ${isOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'}`}>
+          <ul className="flex flex-col items-center space-y-4 mt-4 bg-[#0D0216] py-4">
             {navLinks.map((link, index) => (
               <li key={index}>
-                <Link
-                  href={link.href}
-                  className={`hover:text-gray-400 ${
-                    pathname === link.href ? "text-white" : "text-gray-500"
-                  }`}
+                <Link 
+                  href={link.href} 
+                  className={`transition-colors duration-500 w-full ${pathname === link.href ? 'text-white' : 'text-white/50 hover:text-white/80'}`}
                   onClick={() => setIsOpen(false)}
                 >
                   {link.name}
@@ -79,15 +77,12 @@ const Navbar = () => {
               </li>
             ))}
             <li>
-              <button
-                className="bg-white text-[#1E1E1E] px-4 py-2 rounded-lg font-medium w-full"
-                onClick={() => setIsOpen(false)}
-              >
+              <button className="bg-white text-black px-4 py-2 rounded-lg font-medium w-full" onClick={() => setIsOpen(false)}>
                 Get started
               </button>
             </li>
           </ul>
-        )}
+        </div>
       </nav>
     </div>
   );
