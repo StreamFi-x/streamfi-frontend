@@ -1,3 +1,5 @@
+
+import About from "./components/About";
 import Community from "./components/Community";
 import Navbar from "./components/Navbar";
 
@@ -29,6 +31,7 @@ export default function Home() {
         />
       ))}
       <Navbar />
+      <About />
       <Community />
     </div>
   );
