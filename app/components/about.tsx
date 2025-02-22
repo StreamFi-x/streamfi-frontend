@@ -3,11 +3,11 @@ import Image from "next/image";
 
 export default function About() {
   return (
-    <section className="py-16 px-24">
-      <div className="flex flex-col gap-y-8 mx-auto px-4">
+    <section className="py-16 px-4 md:px-6 lg:px-8 xl:px-24">
+      <div className="flex flex-col gap-y-4 md:gap-y-8 mx-auto px-4">
         <h2 className="text-4xl md:text-5xl font-bold mb-8">About StreamFi</h2>
-        <div className="flex flex-col md:flex-row items-center gap-4">
-          <div className="w-full md:w-1/2">
+        <div className="flex flex-col md:flex-row items-start xl:items-center gap-6 md:gap-4">
+          <div className="w-full md:w-1/2 ">
             <Image
               src={AboutImage}
               alt="Content creator using StreamFi"
