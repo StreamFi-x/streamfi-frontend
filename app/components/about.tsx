@@ -16,6 +16,7 @@ export default function About() {
               className=" shadow-lg"
             />
           </div>
+          
           <div className="w-full md:w-1/2">
             <p className="mb-4">
               StreamFi is a Web3-powered streaming platform built to give
