@@ -12,6 +12,20 @@ export default {
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
+      fontFamily: {
+        helvetica: ['Helvetica Custom', 'Arial', 'sans-serif'],
+      },
+      animation: {
+        'twinkle': 'twinkle 5s linear infinite',
+        'twinkle-slow': 'twinkle 7s linear infinite',
+        'twinkle-fast': 'twinkle 3s linear infinite',
+      },
+      keyframes: {
+        twinkle: {
+          '0%, 100%': { opacity: '0.2' },
+          '50%': { opacity: '0.8' },
+        }
+      }
     },
   },
   plugins: [],
