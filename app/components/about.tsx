@@ -1,0 +1,41 @@
+import { AboutImage } from "@/public/images";
+import Image from "next/image";
+
+export default function About() {
+  return (
+    <section className="py-16 px-24">
+      <div className="flex flex-col gap-y-8 mx-auto px-4">
+        <h2 className="text-4xl md:text-5xl font-bold mb-8">About StreamFi</h2>
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          <div className="w-full md:w-1/2">
+            <Image
+              src={AboutImage}
+              alt="Content creator using StreamFi"
+              width={600}
+              height={400}
+              className=" shadow-lg"
+            />
+          </div>
+          <div className="w-full md:w-1/2">
+            <p className="mb-4">
+              StreamFi is a Web3-powered streaming platform built to give
+              content creators and gamers full control over their earnings.
+              Unlike traditional platforms that take large cuts and delay
+              payouts, StreamFi uses blockchain technology to enable instant
+              crypto tipping, NFT-based memberships, and DeFi staking
+              rewards—all without middlemen.
+            </p>
+            <p>
+              Our mission is to redefine content monetization by offering a
+              transparent, decentralized, and community-driven ecosystem. With
+              smart contracts ensuring secure transactions and DAO governance
+              giving users a say in platform decisions, StreamFi is creating a
+              future where creators earn more, engage directly with their
+              audience, and thrive without restrictions.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
