@@ -17,13 +17,13 @@ export default function Testimonials() {
         modules={[Autoplay]}
         slidesPerView={1}
         centeredSlides
-        spaceBetween={20}
+        spaceBetween={30}
         freeMode
         speed={1200}
         autoplay={{
           pauseOnMouseEnter: true,
           disableOnInteraction: false,
-          delay: 0.01,
+          delay: 2000,
         }}
         loop
         breakpoints={{
