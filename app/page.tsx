@@ -1,7 +1,7 @@
-
-import About from "./components/About";
-import Community from "./components/Community";
-import Navbar from "./components/Navbar";
+import About from "./Components/about";
+import Community from "./Components/Community";
+import Navbar from "./Components/Navbar";
+import Testimonials from "./Components/testemonials";
 
 export default function Home() {
   const starPositions = Array.from({ length: 25 }, () => ({
@@ -33,6 +33,7 @@ export default function Home() {
       <Navbar />
       <About />
       <Community />
+      <Testimonials />
     </div>
   );
 }

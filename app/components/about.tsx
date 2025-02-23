@@ -6,7 +6,7 @@ export default function About() {
   return (
     <Section
       id="about"
-      className="pb-12.5 pt-8.5 flex flex-col gap-y-4 md:gap-y-8 mx-auto"
+      className="pb-12.5 pt-8.5 flex flex-col gap-y-4 md:gap-y-8 mt-14 mx-auto"
     >
       <h2 className="text-4xl md:text-5xl font-bold  text-center md:text-left">
         About StreamFi
