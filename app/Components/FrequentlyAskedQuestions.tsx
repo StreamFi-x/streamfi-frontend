@@ -58,7 +58,7 @@ export default function AnimatedTabs() {
               aria-expanded={activeTab === tab.id}
               aria-controls={`content-${tab.id}`}
             >
-              <span className="font-medium">{tab.title}</span>
+              <span className="font-medium text-white">{tab.title}</span>
               <motion.div
                 initial={false}
                 animate={{
@@ -143,7 +143,7 @@ export default function AnimatedTabs() {
                       },
                     }}
                   >
-                    <p>{tab.content}</p>
+                    <p className="text-gray-500">{tab.content}</p>
                   </motion.div>
                 </motion.div>
               )}
