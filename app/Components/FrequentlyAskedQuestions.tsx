@@ -54,11 +54,13 @@ export default function AnimatedTabs() {
           <div key={tab.id} className="rounded-lg overflow-hidden shadow-sm">
             <button
               onClick={() => toggleTab(tab.id)}
-              className="flex items-center justify-between w-full p-4 text-left bg-gray-700 opacity-50 hover:bg-gray-700 transition-all duration-300 ease-in-out"
+              className="flex items-center justify-between w-full p-4 text-left bg-gray-700 hover:bg-gray-700 transition-all duration-300 ease-in-out"
               aria-expanded={activeTab === tab.id}
               aria-controls={`content-${tab.id}`}
             >
-              <span className="font-medium text-white">{tab.title}</span>
+                <div className="text-white">
+              <span className="font-bold text-white">{tab.title}</span>
+              </div>
               <motion.div
                 initial={false}
                 animate={{
@@ -72,9 +74,9 @@ export default function AnimatedTabs() {
                 }}
               >
                 {activeTab === tab.id ? (
-                  <Minus className="h-5 w-5 text-gray-500" />
+                  <Minus className="h-5 w-5 text-gray-300" />
                 ) : (
-                  <Plus className="h-5 w-5 text-gray-500" />
+                  <Plus className="h-5 w-5 text-gray-300" />
                 )}
               </motion.div>
             </button>
@@ -143,7 +145,7 @@ export default function AnimatedTabs() {
                       },
                     }}
                   >
-                    <p className="text-gray-500">{tab.content}</p>
+                    <p className="text-gray-300">{tab.content}</p>
                   </motion.div>
                 </motion.div>
               )}
