@@ -46,10 +46,12 @@ export default function AnimatedTabs() {
 
   return (
     <div className="w-11/12  mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold text-center mb-6 mt-3">FAQs</h1>
-      <p className="text-center mt-3 text-[20px] text-gray-400">Lorem ipsum dolor sit amet consectetur. Dictum elementum malesuada sed a. Cursus sem pellentesque <br/> porttitor fringilla consectetur egestas</p>
+      <div>
+      <h1 className="text-2xl font-bold text-center mt-3">FAQs</h1>
+      <p className="text-center text-[20px] text-gray-400 mb-10">Lorem ipsum dolor sit amet consectetur. Dictum elementum malesuada sed a. Cursus sem pellentesque <br/> porttitor fringilla consectetur egestas</p>
+      </div>
 
-      <div className="space-y-3">
+      <div className="space-y-5">
         {tabs.map((tab) => (
           <div key={tab.id} className="rounded-lg overflow-hidden shadow-sm  border border-gray-700">
             <button
