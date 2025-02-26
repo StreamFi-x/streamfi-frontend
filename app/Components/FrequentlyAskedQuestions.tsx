@@ -47,19 +47,19 @@ export default function AnimatedTabs() {
   return (
     <div className="w-11/12  mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold text-center mb-6 mt-3">FAQs</h1>
-      <p className="text-center mt-3 text-sm">Lorem ipsum dolor sit amet consectetur. Dictum elementum malesuada sed a. Cursus sem pellentesque <br/> porttitor fringilla consectetur egestas</p>
+      <p className="text-center mt-3 text-[20px] text-gray-400">Lorem ipsum dolor sit amet consectetur. Dictum elementum malesuada sed a. Cursus sem pellentesque <br/> porttitor fringilla consectetur egestas</p>
 
       <div className="space-y-3">
         {tabs.map((tab) => (
-          <div key={tab.id} className="rounded-lg overflow-hidden shadow-sm">
+          <div key={tab.id} className="rounded-lg overflow-hidden shadow-sm  border border-gray-700">
             <button
               onClick={() => toggleTab(tab.id)}
-              className="flex items-center justify-between w-full p-4 text-left bg-gray-700 hover:bg-gray-700 transition-all duration-300 ease-in-out"
+              className="flex items-center justify-between w-full p-4 text-left bg-gray-800 hover:bg-gray-800 transition-all duration-300 ease-in-out"
               aria-expanded={activeTab === tab.id}
               aria-controls={`content-${tab.id}`}
             >
                 <div className="text-white">
-              <span className="font-bold text-white">{tab.title}</span>
+              <span className="font-bold text-white text-[20px]">{tab.title}</span>
               </div>
               <motion.div
                 initial={false}
@@ -133,7 +133,7 @@ export default function AnimatedTabs() {
                   className="overflow-hidden"
                 >
                   <motion.div
-                    className="p-4 bg-gray-700"
+                    className="p-4 bg-gray-800"
                     // initial={{ opacity: 0, y: 10 }}
                     animate={{
                       opacity: 1,
@@ -145,7 +145,7 @@ export default function AnimatedTabs() {
                       },
                     }}
                   >
-                    <p className="text-gray-300">{tab.content}</p>
+                    <p className="text-gray-400 text-[16px]">{tab.content}</p>
                   </motion.div>
                 </motion.div>
               )}
