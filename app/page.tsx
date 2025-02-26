@@ -1,6 +1,7 @@
 import About from "./Components/about";
 import Community from "./Components/Community";
 import Navbar from "./Components/Navbar";
+import StreamTokenUtility from "./Components/StreamTokenUtility";
 import Testimonials from "./Components/testemonials";
 
 export default function Home() {
@@ -33,6 +34,7 @@ export default function Home() {
       <Navbar />
       <About />
       <Community />
+      <StreamTokenUtility/>
       <Testimonials />
     </div>
   );
