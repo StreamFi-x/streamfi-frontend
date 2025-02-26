@@ -1,5 +1,5 @@
 import Section from "@/components/Section";
-import { AboutImage } from "@/public/Images";
+import { AboutImage } from "@/public/images";
 import Image from "next/image";
 
 export default function About() {

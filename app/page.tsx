@@ -1,7 +1,8 @@
-import About from "./Components/about";
+import About from "./components/about";
 import Community from "./Components/Community";
 import Navbar from "./Components/Navbar";
 import Testimonials from "./Components/testemonials";
+import Waitlist from "./Components/Waitlist";
 
 export default function Home() {
   const starPositions = Array.from({ length: 25 }, () => ({
@@ -34,6 +35,7 @@ export default function Home() {
       <About />
       <Community />
       <Testimonials />
+      <Waitlist />
     </div>
   );
 }
