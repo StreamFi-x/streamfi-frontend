@@ -1,4 +1,6 @@
-import About from "./components/about";
+
+import About from "./Components/about";
+import { Benefits } from "./Components/Benefits";
 import Community from "./Components/Community";
 import Navbar from "./Components/Navbar";
 import Testimonials from "./Components/testemonials";
@@ -32,6 +34,7 @@ export default function Home() {
         />
       ))}
       <Navbar />
+      <Benefits />
       <About />
       <Community />
       <Testimonials />
