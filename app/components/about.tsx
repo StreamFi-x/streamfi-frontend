@@ -1,5 +1,5 @@
 import Section from "@/components/Section";
-import { AboutImage } from "@/public/images";
+// import { AboutImage } from "@/public/images";
 import Image from "next/image";
 
 export default function About() {
@@ -14,7 +14,7 @@ export default function About() {
       <div className="flex flex-col md:flex-row items-start xl:items-center gap-6 md:gap-4">
         <div className="w-full md:w-1/2 ">
           <Image
-            src={AboutImage}
+            src="/images/about-image.png"
             alt="Content creator using StreamFi"
             width={600}
             height={400}
