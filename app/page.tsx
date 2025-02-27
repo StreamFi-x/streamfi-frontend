@@ -1,8 +1,13 @@
+
 import About from "./Components/about";
+import { Benefits } from "./Components/Benefits";
 import Community from "./Components/Community";
 import Navbar from "./Components/Navbar";
+import StreamTokenUtility from "./Components/StreamTokenUtility";
 import Testimonials from "./Components/testemonials";
 import FrequentlyAskedQuestions from "./Components/FrequentlyAskedQuestions"
+import Waitlist from "./Components/Waitlist";
+
 
 export default function Home() {
   const starPositions = Array.from({ length: 25 }, () => ({
@@ -32,10 +37,13 @@ export default function Home() {
         />
       ))}
       <Navbar />
+      <Benefits />
       <About />
       <Community />
+      <StreamTokenUtility/>
       <FrequentlyAskedQuestions />
       <Testimonials />
+      <Waitlist />
     </div>
   );
 }
