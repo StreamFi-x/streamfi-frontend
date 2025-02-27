@@ -5,7 +5,9 @@ import Community from "./Components/Community";
 import Navbar from "./Components/Navbar";
 import StreamTokenUtility from "./Components/StreamTokenUtility";
 import Testimonials from "./Components/testemonials";
+import FrequentlyAskedQuestions from "./Components/FrequentlyAskedQuestions"
 import Waitlist from "./Components/Waitlist";
+
 
 export default function Home() {
   const starPositions = Array.from({ length: 25 }, () => ({
@@ -39,6 +41,7 @@ export default function Home() {
       <About />
       <Community />
       <StreamTokenUtility/>
+      <FrequentlyAskedQuestions />
       <Testimonials />
       <Waitlist />
     </div>
