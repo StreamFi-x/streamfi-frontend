@@ -3,6 +3,7 @@ import About from "./Components/about";
 import { Benefits } from "./Components/Benefits";
 import Community from "./Components/Community";
 import Navbar from "./Components/Navbar";
+import HeroSection from "./Components/HeroSection";
 import StreamTokenUtility from "./Components/StreamTokenUtility";
 import Testimonials from "./Components/testemonials";
 import Waitlist from "./Components/Waitlist";
@@ -35,6 +36,7 @@ export default function Home() {
         />
       ))}
       <Navbar />
+      <HeroSection />
       <Benefits />
       <About />
       <Community />
