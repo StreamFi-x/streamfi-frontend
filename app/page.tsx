@@ -8,7 +8,7 @@ import StreamTokenUtility from "./Components/StreamTokenUtility";
 import Testimonials from "./Components/testemonials";
 import FrequentlyAskedQuestions from "./Components/FrequentlyAskedQuestions"
 import Waitlist from "./Components/Waitlist";
-import Footer from "./Components/footer"
+import Footer from "./Components/footer";
 
 
 export default function Home() {
