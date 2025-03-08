@@ -1,5 +1,5 @@
 
-import About from "./Components/about";
+// import About from "./Components/about";
 import { Benefits } from "./Components/Benefits";
 import Community from "./Components/Community";
 import Navbar from "./Components/Navbar";
@@ -8,6 +8,7 @@ import StreamTokenUtility from "./Components/StreamTokenUtility";
 import Testimonials from "./Components/testemonials";
 import FrequentlyAskedQuestions from "./Components/FrequentlyAskedQuestions"
 import Waitlist from "./Components/Waitlist";
+import Footer from "./Components/footer"
 
 
 export default function Home() {
@@ -40,12 +41,13 @@ export default function Home() {
       <Navbar />
       <HeroSection />
       <Benefits />
-      <About />
+      {/* <About /> */}
       <Community />
       <StreamTokenUtility/>
       <FrequentlyAskedQuestions />
       <Testimonials />
       <Waitlist />
+      <Footer/>
     </div>
   );
 }
