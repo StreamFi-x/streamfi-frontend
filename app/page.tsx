@@ -1,5 +1,5 @@
 
-// import About from "./Components/about";
+import About from "./Components/about";
 import { Benefits } from "./Components/Benefits";
 import Community from "./Components/Community";
 import Navbar from "./Components/Navbar";
@@ -41,7 +41,7 @@ export default function Home() {
       <Navbar />
       <HeroSection />
       <Benefits />
-      {/* <About /> */}
+      <About />
       <Community />
       <StreamTokenUtility/>
       <FrequentlyAskedQuestions />
