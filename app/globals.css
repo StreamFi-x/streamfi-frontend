@@ -83,3 +83,39 @@ body {
     opacity: 0.8;
   }
 }
+
+.gradient-border {
+  position: relative;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  border-radius: 10px; /* Adjust as needed */
+  
+  /* Add padding to create space for the border */
+  /* padding: 20px; */
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: -1;
+  margin: -1px; /* Offset to account for the border width */
+  border-radius: inherit;
+  border-color: linear-gradient(45deg,  #260949, #81778E, #A5C6EA);
+}
+
+
+.gradient-border::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  background: linear-gradient(90deg, #A5C6EA 0%, #81778E 100%);
+  border-radius: inherit;
+  mask:
+    conic-gradient(#000 0 0) content-box exclude,
+    conic-gradient(#000 0 0);
+}

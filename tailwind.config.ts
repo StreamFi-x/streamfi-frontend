@@ -11,6 +11,8 @@ export default {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        primary: "#5A189A",
+        offWhite: '#F1F1F1',
       },
       fontFamily: {
         helvetica: ["Helvetica Custom", "Arial", "sans-serif"],
