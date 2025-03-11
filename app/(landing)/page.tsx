@@ -7,6 +7,7 @@ import StreamTokenUtility from "@/components/landing-page/StreamTokenUtility";
 import Testimonials from "@/components/landing-page/Testimonials";
 import FrequentlyAskedQuestions from "@/components/landing-page/FrequentlyAskedQuestions";
 import Waitlist from "@/components/landing-page/Waitlist";
+import Footer from "@/components/landing-page/footer";
 
 export default function Home() {
   const starPositions = Array.from({ length: 25 }, () => ({
@@ -49,6 +50,7 @@ export default function Home() {
       <FrequentlyAskedQuestions />
       <Testimonials />
       <Waitlist />
+      <Footer />
     </div>
   );
 }

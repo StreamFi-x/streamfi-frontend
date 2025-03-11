@@ -22,7 +22,7 @@ const Community = () => {
           creator-first streaming
         </p>
       </div>
-      <div className="flex justify-center items-center gap-8 pt-10 max-w-4xl w-full">
+      <div className="flex justify-center items-center gap-2 sm:gap-8 pt-10 max-w-4xl w-full">
         <button className="flex justify-center gap-2 border rounded-lg px-5 py-3">
           <Image src={x} alt="X icon" width={24} height={18} />
           <p>Join our community</p>
@@ -36,7 +36,7 @@ const Community = () => {
           <p>Join our community</p>
         </button>
       </div>
-      <div className="flex justify-center gap-[3.5rem] py-20 items-center text-center">
+      <div className="sm:flex grid grid-cols-2 justify-center gap-[3.5rem] py-20 items-center text-center">
         <div>
           <p className="text-4xl font-bold font-helvetica">25k+</p>
           <p>Active Members</p>
@@ -55,7 +55,7 @@ const Community = () => {
         </div>
       </div>
 
-      <div className="flex justify-center gap-4 xl:gap-8 items-center text-center flex-">
+      <div className="flex rid grid-cols-2 md:flex-row flex-col justify-center gap-4 xl:gap-8 items-center text-center flex-">
         <div className="flex flex-col gap-2 justify-center items-center border w-56 xl:w-72 h-56  xl:h-64 px-4 rounded-lg bg-gradient-to-r from-[#15375B] to-[#16062B]  border-[#2d1f3f]">
           <Image src={key} alt="x" width={50} height={30} />
           <p className="text-xl xl:text-2xl font-bold leading-normal text-center">
