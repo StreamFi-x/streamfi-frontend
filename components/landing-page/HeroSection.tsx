@@ -8,7 +8,7 @@ import { CoinbaseLogo, StripeLogo, YoutubeLogo } from "@/public/Images";
 const HeroSection: React.FC = () => {
   return (
     <>
-      <div className="w-full max-w-[1440px] mx-aut pl-8 sm:pl-6 lg:pl-12 xl:pl-20 overflow-hidden relative">
+      <div className="w-full max-w-[1440px] 2xl:max-w-[3000px] mx-aut pl-8 sm:pl-6 lg:pl-12 xl:pl-20 overflow-hidden relative">
         <div className="flex flex-col md:flex-row mt-16 md:mt-24 lg:mt-32">
           <div className="flex flex-col w-full">
             <div className="w-full h-full md:pr-8 lg:pr-1 pt-2 xl:pt-12 space-y-2.5">
@@ -63,7 +63,7 @@ const HeroSection: React.FC = () => {
             </div>
           </div>
 
-          <div className="relative w-full">
+          <div className="relative w-full ">
             <img
               src={"/images/Stream-Fi.png"}
               alt="Streaming App Interface"
