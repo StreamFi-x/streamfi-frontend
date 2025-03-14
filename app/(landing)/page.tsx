@@ -19,7 +19,7 @@ export default function Home() {
 
   return (
     <div
-      className="relative  bg-gradien-to-r from-[#16062B] from-[10%] via-[#0D0216] via-[50%] to-[#15375B] to-[88%] min-h-screen pt-10"
+      className="relative  bg-gradient-to-r from-[#16062B] from-[10%] via-[#0D0216] via-[50%] to-[#15375B] to-[88%] bg-no-repeat bg-center bg-cover min-h-screen pt-10"
       style={{
         background: "url('/Images/Streamfi-bg.png')",
       }}
