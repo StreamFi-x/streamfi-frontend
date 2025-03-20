@@ -9,10 +9,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
+        background: "#17191A",
+        "background-2": "#1C1C1C",
+        "background-3": "#151515",
         foreground: "var(--foreground)",
         primary: "#5A189A",
-        offWhite: '#F1F1F1',
+        offWhite: "#F1F1F1",
+        'offWhite-2': "#D9D9D9",
+        grayish: '#CBCBCB'
       },
       fontFamily: {
         helvetica: ["Helvetica Custom", "Arial", "sans-serif"],
