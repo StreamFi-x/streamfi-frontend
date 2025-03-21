@@ -43,7 +43,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           return (
             <Link
               key={item.label}
-              href={item.href}
+              href={`/explore/${item.href}`} 
               className={`flex items-center gap-2.5 p-2.5 rounded-md transition-colors ${
                 isActive
                   ? "bg-[#2D2F31] text-white"
