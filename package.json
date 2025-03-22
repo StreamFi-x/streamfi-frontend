@@ -16,6 +16,7 @@
     "lucide-react": "^0.475.0",
     "motion": "^12.4.7",
     "next": "15.1.6",
+    "nprogress": "^0.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sonner": "^2.0.1",
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@types/node": "^20",
+    "@types/nprogress": "^0.2.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
