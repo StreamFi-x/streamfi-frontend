@@ -24,7 +24,7 @@ export  const overlayVariants = {
   };
 
  export const navItems = [
-    { icon: Home, label: "Home", href: "/explore" },
+    { icon: Home, label: "Home", href: "/" },
     { icon: TrendingUp, label: "Trending", href: "/trending" },
     { icon: Clock, label: "Watch Later", href: "/watch-later" },
     { icon: Radio, label: "Live", href: "/live" },
