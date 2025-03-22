@@ -16,16 +16,19 @@ export default function Home() {
     animationDelay: `${Math.random() * 4}s`,
     size: `${Math.random() * 2 + 1}px`,
   }));
-
+  
   return (
     <div
-      className="relative  bg-gradient-to-r from-[#16062B] from-[10%] via-[#0D0216] via-[50%] to-[#15375B] to-[88%] bg-no-repeat bg-center bg-cover min-h-screen pt-10"
+      className="relative min-h-screen pt-5 lg:pt-10"
       style={{
-        background: "url('/Images/Streamfi-bg.png')",
+        backgroundImage: "url('/Images/Streamfi-bg.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        backgroundAttachment: "fixed",
       }}
     >
       <div className="stars-container absolute inset-0 w-full min-h-screen"></div>
-
       {starPositions.map((pos, index) => (
         <div
           key={index}
