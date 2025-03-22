@@ -1,6 +1,6 @@
 import Section from "@/components/layout/Section";
-import { AboutImage } from "@/public/Images";
-// import { AboutImage } from "@/public/images";
+// import { AboutImage } from "@/public/Images/";
+import { AboutImage } from "@/public/images";
 import Image from "next/image";
 
 export default function About() {
