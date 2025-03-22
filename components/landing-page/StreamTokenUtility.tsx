@@ -41,33 +41,62 @@ export default function StreamTokenUtility() {
   };
 
   return (
-    <section className="w-full mt-5 py-10 px-4 md:px-20 md:my-20 flex flex-col items-center md:gap-[15px] relative bg-transparent overflow-hidden">
-      <motion.h1 
-        className="text-[#F1F1F1] font-extrabold text-3xl md:text-[40px] text-center m-0"
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        variants={fadeInUp}
-        transition={{ duration: 0.5 }}
-      >
-        $Stream Token Utility
-      </motion.h1>
-      
-      <motion.p 
-        className="text-[#FFFFFFCC] text-sm md:text-base font-normal text-center max-w-[844px] z-10"
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        variants={fadeInUp}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
-        Lorem ipsum dolor sit amet consectetur. Dictum elementum malesuada sed
-        a. Cursus sem pellentesque porttitor fringilla consectetur egestas
-      </motion.p>
+    <section className="relative grid grid-cols-1 md:grid-cols-2 gap-8 py-10 px-4 md:px-20 bg-transparent overflow-hidden">
+      {/* Content Container */}
+      <div className="col-span-1 md:col-span-2 flex flex-col items-center gap-6">
+        <motion.h1 
+          className="text-[#F1F1F1] font-extrabold text-3xl md:text-[40px] text-center"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+          transition={{ duration: 0.5 }}
+        >
+          $Stream Token Utility
+        </motion.h1>
+        
+        <motion.p 
+          className="text-[#FFFFFFCC] text-sm md:text-base font-normal text-center max-w-[844px]"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          Lorem ipsum dolor sit amet consectetur. Dictum elementum malesuada sed
+          a. Cursus sem pellentesque porttitor fringilla consectetur egestas
+        </motion.p>
+      </div>
 
-      {/* Mobile and desktop layout with conditional styling */}
+      {/* Token Images Grid */}
+      <div className="hidden md:flex col-span-1 relative">
+        <div className="grid grid-cols-3 gap-4 p-4">
+          {[token1, token2, token3, token4, token5].map((token, index) => (
+            <motion.div
+              key={index}
+              className={`flex items-center justify-center p-2 ${
+                index === 0 ? 'col-span-2 row-span-2' : 'col-span-1'
+              }`}
+              variants={floatAnimation}
+              initial="initial"
+              animate="animate"
+              transition={{ delay: index * 0.5 }}
+            >
+              <Image
+                src={token}
+                alt={`token${index + 1}`}
+                width={index === 0 ? 200 : 100}
+                height={index === 0 ? 200 : 100}
+                className={`object-contain ${index !== 0 ? 'blur-[2px]' : ''}`}
+              />
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Cards Container */}
       <motion.div 
-        className="w-full max-w-[350px] md:w-[533.22px] md:h-[492px] md:ml-auto mt-10 flex flex-col items-start justify-stretch gap-4 md:gap-5 z-10"
+        className="col-span-1 flex flex-col gap-4 p-4"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true }}
@@ -76,19 +105,19 @@ export default function StreamTokenUtility() {
         {tokenUtilityData.map((item, index) => (
           <motion.div
             key={index}
-            className="w-full h-auto min-h-[108px] border-[1px] border-[#FFFFFF1A] rounded-lg bg-[#FFFFFF0D] p-4 md:p-6 flex flex-row items-start justify-start gap-4 md:gap-8 transition-transform duration-300 hover:-translate-y-2 cursor-pointer"
+            className="flex items-start gap-4 p-6 bg-[#FFFFFF0D] border border-[#FFFFFF1A] rounded-lg hover:translate-y-[-8px] transition-transform duration-300 cursor-pointer"
             variants={fadeInUp}
             transition={{ duration: 0.3, delay: index * 0.1 }}
             whileHover={{ scale: 1.02 }}
           >
-            <div className="min-w-10 w-10 h-10 md:w-12 md:h-12 rounded bg-[#007BFF1A] flex items-center justify-center">
-              <Image src={vpnKey} alt="vpn_key" height={24} width={24} />
+            <div className="flex items-center justify-center p-3 rounded bg-[#007BFF1A]">
+              <Image src={vpnKey} alt={item.title} width={24} height={24} />
             </div>
-            <div className="flex flex-col items-start gap-1">
+            <div className="flex flex-col gap-2">
               <h2 className="font-bold text-[#FFFFFF] text-lg md:text-2xl">
                 {item.title}
               </h2>
-              <p className="text-[#FFFFFF99] font-normal text-xs md:text-base">
+              <p className="text-[#FFFFFF99] text-sm md:text-base">
                 {item.description}
               </p>
             </div>
@@ -96,102 +125,8 @@ export default function StreamTokenUtility() {
         ))}
       </motion.div>
 
-      {/* Token images with animations - responsive positioning */}
-      <motion.div 
-        className="absolute  top-[55%] left-[5%] md:left-[14%] hidden md:flex items-center justify-center w-[150px] h-[120px] md:w-[449.8px] md:h-[304.2px] z-0"
-        variants={floatAnimation}
-        initial="initial"
-        animate="animate"
-      >
-        <Image
-          src={token1}
-          alt="token1"
-          height={100}
-          width={100}
-          className="object-cover h-full w-full"
-        />
-      </motion.div>
-
-      <motion.div 
-        className="absolute top-[35%] left-[2%] md:left-[7%] hidden md:flex items-center justify-center w-[100px] h-[80px] md:w-[306px] md:h-[206px] blur-[2px]"
-        variants={floatAnimation}
-        initial="initial"
-        animate="animate"
-        transition={{ delay: 0.5 }}
-      >
-        <Image
-          src={token2}
-          alt="token2"
-          height={100}
-          width={100}
-          className="object-cover h-full w-full"
-        />
-      </motion.div>
-
-      <motion.div 
-        className="absolute top-[20%] left-[15%] md:left-[28%] hidden md:flex items-center justify-center w-[80px] h-[60px] md:w-[204px] md:h-[138px] blur-[3px]"
-        variants={floatAnimation}
-        initial="initial"
-        animate="animate"
-        transition={{ delay: 1 }}
-      >
-        <Image
-          src={token3}
-          alt="token3"
-          height={100}
-          width={100}
-          className="object-cover h-full w-full"
-        />
-      </motion.div>
-
-      <motion.div 
-        className="absolute top-[19%] left-[0%] md:left-[3%] hidden md:flex items-center justify-center w-[90px] h-[70px] md:w-[204px] md:h-[138px] blur-[2px]"
-        variants={floatAnimation}
-        initial="initial"
-        animate="animate"
-        transition={{ delay: 1.5 }}
-      >
-        <Image
-          src={token4}
-          alt="token4"
-          height={100}
-          width={100}
-          className="object-cover h-full w-full"
-        />
-      </motion.div>
-
-      <motion.div 
-        className="absolute top-[3%] left-[8%] md:left-[13%] hidden md:flex items-center justify-center w-[90px] h-[70px] md:w-[204px] md:h-[138px] blur-[2px]"
-        variants={floatAnimation}
-        initial="initial"
-        animate="animate"
-        transition={{ delay: 2 }}
-      >
-        <Image
-          src={token5}
-          alt="token5"
-          height={100}
-          width={100}
-          className="object-cover h-full w-full"
-        />
-      </motion.div>
-
-      {/* FAQs section at the bottom for mobile view as shown in Figma */}
-      <motion.div 
-        className="w-full max-w-[350px] md:max-w-[533.22px] mt-16 md:mt-20 z-10"
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        variants={fadeInUp}
-        transition={{ duration: 0.5, delay: 0.8 }}
-      >
-        <h2 className="text-[#F1F1F1] font-extrabold text-2xl md:text-3xl text-center mb-4">
-          FAQs
-        </h2>
-        <p className="text-[#FFFFFFCC] text-sm md:text-base font-normal text-center">
-          Everything you need to know about StreamFi.
-        </p>
-      </motion.div>
+      
+      
     </section>
   );
 }
