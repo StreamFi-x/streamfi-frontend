@@ -6,7 +6,7 @@ import bulb from "../../public/Images/bulb.png";
 import podcast from "../../public/Images/podcast.png";
 import folder from "../../public/Images/folder.png";
 import Section from "../layout/Section";
-import { Discord } from "@/public/Images";
+import Discord  from "@/public/Images/discord.png";
 
 const Community = () => {
   return (
