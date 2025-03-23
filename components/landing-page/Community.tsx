@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import x from "../../public/Images/x.png";
 import telegram from "../../public/Images/Telegram.png";
@@ -44,9 +46,8 @@ const Community = () => {
         </a>
 
         <a
-          href="https://discord.gg/streamfi"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="#"
+          onClick={(event) => event.preventDefault()}
           className="flex justify-center gap-2 border rounded-lg px-5 py-3"
         >
           <Image src={Discord} alt="Discord icon" />
