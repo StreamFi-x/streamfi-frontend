@@ -41,62 +41,39 @@ export default function StreamTokenUtility() {
   };
 
   return (
-    <section className="w-full mt-5 py-10 px-4 md:px-20 md:my-20 flex flex-col items-center md:gap-[15px] relative bg-transparent overflow-hidden">
-      <motion.h1 
-        className="text-[#F1F1F1] font-extrabold text-3xl md:text-[40px] text-center m-0"
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        variants={fadeInUp}
-        transition={{ duration: 0.5 }}
-      >
-        $Stream Token Utility
-      </motion.h1>
+    <section className="relative grid grid-cols-1 md:grid-cols-2 gap-8 py-10 px-4 md:px-20 bg-transparent overflow-hidden">
+      {/* Content Container */}
+      <div className="col-span-1 md:col-span-2 flex flex-col items-center gap-6">
+        <motion.h1 
+          className="text-[#F1F1F1] font-extrabold text-3xl md:text-[40px] text-center"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+          transition={{ duration: 0.5 }}
+        >
+          $Stream Token Utility
+        </motion.h1>
+        
+        <motion.p 
+          className="text-[#FFFFFFCC] text-sm md:text-base font-normal text-center max-w-[844px]"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          Lorem ipsum dolor sit amet consectetur. Dictum elementum malesuada sed
+          a. Cursus sem pellentesque porttitor fringilla consectetur egestas
+        </motion.p>
+      </div>
+
+    
+
+      {/* Cards Container */}
       
-      <motion.p 
-        className="text-[#FFFFFFCC] text-sm md:text-base font-normal text-center max-w-[844px] z-10"
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        variants={fadeInUp}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
-        Lorem ipsum dolor sit amet consectetur. Dictum elementum malesuada sed
-        a. Cursus sem pellentesque porttitor fringilla consectetur egestas
-      </motion.p>
-
-      {/* Mobile and desktop layout with conditional styling */}
-      <motion.div 
-        className="w-full max-w-[350px] md:w-[533.22px] md:h-[492px] md:ml-auto mt-10 flex flex-col items-start justify-stretch gap-4 md:gap-5 z-10"
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        variants={staggerChildren}
-      >
-        {tokenUtilityData.map((item, index) => (
-          <motion.div
-            key={index}
-            className="w-full h-auto min-h-[108px] border-[1px] border-[#FFFFFF1A] rounded-lg bg-[#FFFFFF0D] p-4 md:p-6 flex flex-row items-start justify-start gap-4 md:gap-8 transition-transform duration-300 hover:-translate-y-2 cursor-pointer"
-            variants={fadeInUp}
-            transition={{ duration: 0.3, delay: index * 0.1 }}
-            whileHover={{ scale: 1.02 }}
-          >
-            <div className="min-w-10 w-10 h-10 md:w-12 md:h-12 rounded bg-[#007BFF1A] flex items-center justify-center">
-              <Image src={vpnKey} alt="vpn_key" height={24} width={24} />
-            </div>
-            <div className="flex flex-col items-start gap-1">
-              <h2 className="font-bold text-[#FFFFFF] text-lg md:text-2xl">
-                {item.title}
-              </h2>
-              <p className="text-[#FFFFFF99] font-normal text-xs md:text-base">
-                {item.description}
-              </p>
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
-
       {/* Token images with animations - responsive positioning */}
+      <motion.div>
       <motion.div 
         className="absolute  top-[55%] left-[5%] md:left-[14%] hidden md:flex items-center justify-center w-[150px] h-[120px] md:w-[449.8px] md:h-[304.2px] z-0"
         variants={floatAnimation}
@@ -175,23 +152,39 @@ export default function StreamTokenUtility() {
           className="object-cover h-full w-full"
         />
       </motion.div>
-
-      {/* FAQs section at the bottom for mobile view as shown in Figma */}
+      </motion.div>
       <motion.div 
-        className="w-full max-w-[350px] md:max-w-[533.22px] mt-16 md:mt-20 z-10"
+        className="col-span-1 flex flex-col gap-4 p-4"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true }}
-        variants={fadeInUp}
-        transition={{ duration: 0.5, delay: 0.8 }}
+        variants={staggerChildren}
       >
-        <h2 className="text-[#F1F1F1] font-extrabold text-2xl md:text-3xl text-center mb-4">
-          FAQs
-        </h2>
-        <p className="text-[#FFFFFFCC] text-sm md:text-base font-normal text-center">
-          Everything you need to know about StreamFi.
-        </p>
+        {tokenUtilityData.map((item, index) => (
+          <motion.div
+            key={index}
+            className="flex items-start gap-4 p-6 bg-[#FFFFFF0D] border border-[#FFFFFF1A] rounded-lg hover:translate-y-[-8px] transition-transform duration-300 cursor-pointer"
+            variants={fadeInUp}
+            transition={{ duration: 0.3, delay: index * 0.1 }}
+            whileHover={{ scale: 1.02 }}
+          >
+            <div className="flex items-center justify-center p-3 rounded bg-[#007BFF1A]">
+              <Image src={vpnKey} alt={item.title} width={24} height={24} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h2 className="font-bold text-[#FFFFFF] text-lg md:text-2xl">
+                {item.title}
+              </h2>
+              <p className="text-[#FFFFFF99] text-sm md:text-base">
+                {item.description}
+              </p>
+            </div>
+          </motion.div>
+        ))}
       </motion.div>
+
+      {/* FAQs section at the bottom for mobile view as shown in Figma */}
+      
     </section>
   );
 }
