@@ -10,7 +10,11 @@
   },
   "dependencies": {
     "@fontsource/inter": "^5.1.1",
+    "@radix-ui/react-slot": "^1.1.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "embla-carousel-react": "^8.5.2",
     "framer-motion": "^12.5.0",
     "input-otp": "^1.4.2",
     "lucide": "^0.475.0",
@@ -23,6 +27,7 @@
     "sonner": "^2.0.1",
     "swiper": "^11.2.4",
     "tailwind-merge": "^3.0.2",
+    "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.2"
   },
   "devDependencies": {

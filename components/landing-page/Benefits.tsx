@@ -1,17 +1,42 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Section from "../layout/Section";
 import Image from "next/image";
-import { CommunityIcon, MoneyLink } from "@/public/icons";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+} from "@/components/ui/carousel";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { benefits } from "@/data/landing-page/benefits";
 
 export const Benefits = () => {
+  const [isMounted, setIsMounted] = useState(false);
+  const isMobile = useMediaQuery("(max-width: 900px)");
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return null;
+  }
+
   return (
-    <Section className="relative pt-24 pb-11 text-white ">
+    <Section className="relative pt-24 pb-11 text-white">
+      {/* Gradient overlay */}
       <div
         className="absolute -top-10 left-0 w-full h-16"
         style={{
           background: "linear-gradient(to top, transparent 100%, #17181F 30%)",
         }}
       />
+
+      {/* Section heading */}
       <div className="mb-12 max-w-3xl">
         <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">
           Why Choose StreamFi?
@@ -22,97 +47,152 @@ export const Benefits = () => {
           ipsumLorem ipsum
         </p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 md:flex flex-col gap-6">
-        {/* Decentralized Monetization */}
-        <div className="flex gap-5">
-          <div
-            className="w-3/5 p-6 rounded-lg flex justify-between gap-4 gradient-border relative overflow-hidden h-80"
-            style={{
-              background:
-                "linear-gradient(292.05deg, #0D0419 39.29%, #15375B 139.74%)",
-            }}
-          >
-            <div className="mt-auto z-10 ">
-              <h3 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-                Decentralized Monetization
-              </h3>
-              <p className="text-white/80 font-medium text-base">
-                No middlemen. You keep 100% of your earnings.{" "}
-                <span className="text-[#007BFFF5] font-medium">StreamFi</span>{" "}
-                enables direct, peer-to-peer transactions, ensuring creators
-                receive 100% of tips and earnings with no corporate cuts.
-              </p>
-            </div>
-            <Image src={MoneyLink} alt="" className="animate-pulse"/>
-          </div>
-          {/* Ad-Free Experience */}
-          <div
-            className="w-2/5 p-6 rounded-lg flex flex-col  gradient-border justify-between relative overflow-hidden h-80"
-            style={{
-              background:
-                "linear-gradient(291.43deg, #16062B 24.87%, #15375B 137.87%)",
-            }}
-          >
-    
-            <div className="mt-auto z-10 w-[85%]">
-              <h3 className="text-3xl md:text-4xl font-semibold mb-4">
-                Ad-Free Experience
-              </h3>
-              <p className="text-white/80 text-base">
-                Enjoy uninterrupted, high-quality streaming.{" "}
-                <span className="text-[#007BFFF5]">StreamFi</span> offers an
-                ad-free environment where creators monetize directly through
-                subscriptions, tips, and staking, not ads.
-              </p>
-            </div>
-          </div>
-        </div>
 
-        <div className="flex gap-5">
-          {/* Direct Fan Engagement */}
-          <div
-            className="w-2/5 p-6 rounded-lg flex flex-col gradient-border justify-between relative overflow-hidden h-80"
-            style={{
-              background:
-                "linear-gradient(291.43deg, #16062B 24.87%, #15375B 137.87%)",
-            }}
-          >
-            <div className="mt-auto z-10 w-[85%]">
-              <h3 className="text-3xl text-nowrap md:text-4xl font-semibold mb-4">
-                Direct Fan Engagement
+      {/* Benefits content */}
+      {isMobile ? <MobileBenefitsCarousel /> : <DesktopBenefitsLayout />}
+    </Section>
+  );
+};
+
+// Mobile view with ShadCN carousel
+const MobileBenefitsCarousel = () => {
+  // Custom hook to detect extra small screens
+  const isExtraSmall = useMediaQuery("(max-width: 480px)");
+
+  return (
+    <div className="w-full">
+      <Carousel
+        opts={{
+          align: "center",
+          loop: true,
+        }}
+        className="w-full"
+      >
+        <CarouselContent>
+          {benefits.map((benefit, index) => (
+            <CarouselItem key={index} className="pl-1 basis-full">
+              {/* Card container with fixed height for consistency */}
+              <div
+                className="rounded-lg relative gradient-border overflow-hidden"
+                style={{
+                  background:
+                    "linear-gradient(292.05deg, #0D0419 39.29%, #15375B 139.74%)",
+                  height: "400px", // Fixed height ensures all cards are the same size
+                }}
+              >
+                {/* Content container - using flex with justify-center for vertical alignment */}
+                <div className="relative p-4 sm:p-6 flex flex-col h-full justify-center">
+                  {/* Image container at the top with responsive width */}
+                  {benefit.icon && (
+                    <div
+                      className="flex items-center justify-center mb-2 sm:mb-4"
+                      style={{
+                        maxWidth: isExtraSmall ? "8rem" : "12rem", // Smaller image on extra small screens
+                        margin: "0 auto",
+                      }}
+                    >
+                      <Image
+                        src={benefit.icon || "/placeholder.svg"}
+                        alt={benefit.title}
+                        width={isExtraSmall ? 128 : 192} // Smaller dimensions on extra small screens
+                        height={isExtraSmall ? 128 : 192}
+                        className="w-auto h-auto max-w-full object-contain animate-pulse"
+                      />
+                    </div>
+                  )}
+
+                  {/* Text content - centered horizontally with text-center */}
+                  <div className="z-10 w-full text-center">
+                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 sm:mb-4">
+                      {benefit.title}
+                    </h3>
+                    <p className="text-white/80 font-medium text-sm sm:text-base line-clamp-6 sm:line-clamp-none">
+                      {benefit.description
+                        .split("StreamFi")
+                        .map((part, i, arr) => (
+                          <React.Fragment key={i}>
+                            {part}
+                            {i < arr.length - 1 && (
+                              <span className="text-[#007BFFF5] font-medium">
+                                StreamFi
+                              </span>
+                            )}
+                          </React.Fragment>
+                        ))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        {/* Carousel navigation controls */}
+        <div className="flex justify-center mt-6">
+          <CarouselPrevious className="mr-2 bg-transparent border-blue-500/30 text-blue-400 hover:bg-blue-900/20">
+            <ChevronLeft className="h-4 w-4" />
+          </CarouselPrevious>
+          <CarouselNext className="ml-2 bg-transparent border-blue-500/30 text-blue-400 hover:bg-blue-900/20">
+            <ChevronRight className="h-4 w-4" />
+          </CarouselNext>
+        </div>
+      </Carousel>
+    </div>
+  );
+};
+
+// Desktop view with side-by-side images
+const DesktopBenefitsLayout = () => {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      {benefits.map((benefit, index) => (
+        <div
+          key={index}
+          className="rounded-lg relative gradient-border overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(292.05deg, #0D0419 39.29%, #15375B 139.74%)",
+          }}
+        >
+          {/* Content container */}
+          <div className="relative p-4 sm:p-6 flex flex-col h-full sm:flex-row items-start sm:items-center gap-4">
+            {/* Text content */}
+            <div className="flex-1 z-10">
+              <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2 sm:mb-4">
+                {benefit.title}
               </h3>
-              <p className="text-white/80 text-base">
-                Build stronger communities with direct interactions. With
-                traditional platforms, fans are just viewers; on{" "}
-                <span className="text-[#007BFFF5]">StreamFi</span>, theyre active
-                supporters.
+              <p className="text-white/80 font-medium text-sm sm:text-base">
+                {benefit.description.split("StreamFi").map((part, i, arr) => (
+                  <React.Fragment key={i}>
+                    {part}
+                    {i < arr.length - 1 && (
+                      <span className="text-[#007BFFF5] font-medium">
+                        StreamFi
+                      </span>
+                    )}
+                  </React.Fragment>
+                ))}
               </p>
             </div>
-          </div>
-          {/* Community-Driven Governance */}
-          <div
-            className="w-3/5 p-6 gradient-border rounded-lg flex justify-between relative overflow-hidden h-80"
-            style={{
-              background:
-                "linear-gradient(291.43deg, #16062B 24.87%, #15375B 137.87%)",
-            }}
-          >
-            <div className="mt-auto  z-10">
-              <h3 className="text-3xl sm:text-4xl font-semibold mb-4">
-                Community-Driven Governance
-              </h3>
-              <p className="text-white/80 text-base">
-                Have a say in the future of{" "}
-                <span className="text-[#007BFFF5]">StreamFi</span>. Unlike
-                centralized platforms where policy changes hurt creators (e.g.,
-                demonetization), StreamFi is community-owned.
-              </p>
-            </div>
-            <Image src={CommunityIcon} alt="" className="animate-pulse " />
+
+            {/* Image container with responsive width */}
+            {benefit.icon && (
+              <div className="flex-shrink-0 sm:flex-shrink w-full sm:w-auto sm:max-w-[14rem] flex items-center justify-center">
+                <div className="w-full max-w-full">
+                  <Image
+                    src={benefit.icon || "/placeholder.svg"}
+                    alt={benefit.title}
+                    width={224}
+                    height={224}
+                    className="w-full h-auto object-contain animate-pulse"
+                    style={{ maxWidth: "100%" }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
-    </Section>
+      ))}
+    </div>
   );
 };
 
