@@ -1,6 +1,11 @@
 "use client";
+
 import Image, { StaticImageData } from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+
+import Image from "next/image";
+
 import x from "../../public/Images/x.png";
 import telegram from "../../public/Images/Telegram.png";
 import Section from "../layout/Section";
@@ -178,13 +183,18 @@ const Community = () => {
         <h1 className="text-[23px] md:text-5xl font-extrabold text-offWhite tracking-wide font-helvetica">
           Join Our Community - Be Part Of The Future Of Streaming
         </h1>
+
         <p className="opacity-60 text-base font-normal text-white/80">
+
+        <p className=" opacity-60 text-base font-normal text-white/80">
+
           StreamFi is more than just a platform, it&apos;s a movement. By
           joining our community, you become part of an ecosystem built for
           creators, viewers, and Web3 enthusiasts who believe in decentralized,
           creator-first streaming
         </p>
       </div>
+
 
       {/* community social handle */}
       <div className="flex justify-center items-center gap-6 sm:gap-8 pt-10 max-w-4xl w-full">
@@ -200,6 +210,37 @@ const Community = () => {
           <Image src={Discord} alt="Discord icon" width={24} height={24} />
           <p className="hidden md:block">Join our community</p>
         </button>
+
+      <div className="flex justify-center items-center gap-2 sm:gap-8 pt-10 max-w-4xl w-full">
+        <a
+          href="https://x.com/_streamfi"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex justify-center gap-2 border rounded-lg px-5 py-3"
+        >
+          <Image src={x} alt="X icon" width={24} height={18} />
+          <p>Join our community</p>
+        </a>
+
+        <a
+          href="https://t.me/+slCXibBFWF05NDQ0"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex justify-center gap-2 border rounded-lg px-5 py-3"
+        >
+          <Image src={telegram} alt="Telegram icon" width={24} height={18} />
+          <p>Join our community</p>
+        </a>
+
+        <a
+          href="#"
+          onClick={(event) => event.preventDefault()}
+          className="flex justify-center gap-2 border rounded-lg px-5 py-3"
+        >
+          <Image src={Discord} alt="Discord icon" />
+          <p>Join our community</p>
+        </a>
+
       </div>
 
       {/* Stats: numbers of Active members etc. */}

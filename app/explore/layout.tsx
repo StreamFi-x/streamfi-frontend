@@ -1,7 +1,5 @@
 "use client";
-
 import type React from "react";
-
 import { useState } from "react";
 import Navbar from "@/components/explore/Navbar";
 import Sidebar from "@/components/explore/Sidebar";
@@ -44,7 +42,9 @@ export default function ClientLayout({
         <div className="flex flel flex- h-screen overflow-hidden">
           <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
 
-          <main className="flex-1 overflow-y-auto">{children}</main>
+          <main className="flex-1 overflow-y-auto">{children}
+      
+          </main>
         </div>
       </div>
 
