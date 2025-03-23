@@ -108,7 +108,7 @@ export default function StreamTokenUtility() {
           alt="token1"
           height={100}
           width={100}
-          className="object-cover h-full w-full"
+          className="object-cover h-[304px] w-[340px]"
         />
       </motion.div>
 
