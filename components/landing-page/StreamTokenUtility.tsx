@@ -1,91 +1,190 @@
+'use client'
 import Image from "next/image";
+import { motion } from "framer-motion";
+import { tokenUtilityData } from "@/data/landing-page/streamTokenUtility";
+
 const vpnKey = "/Images/vpn_key.svg";
 const token1 = "/Images/tokens/token1.svg";
 const token2 = "/Images/tokens/token2.svg";
 const token3 = "/Images/tokens/token3.svg";
 const token4 = "/Images/tokens/token4.svg";
 const token5 = "/Images/tokens/token4.svg";
-import { tokenUtilityData } from "@/data/token-utility";
 
 export default function StreamTokenUtility() {
-  return (
-    <section className="w-full mt-5 py-10 px-4 md:px-20 md:my-20 flex flex-col items-center md:gap-[15px] relative bg-transparent ">
-      <h1 className="text-[#F1F1F1] font-extrabold text-3xl md:text-[40px] text-center  m-0">
-        $Stream Token Utility
-      </h1>
-      <p className="text-[#FFFFFFCC] text-sm md:text-base font-normal text-center max-w-[844px] z-10 ">
-        Lorem ipsum dolor sit amet consectetur. Dictum elementum malesuada sed
-        a. Cursus sem pellentesque porttitor fringilla consectetur egestas{" "}
-      </p>
+  // Animation variants
+  const fadeInUp = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
 
-      <div className="md:w-[533.22px] z-10 w-[350px] md:h-[492px] ml-0 md:ml-auto mt-10 flex flex-col items-start justify-stretch gap-5 ">
-        {tokenUtilityData.map((item, index) => (
-          <div
-            key={index}
-            className="  w-full h-[108px] border-[1px] border-[#FFFFFF1A] rounded-lg bg-[#FFFFFF0D] p-6 flex flex-row items-start justify-start gap-8 transition-transform duration-300 hover:-translate-y-2 cursor-pointer  "
-          >
-            <div className=" w-12 h-12 rounded bg-[#007BFF1A] flex items-center justify-center ">
-              <Image src={vpnKey} alt="vpn_key" height={24} width={24} />
-            </div>
-            <div className="flex flex-col items-start gap-1">
-              <h2 className=" font-bold text-[#FFFFFF] text-xl md:text-2xl ">
-                {item.title}{" "}
-              </h2>
-              <p className="text-[#FFFFFF99] font-normal text-sm md:text-base ">
-                {item.description}{" "}
-              </p>
-            </div>
-          </div>
-        ))}
+  const staggerChildren = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.2
+      }
+    }
+  };
+
+  const floatAnimation = {
+    initial: { y: 0 },
+    animate: {
+      y: [0, -10, 0],
+      transition: {
+        duration: 3,
+        repeat: Infinity,
+        repeatType: "reverse" as const,
+        ease: "easeInOut"
+      }
+    }
+  };
+
+  return (
+    <section className="relative grid grid-cols-1 md:grid-cols-2 gap-8 py-10 px-4 md:px-20 bg-transparent overflow-hidden">
+      {/* Content Container */}
+      <div className="col-span-1 md:col-span-2 flex flex-col items-center gap-6">
+        <motion.h1 
+          className="text-[#F1F1F1] font-extrabold text-3xl md:text-[40px] text-center"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+          transition={{ duration: 0.5 }}
+        >
+          $Stream Token Utility
+        </motion.h1>
+        
+        <motion.p 
+          className="text-[#FFFFFFCC] text-sm md:text-base font-normal text-center max-w-[844px]"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          Lorem ipsum dolor sit amet consectetur. Dictum elementum malesuada sed
+          a. Cursus sem pellentesque porttitor fringilla consectetur egestas
+        </motion.p>
       </div>
 
-      <div className="absolute top-[55%] left-[14%] flex items-center justify-center w-[200px] h-[150px] md:w-[449.8px] md:h-[304.2px] z-0  ">
+    
+
+      {/* Cards Container */}
+      
+      {/* Token images with animations - responsive positioning */}
+      <motion.div>
+      <motion.div 
+        className="absolute  top-[55%] left-[5%] md:left-[14%] hidden md:flex items-center justify-center w-[150px] h-[120px] md:w-[449.8px] md:h-[304.2px] z-0"
+        variants={floatAnimation}
+        initial="initial"
+        animate="animate"
+      >
         <Image
           src={token1}
           alt="token1"
           height={100}
           width={100}
-          className="object-cover h-full w-full "
+          className="object-cover h-[304px] w-[340px]"
         />
-      </div>
-      <div className="absolute top-[35%] left-[7%] flex items-center justify-center w-[150px] h-[120px] md:w-[306px] md:h-[206px] blur-[2px]  ">
+      </motion.div>
+
+      <motion.div 
+        className="absolute top-[35%] left-[2%] md:left-[7%] hidden md:flex items-center justify-center w-[100px] h-[80px] md:w-[306px] md:h-[206px] blur-[2px]"
+        variants={floatAnimation}
+        initial="initial"
+        animate="animate"
+        transition={{ delay: 0.5 }}
+      >
         <Image
           src={token2}
           alt="token2"
           height={100}
           width={100}
-          className="object-cover h-full w-full "
+          className="object-cover h-full w-full"
         />
-      </div>
+      </motion.div>
 
-      <div className="absolute top-[20%] left-[28%] flex items-center justify-center w-[130px] h-[100px] md:w-[204px] md:h-[138px] blur-[3px]  ">
+      <motion.div 
+        className="absolute top-[20%] left-[15%] md:left-[28%] hidden md:flex items-center justify-center w-[80px] h-[60px] md:w-[204px] md:h-[138px] blur-[3px]"
+        variants={floatAnimation}
+        initial="initial"
+        animate="animate"
+        transition={{ delay: 1 }}
+      >
         <Image
           src={token3}
           alt="token3"
           height={100}
           width={100}
-          className="object-cover h-full w-full "
+          className="object-cover h-full w-full"
         />
-      </div>
+      </motion.div>
 
-      <div className="absolute top-[19%] left-[3%] flex items-center justify-center w-[150px] h-[120px] md:w-[204px] md:h-[138px] blur-[2px]  ">
+      <motion.div 
+        className="absolute top-[19%] left-[0%] md:left-[3%] hidden md:flex items-center justify-center w-[90px] h-[70px] md:w-[204px] md:h-[138px] blur-[2px]"
+        variants={floatAnimation}
+        initial="initial"
+        animate="animate"
+        transition={{ delay: 1.5 }}
+      >
         <Image
           src={token4}
           alt="token4"
           height={100}
           width={100}
-          className="object-cover h-full w-full "
+          className="object-cover h-full w-full"
         />
-      </div>
-      <div className="absolute top-[3%] left-[13%] flex items-center justify-center w-[150px] h-[120px] md:w-[204px] md:h-[138px] blur-[2px]  ">
+      </motion.div>
+
+      <motion.div 
+        className="absolute top-[3%] left-[8%] md:left-[13%] hidden md:flex items-center justify-center w-[90px] h-[70px] md:w-[204px] md:h-[138px] blur-[2px]"
+        variants={floatAnimation}
+        initial="initial"
+        animate="animate"
+        transition={{ delay: 2 }}
+      >
         <Image
           src={token5}
           alt="token5"
           height={100}
           width={100}
-          className="object-cover h-full w-full "
+          className="object-cover h-full w-full"
         />
-      </div>
+      </motion.div>
+      </motion.div>
+      <motion.div 
+        className="col-span-1 flex flex-col gap-4 p-4"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true }}
+        variants={staggerChildren}
+      >
+        {tokenUtilityData.map((item, index) => (
+          <motion.div
+            key={index}
+            className="flex items-start gap-4 p-6 bg-[#FFFFFF0D] border border-[#FFFFFF1A] rounded-lg hover:translate-y-[-8px] transition-transform duration-300 cursor-pointer"
+            variants={fadeInUp}
+            transition={{ duration: 0.3, delay: index * 0.1 }}
+            whileHover={{ scale: 1.02 }}
+          >
+            <div className="flex items-center justify-center p-3 rounded bg-[#007BFF1A]">
+              <Image src={vpnKey} alt={item.title} width={24} height={24} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h2 className="font-bold text-[#FFFFFF] text-lg md:text-2xl">
+                {item.title}
+              </h2>
+              <p className="text-[#FFFFFF99] text-sm md:text-base">
+                {item.description}
+              </p>
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* FAQs section at the bottom for mobile view as shown in Figma */}
+      
     </section>
   );
 }
