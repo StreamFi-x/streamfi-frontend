@@ -49,7 +49,7 @@ const HeroSection: React.FC = () => {
               </div>
             </div>
             {/* Logos */}
-            <div className="flex  justify-center lg:justify-start items-center gap-8 md:space-x-8 pb-10 xl:pb-20 mt-[4em]">
+            <div className="flex  justify-center lg:justify-start items-center gap-8 md:space-x-8 pb-10 xl:pb-20 mt-[4em] px-[2em]">
               <Image
                 src={StripeLogo}
                 alt="Stripe"
