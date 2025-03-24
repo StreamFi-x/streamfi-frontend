@@ -41,16 +41,16 @@ export default function Home() {
           }}
         />
       ))}
-      {/* <Navbar /> */}
+      <Navbar />
       <HeroSection />
-      {/* <Benefits />
+      <Benefits />
       <About />
       <Community />
       <StreamTokenUtility />
       <FrequentlyAskedQuestions />
       <Testimonials />
       <Waitlist />
-      <Footer /> */}
+      <Footer />
     </div>
   );
 }
