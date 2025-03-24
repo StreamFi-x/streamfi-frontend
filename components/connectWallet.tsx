@@ -1,7 +1,4 @@
 
-
-
-
 "use client";
 
 import Image from "next/image";
@@ -38,7 +35,7 @@ export default function ConnectModal({
     setActiveWallet(wallet.id);
     setSelectedWallet(wallet);
     // You can optionally trigger connect immediately, if desired:
-    // connect({ connector: wallet });
+    connect({ connector: wallet });
   };
 
   return (
@@ -78,7 +75,6 @@ export default function ConnectModal({
             <div key={wallet.id}
             onClick={() => {
               handleWalletClick(wallet)
-              connect({wallet})
             }}
             >
               <button
