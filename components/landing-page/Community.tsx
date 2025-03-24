@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import x from "../../public/Images/x.png";
 import telegram from "../../public/Images/Telegram.png";
@@ -16,25 +18,41 @@ const Community = () => {
           Join Our Community - Be Part Of The Future Of Streaming
         </h1>
         <p className=" opacity-60 text-base font-normal text-white/80">
-          StreamFi is more than just a platform, it&apos;s a movement. By joining our
-          community, you become part of an ecosystem built for creators,
-          viewers, and Web3 enthusiasts who believe in decentralized,
+          StreamFi is more than just a platform, it&apos;s a movement. By
+          joining our community, you become part of an ecosystem built for
+          creators, viewers, and Web3 enthusiasts who believe in decentralized,
           creator-first streaming
         </p>
       </div>
       <div className="flex justify-center items-center gap-2 sm:gap-8 pt-10 max-w-4xl w-full">
-        <button className="flex justify-center gap-2 border rounded-lg px-5 py-3">
+        <a
+          href="https://x.com/_streamfi"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex justify-center gap-2 border rounded-lg px-5 py-3"
+        >
           <Image src={x} alt="X icon" width={24} height={18} />
           <p>Join our community</p>
-        </button>
-        <button className="flex justify-center gap-2 border rounded-lg px-5 py-3">
-          <Image src={telegram} alt="telegram icon" width={24} height={18} />
+        </a>
+
+        <a
+          href="https://t.me/+slCXibBFWF05NDQ0"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex justify-center gap-2 border rounded-lg px-5 py-3"
+        >
+          <Image src={telegram} alt="Telegram icon" width={24} height={18} />
           <p>Join our community</p>
-        </button>
-        <button className="flex justify-center gap-2 border rounded-lg px-5 py-3">
+        </a>
+
+        <a
+          href="#"
+          onClick={(event) => event.preventDefault()}
+          className="flex justify-center gap-2 border rounded-lg px-5 py-3"
+        >
           <Image src={Discord} alt="Discord icon" />
           <p>Join our community</p>
-        </button>
+        </a>
       </div>
       <div className="sm:flex grid grid-cols-2 justify-center gap-[3.5rem] py-20 items-center text-center">
         <div>
