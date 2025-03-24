@@ -6,12 +6,10 @@ import Image from "next/image";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Carousel,
+  CarouselApi,
   CarouselContent,
   CarouselItem,
-  CarouselPrevious,
-  CarouselNext,
 } from "@/components/ui/carousel";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { benefits } from "@/data/landing-page/benefits";
 
 export const Benefits = () => {
@@ -56,86 +54,86 @@ export const Benefits = () => {
 
 // Mobile view with ShadCN carousel
 const MobileBenefitsCarousel = () => {
-  // Custom hook to detect extra small screens
-  const isExtraSmall = useMediaQuery("(max-width: 480px)");
+  // State for carousel API and current slide index
+  const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Effect to handle carousel events
+  useEffect(() => {
+    if (!carouselApi) return;
+
+    // Update current index when slide changes
+    const onSelect = () => setCurrentIndex(carouselApi.selectedScrollSnap());
+
+    // Register and cleanup event listener
+    carouselApi.on("select", onSelect);
+    return () => {
+      carouselApi.off("select", onSelect) as unknown as void;
+    };
+  }, [carouselApi]);
 
   return (
-    <div className="w-full">
-      <Carousel
-        opts={{
-          align: "center",
-          loop: true,
-        }}
-        className="w-full"
-      >
-        <CarouselContent>
-          {benefits.map((benefit, index) => (
-            <CarouselItem key={index} className="pl-1 basis-full">
-              {/* Card container with fixed height for consistency */}
-              <div
-                className="rounded-lg relative gradient-border overflow-hidden"
-                style={{
-                  background:
-                    "linear-gradient(292.05deg, #0D0419 39.29%, #15375B 139.74%)",
-                  height: "400px", // Fixed height ensures all cards are the same size
-                }}
-              >
-                {/* Content container - using flex with justify-center for vertical alignment */}
-                <div className="relative p-4 sm:p-6 flex flex-col h-full justify-center">
-                  {/* Image container at the top with responsive width */}
-                  {benefit.icon && (
-                    <div
-                      className="flex items-center justify-center mb-2 sm:mb-4"
-                      style={{
-                        maxWidth: isExtraSmall ? "8rem" : "12rem", // Smaller image on extra small screens
-                        margin: "0 auto",
-                      }}
-                    >
-                      <Image
-                        src={benefit.icon || "/placeholder.svg"}
-                        alt={benefit.title}
-                        width={isExtraSmall ? 128 : 192} // Smaller dimensions on extra small screens
-                        height={isExtraSmall ? 128 : 192}
-                        className="w-auto h-auto max-w-full object-contain animate-pulse"
-                      />
+    <div className="w-full flex flex-col">
+      <div className="w-full px-4">
+        <Carousel
+          opts={{
+            align: "center",
+            loop: true,
+          }}
+          className="w-full"
+          setApi={setCarouselApi}
+        >
+          <CarouselContent className="-ml-1">
+            {benefits.map((benefit, index) => (
+              <CarouselItem key={index} className="pl-1 md:pl-2 w-full ">
+                <div className="h-full w-full flex items-center justify-center">
+                  <div
+                    className="rounded-xl relative overflow-hidden w-full h-[12rem]"
+                    style={{
+                      background:
+                        "linear-gradient(292.05deg, #0D0419 39.29%, #15375B 139.74%)",
+                    }}
+                  >
+                    <div className="relative p-5 sm:p-6 md:p-8 flex flex-col">
+                      <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">
+                        {benefit.title}
+                      </h3>
+                      <p className="text-white/80 text-sm sm:text-base">
+                        {benefit.description
+                          .split("StreamFi")
+                          .map((part, i, arr) => (
+                            <React.Fragment key={i}>
+                              {part}
+                              {i < arr.length - 1 && (
+                                <span className="text-[#007BFFF5] font-medium">
+                                  StreamFi
+                                </span>
+                              )}
+                            </React.Fragment>
+                          ))}
+                      </p>
                     </div>
-                  )}
-
-                  {/* Text content - centered horizontally with text-center */}
-                  <div className="z-10 w-full text-center">
-                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 sm:mb-4">
-                      {benefit.title}
-                    </h3>
-                    <p className="text-white/80 font-medium text-sm sm:text-base line-clamp-6 sm:line-clamp-none">
-                      {benefit.description
-                        .split("StreamFi")
-                        .map((part, i, arr) => (
-                          <React.Fragment key={i}>
-                            {part}
-                            {i < arr.length - 1 && (
-                              <span className="text-[#007BFFF5] font-medium">
-                                StreamFi
-                              </span>
-                            )}
-                          </React.Fragment>
-                        ))}
-                    </p>
                   </div>
                 </div>
-              </div>
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-        {/* Carousel navigation controls */}
-        <div className="flex justify-center mt-6">
-          <CarouselPrevious className="mr-2 bg-transparent border-blue-500/30 text-blue-400 hover:bg-blue-900/20">
-            <ChevronLeft className="h-4 w-4" />
-          </CarouselPrevious>
-          <CarouselNext className="ml-2 bg-transparent border-blue-500/30 text-blue-400 hover:bg-blue-900/20">
-            <ChevronRight className="h-4 w-4" />
-          </CarouselNext>
-        </div>
-      </Carousel>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
+      </div>
+
+      {/* Pagination dots */}
+      <div className="flex items-center justify-center gap-2 mt-6">
+        {benefits.map((_, index) => (
+          <button
+            key={index}
+            className={`w-3 h-3 rounded-full transition-colors ${
+              currentIndex === index ? "bg-blue-500" : "bg-white"
+            }`}
+            onClick={() => carouselApi?.scrollTo(index)}
+            aria-label={`Go to slide ${index + 1}`}
+          />
+        ))}
+      </div>
     </div>
   );
 };
