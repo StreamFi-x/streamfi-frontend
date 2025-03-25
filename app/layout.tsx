@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,7 +16,7 @@ export const metadata: Metadata = {
     siteName: "Streamfi",
     images: [
       {
-        url: "public/Images/streamFi.png",
+        url: "/Images/streamFi.png",
         width: 1200,
         height: 630,
         alt: "Streamfi Preview",
@@ -31,7 +30,7 @@ export const metadata: Metadata = {
     title: "Streamfi - Own Your Stream. Own Your Earnings",
     description:
       "Stream without limits, engage your community, and earn instantly with a blockchain-powered ecosystem that ensures true ownership.",
-    images: ["public/Images/streamFi.png"],
+    images: ["/Images/streamFi.png"],
   },
 };
 
