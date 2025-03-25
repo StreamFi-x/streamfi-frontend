@@ -22,6 +22,7 @@ export default function Home() {
       className="relative  bg-gradient-to-r from-[#16062B] from-[10%] via-[#0D0216] via-[50%] to-[#15375B] to-[88%] bg-no-repeat bg-center bg-cover min-h-screen pt-10"
       style={{
         background: "url('/Images/Streamfi-bg.png')",
+        backgroundSize: ''
       }}
     >
       <div className="stars-container absolute inset-0 w-full min-h-screen"></div>
