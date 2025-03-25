@@ -2,19 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom Fonts */
 @font-face {
   font-family: 'Helvetica Custom';
   src: url('/Fonts/Helvetica-Bold-Font.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
+}
 
+@font-face {
   font-family: 'PP Neue Machina';
-  src: url('/Fonts/PPNeueMachina-Regular.ttf') format('truetype');
+  src: url('/Fonts/PPNeueMachina-Regular.otf') format('opentype');
   font-weight: normal;
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'PP Neue Machina';
+  src: url('/Fonts/PPNeueMachina-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PP Neue Machina';
+  src: url('/Fonts/PPNeueMachina-Ultrabold.otf') format('opentype');
+  font-weight: 800;
+  font-style: normal;
+}
+
+/* Apply custom font globally */
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: "PP Neue Machina", Arial, sans-serif;
+}
+
+/* Theme Variables */
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -27,13 +52,7 @@
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-/* Star background */
+/* Star Background */
 .stars-container {
   pointer-events: none;
 }
@@ -72,26 +91,22 @@ body {
   opacity: 0.4;
 }
 
+/* Twinkle Animation */
 @keyframes twinkle {
-
-  0%,
-  100% {
+  0%, 100% {
     opacity: 0.2;
   }
-
   50% {
     opacity: 0.8;
   }
 }
 
+/* Gradient Border */
 .gradient-border {
   position: relative;
   border: 1px solid transparent;
   background-clip: padding-box;
-  border-radius: 10px; /* Adjust as needed */
-  
-  /* Add padding to create space for the border */
-  /* padding: 20px; */
+  border-radius: 10px;
 }
 
 .gradient-border::before {
@@ -102,11 +117,10 @@ body {
   bottom: 0;
   left: 0;
   z-index: -1;
-  margin: -1px; /* Offset to account for the border width */
+  margin: -1px;
   border-radius: inherit;
-  border-color: linear-gradient(45deg,  #260949, #81778E, #A5C6EA);
+  border-color: linear-gradient(45deg, #260949, #81778E, #A5C6EA);
 }
-
 
 .gradient-border::after {
   content: '';
