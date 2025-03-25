@@ -32,13 +32,6 @@
   font-style: normal;
 }
 
-/* Apply custom font globally */
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: "PP Neue Machina", Arial, sans-serif;
-}
-
 /* Theme Variables */
 :root {
   --background: #ffffff;
