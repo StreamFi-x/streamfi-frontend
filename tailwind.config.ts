@@ -15,11 +15,12 @@ export default {
         foreground: "var(--foreground)",
         primary: "#5A189A",
         offWhite: "#F1F1F1",
-        'offWhite-2': "#D9D9D9",
-        grayish: '#CBCBCB'
+        "offWhite-2": "#D9D9D9",
+        grayish: "#CBCBCB",
       },
       fontFamily: {
         helvetica: ["Helvetica Custom", "Arial", "sans-serif"],
+        "pp-neue": ["PP Neue Machina", "sans-serif"],
       },
       spacing: {
         "8.5": "32px",
