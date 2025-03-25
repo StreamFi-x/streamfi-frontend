@@ -4,8 +4,9 @@ import Image from "next/image";
 import React from "react";
 import "@fontsource/inter";
 import { CoinbaseLogo, StripeLogo, YoutubeLogo } from "@/public/Images";
-import LogoDesktop from "@/public/Images/logo-desktop.png";
-import Hero2 from "@/public/Images/hero2.svg"
+import LogoDesktop from "@/public/Images/hero-image-streamfi.png";
+import Hero2 from "@/public/Images/hero2.svg";
+import Link from "next/link"; 
 
 const HeroSection: React.FC = () => {
   return (
@@ -13,9 +14,9 @@ const HeroSection: React.FC = () => {
       <div className="w-full  2xl:max-w-[3000px]    lg:pl-12 xl:pl-20  relative">
         <div className="flex  items-center flex-col lg:flex-row mt-16 md:mt-24 lg:mt-32">
           <div className="flex flex-col w-full">
-            <div className="w-full h-full md:pr-8 lg:pr-1 pt-2 xl:pt-12 space-y-2.5 px-[2em] lg:px-0">
+            <div className="w-full h-full md:pr-8 lg:pr-1 xl:w-[35.8em]  space-y-2.5 px-[1em] lg:px-0">
               <h1
-                className="text-3xl sm:text-4xl text-center lg:text-left lg:text-5xl text-white font-extrabold leading-tight mb-4 sm:mb-6  "
+                className="text-3xl sm:text-4xl text-center lg:text-left lg:text-4xl text-white font-extrabold leading-tight mb-4 sm:mb-6  "
                 style={{ fontFamily: "PP Neue Machina" }}
               >
                 Own Your Stream. Own Your Earnings
@@ -31,15 +32,17 @@ const HeroSection: React.FC = () => {
                 streaming.
               </p>
               <p className="text-center text-white text-[19px] font-medium lg:hidden ">
-              Stream, engage, and earn instantly with blockchain-powered ownership and decentralized rewards.
+                Stream, engage, and earn instantly with blockchain-powered ownership and decentralized rewards.
               </p>
               <div className="flex flex-col justify-center lg:justify-start pt-4 sm:flex-row space-y-4 sm:space-y-0 sm:space-x-3 ">
-                <button
-                  className="bg-primary text-white px-[20px] py-[12px] rounded-lg font-medium"
-                  style={{ fontFamily: "Inter" }}
-                >
-                  Explore Streams
-                </button>
+                <Link href="/explore">
+                  <button
+                    className="bg-primary text-white px-[20px] py-[12px] rounded-lg font-medium w-full sm:w-auto"
+                    style={{ fontFamily: "Inter" }}
+                  >
+                    Explore Streams
+                  </button>
+                </Link>
                 <button
                   className="text-white px-4 py-3 rounded-lg font-medium bg-white/10"
                   style={{ fontFamily: "Inter" }}
@@ -53,26 +56,26 @@ const HeroSection: React.FC = () => {
               <Image
                 src={StripeLogo}
                 alt="Stripe"
-                className="opacity-100 h-6 md:h-auto w-13 md:w-suto"
+                className="opacity-100  md:h-auto  lg:w-13 md:w-auto"
               />
               <Image
                 src={YoutubeLogo}
                 alt="YouTube"
-                className="opacity-100 h-6 md:h-auto w-13 md:w-suto"
+                className="opacity-100 h-6 md:h-auto w-[4.5em] lg:w-13 md:w-suto"
               />
               <Image
                 src={CoinbaseLogo}
                 alt="Coinbase"
-                className="opacity-100 h-6 md:h-auto w-13 md:w-suto"
+                className="opacity-100 h-6 md:h-auto w-[4.5em] lg:w-13 md:w-suto"
               />
             </div>
           </div>
 
-          <div className="relative w-full xl:w-[150em] h-full lg:mr-[-em] xl:mr-[-20em] lg:mt-2 mt-9">
+          <div className="relative w-full xl:w-[180em] lg:w-[120em] lg:mr-[-15em] xl:mr-[-20em] h-full  lg:mt-2 mt-9">
             <Image
               src={LogoDesktop}
               alt="Streaming App Interface"
-              width={991}
+              width={900}
               height={1000}
               className="lg:h-full lg:w-full hidden lg:block "
             />
@@ -92,9 +95,7 @@ const HeroSection: React.FC = () => {
             />
           </div>
         </div>
- 
       </div>
-
     </div>
   );
 };
