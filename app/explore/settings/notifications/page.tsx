@@ -1,8 +1,18 @@
 'use client'
 import React, { useState } from 'react';
 import { ToastProvider, useToast } from '@/components/ui/toast-provider';
-import { NotificationSetting } from '@/types/explore/notifications/index';
-import { notificationSettings } from '@/data//explore/notifications/index';
+import {
+  notificationSettings
+} from "@/data/explore/sidebar";
+
+// Define the NotificationSetting type if it doesn't exist
+type NotificationSetting = {
+  id: string;
+  label: string;
+  description: string;
+  enabled: boolean;
+  icon: React.FC<{ size: number }>; // Adjust based on your icon component
+};
 
 const NotificationsContent: React.FC = () => {
   const { showToast } = useToast();
@@ -33,23 +43,23 @@ const NotificationsContent: React.FC = () => {
         <div className="bg-[#1a1a1a] rounded-lg p-6 mb-6">
           <h2 className="text-white text-xl font-semibold mb-4">Notification Preferences</h2>
           
-          {settings.map(setting => (
-            <div key={setting.id} className="flex items-center justify-between py-4 border-b border-gray-800 last:border-b-0">
+          {settings.map(item => (
+            <div key={item.id} className="flex items-center justify-between py-4 border-b border-gray-800 last:border-b-0">
               <div className="flex items-start">
-                <div className="mr-3 mt-1">{<setting.icon className="h-5 w-5" />}</div>
+                <div className="mr-3 mt-1">{<item.icon size={20}/>}</div>
                 <div>
-                  <h3 className="text-white text-base md:text-lg">{setting.label}</h3>
-                  <p className="text-gray-400 text-sm">{setting.description}</p>
+                  <h3 className="text-white text-base md:text-lg">{item.label}</h3>
+                  <p className="text-gray-400 text-sm">{item.description}</p>
                 </div>
               </div>
               <button
-                onClick={() => handleToggle(setting.id)}
+                onClick={() => handleToggle(item.id)}
                 className="relative inline-flex items-center h-6 rounded-full w-11 bg-black transition-colors focus:outline-none"
-                aria-pressed={setting.enabled}
+                aria-pressed={item.enabled}
               >
                 <span
                   className={`inline-block w-4 h-4 transform rounded-full transition-transform ${
-                    setting.enabled ? 'bg-[#9147FF] translate-x-6' : 'bg-white translate-x-1'
+                    item.enabled ? 'bg-[#9147FF] translate-x-6' : 'bg-white translate-x-1'
                   }`}
                 />
               </button>
