@@ -2,20 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom Fonts */
 @font-face {
-  font-family: 'Helvetica Custom';
-  src: url('/Fonts/Helvetica-Bold-Font.ttf') format('truetype');
+  font-family: "Helvetica Custom";
+  src: url("/Fonts/Helvetica-Bold-Font.ttf") format("truetype");
   font-weight: normal;
   font-style: normal;
   font-display: swap;
+}
 
-  font-family: 'PP Neue Machina';
-  src: url('/Fonts/PPNeueMachina-Regular.ttf') format('truetype');
+@font-face {
+  font-family: "PP Neue Machina";
+  src: url("/Fonts/PPNeueMachina-Regular.otf") format("opentype");
   font-weight: normal;
   font-style: normal;
 }
 
-/* Star background */
+@font-face {
+  font-family: "PP Neue Machina";
+  src: url("/Fonts/PPNeueMachina-Light.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "PP Neue Machina";
+  src: url("/Fonts/PPNeueMachina-Ultrabold.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+}
+
+/* Theme Variables */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+/* Star Background */
 .stars-container {
   pointer-events: none;
 }
@@ -28,8 +58,11 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-image:
-    radial-gradient(1px 1px at 25px 5px, white, rgba(255, 255, 255, 0)),
+  background-image: radial-gradient(
+      1px 1px at 25px 5px,
+      white,
+      rgba(255, 255, 255, 0)
+    ),
     radial-gradient(1px 1px at 50px 25px, white, rgba(255, 255, 255, 0)),
     radial-gradient(1px 1px at 125px 20px, white, rgba(255, 255, 255, 0)),
     radial-gradient(1.5px 1.5px at 50px 75px, white, rgba(255, 255, 255, 0)),
@@ -54,26 +87,23 @@
   opacity: 0.4;
 }
 
+/* Twinkle Animation */
 @keyframes twinkle {
-
   0%,
   100% {
     opacity: 0.2;
   }
-
   50% {
     opacity: 0.8;
   }
 }
 
+/* Gradient Border */
 .gradient-border {
   position: relative;
   border: 1px solid transparent;
   background-clip: padding-box;
-  border-radius: 10px; /* Adjust as needed */
-  
-  /* Add padding to create space for the border */
-  /* padding: 20px; */
+  border-radius: 10px;
 }
 
 .gradient-border::before {
@@ -84,93 +114,17 @@
   bottom: 0;
   left: 0;
   z-index: -1;
-  margin: -1px; /* Offset to account for the border width */
+  margin: -1px;
   border-radius: inherit;
-  border-color: linear-gradient(45deg,  #260949, #81778E, #A5C6EA);
+  border-color: linear-gradient(45deg, #260949, #81778e, #a5c6ea);
 }
 
-
 .gradient-border::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   padding: 1px;
-  background: linear-gradient(90deg, #A5C6EA 0%, #81778E 100%);
+  background: linear-gradient(90deg, #a5c6ea 0%, #81778e 100%);
   border-radius: inherit;
-  mask:
-    conic-gradient(#000 0 0) content-box exclude,
-    conic-gradient(#000 0 0);
-}
-
-
-
-
-
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-  }
-  .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-  }
-}
-
-
-
-
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+  mask: conic-gradient(#000 0 0) content-box exclude, conic-gradient(#000 0 0);
 }
