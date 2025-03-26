@@ -1,62 +1,12 @@
 'use client'
 import React, { useState } from 'react';
 import { ToastProvider, useToast } from '@/components/ui/toast-provider';
-import { Bell, MessageSquare, Heart, UserPlus, AtSign, Mail } from 'lucide-react';
-
-interface NotificationSetting {
-  id: string;
-  label: string;
-  description: string;
-  enabled: boolean;
-  icon: React.ReactNode;
-}
+import { NotificationSetting } from '@/types/explore/notifications/index';
+import { notificationSettings } from '@/data//explore/notifications/index';
 
 const NotificationsContent: React.FC = () => {
   const { showToast } = useToast();
-  const [settings, setSettings] = useState<NotificationSetting[]>([
-    { 
-      id: 'push_notifications', 
-      label: 'Push Notifications', 
-      description: 'Receive notifications on your device',
-      enabled: true,
-      icon: <Bell className="h-5 w-5 text-purple-400" />
-    },
-    { 
-      id: 'email_notifications', 
-      label: 'Email Notifications', 
-      description: 'Receive notifications via email',
-      enabled: true,
-      icon: <Mail className="h-5 w-5 text-blue-400" />
-    },
-    { 
-      id: 'new_messages', 
-      label: 'New Messages', 
-      description: 'Get notified when you receive new messages',
-      enabled: true,
-      icon: <MessageSquare className="h-5 w-5 text-green-400" />
-    },
-    { 
-      id: 'new_likes', 
-      label: 'Likes & Reactions', 
-      description: 'Get notified when someone likes your content',
-      enabled: true,
-      icon: <Heart className="h-5 w-5 text-red-400" />
-    },
-    { 
-      id: 'new_followers', 
-      label: 'New Followers', 
-      description: 'Get notified when someone follows you',
-      enabled: true,
-      icon: <UserPlus className="h-5 w-5 text-yellow-400" />
-    },
-    { 
-      id: 'mentions', 
-      label: 'Mentions', 
-      description: 'Get notified when someone mentions you',
-      enabled: true,
-      icon: <AtSign className="h-5 w-5 text-cyan-400" />
-    }
-  ]);
+  const [settings, setSettings] = useState<NotificationSetting[]>(notificationSettings);
 
   const handleToggle = (id: string) => {
     setSettings(settings.map(setting =>
@@ -86,7 +36,7 @@ const NotificationsContent: React.FC = () => {
           {settings.map(setting => (
             <div key={setting.id} className="flex items-center justify-between py-4 border-b border-gray-800 last:border-b-0">
               <div className="flex items-start">
-                <div className="mr-3 mt-1">{setting.icon}</div>
+                <div className="mr-3 mt-1">{<setting.icon className="h-5 w-5" />}</div>
                 <div>
                   <h3 className="text-white text-base md:text-lg">{setting.label}</h3>
                   <p className="text-gray-400 text-sm">{setting.description}</p>
