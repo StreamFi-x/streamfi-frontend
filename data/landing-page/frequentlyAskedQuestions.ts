@@ -1,22 +1,3 @@
-// export const frequentlyAskedQuestions = [
-//     {
-//       id: "q1",
-//       title: "What is Stream_Fi?",
-//       content: "Stream_Fi is a decentralized streaming platform that enables seamless content sharing.",
-//     },
-//     {
-//       id: "q2",
-//       title: "How do I join?",
-//       content: "You can join by signing up on our website and connecting your wallet.",
-//     },
-//     {
-//       id: "q3",
-//       title: "Is Stream_Fi free to use?",
-//       content: "Yes! Basic features are free, but there are premium options for creators.",
-//     },
-//   ];
-  
-
 export const frequentlyAskedQuestions = [
     {
       id: "q1",
