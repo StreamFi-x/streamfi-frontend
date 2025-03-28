@@ -21,10 +21,10 @@ export default function ClientLayout({
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   const closeSidebar = () => setSidebarOpen(false);
 
-  const handleConnect = () => {
-    setConnectModalOpen(true);
-    setConnectStep("profile");
-  };
+  // const handleConnect = () => {
+  //   setConnectModalOpen(true);
+  //   setConnectStep("profile");
+  // };
 
   const handleCloseModal = () => {
     setConnectModalOpen(false);

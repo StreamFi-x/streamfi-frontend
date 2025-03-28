@@ -137,7 +137,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </motion.div>
 
       {/* Sidebar for desktop (static) */}
-      <div className="hidden lg:block w-64 bg-background overflow-y-auto">
+      <div className="hidden lg:block md:w-1/6 bg-background overflow-y-auto">
         <div className="p-4 flex flex-col gap-5">{renderSidebarContent()}</div>
       </div>
     </>

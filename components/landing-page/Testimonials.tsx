@@ -1,7 +1,7 @@
 "use client";
 import { Autoplay } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { testimonial_content } from "@/data/testimonial";
+import { testimonial_content } from "@/data/landing-page/testimonial";
 import Image from "next/image";
 import "swiper/css";
 
