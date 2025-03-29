@@ -1,5 +1,5 @@
 import Section from "@/components/layout/Section";
-import { AboutImage } from "@/public/Images";
+import { AboutImage, AboutImage2 } from "@/public/Images";
 // import { AboutImage } from "@/public/images";
 import Image from "next/image";
 
@@ -7,9 +7,9 @@ export default function About() {
   return (
     <Section
       id="about"
-      className="pb-12.5 pt-8.5 flex flex-col gap-y-4 md:gap-y-8 mt-14 mx-auto"
+      className=" flex flex-col gap-y-4 md:gap-y-8 relative py-8 sm:py-20  container  mx-auto text-white"
     >
-      <h2 className="text-4xl md:text-5xl font-extrabold  text-center md:text-left">
+      <h2 className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-pp-neue sm:text-center md:text-left">
         About StreamFi
       </h2>
       <div className="flex flex-col h-fit md:flex-row items-start xl:items-center gap-6 md:gap-4">
@@ -17,12 +17,18 @@ export default function About() {
           <Image
             src={AboutImage}
             alt="Content creator using StreamFi"
-            className=" shadow-lg h-full"
+            className="sm:block hidden shadow-lg h-[260px]"
+            height={400}
+          />
+          <Image
+            src={AboutImage2}
+            alt="Content creator using StreamFi"
+            className="block sm:hidden shadow-lg "
             height={300}
           />
         </div>
 
-        <div className="w-full md:w-1/2 font-normal text-center h-fit md:text-left">
+        <div className="hidden sm:block w-full md:w-1/2 font-normal text-center h-fit md:text-left text-sm sm:text-base text-white/80">
           <p className="mb-4">
             StreamFi is a Web3-powered streaming platform built to give content
             creators and gamers full control over their earnings. Unlike
@@ -40,6 +46,16 @@ export default function About() {
             audience, and thrive without restrictions.
           </p>
         </div>
+        <p className="text-start block sm:hidden text-sm sm:text-base text-white/80">
+          StreamFi is a Web3 streaming platform that empowers creators and
+          gamers with full control over their earnings through instant crypto
+          tipping, NFT memberships, and DeFi staking rewards. By eliminating
+          middlemen, smart contracts ensure secure transactions, while DAO
+          governance gives users a voice in platform decisions. <br /> Our
+          mission is to create a transparent, decentralized ecosystem where
+          creators earn more, engage directly with their audience, and thrive
+          without restrictions.
+        </p>
       </div>
     </Section>
   );

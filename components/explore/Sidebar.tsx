@@ -43,7 +43,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           return (
             <Link
               key={item.label}
-              href={`/explore/${item.href}`} 
+              href={`/explore/${item.href}`}
               className={`flex items-center gap-2.5 p-2.5 rounded-md transition-colors ${
                 isActive
                   ? "bg-[#2D2F31] text-white"
@@ -80,7 +80,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 />
               </div>
               <div>
-                <div className="text-sm font-medium">{user.name}</div>
+                <div className="text-sm text-white/90 font-medium">
+                  {user.name}
+                </div>
                 <div className="text-xs text-white/30">{user.status}</div>
               </div>
             </Link>
@@ -137,7 +139,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </motion.div>
 
       {/* Sidebar for desktop (static) */}
-      <div className="hidden lg:block md:w-1/6 bg-background overflow-y-auto">
+      <div className="hidden lg:block md:w-[260px] bg-background overflow-y-auto">
         <div className="p-4 flex flex-col gap-5">{renderSidebarContent()}</div>
       </div>
     </>

@@ -21,9 +21,8 @@ export default function SimpleLoader({ className }: SimpleLoaderProps) {
       {/* Logo container with animation */}
       <div className="relative z-10 flex flex-col items-center">
         <div className="animate-pulse">
-          <Logo className="h-16 w-16" />
+          <Logo className="h-40 w-40" />
         </div>
-        <p className="mt-4 text-white/80 text-sm font-medium">Loading...</p>
       </div>
     </div>
   );
@@ -33,15 +32,7 @@ export default function SimpleLoader({ className }: SimpleLoaderProps) {
 function Logo({ className }: { className?: string }) {
   return (
     <div className={cn("relative", className)}>
-      {/* Simple placeholder logo - replace with your SVG or image */}
-      <Image src={StreamfiLogo} alt="Lgo" />
-      {/* <div className="h-full w-full rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 p-0.5">
-
-        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 opacity-75 blur-sm" />
-        <div className="relative h-full w-full rounded-full bg-black flex items-center justify-center">
-          <span className="text-2xl font-bold text-white">SF</span>
-        </div>
-      </div> */}
+      <Image src={StreamfiLogo} alt="Streamfi Logo" />
     </div>
   );
 }

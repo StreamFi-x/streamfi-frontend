@@ -25,7 +25,7 @@ export const Benefits = () => {
   }
 
   return (
-    <Section className="relative pt-24 pb-11 text-white">
+    <Section className="relative py-8 sm:py-20 text-white container mx-auto">
       {/* Gradient overlay */}
       <div
         className="absolute -top-10 left-0 w-full h-16"
@@ -35,11 +35,11 @@ export const Benefits = () => {
       />
 
       {/* Section heading */}
-      <div className="mb-12 max-w-3xl">
-        <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">
+      <div className="mb-12 max-w-4xl">
+        <h2 className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-pp-neue text-white mb-4">
           Why Choose StreamFi?
         </h2>
-        <p className="text-white/80 font-normal max-w-2xl">
+        <p className="text-sm sm:text-base text-white/80 max-w-2xl">
           Lorem ipsum lorem ipsumLorem ipsumLorem ipsumLorem ipsumLorem
           ipsumLorem ipsumLorem ipsumLorem ipsum ipsumLorem ipsumLorem
           ipsumLorem ipsum
@@ -74,7 +74,7 @@ const MobileBenefitsCarousel = () => {
 
   return (
     <div className="w-full flex flex-col">
-      <div className="w-full px-4">
+      <div className="w-full">
         <Carousel
           opts={{
             align: "center",
@@ -88,17 +88,17 @@ const MobileBenefitsCarousel = () => {
               <CarouselItem key={index} className="pl-1 md:pl-2 w-full ">
                 <div className="h-full w-full flex items-center justify-center">
                   <div
-                    className="rounded-xl relative overflow-hidden w-full h-[12rem]"
+                    className="rounded-xl gradient-border relative overflow-hidden w-full h-[200px]"
                     style={{
                       background:
                         "linear-gradient(292.05deg, #0D0419 39.29%, #15375B 139.74%)",
                     }}
                   >
-                    <div className="relative p-5 sm:p-6 md:p-8 flex flex-col">
+                    <div className="relative p-5 sm:p-6 md:p-8 flex flex-col gap-2.5 h-full">
                       <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">
                         {benefit.title}
                       </h3>
-                      <p className="text-white/80 text-sm sm:text-base">
+                      <p className="text-white/80 text-base">
                         {benefit.description
                           .split("StreamFi")
                           .map((part, i, arr) => (
