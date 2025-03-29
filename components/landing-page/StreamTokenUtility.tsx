@@ -1,4 +1,4 @@
-'use client'
+"use client";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { tokenUtilityData } from "@/data/landing-page/streamTokenUtility";
@@ -14,7 +14,7 @@ export default function StreamTokenUtility() {
   // Animation variants
   const fadeInUp = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
+    visible: { opacity: 1, y: 0 },
   };
 
   const staggerChildren = {
@@ -22,9 +22,9 @@ export default function StreamTokenUtility() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.2
-      }
-    }
+        staggerChildren: 0.2,
+      },
+    },
   };
 
   const floatAnimation = {
@@ -35,17 +35,17 @@ export default function StreamTokenUtility() {
         duration: 3,
         repeat: Infinity,
         repeatType: "reverse" as const,
-        ease: "easeInOut"
-      }
-    }
+        ease: "easeInOut",
+      },
+    },
   };
 
   return (
-    <section className="relative grid grid-cols-1 md:grid-cols-2 gap-8 py-10 px-4 md:px-20 bg-transparent overflow-hidden">
+    <section className="relative grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-8 py-10 px-5 md:px-20 xl:py-20 lg:py-14 bg-transparent overflow-hidden">
       {/* Content Container */}
-      <div className="col-span-1 md:col-span-2 flex flex-col items-center gap-6">
-        <motion.h1 
-          className="text-[#F1F1F1] font-extrabold text-3xl md:text-[40px] text-center"
+      <div className="col-span-1 md:col-span-2 flex flex-col items-center gap-6 relative z-40">
+        <motion.h1
+          className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-pp-neue text-white text-center"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
@@ -54,9 +54,9 @@ export default function StreamTokenUtility() {
         >
           $Stream Token Utility
         </motion.h1>
-        
-        <motion.p 
-          className="text-[#FFFFFFCC] text-sm md:text-base font-normal text-center max-w-[844px]"
+
+        <motion.p
+          className=" text-sm sm:text-base text-white/80 font-normal sm:text-center max-w-[844px]"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
@@ -68,93 +68,91 @@ export default function StreamTokenUtility() {
         </motion.p>
       </div>
 
-    
-
       {/* Cards Container */}
-      
+
       {/* Token images with animations - responsive positioning */}
       <motion.div>
-      <motion.div 
-        className="absolute  top-[55%] left-[5%] md:left-[14%] hidden md:flex items-center justify-center w-[150px] h-[120px] md:w-[449.8px] md:h-[304.2px] z-0"
-        variants={floatAnimation}
-        initial="initial"
-        animate="animate"
-      >
-        <Image
-          src={token1}
-          alt="token1"
-          height={100}
-          width={100}
-          className="object-cover h-[304px] w-[340px]"
-        />
-      </motion.div>
+        <motion.div
+          className="absolute  top-[60%] left-[5%] md:left-[14%] hidden md:flex items-center justify-center w-[150px] h-[120px] md:w-[449.8px] md:h-[304.2px] z-0"
+          variants={floatAnimation}
+          initial="initial"
+          animate="animate"
+        >
+          <Image
+            src={token1}
+            alt="token1"
+            height={100}
+            width={100}
+            className="object-cover h-[304px] w-[340px]"
+          />
+        </motion.div>
 
-      <motion.div 
-        className="absolute top-[35%] left-[2%] md:left-[7%] hidden md:flex items-center justify-center w-[100px] h-[80px] md:w-[306px] md:h-[206px] blur-[2px]"
-        variants={floatAnimation}
-        initial="initial"
-        animate="animate"
-        transition={{ delay: 0.5 }}
-      >
-        <Image
-          src={token2}
-          alt="token2"
-          height={100}
-          width={100}
-          className="object-cover h-full w-full"
-        />
-      </motion.div>
+        <motion.div
+          className="absolute top-[45%] left-[2%] md:left-[7%] hidden md:flex items-center justify-center w-[100px] h-[80px] md:w-[306px] md:h-[206px] blur-[2px]"
+          variants={floatAnimation}
+          initial="initial"
+          animate="animate"
+          transition={{ delay: 0.5 }}
+        >
+          <Image
+            src={token2}
+            alt="token2"
+            height={100}
+            width={100}
+            className="object-cover h-full w-full"
+          />
+        </motion.div>
 
-      <motion.div 
-        className="absolute top-[20%] left-[15%] md:left-[28%] hidden md:flex items-center justify-center w-[80px] h-[60px] md:w-[204px] md:h-[138px] blur-[3px]"
-        variants={floatAnimation}
-        initial="initial"
-        animate="animate"
-        transition={{ delay: 1 }}
-      >
-        <Image
-          src={token3}
-          alt="token3"
-          height={100}
-          width={100}
-          className="object-cover h-full w-full"
-        />
-      </motion.div>
+        <motion.div
+          className="absolute top-[30%] left-[15%] md:left-[28%] hidden md:flex items-center justify-center w-[80px] h-[60px] md:w-[204px] md:h-[138px] blur-[3px]"
+          variants={floatAnimation}
+          initial="initial"
+          animate="animate"
+          transition={{ delay: 1 }}
+        >
+          <Image
+            src={token3}
+            alt="token3"
+            height={100}
+            width={100}
+            className="object-cover h-full w-full"
+          />
+        </motion.div>
 
-      <motion.div 
-        className="absolute top-[19%] left-[0%] md:left-[3%] hidden md:flex items-center justify-center w-[90px] h-[70px] md:w-[204px] md:h-[138px] blur-[2px]"
-        variants={floatAnimation}
-        initial="initial"
-        animate="animate"
-        transition={{ delay: 1.5 }}
-      >
-        <Image
-          src={token4}
-          alt="token4"
-          height={100}
-          width={100}
-          className="object-cover h-full w-full"
-        />
-      </motion.div>
+        <motion.div
+          className="absolute top-[25%] left-[0%] md:left-[3%] hidden md:flex items-center justify-center w-[90px] h-[70px] md:w-[204px] md:h-[138px] blur-[2px]"
+          variants={floatAnimation}
+          initial="initial"
+          animate="animate"
+          transition={{ delay: 1.5 }}
+        >
+          <Image
+            src={token4}
+            alt="token4"
+            height={100}
+            width={100}
+            className="object-cover h-full w-full"
+          />
+        </motion.div>
 
-      <motion.div 
-        className="absolute top-[3%] left-[8%] md:left-[13%] hidden md:flex items-center justify-center w-[90px] h-[70px] md:w-[204px] md:h-[138px] blur-[2px]"
-        variants={floatAnimation}
-        initial="initial"
-        animate="animate"
-        transition={{ delay: 2 }}
-      >
-        <Image
-          src={token5}
-          alt="token5"
-          height={100}
-          width={100}
-          className="object-cover h-full w-full"
-        />
+        <motion.div
+          className="absolute top-[10%] left-[8%] md:left-[13%] hidden md:flex items-center justify-center w-[90px] h-[70px] md:w-[204px] md:h-[138px] blur-[2px]"
+          variants={floatAnimation}
+          initial="initial"
+          animate="animate"
+          transition={{ delay: 2 }}
+        >
+          <Image
+            src={token5}
+            alt="token5"
+            height={100}
+            width={100}
+            className="object-cover h-full w-full"
+          />
+        </motion.div>
       </motion.div>
-      </motion.div>
-      <motion.div 
-        className="col-span-1 flex flex-col gap-4 p-4"
+      <motion.div
+        className="col-span-1 flex flex-col gap-4 sm:p-4"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true }}
@@ -184,7 +182,6 @@ export default function StreamTokenUtility() {
       </motion.div>
 
       {/* FAQs section at the bottom for mobile view as shown in Figma */}
-      
     </section>
   );
 }

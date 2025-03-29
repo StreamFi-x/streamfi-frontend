@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
-import { Providers } from "../components/providers"
+import { Providers } from "../components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://streamfi.com" // Replace with your actual domain
+  ),
   title: {
     default: "Streamfi - Own Your Stream. Own Your Earnings",
     template: "%s - Streamfi",
@@ -42,11 +45,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={` antialiased`}
-      >
-           <Providers>{children}</Providers>
- 
+      <body className={` antialiased`}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

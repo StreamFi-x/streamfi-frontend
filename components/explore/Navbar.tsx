@@ -287,7 +287,7 @@ export default function Navbar({ toggleSidebar, onConnectWallet }: NavbarProps) 
     <>
       <header className="h-16 flex items-center justify-between px-4 border-b-[0.5px] border-white/30 bg-background z-10">
         <div className="flex items-center gap-4">
-          <button onClick={toggleSidebar} className="p-2 rounded-full hover:bg-[#2D2F31]/60 lg:hidden">
+          <button onClick={toggleSidebar} className="p-2 rounded-full text-white hover:bg-[#2D2F31]/60 lg:hidden">
             <Menu size={24} />
           </button>
           <Image src={StreamfiLogo || "/placeholder.svg"} alt="Streamfi Logo" />

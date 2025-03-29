@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import Button from "../ui/Button";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,8 +28,8 @@ const Navbar = () => {
         duration: 0.2,
         when: "afterChildren",
         staggerChildren: 0.05,
-        staggerDirection: -1
-      }
+        staggerDirection: -1,
+      },
     },
     open: {
       opacity: 1,
@@ -37,14 +38,14 @@ const Navbar = () => {
         duration: 0.2,
         when: "beforeChildren",
         staggerChildren: 0.1,
-        staggerDirection: 1
-      }
-    }
+        staggerDirection: 1,
+      },
+    },
   };
 
   const itemVariants = {
     closed: { opacity: 0, y: -10 },
-    open: { opacity: 1, y: 0 }
+    open: { opacity: 1, y: 0 },
   };
 
   return (
@@ -82,12 +83,16 @@ const Navbar = () => {
           </ul>
 
           {/* Get Started Button */}
-          <button className="hidden lg:block bg-white text-[#1E1E1E] px-4 py-2 rounded-lg font-medium">
+          <Button
+            isLink
+            href="/explore"
+            className="hidden lg:block bg-white hover:text-white text-[#1E1E1E] px-4 py-2 rounded-lg font-medium"
+          >
             Get started
-          </button>
+          </Button>
 
           {/* Mobile Menu Button */}
-          <motion.button 
+          <motion.button
             className="lg:hidden bg-[#B8B8B82E] backdrop-blur-lg rounded-lg px-3 py-1"
             onClick={() => setIsOpen(!isOpen)}
             whileTap={{ scale: 0.95 }}
@@ -130,8 +135,8 @@ const Navbar = () => {
             >
               <motion.ul className="flex flex-col items-center justify-center w-full mt-4 py-4">
                 {navLinks.map((link, index) => (
-                  <motion.li 
-                    key={index} 
+                  <motion.li
+                    key={index}
                     className="h-16 flex justify-center items-center w-full "
                     variants={itemVariants}
                     whileHover={{ scale: 1.05, x: 5 }}
@@ -139,9 +144,7 @@ const Navbar = () => {
                     <Link
                       href={link.href}
                       className={`transition-colors duration-500 w-full h-full hover:text-white/80 text-center ${
-                        pathname === link.href
-                          ? "text-white/80"
-                          : "text-white"
+                        pathname === link.href ? "text-white/80" : "text-white"
                       }`}
                       onClick={() => setIsOpen(false)}
                     >
@@ -149,7 +152,7 @@ const Navbar = () => {
                     </Link>
                   </motion.li>
                 ))}
-                <motion.li 
+                <motion.li
                   className="w-full mt-2"
                   variants={itemVariants}
                   whileHover={{ scale: 1.03 }}

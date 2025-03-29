@@ -43,7 +43,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           return (
             <Link
               key={item.label}
-              href={`/explore/${item.href}`} 
+              href={`/explore/${item.href}`}
               className={`flex items-center gap-2.5 p-2.5 rounded-md transition-colors ${
                 isActive
                   ? "bg-[#2D2F31] text-white"
@@ -80,7 +80,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 />
               </div>
               <div>
-                <div className="text-sm font-medium">{user.name}</div>
+                <div className="text-sm text-white/90 font-medium">
+                  {user.name}
+                </div>
                 <div className="text-xs text-white/30">{user.status}</div>
               </div>
             </Link>
@@ -111,7 +113,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Sidebar for mobile (animated) */}
       <motion.div
-        className="fixed top-0 left-0 bottom-0 w-64 bg-background z-30 lg:hidden overflow-y-auto"
+        className="fixed top-0 left-0 bottom-0 w-64 bg-background z-30 lg:hidden scrollbar-hide overflow-y-auto"
         initial="closed"
         animate={isOpen ? "open" : "closed"}
         variants={sidebarVariants}
@@ -125,7 +127,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               />
             </div>
             <button
-              className="p-1 rounded-full hover:bg-[#2D2F31]/60"
+              className="p-1 rounded-full text-white hover:bg-[#2D2F31]/60"
               onClick={onClose}
             >
               <X size={20} />
@@ -137,7 +139,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </motion.div>
 
       {/* Sidebar for desktop (static) */}
-      <div className="hidden lg:block w-64 bg-background overflow-y-auto">
+      <div className="hidden lg:block md:w-[260px] bg-background overflow-y-auto">
         <div className="p-4 flex flex-col gap-5">{renderSidebarContent()}</div>
       </div>
     </>

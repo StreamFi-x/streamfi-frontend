@@ -1,15 +1,15 @@
 "use client";
 import { Autoplay } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { testimonial_content } from "@/data/testimonial";
+import { testimonial_content } from "@/data/landing-page/testimonial";
 import Image from "next/image";
 import "swiper/css";
 
 export default function Testimonials() {
   return (
-    <section className="w-full max-w-5xl mx-auto mt-12 pb-8 flex flex-col gap-8">
-      <header className="w-full flex flex-col gap-3 items-center justify-center">
-        <h1 className="text-2xl md:text-5xl font-black">
+    <section className="xl:px-20 md:px-14 px-5 w-full max-w-5xl mx-auto mt-12 pb-8 flex flex-col gap-8 text-white">
+      <header className="w-full flex flex-col gap-3  items-center justify-center">
+        <h1 className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-pp-neue">
           Don&apos;t just take our word for it
         </h1>
         <p className="text-white/80">

@@ -50,23 +50,21 @@ const Waitlist: React.FC<WaitlistProps> = ({
   };
 
   return (
-    <div className="w-full h- relative flex flex-col items-center justify-center p-6">
+    <div className="w-full h-  py-20 text-white container mx-auto relative flex flex-col items-center justify-center p-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
         className="text-center mb-8"
       >
-        <h1 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
-          Join the Revolution: Own Your
-          <br />
-          Stream, Own Your Earnings
+        <h1 className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-pp-neue max-w-5xl text-white mb-4">
+          Join the Revolution: Own Your Stream, Own Your Earnings
         </h1>
 
         <p className="text-white/80 max-w-2xl font-normal mx-auto">
-          Sign up for early access and be among the first to explore StreamFi&apos;s
-          decentralized streaming platform. Get exclusive perks, early feature
-          access, and shape the future of streaming!
+          Sign up for early access and be among the first to explore
+          StreamFi&apos;s decentralized streaming platform. Get exclusive perks,
+          early feature access, and shape the future of streaming!
         </p>
       </motion.div>
 
@@ -75,23 +73,23 @@ const Waitlist: React.FC<WaitlistProps> = ({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
         onSubmit={handleSubmit}
-        className="flex flex-col sm:flex-row gap-4 justify-betwee items-center justify-center w-full max-w-2xl mx-auto mb-6"
+        className="flex flex-col sm:flex-row gap-4 justify-betwee items-center relative z-20 justify-center w-full max-w-2xl mx-auto mb-6"
       >
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email"
-            className="w-full py-3 px-4 bg-[#272526] rounded-lg max-w-sm w- text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300"
-            required
-          />
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Enter your email"
+          className="w-full py-3 px-4 bg-[#272526] rounded-lg max-w-sm w- text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300"
+          required
+        />
 
         <motion.button
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.98 }}
           type="submit"
           disabled={isSubmitting}
-          className={`py-3 px-6 bg-[#5A189A] hover:bg-purple-700 rounded-lg text-white font-medium transition-colors duration-300 ${
+          className={`py-3 px-6 bg-[#5A189A] hover:bg-purple-700 rounded-lg w-full sm:w-fit text-white font-medium transition-colors duration-300 ${
             isSubmitting ? "opacity-70 cursor-not-allowed" : ""
           }`}
         >
@@ -107,7 +105,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.4 }}
-        className="flex items-center justify-center gap-2 text-gray-300"
+        className="flex flex-col sm:flex-row items-center justify-center gap-2 text-gray-300"
       >
         <div className="flex -space-x-2">
           {avatars.map((avatar, index) => (
