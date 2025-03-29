@@ -26,13 +26,13 @@ export default function SettingsLayout({
           <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
 
           <div className="bg-black text-white pt-[2em] px-[1em] lg:px-[2em] w-full flex flex-col items-start">
-            <div className="flex-none w-full overflow-x-auto">
+            <div className="flex-none w-full overflow-x-auto scrollbar-hide">
               <SettingsHeader />
             </div>
 
             <Suspense fallback={<SimpleLoader />}>
               <Loader>
-                <div className="flex-1 overflow-y-auto mt-8 w-full">
+                <div className="flex-1 overflow-y-auto mt-8 w-full scrollbar-hide">
                   {children}
                 </div>
               </Loader>

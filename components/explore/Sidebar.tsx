@@ -113,7 +113,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Sidebar for mobile (animated) */}
       <motion.div
-        className="fixed top-0 left-0 bottom-0 w-64 bg-background z-30 lg:hidden overflow-y-auto"
+        className="fixed top-0 left-0 bottom-0 w-64 bg-background z-30 lg:hidden scrollbar-hide overflow-y-auto"
         initial="closed"
         animate={isOpen ? "open" : "closed"}
         variants={sidebarVariants}
@@ -127,7 +127,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               />
             </div>
             <button
-              className="p-1 rounded-full hover:bg-[#2D2F31]/60"
+              className="p-1 rounded-full text-white hover:bg-[#2D2F31]/60"
               onClick={onClose}
             >
               <X size={20} />
