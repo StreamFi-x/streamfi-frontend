@@ -18,10 +18,10 @@ const SettingsHeader = () => {
   const activeTab = getActiveTab();
 
   return (
-    <div className="">
+    <div>
       <h1 className="text-4xl font-bold mb-8">Settings</h1>
-      <div className="overflow-x-auto">
-        <nav className="flex space-x-6 md:space-x-8">
+      <div className="w-full overflow-x-auto scrollbar-hide">
+        <nav className="flex min-w-max space-x-6 md:space-x-8 px-4 sm:px-0">
           {tabs.map((tab) => (
             <Link
               key={tab.id}

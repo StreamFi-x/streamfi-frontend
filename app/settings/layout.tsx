@@ -26,10 +26,10 @@ export default function SettingsLayout({
           <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
 
           <div className="bg-black text-white pt-[2em] px-[1em] lg:px-[2em] w-full flex flex-col items-start">
-            <div className="flex-none">
+            <div className="flex-none w-full overflow-x-auto">
               <SettingsHeader />
             </div>
-            {/* Wrap the Loader in a Suspense boundary with our new SimpleLoader as fallback */}
+
             <Suspense fallback={<SimpleLoader />}>
               <Loader>
                 <div className="flex-1 overflow-y-auto mt-8 w-full">
