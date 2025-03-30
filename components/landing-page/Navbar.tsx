@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "../ui/Button";
+import Section from "../layout/Section";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,9 +50,9 @@ const Navbar = () => {
   };
 
   return (
-    <div className="w-full px-5 lg:px-20 xl:px-40 fixed z-50">
+    <Section wrapperClassName="z-50 sticky top-10 !py-0 " className="md:!px-20 ">
       <nav className="bg-white/5 backdrop-blur-lg rounded-3xl p-4 w-full text-white">
-        <div className="w-full lg:mx-auto flex items-center justify-between">
+        <div className="w-full  flex items-center justify-between">
           <div className="text-xl font-bold flex items-center space-x-2">
             <Image
               src={"/images/streamFiLogo.svg"}
@@ -170,7 +171,7 @@ const Navbar = () => {
           )}
         </AnimatePresence>
       </nav>
-    </div>
+    </Section>
   );
 };
 

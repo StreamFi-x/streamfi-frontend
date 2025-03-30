@@ -12,8 +12,8 @@ export default function About() {
       <h2 className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-pp-neue sm:text-center md:text-left">
         About StreamFi
       </h2>
-      <div className="flex flex-col h-fit md:flex-row items-start  gap-6 md:gap-4">
-        <div className="w-full md:w-1/2 h-auto">
+      <div className="flex flex-col h-fit md:flex-row items-start  gap-10">
+        <div className="w-full md:w-1/2 h-auto ">
           <Image
             src={AboutImage2}
             alt="Content creator using StreamFi"
@@ -22,7 +22,7 @@ export default function About() {
           />
         </div>
 
-        <div className="hidden sm:block w-full md:w-1/2 font-normal text-center h-fit md:text-left text-sm sm:text-xl text-white/80">
+        <div className="hidden lg:block w-full lg:w-1/2 font-normal text-center h-fit md:text-left text-sm sm:text-xl text-white/80">
           <p className="mb-4">
             StreamFi is a Web3-powered streaming platform built to give content
             creators and gamers full control over their earnings. Unlike
@@ -40,7 +40,7 @@ export default function About() {
             audience, and thrive without restrictions.
           </p>
         </div>
-        <p className="text-start block sm:hidden text-sm sm:text-base text-white/80">
+        <p className="text-start block lg:hidden text-sm sm:text-base text-white/80 flex-1">
           StreamFi is a Web3 streaming platform that empowers creators and
           gamers with full control over their earnings through instant crypto
           tipping, NFT memberships, and DeFi staking rewards. By eliminating

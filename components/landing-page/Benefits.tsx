@@ -25,8 +25,13 @@ export const Benefits = () => {
   }
 
   return (
-    <Section className="relative py-8 sm:py-20 text-white container mx-auto">
+    <Section
+      id="benefits"
+      className="relative text-white"
+      wrapperClassName="bg-gradient-to-t from-transparent via-background-2 to-background-2"
+    >
       {/* Gradient overlay */}
+
       <div
         className="absolute -top-10 left-0 w-full h-16"
         style={{
