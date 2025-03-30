@@ -25,7 +25,7 @@ export default function FrequentlyAskedQuestions() {
             started to maximizing your earnings.
           </p>
         </div>
-        <div className="space-y-5 w-full max-w-4xl xl:max-w-5xl mx-auto">
+        <div className="space-y-5 w-full  mx-auto">
           {frequentlyAskedQuestions.map((faq) => (
             <div
               key={faq.id}

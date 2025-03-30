@@ -6,7 +6,7 @@ import Logo from "@/public/Images/streamFiLogo.svg";
 export default function Footer() {
   return (
     <footer className="w-full bg-background-2 pb-12 pt-24">
-      <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center">
+      <div className=" flex flex-col md:flex-row justify-between items-center">
         <div className="mb-[52px] md:mb-0">
           <Link href="/" className="flex items-center">
             <Image

@@ -9,7 +9,7 @@ export default function Testimonials() {
   return (
     <section className=" w-full flex justify-center  text-white">
       <div className="flex flex-col gap-8 container px-6 py-16 md:py-20 mx-auto  justify-center">
-        <header className="w-full flex flex-col gap-3  items-center justify-center max-w-4xl xl:max-w-5xl  mx-auto">
+        <header className="w-full flex flex-col gap-3  items-center justify-center  mx-auto">
           <h1 className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-pp-neue ">
             Don&apos;t just take our word for it
           </h1>
@@ -35,7 +35,7 @@ export default function Testimonials() {
               slidesPerView: 3,
             },
           }}
-          className="w-full max-w-4xl xl:max-w-5xl "
+          className="w-full  "
         >
           {testimonial_content.map((item, idx) => (
             <SwiperSlide key={idx}>
