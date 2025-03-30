@@ -36,7 +36,7 @@ export default function Footer() {
       >
         <Section
           id="footer"
-          className="flex flex-col md:flex-row justify-between items-center"
+          className="flex flex-col md:flex-row justify-between items-center gap-y-4"
         >
           <motion.div className="mb-4 md:mb-0" variants={itemVariants}>
             <Link href="/" className="flex items-center">
@@ -70,7 +70,7 @@ export default function Footer() {
             </div>
 
             <div className="mt-1 text-gray-400 text-xs">
-              Copyright © 2025. All Rights Reserved.
+              Copyright © {new Date().getFullYear()}. All Rights Reserved.
             </div>
           </motion.div>
 
