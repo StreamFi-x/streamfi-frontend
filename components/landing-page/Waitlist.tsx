@@ -50,7 +50,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
   };
 
   return (
-    <div className="w-full h-  py-20 text-white container mx-auto relative flex flex-col items-center justify-center p-6">
+    <div className="w-full  py-20 text-white container mx-auto relative flex flex-col items-center justify-center p-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -73,14 +73,14 @@ const Waitlist: React.FC<WaitlistProps> = ({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
         onSubmit={handleSubmit}
-        className="flex flex-col sm:flex-row gap-4 justify-betwee items-center relative z-20 justify-center w-full max-w-2xl mx-auto mb-6"
+        className="flex flex-col sm:flex-row gap-4 items-center relative z-20 justify-center w-full max-w-2xl mx-auto mb-6"
       >
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email"
-          className="w-full py-3 px-4 bg-[#272526] rounded-lg max-w-sm w- text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300"
+          className=" py-3 px-4 bg-[#272526] rounded-lg  w-full md:max-w-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300"
           required
         />
 
@@ -89,7 +89,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
           whileTap={{ scale: 0.98 }}
           type="submit"
           disabled={isSubmitting}
-          className={`py-3 px-6 bg-[#5A189A] hover:bg-purple-700 rounded-lg w-full sm:w-fit text-white font-medium transition-colors duration-300 ${
+          className={`py-3 px-6 bg-[#5A189A] hover:bg-purple-700  rounded-lg w-full sm:w-fit text-white font-medium transition-colors duration-300 ${
             isSubmitting ? "opacity-70 cursor-not-allowed" : ""
           }`}
         >
@@ -128,7 +128,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
         <span>{initialCount}+ creators and viewers Joined!</span>
       </motion.div>
 
-      <div className="absolute md:-bottom-12 bottom-0 left-0 right-0 flex opacity-20 justify-center pointer-events-none overflow-hidden">
+      <div className="  flex opacity-20 justify-center pointer-events-none overflow-hidden">
         <p
           className="text-[4rem] md:text-[12rem] font-extrabold p-0 m-0"
           style={{
