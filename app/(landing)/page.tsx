@@ -20,9 +20,9 @@ export default function Home() {
   return (
     <div
       className="relative w-full bg-gradient-to-r  from-[#16062B] from-[10%] via-[#0D0216] via-[50%] to-[#15375B] to-[88%] bg-no-repeat bg-center bg-contain  min-h-screen pt-10"
-      style={{
-        background: "url('/Images/Streamfi-bg.png')",
-      }}
+      // style={{
+      //   background: "url('/Images/Streamfi-bg.png')",
+      // }}
     >
       <div className="stars-container absolute inset-0 w-full min-h-screen"></div>
 

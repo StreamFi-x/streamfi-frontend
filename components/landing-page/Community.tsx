@@ -226,10 +226,7 @@ const Community: React.FC = () => {
   }, [isMobile]);
 
   return (
-    <Section
-      id="community"
-      className="xl:px-20 md:px-14 px-5 flex flex-col items-center text-white"
-    >
+    <Section id="community" className=" flex flex-col items-center text-white">
       <div className="text-center flex flex-col justify-center items-center gap-4 max-w-4xl w-full px-4 lg:w-2/3">
         <h1 className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-pp-neue text-white tracking-wide">
           Join Our Community - Be Part Of The Future Of Streaming

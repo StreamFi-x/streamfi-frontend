@@ -2,12 +2,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { Mail } from "lucide-react";
 import Logo from "@/public/Images/streamFiLogo.svg";
+import Section from "../layout/Section";
 
 export default function Footer() {
   return (
-    <footer className="w-full bg-background-2 pb-12 pt-24">
-      <div className=" flex flex-col md:flex-row justify-between items-center">
-        <div className="mb-[52px] md:mb-0">
+    <footer className=" bg-background-2 ">
+      <Section className="flex flex-col md:flex-row justify-between items-center">
+        <div className="mb-4 md:mb-0">
           <Link href="/" className="flex items-center">
             <Image
               src={Logo || "/placeholder.svg"}
@@ -18,7 +19,7 @@ export default function Footer() {
           </Link>
         </div>
 
-        <div className="flex flex-col items-center justify-center text-center mb-[52px] md:mb-0">
+        <div className="flex flex-col items-center justify-center text-center mb-4 md:mb-0">
           <div className="flex items-center gap-2 text-white text-sm">
             <Link
               href="/terms"
@@ -36,7 +37,7 @@ export default function Footer() {
           </div>
 
           <div className="text-xs text-gray-400 mt-1">
-            Copyright © {new Date().getFullYear()}. All Rights Reserved.
+            Copyright © 2025. All Rights Reserved.
           </div>
         </div>
 
@@ -49,7 +50,7 @@ export default function Footer() {
             <span>Contact Us</span>
           </Link>
         </div>
-      </div>
+      </Section>
     </footer>
   );
 }

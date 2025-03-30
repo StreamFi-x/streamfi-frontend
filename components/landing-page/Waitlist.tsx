@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
+import Section from "../layout/Section";
 
 interface WaitlistProps {
   initialCount?: number;
@@ -50,8 +51,8 @@ const Waitlist: React.FC<WaitlistProps> = ({
   };
 
   return (
-    <div className="w-full  text-white bg-gradient-to-b from-transparent via-transparent to-background-2 ">
-      <div className="py-16 md:py-20 container mx-auto relative flex flex-col items-center justify-center p-6">
+    <div className="bg-gradient-to-b from-transparent  to-background-2">
+      <Section className="text-white  relative flex flex-col items-center justify-center ">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -146,7 +147,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
           className="absolute bottom-0 inset-0 bg-[url('/Images/waitlist.png')] bg-cover bg-center opacity-20 pointer-events-none"
           style={{ bottom: "-24px" }}
         ></div>
-      </div>
+      </Section>
     </div>
   );
 };
