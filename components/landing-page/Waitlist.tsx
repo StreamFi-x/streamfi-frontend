@@ -1,8 +1,10 @@
 "use client";
-import React, { useState } from "react";
+
+import type React from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import Section from "../layout/Section";
+import Section from "@/components/layout/Section";
 
 interface WaitlistProps {
   initialCount?: number;
@@ -53,7 +55,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
   return (
     <Section
       id="waitlist"
-      className="text-white  relative flex flex-col items-center justify-center"
+      className="relative flex flex-col items-center justify-center text-white"
       wrapperClassName="bg-gradient-to-b from-transparent to-background-2"
     >
       <motion.div
@@ -62,11 +64,11 @@ const Waitlist: React.FC<WaitlistProps> = ({
         transition={{ duration: 0.6 }}
         className="text-center mb-8"
       >
-        <h1 className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-pp-neue max-w-5xl text-white mb-4">
+        <h1 className="font-pp-neue font-extrabold text-2xl sm:text-4xl xl:text-5xl text-white mb-4 max-w-5xl">
           Join the Revolution: Own Your Stream, Own Your Earnings
         </h1>
 
-        <p className="text-white/80 max-w-2xl font-normal mx-auto">
+        <p className="text-white/80 font-normal max-w-2xl mx-auto">
           Sign up for early access and be among the first to explore
           StreamFi&apos;s decentralized streaming platform. Get exclusive perks,
           early feature access, and shape the future of streaming!
@@ -78,14 +80,14 @@ const Waitlist: React.FC<WaitlistProps> = ({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
         onSubmit={handleSubmit}
-        className="flex flex-col sm:flex-row gap-4 items-center relative z-20 justify-center w-full max-w-2xl mx-auto mb-6"
+        className="flex flex-col sm:flex-row gap-4 items-center justify-center w-full max-w-2xl mx-auto mb-6 relative z-20"
       >
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email"
-          className=" py-3 px-4 bg-[#272526] rounded-lg  w-full md:max-w-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300"
+          className="w-full md:max-w-md py-3 px-4 bg-[#272526] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300"
           required
         />
 
@@ -94,7 +96,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
           whileTap={{ scale: 0.98 }}
           type="submit"
           disabled={isSubmitting}
-          className={`py-3 px-6 bg-[#5A189A] hover:bg-purple-700  rounded-lg w-full sm:w-fit text-white font-medium transition-colors duration-300 ${
+          className={`w-full sm:w-fit py-3 px-6 bg-[#5A189A] hover:bg-purple-700 rounded-lg text-white font-medium transition-colors duration-300 ${
             isSubmitting ? "opacity-70 cursor-not-allowed" : ""
           }`}
         >
@@ -121,7 +123,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
               transition={{ delay: 0.6 + index * 0.1 }}
             >
               <Image
-                src={avatar}
+                src={avatar || "/placeholder.svg"}
                 alt={`User ${index + 1}`}
                 width={32}
                 height={32}
@@ -133,7 +135,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
         <span>{initialCount}+ creators and viewers Joined!</span>
       </motion.div>
 
-      <div className="  flex opacity-20 justify-center pointer-events-none overflow-hidden">
+      <div className="flex justify-center pointer-events-none overflow-hidden opacity-20">
         <p
           className="text-[4rem] md:text-[12rem] font-extrabold p-0 m-0"
           style={{

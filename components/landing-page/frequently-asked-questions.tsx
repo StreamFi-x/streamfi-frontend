@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus } from "lucide-react";
 import { useState } from "react";
 import { frequentlyAskedQuestions } from "@/data/landing-page/frequentlyAskedQuestions";
-import Section from "../layout/Section";
+import Section from "@/components/layout/Section";
 
 export default function FrequentlyAskedQuestions() {
   const [activeTab, setActiveTab] = useState<number | string | null>(null);
@@ -16,23 +16,43 @@ export default function FrequentlyAskedQuestions() {
   return (
     <Section
       id="frequently-asked-questions"
-      className="flex flex-col gap-6 md:gap-10 items-center"
+      className="flex flex-col items-center gap-6 md:gap-10"
     >
-      <div className="text-center space-y-2.5">
-        <h1 className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-pp-neue text-white">
+      <motion.div
+        className="text-center space-y-2.5"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5 }}
+      >
+        <h1 className="font-pp-neue font-extrabold text-2xl sm:text-4xl xl:text-5xl text-white">
           FAQs
         </h1>
-        <p className="text-sm sm:text-base text-white/80 max-w-lg mx-auto">
+        <p className="text-white/80 text-sm sm:text-base max-w-lg mx-auto">
           Find everything you need to know about StreamFi, from getting started
           to maximizing your earnings.
         </p>
-      </div>
+      </motion.div>
 
-      <div className="space-y-5 w-full">
+      <motion.div
+        className="w-full space-y-5"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        transition={{
+          duration: 0.5,
+          delay: 0.2,
+          staggerChildren: 0.1,
+        }}
+      >
         {frequentlyAskedQuestions.map((faq) => (
-          <div
+          <motion.div
             key={faq.id}
             className="rounded-xl overflow-hidden shadow-lg border border-gray-700 backdrop-blur-sm"
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.3 }}
           >
             <button
               onClick={() => toggleTab(faq.id)}
@@ -70,9 +90,9 @@ export default function FrequentlyAskedQuestions() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </Section>
   );
 }
