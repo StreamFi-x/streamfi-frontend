@@ -6,7 +6,8 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import Button from "../ui/Button";
+import Button from "@/components/ui/Button";
+import Section from "@/components/layout/Section";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,10 +50,10 @@ const Navbar = () => {
   };
 
   return (
-    <div className="w-full px-5 lg:px-20 xl:px-40 fixed z-50">
+    <Section wrapperClassName="z-50 sticky top-10 !py-0" className="md:!px-20">
       <nav className="bg-white/5 backdrop-blur-lg rounded-3xl p-4 w-full text-white">
-        <div className="w-full lg:mx-auto flex items-center justify-between">
-          <div className="text-xl font-bold flex items-center space-x-2">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center space-x-2 font-bold text-xl">
             <Image
               src={"/images/streamFiLogo.svg"}
               alt="StreamFi Logo"
@@ -69,7 +70,7 @@ const Navbar = () => {
                   href={link.href}
                   className={`transition-colors duration-500 ${
                     pathname === link.href
-                      ? "text-white font-medium "
+                      ? "text-white font-medium"
                       : "text-white/60 hover:text-white/80 font-normal"
                   }`}
                 >
@@ -137,7 +138,7 @@ const Navbar = () => {
                 {navLinks.map((link, index) => (
                   <motion.li
                     key={index}
-                    className="h-16 flex justify-center items-center w-full "
+                    className="h-16 flex justify-center items-center w-full"
                     variants={itemVariants}
                     whileHover={{ scale: 1.05, x: 5 }}
                   >
@@ -170,7 +171,7 @@ const Navbar = () => {
           )}
         </AnimatePresence>
       </nav>
-    </div>
+    </Section>
   );
 };
 
