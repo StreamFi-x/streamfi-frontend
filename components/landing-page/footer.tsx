@@ -7,7 +7,7 @@ import Section from "../layout/Section";
 export default function Footer() {
   return (
     <footer className=" bg-background-2 ">
-      <Section className="flex flex-col md:flex-row justify-between items-center">
+      <Section id="footer" className="flex flex-col md:flex-row justify-between items-center">
         <div className="mb-4 md:mb-0">
           <Link href="/" className="flex items-center">
             <Image

@@ -52,7 +52,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
 
   return (
     <div className="bg-gradient-to-b from-transparent  to-background-2">
-      <Section className="text-white  relative flex flex-col items-center justify-center ">
+      <Section id="waitlist" className="text-white  relative flex flex-col items-center justify-center ">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

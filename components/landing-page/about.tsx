@@ -7,28 +7,22 @@ export default function About() {
   return (
     <Section
       id="about"
-      className=" flex flex-col gap-y-4 md:gap-y-8 relative py-8 sm:py-20  container  mx-auto text-white"
+      className=" flex flex-col gap-y-4 md:gap-y-8 relative text-white"
     >
       <h2 className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-pp-neue sm:text-center md:text-left">
         About StreamFi
       </h2>
-      <div className="flex flex-col h-fit md:flex-row items-start xl:items-center gap-6 md:gap-4">
-        <div className="w-full h-full md:w-1/2 ">
-          <Image
-            src={AboutImage}
-            alt="Content creator using StreamFi"
-            className="sm:block hidden shadow-lg h-[260px]"
-            height={400}
-          />
+      <div className="flex flex-col h-fit md:flex-row items-start  gap-6 md:gap-4">
+        <div className="w-full md:w-1/2 h-auto">
           <Image
             src={AboutImage2}
             alt="Content creator using StreamFi"
-            className="block sm:hidden shadow-lg "
-            height={300}
+            className="w-full h-full object-cover shadow-lg"
+            layout="responsive"
           />
         </div>
 
-        <div className="hidden sm:block w-full md:w-1/2 font-normal text-center h-fit md:text-left text-sm sm:text-base text-white/80">
+        <div className="hidden sm:block w-full md:w-1/2 font-normal text-center h-fit md:text-left text-sm sm:text-xl text-white/80">
           <p className="mb-4">
             StreamFi is a Web3-powered streaming platform built to give content
             creators and gamers full control over their earnings. Unlike
