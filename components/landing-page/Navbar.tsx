@@ -162,7 +162,7 @@ const Navbar = () => {
                     onClick={() => setIsOpen(false)}
                     whileTap={{ scale: 0.95 }}
                   >
-                    Get started
+                    <Link href={"/explore"}>Get started</Link>
                   </motion.button>
                 </motion.li>
               </motion.ul>
