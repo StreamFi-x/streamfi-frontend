@@ -38,14 +38,13 @@ export default function Footer() {
           id="footer"
           className="flex flex-col md:flex-row justify-between items-center gap-y-4"
         >
-          <motion.div className="mb-4 md:mb-0" variants={itemVariants}>
-            <Link href="/" className="flex items-center">
-              <Image
-                src={Logo || "/placeholder.svg"}
-                alt="Streamfi logo"
-                width={128}
-                height={50}
-              />
+          <motion.div variants={itemVariants}>
+            <Link
+              href="mailto:streamfi25@gmail.com"
+              className="flex items-center gap-2 text-white hover:text-gray-300 transition-colors"
+            >
+              <Mail size={18} />
+              <span>Contact Us</span>
             </Link>
           </motion.div>
 
