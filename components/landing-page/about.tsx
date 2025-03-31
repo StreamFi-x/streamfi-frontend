@@ -1,11 +1,29 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import Image from "next/image";
 import Section from "@/components/layout/Section";
 import { AboutImage2 } from "@/public/Images";
 
 export default function About() {
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // Different animation variants based on screen size
+  const textAnimationProps = isMobile
+    ? {
+        initial: { opacity: 0, y: 20 },
+        whileInView: { opacity: 1, y: 0 },
+        viewport: { once: true },
+        transition: { duration: 0.5, delay: 0.4 },
+      }
+    : {
+        initial: { opacity: 0, x: 20 },
+        whileInView: { opacity: 1, x: 0 },
+        viewport: { once: true },
+        transition: { duration: 0.5, delay: 0.4 },
+      };
+
   return (
     <Section
       id="about"
@@ -47,10 +65,7 @@ export default function About() {
 
         <motion.div
           className="hidden lg:block w-full lg:w-1/2 h-fit text-white/80 font-normal text-sm sm:text-xl text-center md:text-left"
-          initial={{ opacity: 0, x: 20 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.4 }}
+          {...textAnimationProps}
         >
           <p className="mb-4">
             StreamFi is a Web3-powered streaming platform built to give content
@@ -72,8 +87,8 @@ export default function About() {
 
         <motion.p
           className="block lg:hidden flex-1 text-white/80 text-sm sm:text-base text-start"
-          initial={{ opacity: 0, x: 20 }}
-          whileInView={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.4 }}
         >
