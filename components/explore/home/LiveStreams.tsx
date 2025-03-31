@@ -144,7 +144,7 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
                     {stream.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="text-sm bg-muted px-2 py-0.5 rounded bg-white/10"
+                        className="text-sm bg-muted space-x-2 space-y-2 rounded bg-white/10"
                       >
                         {tag}
                       </span>
