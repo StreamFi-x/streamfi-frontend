@@ -137,14 +137,14 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
                   <h3 className="font-semibold text-lg line-clamp-1">
                     {stream.title}
                   </h3>
-                  <div className="flex flex-wrap gap-x-2 mt-1">
+                  <div className="flex flex-wrap gap-2 mt-1">
                     <span className="text-sm bg-muted px-2 py-0.5 rounded bg-white/10">
                       {stream.location}
                     </span>
                     {stream.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="text-sm bg-muted space-x-2 space-y-2 rounded bg-white/10"
+                        className="text-sm bg-muted px-2 py-0.5 rounded bg-white/10"
                       >
                         {tag}
                       </span>

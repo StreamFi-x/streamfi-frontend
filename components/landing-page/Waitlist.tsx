@@ -1,56 +1,140 @@
-"use client";
+"use client"
 
-import type React from "react";
-import { useState } from "react";
-import { motion } from "framer-motion";
-import Image from "next/image";
-import Section from "@/components/layout/Section";
+import type React from "react"
+import { useState, useEffect, useRef } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import Image from "next/image"
+import { toast } from "sonner"
+import Section from "@/components/layout/Section"
 
 interface WaitlistProps {
-  initialCount?: number;
-  onSubmit?: (email: string) => Promise<void>;
+  initialCount?: number
+  onSubmit?: (email: string) => Promise<void>
 }
 
-const Waitlist: React.FC<WaitlistProps> = ({
-  initialCount = 3000,
-  onSubmit,
-}) => {
-  const [email, setEmail] = useState<string>("");
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+const Waitlist: React.FC<WaitlistProps> = ({ initialCount = 3000, onSubmit }) => {
+  const [email, setEmail] = useState<string>("")
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false)
+  const [emailTouched, setEmailTouched] = useState<boolean>(false)
+  const [emailError, setEmailError] = useState<string>("")
+  const [showError, setShowError] = useState<boolean>(false)
+  const [showErrorStyling, setShowErrorStyling] = useState<boolean>(false)
+  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const avatars: string[] = [
     "/Images/waitlist1.png",
     "/Images/waitlist2.png",
     "/Images/waitlist3.png",
     "/Images/waitlist4.png",
-  ];
+  ]
+
+  // Validate email whenever it changes, but only show errors if the field has been touched
+  useEffect(() => {
+    if (!emailTouched) return
+
+    let error = ""
+    if (!email) {
+      error = "Email is required"
+    } else if (!validateEmail(email)) {
+      error = "Please enter a valid email address"
+    }
+
+    setEmailError(error)
+
+    // Show error if there is one
+    if (error) {
+      setShowError(true)
+      setShowErrorStyling(true)
+
+      // Clear any existing timeout
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current)
+      }
+
+      // Set timeout to hide error after 3 seconds
+      errorTimeoutRef.current = setTimeout(() => {
+        setShowError(false)
+        setShowErrorStyling(false)
+      }, 3000)
+    }
+
+    return () => {
+      // Clean up timeout on unmount or when email changes
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current)
+      }
+    }
+  }, [email, emailTouched])
+
+  // Custom email validation function
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !email.includes("@")) return;
+    e.preventDefault()
 
-    setIsSubmitting(true);
+    // Mark email as touched to trigger validation
+    setEmailTouched(true)
+
+    // Validate email before submission
+    if (!email || !validateEmail(email)) {
+      const error = email ? "Please enter a valid email address" : "Email is required"
+      setEmailError(error)
+      setShowError(true)
+      setShowErrorStyling(true)
+
+      // Clear any existing timeout
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current)
+      }
+
+      // Set timeout to hide error after 3 seconds
+      errorTimeoutRef.current = setTimeout(() => {
+        setShowError(false)
+        setShowErrorStyling(false)
+      }, 3000)
+
+      return
+    }
+
+    setIsSubmitting(true)
 
     try {
       if (onSubmit) {
-        await onSubmit(email);
+        await onSubmit(email)
       } else {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // Simulate API call
+        await new Promise((resolve) => setTimeout(resolve, 1000))
       }
 
-      setIsSubmitted(true);
-      setEmail("");
+      // Show success toast
+      toast.success("You've been added to the waitlist!", {
+        description: "We'll notify you when StreamFi launches.",
+        duration: 5000,
+      })
+
+      setIsSubmitted(true)
+      setEmail("")
+      setEmailTouched(false)
+      setShowError(false)
+      setShowErrorStyling(false)
 
       setTimeout(() => {
-        setIsSubmitted(false);
-      }, 3000);
+        setIsSubmitted(false)
+      }, 3000)
     } catch (error) {
-      console.error("Error submitting email:", error);
+      console.error("Error submitting email:", error)
+      // Show error toast
+      toast.error("Failed to join the waitlist", {
+        description: "Please try again later.",
+      })
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   return (
     <Section
@@ -69,9 +153,8 @@ const Waitlist: React.FC<WaitlistProps> = ({
         </h1>
 
         <p className="text-white/80 font-normal max-w-2xl mx-auto">
-          Sign up for early access and be among the first to explore
-          StreamFi&apos;s decentralized streaming platform. Get exclusive perks,
-          early feature access, and shape the future of streaming!
+          Sign up for early access and be among the first to explore StreamFi&apos;s decentralized streaming platform.
+          Get exclusive perks, early feature access, and shape the future of streaming!
         </p>
       </motion.div>
 
@@ -80,32 +163,46 @@ const Waitlist: React.FC<WaitlistProps> = ({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
         onSubmit={handleSubmit}
-        className="flex flex-col sm:flex-row gap-4 items-center justify-center w-full max-w-2xl mx-auto mb-6 relative z-20"
+        className="flex flex-col w-full max-w-2xl mx-auto mb-6 relative z-20"
       >
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Enter your email"
-          className="w-full md:max-w-md py-3 px-4 bg-[#272526] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300"
-          required
-        />
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center w-full">
+          <div className="w-full md:max-w-md relative">
+            <input
+              type="text"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => setEmailTouched(true)}
+              placeholder="Enter your email"
+              className={`w-full py-3 px-4 bg-[#272526] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-300 ${
+                showErrorStyling ? "focus:ring-red-500 border border-red-500" : "focus:ring-purple-500"
+              }`}
+            />
+            <AnimatePresence>
+              {emailError && emailTouched && showError && (
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="text-red-500 text-sm mt-1 absolute"
+                >
+                  {emailError}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
 
-        <motion.button
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.98 }}
-          type="submit"
-          disabled={isSubmitting}
-          className={`w-full sm:w-fit py-3 px-6 bg-[#5A189A] hover:bg-purple-700 rounded-lg text-white font-medium transition-colors duration-300 ${
-            isSubmitting ? "opacity-70 cursor-not-allowed" : ""
-          }`}
-        >
-          {isSubmitting
-            ? "Joining..."
-            : isSubmitted
-            ? "Joined!"
-            : "Join the Waitlist"}
-        </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.98 }}
+            type="submit"
+            disabled={isSubmitting}
+            className={`w-full sm:w-[11rem] text-center py-3 px-6 bg-[#5A189A] hover:bg-purple-700 rounded-lg text-white font-medium transition-colors duration-300 ${
+              isSubmitting ? "opacity-70 cursor-not-allowed" : ""
+            }`}
+          >
+            {isSubmitting ? "Joining..." : isSubmitted ? "Joined!" : "Join the Waitlist"}
+          </motion.button>
+        </div>
       </motion.form>
 
       <motion.div
@@ -153,7 +250,8 @@ const Waitlist: React.FC<WaitlistProps> = ({
         style={{ bottom: "-24px" }}
       ></div>
     </Section>
-  );
-};
+  )
+}
 
-export default Waitlist;
+export default Waitlist
+

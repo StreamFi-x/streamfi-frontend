@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Providers } from "../components/providers";
 import "./globals.css";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -45,7 +46,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="">
-      <body className={` antialiased bg-[#16062B]`} >
+      <Toaster position="top-right" closeButton />
+      <body className={` antialiased bg-[#16062B]`}>
         <Providers>{children}</Providers>
       </body>
     </html>
