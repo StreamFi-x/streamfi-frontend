@@ -1,5 +1,3 @@
-
-
 // import { useState, useRef, useEffect } from "react";
 // import { StreamfiLogo } from "@/public/icons";
 // import { Menu, Search, X } from "lucide-react";
@@ -214,17 +212,9 @@
 //   );git push --set-upstream origin connect-modal
 // }
 
-
-
-
-
-
-
-
-
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { StreamfiLogo } from "@/public/icons";
+import { StreamfiLogo, StreamfiLogoShort } from "@/public/icons";
 import { Menu, Search, X } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -238,7 +228,10 @@ interface NavbarProps {
   onConnect?: () => void;
 }
 
-export default function Navbar({ toggleSidebar, onConnectWallet }: NavbarProps) {
+export default function Navbar({
+  toggleSidebar,
+  onConnectWallet,
+}: NavbarProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -254,9 +247,24 @@ export default function Navbar({ toggleSidebar, onConnectWallet }: NavbarProps) 
     }
 
     const mockResults: SearchResult[] = [
-      { id: "1", title: `${searchQuery} Live Stream`, type: "stream", image: "/icons/Recommend pfps.svg" },
-      { id: "2", title: `${searchQuery} Gaming Channel`, type: "channel", image: "/icons/Recommend pfps.svg" },
-      { id: "3", title: `Best ${searchQuery} Moments`, type: "video", image: "/icons/Recommend pfps.svg" },
+      {
+        id: "1",
+        title: `${searchQuery} Live Stream`,
+        type: "stream",
+        image: "/icons/Recommend pfps.svg",
+      },
+      {
+        id: "2",
+        title: `${searchQuery} Gaming Channel`,
+        type: "channel",
+        image: "/icons/Recommend pfps.svg",
+      },
+      {
+        id: "3",
+        title: `Best ${searchQuery} Moments`,
+        type: "video",
+        image: "/icons/Recommend pfps.svg",
+      },
     ];
 
     setSearchResults(mockResults);
@@ -287,10 +295,16 @@ export default function Navbar({ toggleSidebar, onConnectWallet }: NavbarProps) 
     <>
       <header className="h-16 flex items-center justify-between px-4 border-b-[0.5px] border-white/30 bg-background z-10">
         <div className="flex items-center gap-4">
-          <button onClick={toggleSidebar} className="p-2 rounded-full text-white hover:bg-[#2D2F31]/60 lg:hidden">
+          <button
+            onClick={toggleSidebar}
+            className="p-2 rounded-full text-white hover:bg-[#2D2F31]/60 lg:hidden"
+          >
             <Menu size={24} />
           </button>
-          <Image src={StreamfiLogo || "/placeholder.svg"} alt="Streamfi Logo" />
+          <Image
+            src={StreamfiLogoShort || "/placeholder.svg"}
+            alt="Streamfi Logo"
+          />
         </div>
 
         <div className="hidden md:block flex-1 items-center max-w-xl mx-4 relative">
@@ -302,7 +316,10 @@ export default function Navbar({ toggleSidebar, onConnectWallet }: NavbarProps) 
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-black rounded-md py-2 pl-10 pr-4 text-sm outline-none duration-200 focus:outline-none focus:ring-1 focus:ring-purple-600"
             />
-            <Search className="absolute left-3 top-[47%] transform -translate-y-1/2 text-gray-400" size={16} />
+            <Search
+              className="absolute left-3 top-[47%] transform -translate-y-1/2 text-gray-400"
+              size={16}
+            />
           </div>
           <AnimatePresence>
             {searchResults.length > 0 && (
@@ -314,13 +331,24 @@ export default function Navbar({ toggleSidebar, onConnectWallet }: NavbarProps) 
               >
                 <div className="p-2">
                   {searchResults.map((result) => (
-                    <div key={result.id} className="flex items-center gap-3 p-2 hover:bg-[#2D2F31] rounded-md cursor-pointer">
+                    <div
+                      key={result.id}
+                      className="flex items-center gap-3 p-2 hover:bg-[#2D2F31] rounded-md cursor-pointer"
+                    >
                       <div className="w-10 h-10 rounded bg-gray-700 overflow-hidden">
-                        <img src={result.image || "/placeholder.svg"} alt={result.title} className="w-full h-full object-cover" />
+                        <img
+                          src={result.image || "/placeholder.svg"}
+                          alt={result.title}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                       <div>
-                        <div className="text-sm font-medium">{result.title}</div>
-                        <div className="text-xs text-white/30 capitalize">{result.type}</div>
+                        <div className="text-sm font-medium">
+                          {result.title}
+                        </div>
+                        <div className="text-xs text-white/30 capitalize">
+                          {result.type}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -332,7 +360,9 @@ export default function Navbar({ toggleSidebar, onConnectWallet }: NavbarProps) 
 
         <div className="flex items-center gap-4">
           {isConnected && address && (
-            <span className="text-white text-sm truncate max-w-[150px]">{address.substring(0, 6)}...{address.slice(-4)}</span>
+            <span className="text-white text-sm truncate max-w-[150px]">
+              {address.substring(0, 6)}...{address.slice(-4)}
+            </span>
           )}
 
           <button
@@ -349,10 +379,16 @@ export default function Navbar({ toggleSidebar, onConnectWallet }: NavbarProps) 
         {isModalOpen && (
           <motion.div className="fixed inset-0 z-50 flex items-center justify-center">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black opacity-50" onClick={() => setIsModalOpen(false)} />
+            <div
+              className="absolute inset-0 bg-black opacity-50"
+              onClick={() => setIsModalOpen(false)}
+            />
             {/* Modal Content */}
             <motion.div className="bg-background p-6 rounded-md z-10">
-              <ConnectModal isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} />
+              <ConnectModal
+                isModalOpen={isModalOpen}
+                setIsModalOpen={setIsModalOpen}
+              />
             </motion.div>
           </motion.div>
         )}
@@ -360,5 +396,3 @@ export default function Navbar({ toggleSidebar, onConnectWallet }: NavbarProps) 
     </>
   );
 }
-
-

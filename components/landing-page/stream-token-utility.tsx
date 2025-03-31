@@ -1,7 +1,9 @@
 "use client";
+
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { tokenUtilityData } from "@/data/landing-page/streamTokenUtility";
+import Section from "@/components/layout/Section";
 
 const vpnKey = "/Images/vpn_key.svg";
 const token1 = "/Images/tokens/token1.svg";
@@ -33,7 +35,7 @@ export default function StreamTokenUtility() {
       y: [0, -10, 0],
       transition: {
         duration: 3,
-        repeat: Infinity,
+        repeat: Number.POSITIVE_INFINITY,
         repeatType: "reverse" as const,
         ease: "easeInOut",
       },
@@ -41,11 +43,14 @@ export default function StreamTokenUtility() {
   };
 
   return (
-    <section className="relative grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-8 py-10 px-5 md:px-20 xl:py-20 lg:py-14 bg-transparent overflow-hidden">
+    <Section
+      id="stream-token-utility"
+      className="relative grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-8 bg-transparent overflow-hidden"
+    >
       {/* Content Container */}
       <div className="col-span-1 md:col-span-2 flex flex-col items-center gap-6 relative z-40">
         <motion.h1
-          className="text-2xl sm:text-4xl xl:text-5xl font-extrabold font-pp-neue text-white text-center"
+          className="font-pp-neue font-extrabold text-2xl sm:text-4xl xl:text-5xl text-white text-center"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
@@ -56,7 +61,7 @@ export default function StreamTokenUtility() {
         </motion.h1>
 
         <motion.p
-          className=" text-sm sm:text-base text-white/80 font-normal sm:text-center max-w-[844px]"
+          className="font-normal text-white/80 text-sm sm:text-base sm:text-center max-w-[844px]"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
@@ -73,13 +78,13 @@ export default function StreamTokenUtility() {
       {/* Token images with animations - responsive positioning */}
       <motion.div>
         <motion.div
-          className="absolute  top-[60%] left-[5%] md:left-[14%] hidden md:flex items-center justify-center w-[150px] h-[120px] md:w-[449.8px] md:h-[304.2px] z-0"
+          className="absolute top-[60%] left-[5%] md:left-[14%] hidden md:flex items-center justify-center w-[150px] h-[120px] md:w-[449.8px] md:h-[304.2px] z-0"
           variants={floatAnimation}
           initial="initial"
           animate="animate"
         >
           <Image
-            src={token1}
+            src={token1 || "/placeholder.svg"}
             alt="token1"
             height={100}
             width={100}
@@ -95,7 +100,7 @@ export default function StreamTokenUtility() {
           transition={{ delay: 0.5 }}
         >
           <Image
-            src={token2}
+            src={token2 || "/placeholder.svg"}
             alt="token2"
             height={100}
             width={100}
@@ -111,7 +116,7 @@ export default function StreamTokenUtility() {
           transition={{ delay: 1 }}
         >
           <Image
-            src={token3}
+            src={token3 || "/placeholder.svg"}
             alt="token3"
             height={100}
             width={100}
@@ -127,7 +132,7 @@ export default function StreamTokenUtility() {
           transition={{ delay: 1.5 }}
         >
           <Image
-            src={token4}
+            src={token4 || "/placeholder.svg"}
             alt="token4"
             height={100}
             width={100}
@@ -143,7 +148,7 @@ export default function StreamTokenUtility() {
           transition={{ delay: 2 }}
         >
           <Image
-            src={token5}
+            src={token5 || "/placeholder.svg"}
             alt="token5"
             height={100}
             width={100}
@@ -151,8 +156,9 @@ export default function StreamTokenUtility() {
           />
         </motion.div>
       </motion.div>
+
       <motion.div
-        className="col-span-1 flex flex-col gap-4 sm:p-4"
+        className="col-span-1 flex flex-col gap-4"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true }}
@@ -167,7 +173,12 @@ export default function StreamTokenUtility() {
             whileHover={{ scale: 1.02 }}
           >
             <div className="flex items-center justify-center p-3 rounded bg-[#007BFF1A]">
-              <Image src={vpnKey} alt={item.title} width={24} height={24} />
+              <Image
+                src={vpnKey || "/placeholder.svg"}
+                alt={item.title}
+                width={24}
+                height={24}
+              />
             </div>
             <div className="flex flex-col gap-2">
               <h2 className="font-bold text-[#FFFFFF] text-lg md:text-2xl">
@@ -180,8 +191,6 @@ export default function StreamTokenUtility() {
           </motion.div>
         ))}
       </motion.div>
-
-      {/* FAQs section at the bottom for mobile view as shown in Figma */}
-    </section>
+    </Section>
   );
 }

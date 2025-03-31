@@ -1,13 +1,13 @@
 import About from "@/components/landing-page/about";
-import { Benefits } from "@/components/landing-page/Benefits";
+import Benefits from "@/components/landing-page/Benefits";
 import Community from "@/components/landing-page/Community";
-import Navbar from "@/components/landing-page/Navbar";
-import HeroSection from "@/components/landing-page/HeroSection";
-import StreamTokenUtility from "@/components/landing-page/StreamTokenUtility";
-import Testimonials from "@/components/landing-page/Testimonials";
-import FrequentlyAskedQuestions from "@/components/landing-page/FrequentlyAskedQuestions";
-import Waitlist from "@/components/landing-page/Waitlist";
 import Footer from "@/components/landing-page/footer";
+import FrequentlyAskedQuestions from "@/components/landing-page/frequently-asked-questions";
+import HeroSection from "@/components/landing-page/hero-section";
+import Navbar from "@/components/landing-page/Navbar";
+import StreamTokenUtility from "@/components/landing-page/stream-token-utility";
+import Testimonials from "@/components/landing-page/Testimonials";
+import Waitlist from "@/components/landing-page/Waitlist";
 
 export default function Home() {
   const starPositions = Array.from({ length: 25 }, () => ({
@@ -20,9 +20,9 @@ export default function Home() {
   return (
     <div
       className="relative w-full bg-gradient-to-r  from-[#16062B] from-[10%] via-[#0D0216] via-[50%] to-[#15375B] to-[88%] bg-no-repeat bg-center bg-contain  min-h-screen pt-10"
-      style={{
-        background: "url('/Images/Streamfi-bg.png')",
-      }}
+      // style={{
+      //   background: "url('/Images/Streamfi-bg.png')",
+      // }}
     >
       <div className="stars-container absolute inset-0 w-full min-h-screen"></div>
 
