@@ -2,14 +2,17 @@
   "name": "streamfi-frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev ",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "setup-db": "node scripts/setup-db.cjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.1.1",
+    "@neondatabase/serverless": "^1.0.0",
     "@radix-ui/react-slot": "^1.1.2",
     "@starknet-react/chains": "^3.1.2",
     "@starknet-react/core": "^3.7.2",
@@ -17,6 +20,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.4.7",
     "embla-carousel-react": "^8.5.2",
     "framer-motion": "^12.5.0",
     "input-otp": "^1.4.2",
@@ -24,6 +28,7 @@
     "lucide-react": "^0.475.0",
     "motion": "^12.4.7",
     "next": "^14.2.24",
+    "nodemailer": "^6.10.0",
     "nprogress": "^0.2.0",
     "react": "^18",
     "react-dom": "^18",
@@ -33,6 +38,7 @@
     "swiper": "^11.2.4",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
+    "uuid": "^11.1.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
