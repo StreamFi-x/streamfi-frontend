@@ -1,13 +1,13 @@
 import About from "@/components/landing-page/about";
-import Benefits from "@/components/landing-page/benefits";
-import Community from "@/components/landing-page/community";
+import Benefits from "@/components/landing-page/Benefits";
+import Community from "@/components/landing-page/Community";
 import Footer from "@/components/landing-page/footer";
 import FrequentlyAskedQuestions from "@/components/landing-page/frequently-asked-questions";
 import HeroSection from "@/components/landing-page/hero-section";
-import Navbar from "@/components/landing-page/navbar";
+import Navbar from "@/components/landing-page/Navbar";
 import StreamTokenUtility from "@/components/landing-page/stream-token-utility";
-import Testimonials from "@/components/landing-page/testimonials";
-import Waitlist from "@/components/landing-page/waitlist";
+import Testimonials from "@/components/landing-page/Testimonials";
+import Waitlist from "@/components/landing-page/Waitlist";
 
 export default function Home() {
   const starPositions = Array.from({ length: 25 }, () => ({
