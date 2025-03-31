@@ -55,7 +55,7 @@ const Navbar = () => {
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center space-x-2 font-bold text-xl">
             <Image
-              src={"/images/streamFiLogo.svg"}
+              src={"/Images/streamFiLogo.svg"}
               alt="StreamFi Logo"
               width={120}
               height={120}
