@@ -1,3 +1,4 @@
+'use server'
 import nodemailer from "nodemailer";
 
 export async function sendWelcomeEmail(email, name) {
