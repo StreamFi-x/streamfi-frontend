@@ -301,10 +301,7 @@ export default function Navbar({
           >
             <Menu size={24} />
           </button>
-          <Image
-            src={StreamfiLogoShort || "/placeholder.svg"}
-            alt="Streamfi Logo"
-          />
+          <Image src={StreamfiLogoShort} alt="Streamfi Logo" />
         </div>
 
         <div className="hidden md:block flex-1 items-center max-w-xl mx-4 relative">
