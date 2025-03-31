@@ -24,7 +24,7 @@ const PageNotFoundContent: FC<PageNotFoundContentProps> = ({ onGoBack }) => {
           <div className="space-y-2">
             <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Page not found</h2>
             <p className="text-muted-foreground text-white">
-              Oops! The page you're looking for seems to have wandered off into the digital wilderness.
+              Oops! The page you&apos;re looking for seems to have wandered off into the digital wilderness.
             </p>
           </div>
 
