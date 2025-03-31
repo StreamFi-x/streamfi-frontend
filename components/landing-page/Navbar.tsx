@@ -50,7 +50,10 @@ const Navbar = () => {
   };
 
   return (
-    <Section wrapperClassName="z-50 sticky top-10 !py-0" className="md:!px-20">
+    <Section
+      wrapperClassName=" !py-0 mb-10 md:mb-5 flex w-full justify-center"
+      className="md:!px-10 z-50 fixed top-5 md:top-10"
+    >
       <nav className="bg-white/5 backdrop-blur-lg rounded-3xl p-4 w-full text-white">
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center space-x-2 font-bold text-xl">
