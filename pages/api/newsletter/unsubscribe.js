@@ -1,5 +1,5 @@
-import { rateLimit } from "../../utils/rate-limit"; 
-import { validateEmail } from "../../utils/validators";
+import { rateLimit } from "../../../utils/rate-limit"; 
+import { validateEmail } from "../../../utils/validators";
 import { Pool } from "@neondatabase/serverless";
 
 // Rate limiter: 5 requests per minute so as not to abuse it
