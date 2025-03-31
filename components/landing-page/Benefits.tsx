@@ -256,16 +256,7 @@ const DesktopBenefitsLayout = () => {
             {benefit.icon && (
               <div className="flex-shrink-0 sm:flex-shrink w-full sm:w-auto sm:max-w-[14rem] flex items-center justify-center">
                 <div className="w-full max-w-full">
-                  <motion.div
-                    animate={{
-                      y: [0, -5, 0],
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Number.POSITIVE_INFINITY,
-                      repeatType: "reverse",
-                    }}
-                  >
+                  <div>
                     <Image
                       src={benefit.icon || "/placeholder.svg"}
                       alt={benefit.title}
@@ -274,7 +265,7 @@ const DesktopBenefitsLayout = () => {
                       className="w-full h-auto object-contain"
                       style={{ maxWidth: "100%" }}
                     />
-                  </motion.div>
+                  </div>
                 </div>
               </div>
             )}
