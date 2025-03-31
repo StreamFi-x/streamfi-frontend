@@ -76,7 +76,7 @@ export default function Footer() {
 
           <motion.div variants={itemVariants}>
             <Link
-              href="/contact"
+              href="mailto:streamfi25@gmail.com"
               className="flex items-center gap-2 text-white hover:text-gray-300 transition-colors"
             >
               <Mail size={18} />
