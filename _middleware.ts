@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export function middleware(req) {
+export function middleware(req: NextRequest) {
   // Skipping CSRF check for GET requests
   if (req.method === 'GET') {
     return NextResponse.next();

@@ -1,7 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use server'
-import nodemailer from "nodemailer";
+import nodemailer from 'nodemailer';
 
-export async function sendWelcomeEmail(email, name) {
+
+
+export async function sendWelcomeEmail(email: any, name: any) {
     const transporter = nodemailer.createTransport({
         service: "Gmail", 
         auth: {

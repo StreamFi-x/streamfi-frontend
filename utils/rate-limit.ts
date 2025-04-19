@@ -1,8 +1,9 @@
-export function rateLimit({ interval }) {
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export function rateLimit({ interval } : {interval: any}) {
     const tokenCache = new Map();
     
     return {
-      check: (res, limit, token) =>
+      check: (res: any, limit: any, token: any) =>
         new Promise((resolve, reject) => {
           const tokenCount = tokenCache.get(token) || [0];
           
@@ -28,7 +29,7 @@ export function rateLimit({ interval }) {
             }, interval);
           }
   
-          resolve();
+          resolve(undefined);
         }),
     };
   }

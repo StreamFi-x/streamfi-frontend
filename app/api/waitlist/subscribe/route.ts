@@ -1,20 +1,17 @@
-import { rateLimit } from "../../../utils/rate-limit";
-import { validateEmail } from "../../../utils/validators";
-import { sendWelcomeEmail } from "../send-email";
-import { Pool } from "@neondatabase/serverless";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { rateLimit } from "../../../../utils/rate-limit";
+import { validateEmail } from "../../../../utils/validators";
+import { sendWelcomeEmail } from "../../send-email/route";
+import { sql } from '@vercel/postgres';
 
 // Rate limiter: 5 requests per minute
 const limiter = rateLimit({
   interval: 60 * 1000, 
-  uniqueTokenPerInterval: 500,
-  max: 5,
+  //uniqueTokenPerInterval: 500,
+//   max: 5,
 });
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-export default async function handler(req, res) {
+export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -36,10 +33,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    
-    const checkExisting = await pool.query("SELECT * FROM subscribers WHERE email = $1", [email]);
+    // Check if user already exists
+    const checkExisting = await sql`
+      SELECT * FROM waitlist WHERE email = ${email}
+    `;
 
-    if (checkExisting.rowCount > 0) {
+    if (checkExisting.rows.length > 0) {
       const subscriber = checkExisting.rows[0];
 
       if (!subscriber.unsubscribed_at) {
@@ -47,19 +46,20 @@ export default async function handler(req, res) {
       }
 
       // Resubscribing user if they had unsubscribed
-      await pool.query(
-        "UPDATE subscribers SET unsubscribed_at = NULL, updated_at = NOW() WHERE email = $1",
-        [email]
-      );
+      await sql`
+        UPDATE waitlist 
+        SET unsubscribed_at = NULL, updated_at = NOW() 
+        WHERE email = ${email}
+      `;
     } else {
       // Inserting new subscriber
-      await pool.query(
-        "INSERT INTO subscribers (email, name) VALUES ($1, $2)",
-        [email, name || null]
-      );
+      await sql`
+        INSERT INTO waitlist (email, name) 
+        VALUES (${email}, ${name || null})
+      `;
     }
-
     
+    // Send welcome email
     await sendWelcomeEmail(email, name);
 
     return res.status(200).json({ message: "Subscription successful. Welcome email sent." });
@@ -68,4 +68,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Failed to process subscription" });
   }
 }
-
