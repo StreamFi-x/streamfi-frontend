@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { rateLimit } from "../../../../utils/rate-limit";
 import { validateEmail } from "../../../../utils/validators";
-import { sendWelcomeEmail } from "../../send-email/route";
+import { sendWelcomeEmail } from "../../../../utils/send-email";
 import { sql } from '@vercel/postgres';
 
 // Rate limiter: 5 requests per minute
@@ -11,7 +11,7 @@ const limiter = rateLimit({
 //   max: 5,
 });
 
-export default async function handler(req: any, res: any) {
+ async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -68,3 +68,5 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: "Failed to process subscription" });
   }
 }
+
+export {handler as GET, handler as POST};

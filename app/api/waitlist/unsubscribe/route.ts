@@ -10,7 +10,7 @@ const limiter = rateLimit({
 //   max: 5,
 });
 
-export default async function handler(req: any, res: any) {
+ async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -53,3 +53,5 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: "Failed to process unsubscription" });
   }
 }
+
+export {handler as POST, handler as GET};
