@@ -208,7 +208,7 @@ export default function ProfileSettings() {
                 Edit Avatar
               </button>
               <p className="text-gray-400 mt-2 text-xs md:text-sm">
-                Must be JPEG, PNG, or GIF and cannot exceed 10MB
+                Must be JPEG, PNG, or GIF and cannot exceed 10MB 
               </p>
               {avatarError && (
                 <p className="text-red-500 mt-1 text-xs md:text-sm">

@@ -14,6 +14,7 @@ export default {
         "background-3": "#151515",
         foreground: "var(--foreground)",
         primary: "#5A189A",
+        purples: "#9147FF",
         offWhite: "#F1F1F1",
         "offWhite-2": "#D9D9D9",
         grayish: "#CBCBCB",
