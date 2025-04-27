@@ -12,3 +12,21 @@ CREATE TABLE waitlist (
     WITH
         TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
+    wallet VARCHAR(255) UNIQUE NOT NULL,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255),
+    streamkey VARCHAR(255),
+    avatar VARCHAR(255),
+    bio TEXT,
+    socialLinks JSONB,
+
+    created_at TIMESTAMP
+    WITH
+        TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP
+    WITH
+        TIME ZONE DEFAULT CURRENT_TIMESTAMP
+)
