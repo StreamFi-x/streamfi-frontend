@@ -44,7 +44,7 @@ async function handler(
       { error: "Failed to fetch user" },
       { status: 500 }
     );
-    // return res.status(500).json({ error: "Failed to register user" });
+    // return res.status(500).json({ error: "Failed to fetch user" });
   }
 }
 
