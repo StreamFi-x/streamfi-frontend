@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { NextResponse } from "next/server";
 import { rateLimit } from "../../../../utils/rate-limit";
-import { validateEmail } from "../../../../utils/validators";
+import {
+  checkExistingTableDetail,
+  validateEmail,
+} from "../../../../utils/validators";
 import { sql } from "@vercel/postgres";
 
 // Rate limiter: 5 requests per minute so as not to abuse it
@@ -10,62 +14,105 @@ const limiter = rateLimit({
   //   max: 5,
 });
 
-async function handler(req: any, res: any) {
+async function handler(req: Request, res: any) {
   if (req.method !== "POST") {
-    return res.json({ error: "Method not allowed" }, { status: 405 });
+    return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
     // return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
     await limiter.check(res, 5, "UNSUBSCRIBE_RATE_LIMIT");
   } catch {
-    return res.json({ error: "Rate limit exceeded" }, { status: 429 });
-    // return res.json({ error: "Rate limit exceeded" },{status: 429});
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+    // return res.status(429).json({ error: "Rate limit exceeded" });
   }
 
-  const { email } = req.body;
+  const requestBody = await req.json();
+  const { email, username, wallet } = requestBody;
+
+  if (!username) {
+    return NextResponse.json(
+      { error: "Username is required" },
+      { status: 400 }
+    );
+    // return res.status(400).json({ error: "Email is required" });
+  }
+  if (!wallet) {
+    return NextResponse.json({ error: "Wallet is required" }, { status: 400 });
+    // return res.status(400).json({ error: "Email is required" });
+  }
 
   if (!email) {
-    return res.json({ error: "Email is required" }, { status: 400 });
+    return NextResponse.json({ error: "Email is required" }, { status: 400 });
     // return res.status(400).json({ error: "Email is required" });
   }
 
   if (!validateEmail(email)) {
-    return res.json({ error: "Invalid email format" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid email format" },
+      { status: 400 }
+    );
     // return res.status(400).json({ error: "Invalid email format" });
   }
 
   try {
-    const checkExisting = await sql`
-      SELECT * FROM waitlist 
-      WHERE email = ${email} AND unsubscribed_at IS NULL
-    `;
+    const userEmailExist = await checkExistingTableDetail(
+      "users",
+      "email",
+      email
+    );
 
-    if (checkExisting.rows.length === 0) {
-      return res.json(
-        { error: "Email not found or already unsubscribed" },
-        { status: 404 }
+    const usernameExist = await checkExistingTableDetail(
+      "users",
+      "username",
+      username
+    );
+
+    const userWalletExist = await checkExistingTableDetail(
+      "users",
+      "wallet",
+      wallet
+    );
+
+    if (userEmailExist) {
+      return NextResponse.json(
+        { error: "Email already exist" },
+        { status: 400 }
       );
-      //   return res
-      //     .status(404)
-      //     .json({ error: "Email not found or already unsubscribed" });
+      // return res
+      // .status(404)
+      // .json({ error: "Email not found or already unsubscribed" });
+    }
+    if (usernameExist) {
+      return NextResponse.json(
+        { error: "Username already exist" },
+        { status: 400 }
+      );
+    }
+    if (userWalletExist) {
+      return NextResponse.json(
+        { error: "Wallet address already exist" },
+        { status: 400 }
+      );
     }
 
     await sql`
-      UPDATE waitlist 
-      SET unsubscribed_at = NOW(), updated_at = NOW() 
-      WHERE email = ${email}
+      INSERT INTO users (email, username, wallet)
+      VALUES (${email}, ${username}, ${wallet})
     `;
 
-    return res.json({ message: "Successfully unsubscribed" }, { status: 200 });
-    // return res.status(200).json({ message: "Successfully unsubscribed" });
+    return NextResponse.json(
+      { message: "User registration success" },
+      { status: 200 }
+    );
+    // return res.status(200).json({ message: "User registration success" });
   } catch (error) {
-    console.error("Unsubscribe error:", error);
-    return res.json(
-      { error: "Failed to process unsubscription" },
+    console.error("Registration error:", error);
+    return NextResponse.json(
+      { error: "Failed to register user" },
       { status: 500 }
     );
-    // return res.status(500).json({ error: "Failed to process unsubscription" });
+    // return res.status(500).json({ error: "Failed to register user" });
   }
 }
 
