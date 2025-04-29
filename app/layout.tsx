@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Providers } from "../components/providers";
 import "./globals.css";
 import { Toaster } from "sonner";
+import MobNav from "@/components/settings/mob-nav";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -13,7 +14,6 @@ export const metadata: Metadata = {
   },
   description:
     "Stream without limits, engage your community, and earn instantly with a blockchain-powered ecosystem that ensures true ownership, decentralized rewards, and frictionless transactions.",
-
   openGraph: {
     title: "Streamfi - Own Your Stream. Own Your Earnings",
     description:
@@ -29,7 +29,6 @@ export const metadata: Metadata = {
     ],
     type: "website",
   },
-
   twitter: {
     card: "summary_large_image",
     title: "Streamfi - Own Your Stream. Own Your Earnings",
@@ -46,9 +45,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="">
-      <Toaster position="top-right" closeButton />
-      <body className={` antialiased bg-[#16062B]`}>
-        <Providers>{children}</Providers>
+      <body className="antialiased bg-[#16062B]">
+        <Providers>
+          {children}
+          <MobNav />
+          <Toaster position="top-right" closeButton />
+        </Providers>
       </body>
     </html>
   );

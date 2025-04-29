@@ -1,6 +1,8 @@
 export const tabs = [
     { id: "Profile", route: "/settings/profile" },
-    { id: "Account", route: "/settings/account" },
-    { id: "Privacy and Security", route: "/settings/privacy" },
-    { id: "Notification", route: "/settings/notifications" },
+    { id: "Notifications", route: "/settings/notifications" },
+    { id: "Privacy & Security", route: "/settings/privacy" },
+    { id: "Stream & Channel Preferences", route: "/settings/stream-Preference" },
+    { id: "Appearance", route: "/settings/Appearance" },
+    { id: "Connected Accounts", route: "/settings/connected-accounts" }
   ];

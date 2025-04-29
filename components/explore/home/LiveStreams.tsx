@@ -5,6 +5,7 @@ import { Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
 import { LiveStreamProps } from "@/types/explore/home";
+import Image from "next/image";
 
 export function LiveStreams({ title, category, streams }: LiveStreamProps) {
   const [visibleStreams, setVisibleStreams] = useState(4);
@@ -103,7 +104,9 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
               className="group cursor-pointer"
             >
               <div className="relative rounded-lg overflow-hidden">
-                <img
+                <Image
+                  width={500}
+                  height={300}
                   src={stream.thumbnail || "/placeholder.svg"}
                   alt={stream.title}
                   className="w-full aspect-video object-cover transition-transform group-hover:scale-105"
@@ -122,7 +125,9 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
               <div className="mt-2 flex flex-col items-start gap-2">
                 <div className="flex items-center gap-x-2">
                   <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0">
-                    <img
+                    <Image
+                      width={300}
+                      height={300}
                       src={stream.streamer.logo || "/placeholder.svg"}
                       alt={stream.streamer.name}
                       className="w-full h-full object-cover"

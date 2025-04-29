@@ -9,10 +9,12 @@ const SettingsHeader = () => {
 
   const getActiveTab = () => {
     if (pathname === "/settings/profile") return "Profile";
-    if (pathname === "/settings/account") return "Account";
-    if (pathname === "/settings/privacy") return "Privacy and Security";
-    if (pathname === "/settings/notifications") return "Notification";
-    return "Profile";
+    if (pathname === "/settings/privacy") return "Privacy & Security";
+    if (pathname === "/settings/notifications") return "Notifications";
+    if (pathname === "/settings/stream-Preference")
+      return "Stream & Channel Preferences";
+    if (pathname === "/settings/Appearance") return "Appearance";
+    if (pathname === "/settings/connected-accounts") return "Connected Accounts";
   };
 
   const activeTab = getActiveTab();

@@ -214,7 +214,7 @@
 
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { StreamfiLogo, StreamfiLogoShort } from "@/public/icons";
+import { StreamfiLogoShort } from "@/public/icons";
 import { Menu, Search, X } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -295,12 +295,12 @@ export default function Navbar({
     <>
       <header className="h-16 flex items-center justify-between px-4 border-b-[0.5px] border-white/30 bg-background z-10">
         <div className="flex items-center gap-4">
-          <button
+          {/* <button
             onClick={toggleSidebar}
             className="p-2 rounded-full text-white hover:bg-[#2D2F31]/60 lg:hidden"
           >
             <Menu size={24} />
-          </button>
+          </button> */}
           <Image src={StreamfiLogoShort} alt="Streamfi Logo" />
         </div>
 
