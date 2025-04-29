@@ -22,7 +22,7 @@ const MobNav = () => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 py-2 px-4 md:hidden z-50">
+    <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 py-2 px-4 lg:hidden z-50">
       <div className='flex justify-between items-center'>
         {navItems.map((item) => {
           const active = isActive(item.path);
