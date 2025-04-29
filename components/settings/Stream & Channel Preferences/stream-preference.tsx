@@ -161,7 +161,7 @@ const StreamPreferencesPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="max-w-8xl mx-auto">
+      <div className="max-w-8xl mx-auto mb-[6em]">
         <SectionCard>
           {/* Stream URL */}
           <SecretField

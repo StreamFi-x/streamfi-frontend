@@ -273,7 +273,7 @@ const PrivacySecurityPage: React.FC = () => {
         
         <div className="flex justify-end mb-8">
           <button 
-            className="bg-[#5A189A] w-full md:w-auto hover:bg-opacity-90 text-white px-6 py-3 rounded-md transition"
+            className="bg-[#5A189A] w-full md:w-auto hover:bg-opacity-90 text-white px-6 py-3 rounded-md transition mb-[4em] lg:mb-0"
             onClick={handleSaveChanges}
           >
             Save Changes

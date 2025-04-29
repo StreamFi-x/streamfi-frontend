@@ -384,7 +384,7 @@ export default function ProfileSettings() {
               handleSaveChanges();
               handleVerifyEmail();
             }}
-            className="bg-purple-700 hover:bg-purple-800 text-white px-5 py-2 md:px-6 md:py-3 rounded-md transition text-sm md:text-base"
+            className="bg-purple-700 hover:bg-purple-800 text-white px-5 py-2 md:px-6 md:py-3 rounded-md transition text-sm md:text-base mb-[4em]"
           >
             Save Changes
           </button>
