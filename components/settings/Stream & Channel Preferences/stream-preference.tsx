@@ -1,6 +1,7 @@
 'use client'
 import React, { useState } from 'react';
 import { Eye } from 'lucide-react';
+import StreamKeyModal from '@/components/ui/streamkeyModal';
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -109,6 +110,8 @@ const StreamPreferencesPage: React.FC = () => {
     copyrightWarning: true
   });
   
+  // State for the modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   const updateState = (key: keyof typeof state, value: boolean) => {
     setState(prev => ({
@@ -129,7 +132,11 @@ const StreamPreferencesPage: React.FC = () => {
   
   const copyKey = () => {
     navigator.clipboard.writeText("stream-key-would-be-here");
-    alert("Stream key copied to clipboard!");
+    setIsModalOpen(true);
+  };
+  
+  const closeModal = () => {
+    setIsModalOpen(false);
   };
   
   const resetKey = () => {
@@ -160,8 +167,8 @@ const StreamPreferencesPage: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="max-w-8xl mx-auto mb-[6em]">
+    <div className="min-h-screen bg-black text-white">      
+      <div className="max-w-8xl mx-auto px-4 pt-12 pb-16">
         <SectionCard>
           {/* Stream URL */}
           <SecretField
@@ -203,6 +210,9 @@ const StreamPreferencesPage: React.FC = () => {
           />
         </SectionCard>
       </div>
+      
+      {/* Stream Key Modal */}
+      <StreamKeyModal isOpen={isModalOpen} onClose={closeModal} />
     </div>
   );
 };
