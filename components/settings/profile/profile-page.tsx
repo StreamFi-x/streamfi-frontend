@@ -4,12 +4,6 @@ import Image, { StaticImageData } from "next/image";
 import profileImage from "@/public/Images/profile.png";
 import Avatar from "@/public/icons/avatar.svg";
 import {
-  Instagram,
-  Twitter,
-  Facebook,
-  Youtube,
-  Send,
-  Globe,
   Edit2,
   Trash2,
   Check,
@@ -19,6 +13,15 @@ import VerificationPopup from "./popup";
 import AvatarSelectionModal from "./avatar-modal";
 import { useToast } from "@/components/ui/toast-provider";
 
+// Import social media icons - You'll need to update these paths based on your project structure
+import InstagramIcon from "@/public/Images/instagram.svg";
+import TwitterIcon from "@/public/images/twitter.svg";
+import FacebookIcon from "@/public/images/facebook.svg";
+import YoutubeIcon from "@/public/images/youtube copy.svg";
+import TelegramIcon from "@/public/images/telegram.svg";
+import DiscordIcon from "@/public/images/discord copy.svg";
+import TikTokIcon from "@/public/images/tiktok.svg";
+
 const avatar1 = Avatar;
 const avatar2 = Avatar;
 const avatar3 = Avatar;
@@ -27,35 +30,63 @@ const avatar5 = Avatar;
 
 interface SocialLink {
   url: string;
+  title: string;
   platform:
     | "instagram"
     | "twitter"
     | "facebook"
     | "youtube"
     | "telegram"
+    | "discord"
+    | "tiktok"
     | "other";
   isEditing?: boolean;
 }
 
 export default function ProfileSettings() {
   const { showToast } = useToast();
-  const [username, setUsername] = useState("StankHunt_42");
+  const [username, setUsername] = useState("Cassyyy");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [email, setEmail] = useState("Chidinmacasandra@gmail.com");
   const [bio, setBio] = useState("Chidinma Cassandra");
-  const [socialLink, setSocialLink] = useState("");
-  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [socialLinkUrl, setSocialLinkUrl] = useState("");
+  const [socialLinkTitle, setSocialLinkTitle] = useState("");
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([
+    { url: "www.facebook.com", title: "Facebook", platform: "facebook" }
+  ]);
   const [editingLink, setEditingLink] = useState<string>("");
+  const [editingTitle, setEditingTitle] = useState<string>("");
   const [showVerificationPopup, setShowVerificationPopup] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [avatar, setAvatar] = useState(profileImage);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [avatarError, setAvatarError] = useState("");
   const [showAvatarModal, setShowAvatarModal] = useState(false);
-
+  const [language, setLanguage] = useState("English");
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
+
+  const languages = [
+    "English",
+    "Spanish",
+    "French",
+    "German",
+    "Portuguese",
+    "Russian",
+    "Chinese",
+    "Japanese",
+  ];
+
+  const getInputStyle = (inputName: string) => {
+    return `w-full bg-[#2a2a2a] rounded-lg px-4 py-2 text-white text-sm outline-none 
+           ${focusedInput === inputName ? "border border-purple-600" : "border border-transparent"} 
+           transition-all duration-200`;
+  };
 
   const avatarOptions = [avatar1, avatar2, avatar3, avatar4, avatar5];
 
-  const validateAndIdentifyLink = (url: string): SocialLink | null => {
+  const validateAndIdentifyLink = (url: string, title: string): SocialLink | null => {
     const urlRegex =
       /^(https?:\/\/)?(www\.)?([a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+)(\/[^\s]*)?$/;
 
@@ -67,28 +98,34 @@ export default function ProfileSettings() {
       /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z0-9-]+)/
     );
     const domain = domainMatch ? domainMatch[1].toLowerCase() : "";
+    
     if (domain.includes("instagram")) {
-      return { url, platform: "instagram" };
+      return { url, title, platform: "instagram" };
     } else if (domain.includes("twitter") || domain.includes("x.com")) {
-      return { url, platform: "twitter" };
+      return { url, title, platform: "twitter" };
     } else if (domain.includes("facebook") || domain.includes("fb.com")) {
-      return { url, platform: "facebook" };
+      return { url, title, platform: "facebook" };
     } else if (domain.includes("youtube") || domain.includes("youtu.be")) {
-      return { url, platform: "youtube" };
+      return { url, title, platform: "youtube" };
     } else if (domain.includes("telegram") || domain.includes("t.me")) {
-      return { url, platform: "telegram" };
+      return { url, title, platform: "telegram" };
+    } else if (domain.includes("discord")) {
+      return { url, title, platform: "discord" };
+    } else if (domain.includes("tiktok")) {
+      return { url, title, platform: "tiktok" };
     } else {
-      return { url, platform: "other" };
+      return { url, title, platform: "other" };
     }
   };
 
   const handleAddSocialLink = () => {
-    if (socialLink && socialLinks.length < 5) {
-      const validatedLink = validateAndIdentifyLink(socialLink);
+    if (socialLinkUrl && socialLinks.length < 5) {
+      const validatedLink = validateAndIdentifyLink(socialLinkUrl, socialLinkTitle || "Social Link");
 
       if (validatedLink) {
         setSocialLinks([...socialLinks, validatedLink]);
-        setSocialLink("");
+        setSocialLinkUrl("");
+        setSocialLinkTitle("");
         showToast("Social link added successfully", "success");
       } else {
         showToast("Please enter a valid URL", "error");
@@ -102,18 +139,20 @@ export default function ProfileSettings() {
     const newLinks = [...socialLinks];
     const linkToEdit = newLinks[index];
     setEditingLink(linkToEdit.url);
+    setEditingTitle(linkToEdit.title);
     newLinks[index] = { ...linkToEdit, isEditing: true };
     setSocialLinks(newLinks);
   };
 
   const handleUpdateLink = (index: number) => {
-    const validatedLink = validateAndIdentifyLink(editingLink);
+    const validatedLink = validateAndIdentifyLink(editingLink, editingTitle);
 
     if (validatedLink) {
       const newLinks = [...socialLinks];
       newLinks[index] = validatedLink;
       setSocialLinks(newLinks);
       setEditingLink("");
+      setEditingTitle("");
       showToast("Link updated successfully", "success");
     } else {
       showToast("Please enter a valid URL", "error");
@@ -125,6 +164,7 @@ export default function ProfileSettings() {
     newLinks[index] = { ...newLinks[index], isEditing: false };
     setSocialLinks(newLinks);
     setEditingLink("");
+    setEditingTitle("");
   };
 
   const handleDeleteLink = (index: number) => {
@@ -132,6 +172,7 @@ export default function ProfileSettings() {
     showToast("Link removed", "info");
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleVerifyEmail = () => {
     setShowVerificationPopup(true);
     console.log("Sending verification code to", email);
@@ -159,39 +200,45 @@ export default function ProfileSettings() {
     showToast("Avatar updated successfully", "success");
   };
 
+  const handleLanguageSelect = (selectedLanguage: string) => {
+    setLanguage(selectedLanguage);
+    setShowLanguageModal(false);
+    showToast(`Language changed to ${selectedLanguage}`, "success");
+  };
+
   const handleSaveChanges = () => {
     console.log("Saving profile changes...");
     showToast("Profile changes saved successfully", "success");
   };
 
-  const getInputStyle = (inputName: string) => {
-    return `w-full bg-[#2a2a2a] rounded-lg px-4 py-2 text-white text-sm md:text-base 
-           outline-none transition-all duration-200 
-           ${focusedInput === inputName ? "border border-[#5A189A]" : ""}`;
-  };
   const getSocialIcon = (platform: string) => {
     switch (platform) {
       case "instagram":
-        return <Instagram className="w-5 h-5 text-pink-500" />;
+        return <Image src={InstagramIcon} alt="Instagram" width={24} height={24} />;
       case "twitter":
-        return <Twitter className="w-5 h-5 text-blue-400" />;
+        return <Image src={TwitterIcon} alt="Twitter" width={24} height={24} />;
       case "facebook":
-        return <Facebook className="w-5 h-5 text-blue-600" />;
+        return <Image src={FacebookIcon} alt="Facebook" width={24} height={24} />;
       case "youtube":
-        return <Youtube className="w-5 h-5 text-red-600" />;
+        return <Image src={YoutubeIcon} alt="YouTube" width={24} height={24} />;
       case "telegram":
-        return <Send className="w-5 h-5 text-blue-500" />;
+        return <Image src={TelegramIcon} alt="Telegram" width={24} height={24} />;
+      case "discord":
+        return <Image src={DiscordIcon} alt="Discord" width={24} height={24} />;
+      case "tiktok":
+        return <Image src={TikTokIcon} alt="TikTok" width={24} height={24} />;
       default:
-        return <Globe className="w-5 h-5 text-gray-400" />;
+        return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pb-[2em]">
-      <div className="mx-auto">
-        <div className="bg-[#1a1a1a] rounded-lg px-2 py-3 lg:p-4 md:p-6 mb-6">
-          <div className="flex items-center gap-4 md:gap-6">
-            <div className="relative w-24 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-2 border-purple-700">
+    <div className="min-h-screen bg-black text-white pb-8">
+      <div className="mx-auto max-w-8xl">
+        {/* Avatar Section */}
+        <div className="bg-[#1a1a1a] rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-4">
+            <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-purple-700">
               <Image
                 src={avatar}
                 alt="Profile Avatar"
@@ -203,29 +250,25 @@ export default function ProfileSettings() {
             <div>
               <button
                 onClick={handleAvatarClick}
-                className="bg-[#2a2a2a] text-white px-3 py-2 rounded text-sm md:text-base hover:bg-[#333] transition"
+                className="bg-[#2a2a2a] text-white px-3 py-2 rounded text-sm hover:bg-[#333] transition"
               >
                 Edit Avatar
               </button>
-              <p className="text-gray-400 mt-2 text-xs md:text-sm">
+              <p className="text-gray-400 mt-2 text-xs">
                 Must be JPEG, PNG, or GIF and cannot exceed 10MB 
               </p>
-              {avatarError && (
-                <p className="text-red-500 mt-1 text-xs md:text-sm">
-                  {avatarError}
-                </p>
-              )}
             </div>
           </div>
         </div>
 
-        <div className="bg-[#1a1a1a] rounded-lg p-4 md:p-6 mb-6">
-          <h2 className="text-purple-500 text-lg md:text-xl mb-4 md:mb-6">
-            Basic setting
+        {/* Basic Settings Section */}
+        <div className="bg-[#1a1a1a] rounded-lg p-4 mb-6">
+          <h2 className="text-purple-500 text-lg mb-4">
+            Basic Settings
           </h2>
 
           <div className="mb-5">
-            <label className="block mb-2 text-sm md:text-base">User Name</label>
+            <label className="block mb-2 text-sm">User Name</label>
             <input
               type="text"
               value={username}
@@ -235,35 +278,13 @@ export default function ProfileSettings() {
               className={getInputStyle("username")}
               style={{ outlineWidth: 0, boxShadow: "none" }}
             />
-            <p className="text-gray-500 italic text-xs md:text-sm mt-1">
-              You can only change your display name once every 1 months.
+            <p className="text-gray-500 italic text-xs mt-1">
+              You can only change your display name once in a month.
             </p>
           </div>
 
           <div className="mb-5">
-            <label className="block mb-2 text-sm md:text-base">
-              Email Address
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onFocus={() => setFocusedInput("email")}
-                onBlur={() => setFocusedInput(null)}
-                className={`${getInputStyle("email")} `}
-                style={{ outlineWidth: 0, boxShadow: "none" }}
-              />
-            </div>
-            {!isEmailVerified && (
-              <p className="text-yellow-500 italic text-xs md:text-sm mt-1">
-                Please verify your email address.
-              </p>
-            )}
-          </div>
-
-          <div className="mb-5">
-            <label className="block mb-2 text-sm md:text-base">Edit Bio</label>
+            <label className="block mb-2 text-sm">Edit Bio</label>
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
@@ -272,124 +293,179 @@ export default function ProfileSettings() {
               className={`${getInputStyle("bio")} min-h-[7em]`}
               style={{ outlineWidth: 0, boxShadow: "none", height: "7em" }}
             />
-            <p className="text-gray-500 italic text-xs md:text-sm mt-1">
+            <p className="text-gray-500 italic text-xs mt-1">
               Share a bit about yourself. (Max 150 words)
             </p>
           </div>
+        </div>
 
+        {/* Social Links Section */}
+        <div className="bg-[#1a1a1a] rounded-lg p-4 mb-6">
+          <h2 className="text-purple-500 text-lg mb-4">
+            Social Links
+          </h2>
+          <p className="text-gray-500 text-xs mb-4">
+            Add up to 5 social media links to showcase your online presence.
+          </p>
           <div className="mb-4">
-            <h2 className="text-purple-500 text-lg md:text-xl mb-2">
-              Social Links
-            </h2>
-            <div className="flex flex-col md:flex-row md:items-center gap-2 mb-4">
-              <p className="text-gray-500 text-xs md:text-sm">
-                Add up to 5 social media links to showcase your online presence.
-              </p>
-              <div className="flex gap-3 mt-1 md:mt-0">
-                <Instagram className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-                <Twitter className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-                <Facebook className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-                <Youtube className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-                <Send className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-              </div>
-            </div>
-
-            <div className="flex flex-col items-end gap-2">
+            <label className="block mb-2 text-sm">Link Title</label>
+            <input
+              type="text"
+              value={socialLinkTitle}
+              onChange={(e) => setSocialLinkTitle(e.target.value)}
+              onFocus={() => setFocusedInput("socialLinkTitle")}
+              onBlur={() => setFocusedInput(null)}
+              placeholder="e.g. Facebook, Twitter, etc."
+              className={getInputStyle("socialLinkTitle")}
+              style={{ outlineWidth: 0, boxShadow: "none", marginBottom: "1rem" }}
+            />
+            
+            <label className="block mb-2 text-sm">Link URL</label>
+            <div className="relative mb-6">
               <input
                 type="text"
-                value={socialLink}
-                onChange={(e) => setSocialLink(e.target.value)}
-                onFocus={() => setFocusedInput("socialLink")}
+                value={socialLinkUrl}
+                onChange={(e) => setSocialLinkUrl(e.target.value)}
+                onFocus={() => setFocusedInput("socialLinkUrl")}
                 onBlur={() => setFocusedInput(null)}
-                placeholder="paste social media link"
-                className={getInputStyle("socialLink")}
+                placeholder="https://www.discord.com/emyyy2001"
+                className={`${getInputStyle("socialLinkUrl")} pr-16`}
                 style={{ outlineWidth: 0, boxShadow: "none" }}
               />
+              <div className="absolute right-0 top-0 h-full flex items-center">
+                <div className="flex gap-2 px-2">
+                  <Image src={InstagramIcon} alt="Instagram" width={20} height={20} className="cursor-pointer" />
+                  <Image src={TwitterIcon} alt="Twitter" width={20} height={20} className="cursor-pointer" />
+                  <Image src={FacebookIcon} alt="Facebook" width={20} height={20} className="cursor-pointer" />
+                  <Image src={YoutubeIcon} alt="YouTube" width={20} height={20} className="cursor-pointer" />
+                  <Image src={DiscordIcon} alt="Discord" width={20} height={20} className="cursor-pointer" />
+                  <Image src={TikTokIcon} alt="TikTok" width={20} height={20} className="cursor-pointer" />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end">
               <button
                 onClick={handleAddSocialLink}
                 disabled={socialLinks.length >= 5}
-                className="bg-[#333] px-5 py-2 rounded-md hover:bg-[#444] transition text-sm md:text-base"
+                className="bg-[#2a2a2a] px-6 py-2 rounded-md hover:bg-[#444] transition text-sm"
               >
                 Add
               </button>
             </div>
+          </div>
 
-            {socialLinks.length > 0 && (
-              <div className="mt-[3em] space-y-2">
-                {socialLinks.map((link, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center bg-[#2a2a2a] p-2 rounded text-sm md:text-base"
-                  >
-                    {link.isEditing ? (
-                      <>
-                        <div className="flex-grow mr-2">
-                          <input
-                            type="text"
-                            value={editingLink}
-                            onChange={(e) => setEditingLink(e.target.value)}
-                            className="w-full bg-[#333] rounded px-3 py-1 text-white text-sm"
-                            autoFocus
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <button
-                            onClick={() => handleUpdateLink(index)}
-                            className="p-1 text-green-500 hover:text-green-400"
-                          >
-                            <Check size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleCancelEdit(index)}
-                            className="p-1 text-red-500 hover:text-red-400 ml-1"
-                          >
-                            <X size={18} />
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex items-center flex-grow">
-                          {getSocialIcon(link.platform)}
-                          <span className="truncate text-xs md:text-sm ml-2">
-                            {link.url}
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <button
-                            onClick={() => handleEditLink(index)}
-                            className="p-1 text-gray-400 hover:text-white"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteLink(index)}
-                            className="p-1 text-gray-400 hover:text-red-500 ml-1"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+          {/* Display social links */}
+          {socialLinks.length > 0 && (
+            <div className="space-y-2 mt-4">
+              {socialLinks.map((link, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between bg-[#2a2a2a] p-3 rounded text-sm"
+                >
+                  {link.isEditing ? (
+                    <>
+                      <div className="flex-grow mr-2">
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onFocus={() => setFocusedInput("editingTitle")}
+                          onBlur={() => setFocusedInput(null)}
+                          className={`${getInputStyle("editingTitle")} w-full rounded px-3 py-1 text-white text-sm mb-2`}
+                          style={{ outlineWidth: 0, boxShadow: "none", background: "#333" }}
+                          placeholder="Link Title"
+                          autoFocus
+                        />
+                        <input
+                          type="text"
+                          value={editingLink}
+                          onChange={(e) => setEditingLink(e.target.value)}
+                          onFocus={() => setFocusedInput("editingLink")}
+                          onBlur={() => setFocusedInput(null)}
+                          className={`${getInputStyle("editingLink")} w-full rounded px-3 py-1 text-white text-sm`}
+                          style={{ outlineWidth: 0, boxShadow: "none", background: "#333" }}
+                          placeholder="Link URL"
+                        />
+                      </div>
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => handleUpdateLink(index)}
+                          className="p-1 text-green-500 hover:text-green-400"
+                        >
+                          <Check size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleCancelEdit(index)}
+                          className="p-1 text-red-500 hover:text-red-400 ml-1"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center">
+                        {getSocialIcon(link.platform)}
+                        <span className="ml-2 font-medium">{link.title}</span>
+                      </div>
+                      <span className="text-gray-400 text-xs">
+                        {link.url}
+                      </span>
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => handleEditLink(index)}
+                          className="p-1 text-gray-400 hover:text-white"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteLink(index)}
+                          className="p-1 text-gray-400 hover:text-red-500 ml-1"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Language Section */}
+        <div className="bg-[#1a1a1a] rounded-lg p-4 mb-6">
+          <h2 className="text-purple-500 text-lg mb-4">
+            Language
+          </h2>
+          <div 
+            className={`w-full bg-[#2a2a2a] rounded-lg px-4 py-2 text-white text-sm flex justify-between items-center cursor-pointer ${
+              focusedInput === "language" ? "border border-purple-600" : "border border-transparent"
+            } transition-all duration-200`}
+            onClick={() => {
+              setFocusedInput("language");
+              setShowLanguageModal(true);
+            }}
+          >
+            <span>{language}</span>
+            <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 1.5L6 6.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
         </div>
 
-        <div className="flex justify-end ">
+        {/* Save Button */}
+        <div className="flex justify-end">
           <button
-            onClick={() => {
-              handleSaveChanges();
-              handleVerifyEmail();
-            }}
-            className="bg-purple-700 hover:bg-purple-800 text-white px-5 py-2 md:px-6 md:py-3 rounded-md transition text-sm md:text-base mb-[4em]"
+            onClick={handleSaveChanges}
+            className="bg-purple-700 hover:bg-purple-800 text-white px-6 py-3 rounded-md transition text-sm"
           >
             Save Changes
           </button>
         </div>
       </div>
+
+      {/* Modals */}
       {showAvatarModal && (
         <AvatarSelectionModal
           currentAvatar={avatar}
@@ -404,6 +480,51 @@ export default function ProfileSettings() {
           onClose={() => setShowVerificationPopup(false)}
           onVerify={handleVerificationComplete}
         />
+      )}
+      
+      {/* Language Modal */}
+      {showLanguageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-[#1a1a1a] rounded-lg w-full max-w-md p-6 relative">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-purple-500 text-xl font-medium">Select Language</h2>
+              <button
+                onClick={() => setShowLanguageModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto">
+              {languages.map((lang) => (
+                <div
+                  key={lang}
+                  onClick={() => handleLanguageSelect(lang)}
+                  className={`flex items-center gap-3 p-3 rounded-md cursor-pointer ${
+                    language === lang
+                      ? "bg-purple-900 bg-opacity-50"
+                      : "bg-[#2a2a2a] hover:bg-[#333]"
+                  }`}
+                >
+                  <span className="text-sm">{lang}</span>
+                  {language === lang && (
+                    <div className="ml-auto w-2 h-2 rounded-full bg-purple-500"></div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowLanguageModal(false)}
+                className="bg-purple-700 hover:bg-purple-800 text-white px-6 py-2 rounded-md transition text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

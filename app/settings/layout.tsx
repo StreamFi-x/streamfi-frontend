@@ -1,7 +1,7 @@
 "use client";
 import type React from "react";
 import { useState, Suspense } from "react";
-import SettingsHeader from "@/components/settings/SettingsNav";
+// import SettingsHeader from "@/components/settings/SettingsNav";
 import Loader from "@/components/ui/loader/loader";
 import SimpleLoader from "@/components/ui/loader/simple-loader";
 import Navbar from "@/components/explore/Navbar";
@@ -27,7 +27,10 @@ export default function SettingsLayout({
 
           <div className="bg-black text-white pt-[2em] px-[1em] lg:px-[2em] w-full flex flex-col items-start">
             <div className="flex-none w-full overflow-x-auto scrollbar-hide">
-              <SettingsHeader />
+              {/* <SettingsHeader 
+                activeSection={null} 
+                onSectionChange={() => {}} 
+              /> */}
             </div>
 
             <Suspense fallback={<SimpleLoader />}>
