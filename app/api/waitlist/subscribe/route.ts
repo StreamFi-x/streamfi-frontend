@@ -29,7 +29,6 @@ export async function POST(req: NextRequest) {
     try {
       console.log('Parsing request body...');
       body = await req.json();
-      console.log('Request body:', { email: body.email, name: body.name || '(not provided)' });
     } catch (parseError) {
       console.error('Error parsing request body:', parseError);
       return new Response(JSON.stringify({ error: 'Invalid request format' }), {
