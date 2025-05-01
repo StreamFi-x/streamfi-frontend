@@ -1,28 +1,50 @@
-import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI!;
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
-if (!MONGODB_URI) {
-  throw new Error("Please define the MONGODB_URI environment variable");
+export interface IWaitlist extends Document {
+  email: string;
+  name?: string;
+  unsubscribed_at?: Date | null;
+  created_at: Date;
+  updated_at: Date;
 }
 
-let cached = global.mongoose;
-
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
-}
-
-async function dbConnect() {
-  if (cached.conn) return cached.conn;
-
-  if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, {
-      bufferCommands: false,
-    });
+// Define schema
+const WaitlistSchema = new Schema<IWaitlist>({
+  email: { 
+    type: String, 
+    required: true, 
+    unique: true,
+    trim: true,
+    lowercase: true
+  },
+  name: { 
+    type: String,
+    trim: true
+  },
+  unsubscribed_at: { 
+    type: Date, 
+    default: null 
+  },
+  created_at: { 
+    type: Date, 
+    default: Date.now 
+  },
+  updated_at: { 
+    type: Date, 
+    default: Date.now 
   }
+});
 
-  cached.conn = await cached.promise;
-  return cached.conn;
+// Create or get model - prevents "Cannot overwrite model once compiled" error
+const Waitlist: Model<IWaitlist> = 
+  (mongoose.models.Waitlist as Model<IWaitlist>) || 
+  mongoose.model<IWaitlist>('Waitlist', WaitlistSchema);
+
+// Add TypeScript type guard to ensure the model is properly initialized
+if (!Waitlist || typeof Waitlist.findOne !== 'function') {
+  console.error('Waitlist model initialization failed:', Waitlist);
+  throw new Error('Waitlist model not properly initialized');
 }
 
-export default dbConnect;
+export default Waitlist;
