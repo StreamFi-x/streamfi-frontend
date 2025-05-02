@@ -2,8 +2,6 @@
 "use server";
 import nodemailer from "nodemailer";
 import WelcomeUserEmail from "@/components/templates/WelcomeUserEmail";
-import { render } from "@react-email/render";
-import React from "react";
 
 export async function sendWelcomeRegistrationEmail(email: any, name: any) {
   const transporter = nodemailer.createTransport({
@@ -14,9 +12,7 @@ export async function sendWelcomeRegistrationEmail(email: any, name: any) {
     },
   });
 
-  const htmlContent = await render(
-    React.createElement(WelcomeUserEmail, { name })
-  );
+  const htmlContent = WelcomeUserEmail(name);
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
