@@ -8,6 +8,7 @@ import StreamInfo from "@/components/dashboard/stream-manager/StreamInfo";
 import StreamSettings from "@/components/dashboard/stream-manager/StreamSettings";
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
+import Navbar from "@/components/explore/Navbar";
 
 export default function StreamManagerPage() {
   const [streamData, setStreamData] = useState({
@@ -90,6 +91,8 @@ export default function StreamManagerPage() {
   };
 
   return (
+    <>
+    <Navbar/>
     <div className="flex flex-col h-screen bg-[#121212] text-white">
       {/* Stats Bar */}
       <div className="flex justify-between items-center p-4 border-b border-gray-800">
@@ -154,6 +157,7 @@ export default function StreamManagerPage() {
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -170,4 +174,5 @@ const StatsCard: React.FC<{ title: string; value: number }> = ({
     <div className="text-2xl font-bold">{value}</div>
     <div className="text-sm text-gray-400">{title}</div>
   </motion.div>
+  
 );

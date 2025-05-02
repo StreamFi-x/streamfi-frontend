@@ -62,7 +62,7 @@ export default function StreamPreview() {
               <img
                 src="/Images/stream-preview.png"
                 alt="Stream preview"
-                className="max-w-xl max-h-full object-contain"
+                className="object-cover"
               />
               <div className="absolute top-4 left-4 bg-red-600 px-2 py-1 text-xs font-semibold rounded">
                 OFFLINE
