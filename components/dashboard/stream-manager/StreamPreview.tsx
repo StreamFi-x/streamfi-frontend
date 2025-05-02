@@ -60,7 +60,7 @@ export default function StreamPreview() {
           ) : (
             <>
               <img
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-mDC13xNu0WEEiFHqLx1NDDeqMloL0N.png"
+                src="/Images/stream-preview.png"
                 alt="Stream preview"
                 className="max-w-xl max-h-full object-contain"
               />
