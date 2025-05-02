@@ -104,10 +104,80 @@ const Waitlist: React.FC<WaitlistProps> = ({ initialCount = 3000, onSubmit }) =>
 
     try {
       if (onSubmit) {
+        // Use the provided onSubmit handler if available
         await onSubmit(email)
       } else {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        console.log('Submitting to waitlist API:', email);
+        
+        // Call our API endpoint with better error handling
+        const response = await fetch('/api/waitlist/subscribe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+        });
+
+        console.log('API response status:', response.status);
+        
+        // Get response data with error handling
+        let data;
+        let responseText = '';
+        
+        try {
+          // First try to get the response as text (to help debug HTML errors)
+          responseText = await response.text();
+          
+          // Then try to parse as JSON
+          try {
+            data = JSON.parse(responseText);
+            console.log('API response data:', data);
+          } catch (jsonError) {
+            console.error('Failed to parse response as JSON:', jsonError);
+            console.log('Response text (first 200 chars):', responseText.substring(0, 200));
+            throw new Error('Server returned an invalid response format');
+          }
+        } catch (responseError) {
+          console.error('Error getting response:', responseError);
+          throw new Error('Failed to process server response');
+        }
+
+        if (!response.ok) {
+          let errorMessage = data?.error || 'Failed to join waitlist';
+          
+          // Enhanced error handling
+          if (response.status === 429) {
+            errorMessage = 'Too many attempts. Please try again later.';
+          } else if (response.status === 400) {
+            errorMessage = data?.error || 'Invalid email format';
+          } else if (response.status === 500) {
+            errorMessage = 'Server error. Our team has been notified.';
+            console.error('Server error details:', data?.details || 'No details provided');
+          }
+          
+          throw new Error(errorMessage);
+        }
+        
+        // Check for already subscribed
+        if (data?.alreadySubscribed) {
+          toast.info("You're already on our waitlist!", {
+            description: "We'll notify you when StreamFi launches.",
+            duration: 5000,
+          });
+          
+          setIsSubmitted(true);
+          setEmail("");
+          setEmailTouched(false);
+          setShowError(false);
+          setShowErrorStyling(false);
+          
+          setTimeout(() => {
+            setIsSubmitted(false);
+          }, 3000);
+          
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       // Show success toast
@@ -127,9 +197,9 @@ const Waitlist: React.FC<WaitlistProps> = ({ initialCount = 3000, onSubmit }) =>
       }, 3000)
     } catch (error) {
       console.error("Error submitting email:", error)
-      // Show error toast
+      // Show error toast with specific message if available
       toast.error("Failed to join the waitlist", {
-        description: "Please try again later.",
+        description: error instanceof Error ? error.message : "Please try again later.",
       })
     } finally {
       setIsSubmitting(false)
@@ -254,4 +324,3 @@ const Waitlist: React.FC<WaitlistProps> = ({ initialCount = 3000, onSubmit }) =>
 }
 
 export default Waitlist
-
