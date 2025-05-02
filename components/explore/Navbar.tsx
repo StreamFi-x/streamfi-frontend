@@ -213,7 +213,7 @@
 // }
 
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { StreamfiLogoShort } from "@/public/icons";
 import { Menu, Search, X } from "lucide-react";
 import Image from "next/image";
@@ -221,6 +221,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SearchResult } from "@/types/explore";
 import { useAccount, useDisconnect } from "@starknet-react/core";
 import ConnectModal from "../connectWallet";
+import ProfileModal from "./ProfileModal";
+import SimpleLoader from "../ui/loader/simple-loader";
 
 interface NavbarProps {
   onConnectWallet?: () => void;
@@ -239,6 +241,19 @@ export default function Navbar({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [connectStep, setConnectStep] = useState<
+    "profile" | "verify" | "success"
+  >("profile");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleCloseProfileModal = () => {
+    setProfileModalOpen(false);
+  };
+
+  const handleNextStep = (step: "profile" | "verify" | "success") => {
+    setConnectStep(step);
+  };
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -284,12 +299,31 @@ export default function Navbar({
     }
   };
 
+  const handleProfileDisplayModal = useCallback(() => {
+    setIsLoading(true);
+    fetch(`/api/users/${address}`)
+      .then((res) => {
+        if (res.status === 404) {
+          // Pop up the complete profile model here
+          setProfileModalOpen(true);
+        }
+        setIsLoading(false);
+      })
+      .catch((reason) => {
+        console.log("Error finding user ", reason);
+      });
+  }, [address]);
+
   // Close modal automatically when wallet is connected
   useEffect(() => {
     if (isConnected) {
       setIsModalOpen(false);
     }
   }, [isConnected]);
+
+  useEffect(() => {
+    if (isConnected && address) handleProfileDisplayModal();
+  }, [address, handleProfileDisplayModal, isConnected]);
 
   return (
     <>
@@ -389,7 +423,17 @@ export default function Navbar({
             </motion.div>
           </motion.div>
         )}
+        {profileModalOpen && (
+          <ProfileModal
+            isOpen={profileModalOpen}
+            currentStep={connectStep}
+            onClose={handleCloseProfileModal}
+            onNextStep={handleNextStep}
+          />
+        )}
       </AnimatePresence>
+
+      {isLoading && <SimpleLoader />}
     </>
   );
 }

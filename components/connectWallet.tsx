@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from "next/image";
@@ -31,7 +30,7 @@ export default function ConnectModal({
     e.stopPropagation(); // Prevent closing modal when clicking inside
   };
 
-  const handleWalletClick = (wallet: typeof connectors[0]) => {
+  const handleWalletClick = (wallet: (typeof connectors)[0]) => {
     setActiveWallet(wallet.id);
     setSelectedWallet(wallet);
     // You can optionally trigger connect immediately, if desired:
@@ -47,39 +46,37 @@ export default function ConnectModal({
     >
       {/* Modal Container */}
       <div
-        className="relative w-full max-w-md bg-[#0F0F0F] rounded-[10px] p-6 h-[380px]"
+        className="relative w-full max-w-[329px] mx-auto bg-[#1D2027] rounded-[16px] py-4 px-[26px] h-[308px]"
         onClick={handleModalClick}
       >
         {/* Close Button */}
         <button
-          className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
+          className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors rounded-full bg-[#383838] w-[30px] h-[30px] justify-center items-center flex"
           onClick={() => setIsModalOpen(false)}
         >
-          <MdClose size={24} />
+          <MdClose size={20} />
         </button>
 
         {/* Title */}
-        <h2 className="text-white text-xl font-semibold my-3 text-center">
-          Select a wallet
+        <h2 className="text-white text-lg font-semibold mt-0.5 mb-2 text-center">
+          Connect wallet
         </h2>
 
         {/* Subtitle */}
-        <p className="font-[400] text-[12px] text-white my-6 text-center justify-center">
-          Securely authenticate &amp; start streaming with full ownership over
-          your earnings.
+        <p className="font-medium text-[14px] text-white mt-2 mb-[32px] text-center justify-center opacity-60">
+          Authenticate using your preferred wallet to access dApp features
         </p>
 
         {/* Wallet List */}
-        <div className="flex flex-col space-y-2">
-          {connectors.map((wallet, idx) => (
-            <div key={wallet.id}
-            onClick={() => {
-              handleWalletClick(wallet)
-            }}
+        <div className="flex flex-row gap-[7px] rounded-[20px] bg-[#FFFFFF1A] p-[10px] justify-center mb-4">
+          {connectors.map((wallet) => (
+            <div
+              key={wallet.id}
+              onClick={() => {
+                handleWalletClick(wallet);
+              }}
             >
-              <button
-                className="w-full flex items-center gap-3 p-3 text-white mb-3 hover:bg-[#393B3D] transition-colors"
-              >
+              <button className="w-[80px] h-[80px] bg-[#1D2027] rounded-[16px] flex items-center gap-3 p-3 text-white hover:bg-[#393B3D] transition-colors">
                 <Image
                   src={
                     typeof wallet.icon === "object"
@@ -87,19 +84,23 @@ export default function ConnectModal({
                       : wallet.icon
                   }
                   alt={wallet.name || "Unknown Wallet"}
-                  height={24}
-                  width={24}
+                  height={80}
+                  width={80}
                 />
-                <span className="text-sm font-medium">{wallet.name}</span>
               </button>
-
-              {/* Divider between wallet items, except after last one */}
-              {idx < connectors.length - 1 && (
-                <hr className="border-t  border-[#D9D9D957]" />
-              )}
             </div>
           ))}
         </div>
+        <p className="text-[#FFFFFF99] font-[400] text-center">
+          By continuing, you agree to our{" "}
+          <a href="#" className="text-white underline underline-offset-1">
+            Terms of Service
+          </a>{" "}
+          and{" "}
+          <a href="#" className="text-white underline underline-offset-1">
+            Privacy policy
+          </a>
+        </p>
       </div>
     </div>
   );

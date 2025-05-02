@@ -19,12 +19,12 @@ async function handler(
     // return res.status(405).json({ error: "Method not allowed" });
   }
 
-  try {
-    await limiter.check(res, 5, "UNSUBSCRIBE_RATE_LIMIT");
-  } catch {
-    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
-    // return res.status(429).json({ error: "Rate limit exceeded" });
-  }
+  // try {
+  //   await limiter.check(res, 5, "UNSUBSCRIBE_RATE_LIMIT");
+  // } catch {
+  //   return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  //   // return res.status(429).json({ error: "Rate limit exceeded" });
+  // }
 
   try {
     const result = await sql`

@@ -10,6 +10,7 @@ import Button from "../ui/Button";
 import Image from "next/image";
 import { VerifySuccess } from "@/public/icons";
 import { ConnectModalProps } from "@/types/explore";
+import { useAccount } from "@starknet-react/core";
 
 export default function ConnectModal({
   isOpen,
@@ -22,6 +23,7 @@ export default function ConnectModal({
   const [bio, setBio] = useState("");
   const [emailError, setEmailError] = useState("");
   const [nameError, setNameError] = useState("");
+  const { address } = useAccount();
 
   const [verificationCode, setVerificationCode] = useState([
     "",
@@ -57,7 +59,24 @@ export default function ConnectModal({
     }
 
     if (isValid) {
-      onNextStep("verify");
+      // onNextStep("verify"); //skipping the verification step for now
+
+      const formData = {
+        username: displayName,
+        email: email,
+        wallet: address,
+      };
+      fetch("/api/users/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      }).then(async (res) => {
+        if (res.ok) onNextStep("success");
+        const result = await res.json();
+        console.log("The result === ", result);
+      });
     }
   };
 
@@ -143,8 +162,8 @@ export default function ConnectModal({
                 currentStep === "profile"
                   ? "max-w-4xl"
                   : currentStep === "verify"
-                  ? "max-w-md"
-                  : "max-w-md"
+                    ? "max-w-md"
+                    : "max-w-md"
               } bg-background-2 rounded-lg max-w-4xl w-full  overflow-hidden`}
               initial="hidden"
               animate="visible"
