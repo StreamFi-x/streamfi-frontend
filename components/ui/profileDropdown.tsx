@@ -23,7 +23,7 @@ const menuItems: MenuSection[] = [
     id: 'main',
     items: [
       { icon: <MonitorPlay size={20} />, label: 'Channel', route: '/channel' },
-      { icon: <LayoutDashboard size={20} />, label: 'Creator Dashboard', route: '/dashboard' },
+      { icon: <LayoutDashboard size={20} />, label: 'Creator Dashboard', route: '/dashboard/stream-manager' },
       { icon: <Globe size={20} />, label: 'Language', route: '/language' },
       { icon: <Settings size={20} />, label: 'Settings', route: '/settings' }
     ]

@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SearchResult } from "@/types/explore";
 import { useAccount, useDisconnect } from "@starknet-react/core";
 import ConnectModal from "../connectWallet";
-import Avatar from '@/public/Images/user.png';
+import Avatar from "@/public/Images/user.png";
 import ProfileDropdown from "../ui/profileDropdown";
 
 interface NavbarProps {
@@ -83,14 +83,17 @@ export default function Navbar({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.profile-dropdown-container') && !target.closest('.avatar-container')) {
+      if (
+        !target.closest(".profile-dropdown-container") &&
+        !target.closest(".avatar-container")
+      ) {
         setIsProfileDropdownOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -181,22 +184,19 @@ export default function Navbar({
           >
             {isConnected ? "Disconnect" : "Connect Wallet"}
           </button>
-          
+
           {/* Avatar with dropdown */}
           <div className="relative avatar-container">
-            <div 
-              className="cursor-pointer"
-              onClick={toggleProfileDropdown}
-            >
+            <div className="cursor-pointer" onClick={toggleProfileDropdown}>
               <Image
                 src={Avatar}
                 alt="Avatar"
-                width={40}    
+                width={40}
                 height={40}
                 className=""
               />
             </div>
-            
+
             {/* Render ProfileDropdown with AnimatePresence */}
             <AnimatePresence>
               {isProfileDropdownOpen && (
