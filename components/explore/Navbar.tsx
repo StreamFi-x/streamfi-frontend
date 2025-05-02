@@ -246,6 +246,7 @@ export default function Navbar({
     "profile" | "verify" | "success"
   >("profile");
   const [isLoading, setIsLoading] = useState(false);
+  const [username, setUsername] = useState("");
 
   const handleCloseProfileModal = () => {
     setProfileModalOpen(false);
@@ -302,10 +303,14 @@ export default function Navbar({
   const handleProfileDisplayModal = useCallback(() => {
     setIsLoading(true);
     fetch(`/api/users/${address}`)
-      .then((res) => {
+      .then(async (res) => {
         if (res.status === 404) {
           // Pop up the complete profile model here
           setProfileModalOpen(true);
+        }
+        if (res.ok) {
+          const result = await res.json();
+          setUsername(result.user.username);
         }
         setIsLoading(false);
       })
@@ -391,17 +396,40 @@ export default function Navbar({
 
         <div className="flex items-center gap-4">
           {isConnected && address && (
-            <span className="text-white text-sm truncate max-w-[150px]">
-              {address.substring(0, 6)}...{address.slice(-4)}
-            </span>
+            // <span className="text-white text-sm truncate max-w-[150px]">
+            //   {address.substring(0, 6)}...{address.slice(-4)}
+            // </span>
+            <>
+              <button>
+                <Image
+                  src={"/Images/notification.svg"}
+                  width={24}
+                  height={24}
+                  alt="pfp"
+                />
+              </button>
+              <div className="flex gap-[10px] font-medium items-center text-[14px] text-white">
+                <span>
+                  {username ||
+                    `${address.substring(0, 6)}...${address.slice(-4)}`}
+                </span>
+                <Image
+                  src={"/Images/profile2.svg"}
+                  width={36}
+                  height={36}
+                  alt="pfp"
+                />
+              </div>
+            </>
           )}
-
-          <button
-            onClick={handleConnectWallet}
-            className="bg-primary hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          >
-            {isConnected ? "Disconnect" : "Connect Wallet"}
-          </button>
+          {!isConnected && (
+            <button
+              onClick={handleConnectWallet}
+              className="bg-primary hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              {"Connect Wallet"}
+            </button>
+          )}
         </div>
       </header>
 
