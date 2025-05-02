@@ -97,10 +97,10 @@ async function handler(req: Request, res: any) {
       );
     }
 
-    // await sql`
-    //   INSERT INTO users (email, username, wallet)
-    //   VALUES (${email}, ${username}, ${wallet})
-    // `;
+    await sql`
+      INSERT INTO users (email, username, wallet)
+      VALUES (${email}, ${username}, ${wallet})
+    `;
 
     await sendWelcomeRegistrationEmail(email, username);
 
