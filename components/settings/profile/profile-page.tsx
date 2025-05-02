@@ -15,12 +15,12 @@ import { useToast } from "@/components/ui/toast-provider";
 
 // Import social media icons - You'll need to update these paths based on your project structure
 import InstagramIcon from "@/public/Images/instagram.svg";
-import TwitterIcon from "@/public/images/twitter.svg";
-import FacebookIcon from "@/public/images/facebook.svg";
-import YoutubeIcon from "@/public/images/youtube copy.svg";
-import TelegramIcon from "@/public/images/telegram.svg";
-import DiscordIcon from "@/public/images/discord copy.svg";
-import TikTokIcon from "@/public/images/tiktok.svg";
+import TwitterIcon from "@/public/Images/twitter.svg";
+import FacebookIcon from "@/public/Images/facebook.svg";
+import YoutubeIcon from "@/public/Images/youtube copy.svg";
+import TelegramIcon from "@/public/Images/telegram.svg";
+import DiscordIcon from "@/public/Images/discord copy.svg";
+import TikTokIcon from "@/public/Images/tiktok.svg";
 
 const avatar1 = Avatar;
 const avatar2 = Avatar;
