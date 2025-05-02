@@ -11,6 +11,42 @@ export default function WelcomeUserEmail({ name }: { name: string }) {
         background: "#ffffff",
       }}
     >
+      <style>
+        {`
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+          @font-face {
+            font-family: "Helvetica Custom";
+            src: url("https://streamfi.netlify.app/Fonts/Helvetica-Bold-Font.ttf") format("truetype");
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+          }
+
+          @font-face {
+            font-family: "PP Neue Machina";
+            src: url("https://streamfi.netlify.app/Fonts/PPNeueMachina-Regular.otf") format("opentype");
+            font-weight: normal;
+            font-style: normal;
+          }
+
+          @font-face {
+            font-family: "PP Neue Machina";
+            src: url("https://streamfi.netlify.app/Fonts/PPNeueMachina-Light.otf") format("opentype");
+            font-weight: 300;
+            font-style: normal;
+          }
+
+          @font-face {
+            font-family: "PP Neue Machina";
+            src: url("https://streamfi.netlify.app/Fonts/PPNeueMachina-Ultrabold.otf") format("opentype");
+            font-weight: 800;
+            font-style: normal;
+          }
+          body,p {
+            font-family: 'Inter', sans-serif;
+          }
+        `}
+      </style>
       <div
         style={{
           width: "100%",
@@ -22,7 +58,7 @@ export default function WelcomeUserEmail({ name }: { name: string }) {
         }}
       >
         <img
-          src={"/Images/streamFiLogo.svg"}
+          src={"https://streamfi.netlify.app/Images/streamFiLogo.svg"}
           width={120}
           height={40}
           alt="Logo"
@@ -32,7 +68,7 @@ export default function WelcomeUserEmail({ name }: { name: string }) {
           }}
         />
         <img
-          src={"/Images/mail-header-image.svg"}
+          src={"https://streamfi.netlify.app/Images/mail-header-image.svg"}
           alt="header-img"
           width={686}
           height={493}
@@ -48,7 +84,7 @@ export default function WelcomeUserEmail({ name }: { name: string }) {
       >
         <h1
           style={{
-            fontFamily: "PP Neue Machina",
+            fontFamily: "PP Neue Machina, Arial, sans-serif",
             fontWeight: "800",
             fontSize: "34px",
             textTransform: "uppercase",
@@ -57,7 +93,12 @@ export default function WelcomeUserEmail({ name }: { name: string }) {
         >
           You are now part of the StreamFi Community!
         </h1>
-        <p style={{ marginBottom: "16px" }}>
+        <p
+          style={{
+            marginBottom: "16px",
+            fontFamily: "Inter, Arial, sans-serif",
+          }}
+        >
           <span style={{ fontWeight: 600 }}>Welcome Aboard {name}</span> <br />
           <br />
           We’re thrilled to have you as a part of the StreamFi Community — where
@@ -84,7 +125,7 @@ export default function WelcomeUserEmail({ name }: { name: string }) {
           Ready to dive in?
         </p>
         <a
-          href="/explore"
+          href="https://streamfi.netlify.app/explore"
           style={{
             marginBottom: "24px",
             width: "100%",
@@ -99,7 +140,7 @@ export default function WelcomeUserEmail({ name }: { name: string }) {
         >
           Explore streams
         </a>
-        <p>
+        <p style={{ fontFamily: "Inter, Arial, sans-serif" }}>
           Let’s build the future of streaming, together. <br />
           <br />
           Cheers, <br />
@@ -119,6 +160,7 @@ export default function WelcomeUserEmail({ name }: { name: string }) {
             color: "#1E1E1E99",
             fontWeight: "500",
             marginBottom: "24px",
+            fontFamily: "Inter, Arial, sans-serif",
           }}
         >
           If you do not want any emails from StreamFi? Click here to{" "}
@@ -133,7 +175,13 @@ export default function WelcomeUserEmail({ name }: { name: string }) {
             Unsubscribe
           </a>
         </p>
-        <div style={{ display: "flex", gap: "16px" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "16px",
+            fontFamily: "Inter, Arial, sans-serif",
+          }}
+        >
           <a
             href="#"
             style={{
@@ -146,7 +194,12 @@ export default function WelcomeUserEmail({ name }: { name: string }) {
               justifyContent: "center",
             }}
           >
-            <img src={"/Images/x-primary.svg"} width={16} height={16} alt="x" />
+            <img
+              src={"https://streamfi.netlify.app/Images/x-primary.svg"}
+              width={16}
+              height={16}
+              alt="x"
+            />
           </a>
           <a
             href="#"
@@ -161,7 +214,7 @@ export default function WelcomeUserEmail({ name }: { name: string }) {
             }}
           >
             <img
-              src={"/Images/discord-primary.svg"}
+              src={"https://streamfi.netlify.app/Images/discord-primary.svg"}
               width={21}
               height={16}
               alt="x"
@@ -180,7 +233,7 @@ export default function WelcomeUserEmail({ name }: { name: string }) {
             }}
           >
             <img
-              src={"/Images/facebook-primary.svg"}
+              src={"https://streamfi.netlify.app/Images/facebook-primary.svg"}
               width={10}
               height={20}
               alt="x"

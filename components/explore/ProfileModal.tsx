@@ -11,6 +11,7 @@ import Image from "next/image";
 import { VerifySuccess } from "@/public/icons";
 import { ConnectModalProps } from "@/types/explore";
 import { useAccount } from "@starknet-react/core";
+import SimpleLoader from "../ui/loader/simple-loader";
 
 export default function ConnectModal({
   isOpen,
@@ -23,6 +24,7 @@ export default function ConnectModal({
   const [bio, setBio] = useState("");
   const [emailError, setEmailError] = useState("");
   const [nameError, setNameError] = useState("");
+  const [registrationError, setRegistrationError] = useState("");
   const { address } = useAccount();
 
   const [verificationCode, setVerificationCode] = useState([
@@ -35,6 +37,7 @@ export default function ConnectModal({
   ]);
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [codeError, setCodeError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const router = useRouter();
   const handleProfileSubmit = (e: React.FormEvent) => {
@@ -60,7 +63,7 @@ export default function ConnectModal({
 
     if (isValid) {
       // onNextStep("verify"); //skipping the verification step for now
-
+      setIsLoading(true);
       const formData = {
         username: displayName,
         email: email,
@@ -73,9 +76,13 @@ export default function ConnectModal({
         },
         body: JSON.stringify(formData),
       }).then(async (res) => {
-        if (res.ok) onNextStep("success");
+        if (res.ok) {
+          setRegistrationError("");
+          onNextStep("success");
+        }
         const result = await res.json();
-        console.log("The result === ", result);
+        if (result.error) setRegistrationError(result.error);
+        setIsLoading(false);
       });
     }
   };
@@ -180,7 +187,9 @@ export default function ConnectModal({
                       Set up your profile to get the best experience on Streamfi
                     </p>
                   </div>
-
+                  {registrationError && (
+                    <p className="text-red-500 text-xs">{registrationError}</p>
+                  )}
                   <form onSubmit={handleProfileSubmit}>
                     <div className="space-y-5">
                       <div className="flex flex-col gap-2">
@@ -347,6 +356,8 @@ export default function ConnectModal({
               )}
             </motion.div>
           </div>
+
+          {isLoading && <SimpleLoader />}
         </>
       )}
     </AnimatePresence>
