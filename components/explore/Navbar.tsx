@@ -254,7 +254,6 @@ export default function Navbar({
                   />
                 </div>
 
-
                 {/* Render ProfileDropdown with AnimatePresence */}
                 <AnimatePresence>
                   {isProfileDropdownOpen && (
@@ -280,31 +279,6 @@ export default function Navbar({
               {isConnected ? "Disconnect" : "Connect Wallet"}
             </button>
           )}
-
-         
-
-          {/* Avatar with dropdown */}
-          <div className="relative avatar-container">
-            <div className="cursor-pointer" onClick={toggleProfileDropdown}>
-              <Image
-                src={Avatar}
-                alt="Avatar"
-                width={40}
-                height={40}
-                className=""
-              />
-            </div>
-
-            {/* Render ProfileDropdown with AnimatePresence */}
-            <AnimatePresence>
-              {isProfileDropdownOpen && (
-                <div className="absolute top-full right-0 mt-2 profile-dropdown-container z-50">
-                  <ProfileDropdown />
-                </div>
-              )}
-            </AnimatePresence>
-          </div>
-
         </div>
       </header>
 
