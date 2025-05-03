@@ -38,6 +38,7 @@ const menuItems: MenuSection[] = [
       { icon: <Globe size={20} />, label: "Language", route: "/language" },
       { icon: <Settings size={20} />, label: "Settings", route: "/settings" },
     ],
+
   },
   {
     id: "footer",
