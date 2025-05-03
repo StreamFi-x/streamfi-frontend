@@ -6,6 +6,7 @@ import {
   validateEmail,
 } from "../../../../utils/validators";
 import { sql } from "@vercel/postgres";
+import { sendWelcomeRegistrationEmail } from "@/utils/send-email";
 
 // Rate limiter: 5 requests per minute so as not to abuse it
 const limiter = rateLimit({
@@ -20,12 +21,12 @@ async function handler(req: Request, res: any) {
     // return res.status(405).json({ error: "Method not allowed" });
   }
 
-  try {
-    await limiter.check(res, 5, "UNSUBSCRIBE_RATE_LIMIT");
-  } catch {
-    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
-    // return res.status(429).json({ error: "Rate limit exceeded" });
-  }
+  // try {
+  //   await limiter.check(res, 5, "UNSUBSCRIBE_RATE_LIMIT");
+  // } catch {
+  //   return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  //   // return res.status(429).json({ error: "Rate limit exceeded" });
+  // }
 
   const requestBody = await req.json();
   const { email, username, wallet } = requestBody;
@@ -100,6 +101,8 @@ async function handler(req: Request, res: any) {
       INSERT INTO users (email, username, wallet)
       VALUES (${email}, ${username}, ${wallet})
     `;
+
+    await sendWelcomeRegistrationEmail(email, username);
 
     return NextResponse.json(
       { message: "User registration success" },

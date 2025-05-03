@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { StreamfiLogoShort } from "@/public/icons";
 import { Search } from "lucide-react";
 import Image from "next/image";
@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SearchResult } from "@/types/explore";
 import { useAccount, useDisconnect } from "@starknet-react/core";
 import ConnectModal from "../connectWallet";
+import ProfileModal from "./ProfileModal";
+import SimpleLoader from "../ui/loader/simple-loader";
 import Avatar from "@/public/Images/user.png";
 import ProfileDropdown from "../ui/profileDropdown";
 
@@ -27,6 +29,20 @@ export default function Navbar({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [connectStep, setConnectStep] = useState<
+    "profile" | "verify" | "success"
+  >("profile");
+  const [isLoading, setIsLoading] = useState(false);
+  const [username, setUsername] = useState("");
+
+  const handleCloseProfileModal = () => {
+    setProfileModalOpen(false);
+  };
+
+  const handleNextStep = (step: "profile" | "verify" | "success") => {
+    setConnectStep(step);
+  };
   // New state for profile dropdown
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
@@ -74,6 +90,24 @@ export default function Navbar({
     }
   };
 
+  const handleProfileDisplayModal = useCallback(() => {
+    setIsLoading(true);
+    fetch(`/api/users/${address}`)
+      .then(async (res) => {
+        if (res.status === 404) {
+          // Pop up the complete profile model here
+          setProfileModalOpen(true);
+        }
+        if (res.ok) {
+          const result = await res.json();
+          setUsername(result.user.username);
+        }
+        setIsLoading(false);
+      })
+      .catch((reason) => {
+        console.log("Error finding user ", reason);
+      });
+  }, [address]);
   // Toggle profile dropdown
   const toggleProfileDropdown = () => {
     setIsProfileDropdownOpen(!isProfileDropdownOpen);
@@ -103,6 +137,10 @@ export default function Navbar({
       setIsModalOpen(false);
     }
   }, [isConnected]);
+
+  useEffect(() => {
+    if (isConnected && address) handleProfileDisplayModal();
+  }, [address, handleProfileDisplayModal, isConnected]);
 
   return (
     <>
@@ -173,17 +211,77 @@ export default function Navbar({
 
         <div className="flex items-center gap-4">
           {isConnected && address && (
-            <span className="text-white text-sm truncate max-w-[150px]">
-              {address.substring(0, 6)}...{address.slice(-4)}
-            </span>
+            // <span className="text-white text-sm truncate max-w-[150px]">
+            //   {address.substring(0, 6)}...{address.slice(-4)}
+            // </span>
+            <>
+              <button>
+                <Image
+                  src={"/Images/notification.svg"}
+                  width={24}
+                  height={24}
+                  alt="pfp"
+                />
+              </button>
+              {/* <div className="flex gap-[10px] font-medium items-center text-[14px] text-white">
+                <span>
+                  {username ||
+                    `${address.substring(0, 6)}...${address.slice(-4)}`}
+                </span>
+                <Image
+                  src={"/Images/profile2.svg"}
+                  width={36}
+                  height={36}
+                  alt="pfp"
+                />
+              </div> */}
+              {/* Avatar with dropdown */}
+              <div className="relative avatar-container">
+                <div
+                  className="cursor-pointer flex gap-[10px] font-medium items-center text-[14px] text-white"
+                  onClick={toggleProfileDropdown}
+                >
+                  <span>
+                    {username ||
+                      `${address.substring(0, 6)}...${address.slice(-4)}`}
+                  </span>
+                  <Image
+                    src={Avatar}
+                    alt="Avatar"
+                    width={40}
+                    height={40}
+                    className=""
+                  />
+                </div>
+
+
+                {/* Render ProfileDropdown with AnimatePresence */}
+                <AnimatePresence>
+                  {isProfileDropdownOpen && (
+                    <div className="absolute top-full right-0 mt-2 profile-dropdown-container z-50">
+                      <ProfileDropdown
+                        username={
+                          username
+                            ? `${username.length > 12 ? username.substring(0, 12) : username}..`
+                            : `${address.substring(0, 12)}..`
+                        }
+                      />
+                    </div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </>
+          )}
+          {!isConnected && (
+            <button
+              onClick={handleConnectWallet}
+              className="bg-primary hover:bg-purple-700 text-white px-4 py-3 rounded-md text-sm font-medium transition-colors"
+            >
+              {isConnected ? "Disconnect" : "Connect Wallet"}
+            </button>
           )}
 
-          <button
-            onClick={handleConnectWallet}
-            className="bg-primary hover:bg-purple-700 text-white px-4 py-3 rounded-md text-sm font-medium transition-colors"
-          >
-            {isConnected ? "Disconnect" : "Connect Wallet"}
-          </button>
+         
 
           {/* Avatar with dropdown */}
           <div className="relative avatar-container">
@@ -206,6 +304,7 @@ export default function Navbar({
               )}
             </AnimatePresence>
           </div>
+
         </div>
       </header>
 
@@ -227,7 +326,17 @@ export default function Navbar({
             </motion.div>
           </motion.div>
         )}
+        {profileModalOpen && (
+          <ProfileModal
+            isOpen={profileModalOpen}
+            currentStep={connectStep}
+            onClose={handleCloseProfileModal}
+            onNextStep={handleNextStep}
+          />
+        )}
       </AnimatePresence>
+
+      {isLoading && <SimpleLoader />}
     </>
   );
 }

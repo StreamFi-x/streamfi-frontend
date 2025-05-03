@@ -1,7 +1,33 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-'use server'
+"use server";
+import nodemailer from "nodemailer";
+import WelcomeUserEmail from "@/components/templates/WelcomeUserEmail";
 
-import nodemailer from 'nodemailer';
+export async function sendWelcomeRegistrationEmail(email: any, name: any) {
+  const transporter = nodemailer.createTransport({
+    service: "Gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  const htmlContent = WelcomeUserEmail(name);
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "Welcome to Streamfi!",
+    html: htmlContent,
+  };
+  try {
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error("Error sending registration email:", error);
+    throw error;
+  }
+}
 
 export async function sendWelcomeEmail(email: any, name: any) {
   // Create a more professional transporter with additional configuration
@@ -9,14 +35,14 @@ export async function sendWelcomeEmail(email: any, name: any) {
     service: "Gmail",
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
+      pass: process.env.EMAIL_PASS,
     },
     // Adding DKIM and SPF info in headers
     dkim: {
-      domainName: process.env.EMAIL_DOMAIN || 'streamfi.xyz',
-      keySelector: 'default',
-      privateKey: process.env.DKIM_PRIVATE_KEY || ''
-    }
+      domainName: process.env.EMAIL_DOMAIN || "streamfi.xyz",
+      keySelector: "default",
+      privateKey: process.env.DKIM_PRIVATE_KEY || "",
+    },
   });
 
   // Cloudinary URLs
@@ -133,20 +159,20 @@ export async function sendWelcomeEmail(email: any, name: any) {
 
   const mailOptions = {
     from: {
-      name: "StreamFi",  // Shorter sender name is less spammy
-      address: process.env.EMAIL_USER || "support@streamfi.xyz"  // Use a branded email address
+      name: "StreamFi", // Shorter sender name is less spammy
+      address: process.env.EMAIL_USER || "support@streamfi.xyz", // Use a branded email address
     },
     to: email,
     subject: "Your StreamFi Waitlist Confirmation", // Clear, concise subject
     html: emailTemplate,
     headers: {
-      'Message-ID': `<${messageId}>`,
-      'List-Unsubscribe': `<https://streamfi.xyz/unsubscribe?email=${encodeURIComponent(email)}&id=${messageId}>`,
-      'Precedence': 'bulk',  // Can be removed for non-bulk emails
-      'X-Mailer': 'StreamFi Mailer',  // Could be more neutral
-      'X-Entity-Ref-ID': messageId,
-      'Feedback-ID': `waitlist:streamfi:${messageId}`
-    }
+      "Message-ID": `<${messageId}>`,
+      "List-Unsubscribe": `<https://streamfi.xyz/unsubscribe?email=${encodeURIComponent(email)}&id=${messageId}>`,
+      Precedence: "bulk", // Can be removed for non-bulk emails
+      "X-Mailer": "StreamFi Mailer", // Could be more neutral
+      "X-Entity-Ref-ID": messageId,
+      "Feedback-ID": `waitlist:streamfi:${messageId}`,
+    },
   };
 
   try {
