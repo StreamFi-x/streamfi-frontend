@@ -1,4 +1,6 @@
-import { ReactNode } from "react";
+"use client";
+
+import type { ReactNode } from "react";
 import Image from "next/image";
 import {
   Globe,
@@ -10,7 +12,9 @@ import {
 import User from "@/public/Images/user.png";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useDisconnect } from "@starknet-react/core";
+import Link from "next/link";
+import { useAuth } from "@/components/auth/auth-provider";
+import { useAccount, useDisconnect } from "@starknet-react/core";
 
 // Define types for menu items
 interface MenuItem {
@@ -24,28 +28,6 @@ interface MenuSection {
   items: MenuItem[];
 }
 
-// Menu data structure with routes
-const menuItems: MenuSection[] = [
-  {
-    id: "main",
-    items: [
-      { icon: <MonitorPlay size={20} />, label: "Channel", route: "/channel" },
-      {
-        icon: <LayoutDashboard size={20} />,
-        label: "Creator Dashboard",
-        route: "/dashboard",
-      },
-      { icon: <Globe size={20} />, label: "Language", route: "/language" },
-      { icon: <Settings size={20} />, label: "Settings", route: "/settings" },
-    ],
-
-  },
-  {
-    id: "footer",
-    items: [{ icon: <LogOut size={20} />, label: "Disconnect", route: "#" }],
-  },
-];
-
 // Menu item component props
 interface MenuItemProps {
   icon: ReactNode;
@@ -57,13 +39,14 @@ interface MenuItemProps {
 // Menu item component
 const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
   return (
-    <div
+    <Link
+      href={route || "#"}
       className="flex items-center px-4 py-3 hover:bg-[#282828] cursor-pointer"
       onClick={() => onClick({ icon, label, route })}
     >
       <div className="text-white mr-3">{icon}</div>
       <span className="text-white text-base">{label}</span>
-    </div>
+    </Link>
   );
 };
 
@@ -103,13 +86,28 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
       onClick={onClick}
     >
       <div className="relative w-10 h-10 rounded-full bg-purple-600 overflow-hidden">
-        <Image
-          src={avatar}
-          alt="User avatar"
-          fill
-          sizes="40px"
-          className="object-cover"
-        />
+        {avatar ? (
+          <Image
+            src={avatar || "/placeholder.svg"}
+            alt="User avatar"
+            fill
+            sizes="40px"
+            className="object-cover"
+            onError={(e) => {
+              // If image fails to load, replace with placeholder
+              const target = e.target as HTMLImageElement;
+              target.src = "/Images/user.png";
+            }}
+          />
+        ) : (
+          <Image
+            src="/Images/user.png"
+            alt="Default avatar"
+            fill
+            sizes="40px"
+            className="object-cover"
+          />
+        )}
       </div>
       <span className="font-medium text-lg">{name}</span>
     </div>
@@ -123,21 +121,49 @@ interface UserDropdownProps {
 const UserDropdown = ({ username }: UserDropdownProps) => {
   const router = useRouter();
   const userAvatar = User;
-  const userName = username;
   const { disconnect } = useDisconnect();
+  const { isConnected } = useAccount();
+  const userName = username;
+  const { logout } = useAuth(); // Use our auth context for logout
+
+  // Menu data structure with routes
+  const menuItems: MenuSection[] = [
+    {
+      id: "main",
+      items: [
+        {
+          icon: <MonitorPlay size={20} />,
+          label: "Channel",
+          route: `/${username}`,
+        },
+        {
+          icon: <LayoutDashboard size={20} />,
+          label: "Creator Dashboard",
+          route: "/dashboard/stream-manager",
+        },
+        { icon: <Globe size={20} />, label: "Language", route: "/language" },
+        { icon: <Settings size={20} />, label: "Settings", route: "/settings" },
+      ],
+    },
+    {
+      id: "footer",
+      items: [{ icon: <LogOut size={20} />, label: "Disconnect", route: "#" }],
+    },
+  ];
 
   const handleItemClick = (item: MenuItem) => {
     console.log(`Clicked on ${item.label}`);
 
-    if (item.route) {
-      if (item.label === "Disconnect") {
-        // Handle logout special case
-        console.log("Logging out...");
-        disconnect();
-        // Add any logout logic here before navigation
-        // For example: clearToken(), logout(), etc.
+    if (item.label === "Disconnect") {
+      // Use our auth context's logout function
+      if (isConnected) {
+        disconnect(); // Disconnect if already connected
       }
+      logout();
+      return;
+    }
 
+    if (item.route) {
       // Navigate to the route
       router.push(item.route);
     }

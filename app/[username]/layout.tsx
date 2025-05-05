@@ -1,57 +1,35 @@
-// app/profile/[username]/layout.tsx
-import { ReactNode } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import clsx from "clsx";
+"use client"
+import { useState } from "react"
+import type React from "react"
+import Sidebar from "@/components/explore/Sidebar"
+import Navbar from "@/components/explore/Navbar"
 
-const tabs = [
-  { name: "Home", href: "" },
-  { name: "About", href: "about" },
-  { name: "Videos", href: "videos" },
-  { name: "Clips", href: "clips" },
-  { name: "Watch", href: "watch" },
-];
+// Mock data for sidebar props
+const sidebarProps = {
+  isOpen: true,
+  onClose: () => {},
+}
 
-export default function ProfileLayout({
+export default function UsernameLayout({
   children,
   params,
 }: {
-  children: ReactNode;
-  params: { username: string };
+  children: React.ReactNode
+  params: { username: string }
 }) {
-  const pathname = usePathname();
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen)
+  }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="text-xl font-bold">
-            {params.username}&apos;s Channel
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-4 flex gap-6 border-t border-white/10 pt-4">
-          {tabs.map((tab) => {
-            const isActive =
-              pathname.endsWith(`/${tab.href}`) ||
-              (tab.href === "" && pathname.endsWith(params.username));
-            return (
-              <Link
-                key={tab.name}
-                href={`/profile/${params.username}/${tab.href}`}
-                className={clsx(
-                  "pb-2 border-b-2 text-sm",
-                  isActive
-                    ? "border-white text-white"
-                    : "border-transparent text-gray-400 hover:text-white"
-                )}
-              >
-                {tab.name}
-              </Link>
-            );
-          })}
-        </div>
+    <div className="flex h-screen bg-[#17191A] text-white">
+      <Sidebar {...sidebarProps} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Navbar toggleSidebar={toggleSidebar} />
+        <main className="flex-1 overflow-auto">{children}</main>
       </div>
-      <div className="max-w-7xl mx-auto px-4 py-6">{children}</div>
     </div>
-  );
+  )
 }

@@ -1,106 +1,77 @@
-import React from "react";
-import Image from "next/image";
+"use client"
+import { useState, useEffect } from "react"
+import { notFound } from "next/navigation"
+import OwnerChannelHome from "@/components/owner/profile/ChannelHome"
+import ViewerChannelHome from "@/components/viewer/profile/ChannelHome"
+import ViewStream from "@/components/stream/view-stream"
 
-const streams = new Array(4).fill({
-  title: "Clash of clans Live play",
-  tagList: ["Nigerian", "Gameplay", "Gaming"],
-  viewers: "14.5K",
-  thumbnail: "/images/sample-stream.jpg",
-  streamer: "Flaggames",
-});
-
-const clips = [...streams];
-
-export default function HomeTab() {
-  return (
-    <div className="space-y-10">
-      {/* Recent Streams */}
-      <section>
-        <h2 className="text-xl font-semibold mb-4">Recent Streams</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {streams.map((stream, idx) => (
-            <div
-              key={idx}
-              className="bg-muted rounded-lg overflow-hidden shadow-md"
-            >
-              <div className="relative h-40">
-                <Image
-                  src={stream.thumbnail}
-                  alt="Stream thumbnail"
-                  fill
-                  className="object-cover"
-                />
-                <span className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-0.5 rounded">
-                  Live
-                </span>
-                <span className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-0.5 rounded">
-                  {stream.viewers}
-                </span>
-              </div>
-              <div className="p-3">
-                <p className="text-sm text-gray-300 mb-1">{stream.streamer}</p>
-                <h3 className="font-semibold text-white text-sm">
-                  {stream.title}
-                </h3>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {stream.tagList.map((tag: string[], i: number) => (
-                    <span
-                      key={i}
-                      className="text-[10px] px-2 py-0.5 bg-zinc-700 text-white rounded"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Popular Clips */}
-      <section>
-        <h2 className="text-xl font-semibold mb-4">Popular Clips</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {clips.map((clip, idx) => (
-            <div
-              key={idx}
-              className="bg-muted rounded-lg overflow-hidden shadow-md"
-            >
-              <div className="relative h-40">
-                <Image
-                  src={clip.thumbnail}
-                  alt="Clip thumbnail"
-                  fill
-                  className="object-cover"
-                />
-                <span className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-0.5 rounded">
-                  Live
-                </span>
-                <span className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-0.5 rounded">
-                  {clip.viewers}
-                </span>
-              </div>
-              <div className="p-3">
-                <p className="text-sm text-gray-300 mb-1">{clip.streamer}</p>
-                <h3 className="font-semibold text-white text-sm">
-                  {clip.title}
-                </h3>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {clip.tagList.map((tag: string, i: number) => (
-                    <span
-                      key={i}
-                      className="text-[10px] px-2 py-0.5 bg-zinc-700 text-white rounded"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
+interface PageProps {
+  params: {
+    username: string
+  }
 }
+
+// Mock function to check if a stream is live
+const checkStreamStatus = async (username: string) => {
+  // Simulate API call delay
+  await new Promise((resolve) => setTimeout(resolve, 500))
+
+  // For demo purposes, randomly determine if stream is live
+  // In a real app, this would be a real API call
+  return Math.random() > 0.5
+}
+
+const ProfilePage = ({ params }: PageProps) => {
+  const { username } = params
+  const [isLive, setIsLive] = useState<boolean | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // Mock function to check if user exists - would be a DB call in real app
+  const userExists = true
+
+  // Mock function to check if current user is the owner of this profile
+  const isOwner = username === "chidinma" // Just for demo purposes
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        setLoading(true)
+        const status = await checkStreamStatus(username)
+        setIsLive(status)
+      } catch (error) {
+        console.error("Failed to check stream status:", error)
+        setIsLive(false)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    checkStatus()
+  }, [username])
+
+  if (!userExists) {
+    return notFound()
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-white">Loading...</p>
+      </div>
+    )
+  }
+
+  // If stream is live, show the ViewStream component
+  if (isLive) {
+    return <ViewStream username={username} isLive={true} onStatusChange={(status) => setIsLive(status)} />
+  }
+
+  // Render different components based on whether the current user is the owner
+  if (isOwner) {
+    return <OwnerChannelHome username={username} isLive={false} />
+  }
+
+  return <ViewerChannelHome username={username} isLive={false} />
+}
+
+export default ProfilePage

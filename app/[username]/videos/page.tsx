@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Banner from "@/components/shared/profile/Banner";
 import ProfileHeader from "@/components/shared/profile/ProfileHeader";
 import TabsNavigation from "@/components/shared/profile/TabsNavigation";
+import StreamCard from "@/components/shared/profile/StreamCard";
 import EmptyState from "@/components/shared/profile/EmptyState";
 
 interface PageProps {
@@ -12,8 +13,8 @@ interface PageProps {
   };
 }
 
-// Mock function to fetch clips
-const fetchClips = async (username: string) => {
+// Mock function to fetch videos
+const fetchVideos = async (username: string) => {
   // Simulate API call delay
   await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -21,9 +22,9 @@ const fetchClips = async (username: string) => {
   return [];
 };
 
-const ClipsPage = ({ params }: PageProps) => {
+const VideosPage = ({ params }: PageProps) => {
   const { username } = params;
-  const [clips, setClips] = useState<any[]>([]);
+  const [videos, setVideos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Mock function to check if user exists - would be a DB call in real app
@@ -37,19 +38,19 @@ const ClipsPage = ({ params }: PageProps) => {
   const streamTitle = isLive ? "co-working and designing" : undefined;
 
   useEffect(() => {
-    const getClips = async () => {
+    const getVideos = async () => {
       try {
         setLoading(true);
-        const data = await fetchClips(username);
-        setClips(data);
+        const data = await fetchVideos(username);
+        setVideos(data);
       } catch (error) {
-        console.error("Failed to fetch clips:", error);
+        console.error("Failed to fetch videos:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    getClips();
+    getVideos();
   }, [username]);
 
   if (!userExists) {
@@ -77,21 +78,23 @@ const ClipsPage = ({ params }: PageProps) => {
       <div className="p-6">
         {loading ? (
           <div className="flex justify-center py-12">
-            <p className="text-gray-400">Loading clips...</p>
+            <p className="text-gray-400">Loading videos...</p>
           </div>
-        ) : clips.length > 0 ? (
+        ) : videos.length > 0 ? (
           <section>
-            <h2 className="text-white text-xl font-medium mb-4">Clips</h2>
+            <h2 className="text-white text-xl font-medium mb-4">Videos</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Clips would be rendered here */}
+              {videos.map((video) => (
+                <StreamCard key={video.id} {...video} />
+              ))}
             </div>
           </section>
         ) : (
-          <EmptyState type="clips" isOwner={isOwner} username={username} />
+          <EmptyState type="videos" isOwner={isOwner} username={username} />
         )}
       </div>
     </div>
   );
 };
 
-export default ClipsPage;
+export default VideosPage;

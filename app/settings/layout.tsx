@@ -1,11 +1,13 @@
 "use client";
 import type React from "react";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 // import SettingsHeader from "@/components/settings/SettingsNav";
 import Loader from "@/components/ui/loader/loader";
 import SimpleLoader from "@/components/ui/loader/simple-loader";
 import Navbar from "@/components/explore/Navbar";
 import Sidebar from "@/components/explore/Sidebar";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/auth-provider";
 
 export default function SettingsLayout({
   children,
@@ -13,6 +15,20 @@ export default function SettingsLayout({
   children: React.ReactNode;
 }>) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const router = useRouter();
+  const { user, isLoading } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  // useEffect(() => {
+  //   setMounted(true);
+  // }, []);
+
+  // useEffect(() => {
+  //   // Redirect to login if not authenticated
+  //   if (mounted && !isLoading && !user) {
+  //     router.push("/explore");
+  //   }
+  // }, [user, isLoading, router, mounted]);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   const closeSidebar = () => setSidebarOpen(false);
