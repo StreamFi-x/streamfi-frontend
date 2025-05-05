@@ -39,8 +39,7 @@ const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
           username={userData.username}
           followers={userData.followers}
           bio={userData.bio}
-          socialLinks={userData.socialLinks}
-        />
+          socialLinks={userData.socialLinks} isOwner={false}        />
       </div>
     </div>
   )

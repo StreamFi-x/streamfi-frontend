@@ -1,16 +1,21 @@
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { ExternalLink } from "lucide-react"
-import CustomizeChannelButton from "./CustomizeChannelButton"
+import Image from "next/image";
+import { Button } from "@/components/ui/Button";
+import { ExternalLink } from "lucide-react";
+import CustomizeChannelButton from "./CustomizeChannelButton";
 
 interface ProfileHeaderProps {
-  username: string
-  followers: number
-  avatarUrl: string
-  isOwner: boolean
+  username: string;
+  followers: number;
+  avatarUrl: string;
+  isOwner: boolean;
 }
 
-const ProfileHeader = ({ username, followers, avatarUrl, isOwner }: ProfileHeaderProps) => {
+const ProfileHeader = ({
+  username,
+  followers,
+  avatarUrl,
+  isOwner,
+}: ProfileHeaderProps) => {
   return (
     <div className="flex items-center justify-between px-6 py-4">
       <div className="flex items-center">
@@ -24,7 +29,9 @@ const ProfileHeader = ({ username, followers, avatarUrl, isOwner }: ProfileHeade
         </div>
         <div>
           <h1 className="text-xl font-bold text-white">{username}</h1>
-          <p className="text-sm text-gray-400">{followers.toLocaleString()} followers</p>
+          <p className="text-sm text-gray-400">
+            {followers.toLocaleString()} followers
+          </p>
         </div>
       </div>
 
@@ -33,24 +40,20 @@ const ProfileHeader = ({ username, followers, avatarUrl, isOwner }: ProfileHeade
           <CustomizeChannelButton />
         ) : (
           <>
-            <Button variant="outline" className="bg-purple-600 hover:bg-purple-700 text-white border-none">
+            <Button className="bg-purple-600 hover:bg-purple-700 text-white border-none">
               Follow
             </Button>
-            <Button variant="outline" className="bg-transparent hover:bg-gray-700 text-white border-gray-600">
+            <Button className="bg-transparent hover:bg-gray-700 text-white border-gray-600">
               Subscribe
             </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="bg-transparent hover:bg-gray-700 text-white border-gray-600"
-            >
+            <Button className="bg-transparent hover:bg-gray-700 text-white border-gray-600">
               <ExternalLink className="h-4 w-4" />
             </Button>
           </>
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ProfileHeader
+export default ProfileHeader;

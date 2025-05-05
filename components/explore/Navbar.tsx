@@ -305,8 +305,9 @@ export default function Navbar({
             isOpen={profileModalOpen}
             currentStep={connectStep}
             onClose={handleCloseProfileModal}
-            onNextStep={handleNextStep}
-          />
+            onNextStep={handleNextStep} setIsProfileModalOpen={function (open: boolean): void {
+              throw new Error("Function not implemented.");
+            } }          />
         )}
       </AnimatePresence>
 

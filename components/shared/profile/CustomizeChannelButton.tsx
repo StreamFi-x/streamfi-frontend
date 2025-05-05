@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/Button"
 import { Settings, ExternalLink } from "lucide-react"
 
 const CustomizeChannelButton = () => {
@@ -11,7 +11,7 @@ const CustomizeChannelButton = () => {
           Customize Channel
         </Button>
       </Link>
-      <Button variant="outline" size="icon" className="bg-transparent hover:bg-gray-700 text-white border-gray-600">
+      <Button  className="bg-transparent hover:bg-gray-700 text-white border-gray-600">
         <ExternalLink className="h-4 w-4" />
       </Button>
     </div>

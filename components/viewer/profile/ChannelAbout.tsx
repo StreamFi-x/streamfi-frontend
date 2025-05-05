@@ -1,12 +1,12 @@
-import Banner from "@/components/shared/profile/Banner"
-import ProfileHeader from "@/components/shared/profile/ProfileHeader"
-import TabsNavigation from "@/components/shared/profile/TabsNavigation"
-import AboutSection from "@/components/shared/profile/AboutSection"
+import Banner from "@/components/shared/profile/Banner";
+import ProfileHeader from "@/components/shared/profile/ProfileHeader";
+import TabsNavigation from "@/components/shared/profile/TabsNavigation";
+import AboutSection from "@/components/shared/profile/AboutSection";
 
 interface ChannelAboutProps {
-  username: string
-  isLive: boolean
-  streamTitle?: string
+  username: string;
+  isLive: boolean;
+  streamTitle?: string;
 }
 
 const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
@@ -21,7 +21,7 @@ const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
       instagram: "https://instagram.com/kass_dinma",
       discord: "https://discord.gg/kassinma",
     },
-  }
+  };
 
   return (
     <div className="bg-gray-950 min-h-screen">
@@ -40,10 +40,11 @@ const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
           followers={userData.followers}
           bio={userData.bio}
           socialLinks={userData.socialLinks}
+          isOwner={false}
         />
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ChannelAbout
+export default ChannelAbout;

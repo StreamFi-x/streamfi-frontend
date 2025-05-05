@@ -54,8 +54,9 @@ export default function ClientLayout({
             isOpen={connectModalOpen}
             currentStep={connectStep}
             onClose={handleCloseModal}
-            onNextStep={handleNextStep}
-          />
+            onNextStep={handleNextStep} setIsProfileModalOpen={function (open: boolean): void {
+              throw new Error("Function not implemented.");
+            } }          />
         )}
       </AnimatePresence>
     </main>
