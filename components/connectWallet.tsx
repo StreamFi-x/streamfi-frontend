@@ -10,7 +10,7 @@ interface ConnectModalProps {
   setIsModalOpen: (isModalOpen: boolean) => void;
 }
 
-export default function ConnectModal({
+export default function ConnectWalletModal({
   isModalOpen,
   setIsModalOpen,
 }: ConnectModalProps) {
