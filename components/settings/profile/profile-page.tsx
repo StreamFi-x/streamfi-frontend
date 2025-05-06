@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
-import Image from "next/image";
+import Image, { StaticImageData } from "next/image";
 import { Edit2, Trash2, Check, X } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useRouter } from "next/navigation";
+import profileImage from "@/public/Images/profile.png";
 import SimpleLoader from "@/components/ui/loader/simple-loader";
-
+import Avatar from "@/public/icons/avatar.svg";
 import InstagramIcon from "@/public/Images/instagram.svg";
 import TwitterIcon from "@/public/Images/twitter.svg";
 import FacebookIcon from "@/public/Images/facebook.svg";
@@ -13,7 +14,14 @@ import YoutubeIcon from "@/public/Images/youtube copy.svg";
 import TelegramIcon from "@/public/Images/telegram.svg";
 import DiscordIcon from "@/public/Images/discord copy.svg";
 import TikTokIcon from "@/public/Images/tiktok.svg";
+import VerificationPopup from "./popup";
+import AvatarSelectionModal from "./avatar-modal";
 
+const avatar1 = Avatar;
+const avatar2 = Avatar;
+const avatar3 = Avatar;
+const avatar4 = Avatar;
+const avatar5 = Avatar;
 interface SocialLink {
   url: string;
   title: string;
@@ -38,7 +46,7 @@ export default function ProfileSettings() {
   const [email, setEmail] = useState("");
   const [bio, setBio] = useState("");
   const [wallet, setWallet] = useState("");
-  const [avatar, setAvatar] = useState("/placeholder.svg");
+  const [avatar, setAvatar] = useState(profileImage);
   const [socialLinkUrl, setSocialLinkUrl] = useState("");
   const [socialLinkTitle, setSocialLinkTitle] = useState("");
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
@@ -67,36 +75,36 @@ export default function ProfileSettings() {
   ];
 
   // Load user data when available
-  useEffect(() => {
-    if (user) {
-      setUsername(user.username || "");
-      setEmail(user.email || "");
-      setBio(user.bio || "");
-      setWallet(user.wallet || "");
+  // useEffect(() => {
+  //   if (user) {
+  //     setUsername(user.username || "");
+  //     setEmail(user.email || "");
+  //     setBio(user.bio || "");
+  //     setWallet(user.wallet || "");
 
-      if (user.avatar) {
-        setAvatar(user.avatar);
-      }
+  //     if (user.avatar) {
+  //       setAvatar(user.avatar);
+  //     }
 
-      // Parse social links if available
-      if (user.socialLinks) {
-        const links: SocialLink[] = [];
+  //     // Parse social links if available
+  //     if (user.socialLinks) {
+  //       const links: SocialLink[] = [];
 
-        // Convert socialLinks object to array of SocialLink objects
-        Object.entries(user.socialLinks).forEach(([platform, url]) => {
-          if (url && typeof url === "string") {
-            links.push({
-              url,
-              title: platform.charAt(0).toUpperCase() + platform.slice(1),
-              platform: platform as SocialLink["platform"],
-            });
-          }
-        });
+  //       // Convert socialLinks object to array of SocialLink objects
+  //       Object.entries(user.socialLinks).forEach(([platform, url]) => {
+  //         if (url && typeof url === "string") {
+  //           links.push({
+  //             url,
+  //             title: platform.charAt(0).toUpperCase() + platform.slice(1),
+  //             platform: platform as SocialLink["platform"],
+  //           });
+  //         }
+  //       });
 
-        setSocialLinks(links);
-      }
-    }
-  }, [user]);
+  //       setSocialLinks(links);
+  //     }
+  //   }
+  // }, [user]);
 
   // Redirect if not authenticated
   // useEffect(() => {
@@ -104,6 +112,8 @@ export default function ProfileSettings() {
   //     router.push("/explore");
   //   }
   // }, [user, isLoading, router]);
+
+  const avatarOptions = [avatar1, avatar2, avatar3, avatar4, avatar5];
 
   const getInputStyle = (inputName: string) => {
     return `w-full bg-[#2a2a2a] rounded-lg px-4 py-2 text-white text-sm outline-none 
@@ -223,7 +233,9 @@ export default function ProfileSettings() {
     setShowAvatarModal(true);
   };
 
-  const handleSaveAvatar = (newAvatar: string) => {
+  const handleSaveAvatar  = (
+    newAvatar: React.SetStateAction<StaticImageData>
+  ) => {
     setAvatar(newAvatar);
     setAvatarError("");
     showToast("Avatar updated successfully", "success");
@@ -251,7 +263,7 @@ export default function ProfileSettings() {
       const success = await updateUserProfile({
         username,
         bio,
-        avatar,
+        // avatar,
         socialLinks: socialLinksObj,
       });
 
@@ -347,13 +359,9 @@ export default function ProfileSettings() {
     }
   };
 
-  if (isLoading) {
-    return <SimpleLoader />;
-  }
-
-  if (!user) {
-    return null; // Will redirect in useEffect
-  }
+  // if (isLoading) {
+  //   return <SimpleLoader />;
+  // }
 
   return (
     <div className="min-h-screen bg-black text-white pb-8">
@@ -623,7 +631,22 @@ export default function ProfileSettings() {
           </button>
         </div>
       </div>
-
+      {/* Modals */}
+      {showAvatarModal && (
+        <AvatarSelectionModal
+          currentAvatar={avatar}
+          onClose={() => setShowAvatarModal(false)}
+          onSaveAvatar={handleSaveAvatar}
+          avatarOptions={avatarOptions}
+        />
+      )}
+      {showVerificationPopup && (
+        <VerificationPopup
+          email={email}
+          onClose={() => setShowVerificationPopup(false)}
+          onVerify={handleVerificationComplete}
+        />
+      )}
       {/* Language Modal */}
       {showLanguageModal && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
