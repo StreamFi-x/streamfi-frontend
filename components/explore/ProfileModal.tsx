@@ -8,6 +8,7 @@ import { ChevronLeft } from "lucide-react";
 import { MdClose } from "react-icons/md";
 import { useRouter } from "next/navigation";
 import SimpleLoader from "@/components/ui/loader/simple-loader";
+import { useAccount } from "@starknet-react/core";
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -24,7 +25,6 @@ export default function ProfileModal({
   currentStep,
   onClose,
   onNextStep,
-  walletAddress = "",
   refreshUser,
   setIsProfileModalOpen,
 }: ProfileModalProps) {
@@ -42,6 +42,7 @@ export default function ProfileModal({
   const [isLoading, setIsLoading] = useState(false);
 
   // Router
+  const { address } = useAccount();
   const router = useRouter();
 
   // Verification code state
@@ -84,15 +85,12 @@ export default function ProfileModal({
       setIsLoading(true);
 
       try {
-        console.log(
-          "ProfileModal: Registering user with wallet:",
-          walletAddress
-        );
+        console.log("ProfileModal: Registering user with wallet:", address);
 
         const formData = {
           username: displayName,
           email: email,
-          wallet: walletAddress,
+          wallet: address,
           bio: bio || undefined,
         };
 
@@ -114,8 +112,8 @@ export default function ProfileModal({
           console.log("ProfileModal: Registration successful");
 
           // Store wallet address for persistence
-          sessionStorage.setItem("wallet", walletAddress);
-          localStorage.setItem("wallet", walletAddress);
+          sessionStorage.setItem("wallet", address ?? "");
+          localStorage.setItem("wallet", address ?? "");
 
           // Skip verification for now and go straight to success
           onNextStep("success");
