@@ -23,7 +23,6 @@ interface ProfileModalProps {
 export default function ProfileModal({
   isOpen,
   currentStep,
-  onClose,
   onNextStep,
   refreshUser,
   setIsProfileModalOpen,

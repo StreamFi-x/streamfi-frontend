@@ -38,7 +38,6 @@ interface SocialLink {
 }
 
 export default function ProfileSettings() {
-  const { user, isLoading, updateUserProfile } = useAuth();
   const router = useRouter();
 
   // State for form fields

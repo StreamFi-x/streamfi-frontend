@@ -18,10 +18,7 @@ interface NavbarProps {
   onConnect?: () => void;
 }
 
-export default function Navbar({
-  toggleSidebar,
-  onConnectWallet,
-}: NavbarProps) {
+export default function Navbar({}: NavbarProps) {
   // Removed unused searchOpen and setSearchOpen state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -211,9 +208,6 @@ export default function Navbar({
 
         <div className="flex items-center gap-4">
           {isConnected && address && (
-            // <span className="text-white text-sm truncate max-w-[150px]">
-            //   {address.substring(0, 6)}...{address.slice(-4)}
-            // </span>
             <>
               <button>
                 <Image
@@ -223,18 +217,6 @@ export default function Navbar({
                   alt="pfp"
                 />
               </button>
-              {/* <div className="flex gap-[10px] font-medium items-center text-[14px] text-white">
-                <span>
-                  {username ||
-                    `${address.substring(0, 6)}...${address.slice(-4)}`}
-                </span>
-                <Image
-                  src={"/Images/profile2.svg"}
-                  width={36}
-                  height={36}
-                  alt="pfp"
-                />
-              </div> */}
               {/* Avatar with dropdown */}
               <div className="relative avatar-container">
                 <div
