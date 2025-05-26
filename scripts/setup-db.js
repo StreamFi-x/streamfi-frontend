@@ -52,10 +52,28 @@ async function createUsersTable() {
   }
 }
 
+async function createCategoryTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title VARCHAR(255) UNIQUE NOT NULL,
+        tags TEXT[], -- this is now an array of text
+        imageUrl VARCHAR(255)
+      );
+    `);
+    console.log("Categories table is created or already exists");
+  } catch (error) {
+    console.error("Error creating Categories table:", error);
+  }
+}
+
+
 async function setupDatabase() {
   try {
     await createSubscribersTable();
     await createUsersTable()
+    await createCategoryTable()
     console.log("Database setup completed");
   } catch (error) {
     console.error("Database setup failed:", error);
