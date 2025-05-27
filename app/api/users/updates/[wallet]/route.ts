@@ -23,6 +23,7 @@ export async function PUT(
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    
 
     const formData = await req.formData();
 
@@ -45,6 +46,19 @@ export async function PUT(
         console.error("Invalid socialLinks JSON");
       }
     }
+
+    const creatorRaw = formData.get("creator");
+let creator = user.creator;
+
+if (creatorRaw) {
+  try {
+    creator = typeof creatorRaw === "string" ? JSON.parse(creatorRaw) : creatorRaw;
+  } catch (err) {
+    console.error("Invalid creator JSON:", err);
+    return NextResponse.json({ error: "Invalid creator format" }, { status: 400 });
+  }
+}
+
 
     // Validate
     const updateData: UserUpdateInput = {
@@ -113,6 +127,7 @@ export async function PUT(
         "socialLinks" = ${processedSocialLinks},
         "emailVerified" = ${emailVerified},
         "emailNotifications" = ${emailNotifications},
+        creator = ${JSON.stringify(creator)},
         updated_at = CURRENT_TIMESTAMP
       WHERE LOWER(wallet) = LOWER(${wallet})
       RETURNING id, username, email, streamkey, avatar, bio, "socialLinks", "emailVerified", "emailNotifications", wallet, created_at, updated_at
