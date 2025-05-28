@@ -416,7 +416,7 @@ export default function ProfileSettings() {
 
         {/* Basic Settings Section */}
         <div className="bg-[#1a1a1a] rounded-lg p-4 mb-6">
-          <h2 className="text-purple-500 text-lg mb-4">Basic Settings</h2>
+          <h2 className="text-white text-lg mb-4">Basic Settings</h2>
 
           <div className="mb-5">
             <label className="block mb-2 text-sm">User Name</label>
@@ -729,7 +729,7 @@ export default function ProfileSettings() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
         >
-          <h2 className="text-purple-500 text-lg mb-4">Language</h2>
+          <h2 className="text-white text-lg mb-4">Language</h2>
           <div
             className={`w-full bg-[#2a2a2a] rounded-lg px-4 py-3 text-white text-sm flex justify-between items-center cursor-pointer ${
               uiState.focusedInput === "language" ? "border border-purple-600" : "border border-transparent"
