@@ -1,13 +1,11 @@
-"use client";
-import PrivacySecurityContent from "@/components/settings/privacy-and-security/PrivacyAndSecurity";
-import ToastProvider from "@/components/ui/toast-provider";
+"use client"
+import { ToastProvider } from "@/components/ui/toast-provider"
+import PrivacySettings from "@/components/settings/privacy-and-security/PrivacyAndSecurity"
 
-const PrivacySecuritySettings: React.FC = () => {
+export default function PrivacySettingsPage() {
   return (
     <ToastProvider>
-      <PrivacySecurityContent />
+      <PrivacySettings />
     </ToastProvider>
-  );
-};
-
-export default PrivacySecuritySettings;
+  )
+}

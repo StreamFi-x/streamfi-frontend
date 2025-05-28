@@ -1,14 +1,11 @@
-"use client";
-import React from "react";
-import ProfileSettings from "../../../components/settings/profile/profile-page";
-import { ToastProvider } from "@/components/ui/toast-provider";
+"use client"
+import { ToastProvider } from "@/components/ui/toast-provider"
+import ProfileSettings from "@/components/settings/profile/profile-page"
 
-const page = () => {
+export default function ProfileSettingsPage() {
   return (
     <ToastProvider>
       <ProfileSettings />
     </ToastProvider>
-  );
-};
-
-export default page;
+  )
+}
