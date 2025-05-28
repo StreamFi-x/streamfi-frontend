@@ -1,9 +1,8 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import type React from "react"
-
 import Image, { type StaticImageData } from "next/image"
-import { Edit2, Trash2, Check, X } from "lucide-react"
+import { Edit2, Trash2, Check, X } from 'lucide-react'
 import { useAuth } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
@@ -14,100 +13,141 @@ import TwitterIcon from "@/public/Images/twitter.svg"
 import FacebookIcon from "@/public/Images/facebook.svg"
 import YoutubeIcon from "@/public/Images/youtube copy.svg"
 import TelegramIcon from "@/public/Images/telegram.svg"
-import DiscordIcon from "@/public/Images/discord copy.svg"
+import DiscordIcon from "@/public/Images/discord.svg"
 import TikTokIcon from "@/public/Images/tiktok.svg"
 import VerificationPopup from "./popup"
 import AvatarSelectionModal from "./avatar-modal"
+import LinkedInIcon from "@/public/Images/linkedin.svg"
 
-const avatar1 = Avatar
-const avatar2 = Avatar
-const avatar3 = Avatar
-const avatar4 = Avatar
-const avatar5 = Avatar
+// Types
+type Platform = "instagram" | "twitter" | "facebook" | "youtube" | "telegram" | "discord" | "tiktok" | "other"
+
 interface SocialLink {
   url: string
   title: string
-  platform: "instagram" | "twitter" | "facebook" | "youtube" | "telegram" | "discord" | "tiktok" | "other"
+  platform: Platform
   isEditing?: boolean
 }
 
-export default function ProfileSettings() {
-  const { user, isLoading, updateUserProfile } = useAuth()
-  const router = useRouter()
+interface FormState {
+  username: string
+  email: string
+  bio: string
+  wallet: string
+  socialLinkUrl: string
+  socialLinkTitle: string
+  language: string
+}
 
-  // State for form fields
-  const [username, setUsername] = useState("")
-  const [email, setEmail] = useState("")
-  const [bio, setBio] = useState("")
-  const [wallet, setWallet] = useState("")
-  const [avatar, setAvatar] = useState(profileImage)
-  const [socialLinkUrl, setSocialLinkUrl] = useState("")
-  const [socialLinkTitle, setSocialLinkTitle] = useState("")
+interface EditState {
+  editingLink: string
+  editingTitle: string
+  isEditing: boolean
+  editingIndex: number | null
+}
+
+interface UIState {
+  focusedInput: string | null
+  showVerificationPopup: boolean
+  showAvatarModal: boolean
+  showLanguageModal: boolean
+  isSaving: boolean
+  saveSuccess: boolean
+  saveError: string
+  duplicateUrlError: boolean
+}
+
+export default function ProfileSettings() {
+  const { user, updateUserProfile } = useAuth()
+  const router = useRouter()
+  const avatarOptions = [Avatar, Avatar, Avatar, Avatar, Avatar]
+
+  // Main state
+  const [avatar, setAvatar] = useState<StaticImageData | string>(profileImage) // Update type to string | StaticImageData
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([])
-  const [editingLink, setEditingLink] = useState<string>("")
-  const [editingTitle, setEditingTitle] = useState<string>("")
-  const [showVerificationPopup, setShowVerificationPopup] = useState(false)
+  const [usedPlatforms, setUsedPlatforms] = useState<Platform[]>([])
   const [isEmailVerified, setIsEmailVerified] = useState(false)
-  const [avatarError, setAvatarError] = useState("")
-  const [showAvatarModal, setShowAvatarModal] = useState(false)
-  const [language, setLanguage] = useState("English")
-  const [showLanguageModal, setShowLanguageModal] = useState(false)
-  const [focusedInput, setFocusedInput] = useState<string | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
-  const [saveSuccess, setSaveSuccess] = useState(false)
-  const [saveError, setSaveError] = useState("")
+
+  // Form state
+  const [formState, setFormState] = useState<FormState>({
+    username: "",
+    email: "",
+    bio: "",
+    wallet: "",
+    socialLinkUrl: "",
+    socialLinkTitle: "",
+    language: "English"
+  })
+
+  // Edit state
+  const [editState, setEditState] = useState<EditState>({
+    editingLink: "",
+    editingTitle: "",
+    isEditing: false,
+    editingIndex: null
+  })
+
+  // UI state
+  const [uiState, setUiState] = useState<UIState>({
+    focusedInput: null,
+    showVerificationPopup: false,
+    showAvatarModal: false,
+    showLanguageModal: false,
+    isSaving: false,
+    saveSuccess: false,
+    saveError: "",
+    duplicateUrlError: false
+  })
 
   const languages = ["English", "Spanish", "French", "German", "Portuguese", "Russian", "Chinese", "Japanese"]
 
+  // Update form field
+  const updateFormField = (field: keyof FormState, value: string) => {
+    setFormState(prev => ({ ...prev, [field]: value }))
+    
+    // Clear duplicate error when URL changes
+    if (field === 'socialLinkUrl') {
+      setUiState(prev => ({ ...prev, duplicateUrlError: false }))
+    }
+  }
+
+  // Update UI state
+  const updateUiState = (updates: Partial<UIState>) => {
+    setUiState(prev => ({ ...prev, ...updates }))
+  }
+
+  // Update used platforms when social links change
+  useEffect(() => {
+    const platforms = socialLinks.map(link => link.platform)
+    setUsedPlatforms(platforms)
+  }, [socialLinks])
+
   // Load user data when available
-  // useEffect(() => {
-  //   if (user) {
-  //     setUsername(user.username || "");
-  //     setEmail(user.email || "");
-  //     setBio(user.bio || "");
-  //     setWallet(user.wallet || "");
+  useEffect(() => {
+    if (user) {
+      setFormState(prev => ({
+        ...prev,
+        username: user.username || "",
+        email: user.email || "",
+        bio: user.bio || "",
+        wallet: user.wallet || ""
+      }))
 
-  //     if (user.avatar) {
-  //       setAvatar(user.avatar);
-  //     }
+      if (user.avatar) {
+        setAvatar(user.avatar)
+      }
+    }
+  }, [user])
 
-  //     // Parse social links if available
-  //     if (user.socialLinks) {
-  //       const links: SocialLink[] = [];
-
-  //       // Convert socialLinks object to array of SocialLink objects
-  //       Object.entries(user.socialLinks).forEach(([platform, url]) => {
-  //         if (url && typeof url === "string") {
-  //           links.push({
-  //             url,
-  //             title: platform.charAt(0).toUpperCase() + platform.slice(1),
-  //             platform: platform as SocialLink["platform"],
-  //           });
-  //         }
-  //       });
-
-  //       setSocialLinks(links);
-  //     }
-  //   }
-  // }, [user]);
-
-  // Redirect if not authenticated
-  // useEffect(() => {
-  //   if (!isLoading && !user) {
-  //     router.push("/explore");
-  //   }
-  // }, [user, isLoading, router]);
-
-  const avatarOptions = [avatar1, avatar2, avatar3, avatar4, avatar5]
-
+  // Fix the focusedInput reference error by using uiState.focusedInput instead
   const getInputStyle = (inputName: string) => {
-    return `w-full bg-[#1e1e1e] rounded-lg px-4 py-3 text-white text-sm outline-none 
-           ${focusedInput === inputName ? "border border-purple-600" : "border border-transparent"} 
+    return `w-full bg-[#2a2a2a] rounded-lg px-4 py-3 text-white text-sm outline-none 
+           ${uiState.focusedInput === inputName ? "border border-purple-600" : "border border-transparent"} 
            transition-all duration-200`
   }
 
   // Generate a default title based on platform and existing links
-  const generateDefaultTitle = (platform: string): string => {
+  const generateDefaultTitle = useCallback((platform: Platform): string => {
     // Count existing links with the same platform
     const existingCount = socialLinks.filter((link) => link.platform === platform).length
 
@@ -116,9 +156,9 @@ export default function ProfileSettings() {
 
     // If there are existing links with this platform, add a number
     return existingCount > 0 ? `${platformName} ${existingCount + 1}` : platformName
-  }
+  }, [socialLinks])
 
-  const validateAndIdentifyLink = (url: string, title: string): SocialLink | null => {
+  const validateAndIdentifyLink = useCallback((url: string, title: string): SocialLink | null => {
     const urlRegex = /^(https?:\/\/)?(www\.)?([a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+)(\/[^\s]*)?$/
 
     if (!urlRegex.test(url)) {
@@ -152,65 +192,108 @@ export default function ProfileSettings() {
     } else {
       return { url, title: title || "Other", platform: "other" }
     }
+  }, [generateDefaultTitle])
+
+  const isDuplicateUrl = (url: string, excludeIndex?: number): boolean => {
+    return socialLinks.some((link, index) => 
+      (excludeIndex === undefined || index !== excludeIndex) && 
+      link.url.toLowerCase() === url.toLowerCase()
+    )
   }
 
   const handleAddSocialLink = () => {
+    const { socialLinkUrl, socialLinkTitle } = formState
+    
     if (socialLinkUrl && socialLinks.length < 5) {
+      // Check for duplicate URL
+      if (isDuplicateUrl(socialLinkUrl)) {
+        updateUiState({ duplicateUrlError: true })
+        return
+      }
+      
       const validatedLink = validateAndIdentifyLink(socialLinkUrl, socialLinkTitle)
 
       if (validatedLink) {
         setSocialLinks([...socialLinks, validatedLink])
-        setSocialLinkUrl("")
-        setSocialLinkTitle("")
-        showToast("Social link added successfully", "success")
-      } else {
-        showToast("Please enter a valid URL", "error")
+        updateFormField('socialLinkUrl', '')
+        updateFormField('socialLinkTitle', '')
       }
-    } else if (socialLinks.length >= 5) {
-      showToast("You can add a maximum of 5 social links", "info")
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && formState.socialLinkUrl) {
+      e.preventDefault()
+      handleAddSocialLink()
     }
   }
 
   const handleEditLink = (index: number) => {
+    const linkToEdit = socialLinks[index]
+    setEditState({
+      editingLink: linkToEdit.url,
+      editingTitle: linkToEdit.title,
+      isEditing: true,
+      editingIndex: index
+    })
+    
     const newLinks = [...socialLinks]
-    const linkToEdit = newLinks[index]
-    setEditingLink(linkToEdit.url)
-    setEditingTitle(linkToEdit.title)
     newLinks[index] = { ...linkToEdit, isEditing: true }
     setSocialLinks(newLinks)
   }
 
-  const handleUpdateLink = (index: number) => {
+  const handleUpdateLink = () => {
+    const { editingLink, editingTitle, editingIndex } = editState
+    
+    if (editingIndex === null) return
+    
     const validatedLink = validateAndIdentifyLink(editingLink, editingTitle)
 
     if (validatedLink) {
+      // Check if the updated URL is a duplicate of another link (not the one being edited)
+      if (isDuplicateUrl(editingLink, editingIndex)) {
+        updateUiState({ duplicateUrlError: true })
+        return
+      }
+
       const newLinks = [...socialLinks]
-      newLinks[index] = validatedLink
+      newLinks[editingIndex] = validatedLink
       setSocialLinks(newLinks)
-      setEditingLink("")
-      setEditingTitle("")
-      showToast("Link updated successfully", "success")
-    } else {
-      showToast("Please enter a valid URL", "error")
+      
+      // Reset edit state
+      setEditState({
+        editingLink: "",
+        editingTitle: "",
+        isEditing: false,
+        editingIndex: null
+      })
     }
   }
 
-  const handleCancelEdit = (index: number) => {
+  const handleCancelEdit = () => {
+    const { editingIndex } = editState
+    
+    if (editingIndex === null) return
+    
     const newLinks = [...socialLinks]
-    newLinks[index] = { ...newLinks[index], isEditing: false }
+    newLinks[editingIndex] = { ...newLinks[editingIndex], isEditing: false }
     setSocialLinks(newLinks)
-    setEditingLink("")
-    setEditingTitle("")
+    
+    // Reset edit state
+    setEditState({
+      editingLink: "",
+      editingTitle: "",
+      isEditing: false,
+      editingIndex: null
+    })
   }
 
   const handleDeleteLink = (index: number) => {
     setSocialLinks(socialLinks.filter((_, i) => i !== index))
-    showToast("Link removed", "info")
   }
 
   const handleVerifyEmail = () => {
-    setShowVerificationPopup(true)
-    console.log("Sending verification code to", email)
+    updateUiState({ showVerificationPopup: true })
   }
 
   const handleVerificationComplete = (code: string) => {
@@ -219,31 +302,26 @@ export default function ProfileSettings() {
     if (code === "123456") {
       // Mock verification
       setIsEmailVerified(true)
-      setShowVerificationPopup(false)
-      showToast("Email verified successfully", "success")
+      updateUiState({ showVerificationPopup: false })
     }
   }
 
   const handleAvatarClick = () => {
-    setShowAvatarModal(true)
+    updateUiState({ showAvatarModal: true })
   }
 
-  const handleSaveAvatar = (newAvatar: React.SetStateAction<StaticImageData>) => {
+  // Fix the avatar type error by updating the handleSaveAvatar function
+  const handleSaveAvatar = (newAvatar: React.SetStateAction<string | StaticImageData>) => {
     setAvatar(newAvatar)
-    setAvatarError("")
-    showToast("Avatar updated successfully", "success")
   }
 
   const handleLanguageSelect = (selectedLanguage: string) => {
-    setLanguage(selectedLanguage)
-    setShowLanguageModal(false)
-    showToast(`Language changed to ${selectedLanguage}`, "success")
+    updateFormField('language', selectedLanguage)
+    updateUiState({ showLanguageModal: false })
   }
 
   const handleSaveChanges = async () => {
-    setIsSaving(true)
-    setSaveError("")
-    setSaveSuccess(false)
+    updateUiState({ isSaving: true, saveError: "", saveSuccess: false })
 
     try {
       // Convert social links array to object format for API
@@ -254,60 +332,50 @@ export default function ProfileSettings() {
 
       // Update user profile
       const success = await updateUserProfile({
-        username,
-        bio,
-        // avatar,
+        username: formState.username,
+        bio: formState.bio,
         socialLinks: socialLinksObj,
       })
 
       if (success) {
-        setSaveSuccess(true)
-        showToast("Profile changes saved successfully", "success")
+        updateUiState({ saveSuccess: true })
       } else {
-        setSaveError("Failed to save changes")
-        showToast("Failed to save changes", "error")
+        updateUiState({ saveError: "Failed to save changes" })
       }
     } catch (error) {
       console.error("Error saving profile:", error)
-      setSaveError("An unexpected error occurred")
-      showToast("An unexpected error occurred", "error")
+      updateUiState({ saveError: "An unexpected error occurred" })
     } finally {
-      setIsSaving(false)
+      updateUiState({ isSaving: false })
     }
   }
 
-  // Simple toast function (replace with your actual toast implementation)
-  const showToast = (message: string, type: "success" | "error" | "info") => {
-    console.log(`Toast (${type}): ${message}`)
-    // In a real implementation, you would use your toast component
-  }
-
-  const getSocialIcon = (platform: string) => {
+  const getSocialIcon = (platform: Platform) => {
     switch (platform) {
       case "instagram":
-        return <Image src={InstagramIcon || "/placeholder.svg"} alt="Instagram" width={24} height={24} />
+        return <Image src={InstagramIcon || "/placeholder.svg"} alt="Instagram" width={20} height={20} />
       case "twitter":
-        return <Image src={TwitterIcon || "/placeholder.svg"} alt="X (Twitter)" width={24} height={24} />
+        return <Image src={TwitterIcon || "/placeholder.svg"} alt="X (Twitter)" width={20} height={20} />
       case "facebook":
-        return <Image src={FacebookIcon || "/placeholder.svg"} alt="Facebook" width={24} height={24} />
+        return <Image src={FacebookIcon || "/placeholder.svg"} alt="Facebook" width={20} height={20} />
       case "youtube":
-        return <Image src={YoutubeIcon || "/placeholder.svg"} alt="YouTube" width={24} height={24} />
+        return <Image src={YoutubeIcon || "/placeholder.svg"} alt="YouTube" width={20} height={20} />
       case "telegram":
-        return <Image src={TelegramIcon || "/placeholder.svg"} alt="Telegram" width={24} height={24} />
+        return <Image src={TelegramIcon || "/placeholder.svg"} alt="Telegram" width={20} height={20} />
       case "discord":
-        return <Image src={DiscordIcon || "/placeholder.svg"} alt="Discord" width={24} height={24} />
+        return <Image src={DiscordIcon || "/placeholder.svg"} alt="Discord" width={20} height={20} />
       case "tiktok":
-        return <Image src={TikTokIcon || "/placeholder.svg"} alt="TikTok" width={24} height={24} />
+        return <Image src={TikTokIcon || "/placeholder.svg"} alt="TikTok" width={20} height={20} />
       default:
         return (
-          <div className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center">
+          <div className="w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center">
             <span className="text-xs text-white">🔗</span>
           </div>
         )
     }
   }
 
-  const detectPlatformFromUrl = (url: string) => {
+  const detectPlatformFromUrl = (url: string): Platform | null => {
     if (!url) return null
 
     const domain = url.toLowerCase()
@@ -354,10 +422,10 @@ export default function ProfileSettings() {
             <label className="block mb-2 text-sm">User Name</label>
             <input
               type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onFocus={() => setFocusedInput("username")}
-              onBlur={() => setFocusedInput(null)}
+              value={formState.username}
+              onChange={(e) => updateFormField('username', e.target.value)}
+              onFocus={() => updateUiState({ focusedInput: "username" })}
+              onBlur={() => updateUiState({ focusedInput: null })}
               className={getInputStyle("username")}
               style={{ outlineWidth: 0, boxShadow: "none" }}
             />
@@ -368,7 +436,7 @@ export default function ProfileSettings() {
             <label className="block mb-2 text-sm">Wallet Address</label>
             <input
               type="text"
-              value={wallet}
+              value={formState.wallet}
               readOnly
               className={`${getInputStyle("wallet")} opacity-70`}
               style={{ outlineWidth: 0, boxShadow: "none" }}
@@ -379,10 +447,10 @@ export default function ProfileSettings() {
           <div className="mb-5">
             <label className="block mb-2 text-sm">Edit Bio</label>
             <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              onFocus={() => setFocusedInput("bio")}
-              onBlur={() => setFocusedInput(null)}
+              value={formState.bio}
+              onChange={(e) => updateFormField('bio', e.target.value)}
+              onFocus={() => updateUiState({ focusedInput: "bio" })}
+              onBlur={() => updateUiState({ focusedInput: null })}
               className={`${getInputStyle("bio")} min-h-[7em]`}
               style={{ outlineWidth: 0, boxShadow: "none", height: "7em" }}
             />
@@ -398,16 +466,58 @@ export default function ProfileSettings() {
           transition={{ duration: 0.3 }}
         >
           <h2 className="text-white text-xl font-medium mb-1">Social Links</h2>
-          <div className="flex items-center gap-2 mb-6">
+          <div className="flex flex-wrap items-center gap-2 mb-6">
             <p className="text-gray-400 text-sm">Add up to 5 social media links to showcase your online presence.</p>
-            <div className="flex items-center gap-2">
-              <Image src={InstagramIcon || "/placeholder.svg"} alt="Instagram" width={18} height={18} />
-              <Image src={TwitterIcon || "/placeholder.svg"} alt="Twitter" width={18} height={18} />
-              <Image src={FacebookIcon || "/placeholder.svg"} alt="Facebook" width={18} height={18} />
-              <Image src={YoutubeIcon || "/placeholder.svg"} alt="YouTube" width={18} height={18} />
-              <Image src={DiscordIcon || "/placeholder.svg"} alt="Discord" width={18} height={18} />
-              <Image src={TikTokIcon || "/placeholder.svg"} alt="TikTok" width={18} height={18} />
-              <Image src={TelegramIcon || "/placeholder.svg"} alt="Telegram" width={18} height={18} />
+            <div className="flex items-center gap-2 flex-wrap">
+              <Image 
+                src={InstagramIcon || "/placeholder.svg"} 
+                alt="Instagram" 
+                width={16} 
+                height={16} 
+                className={`${usedPlatforms.includes('instagram') ? 'opacity-30' : ''} w-3 h-3 md:w-4 md:h-4`} 
+              />
+              <Image 
+                src={TwitterIcon || "/placeholder.svg"} 
+                alt="Twitter" 
+                width={16} 
+                height={16} 
+                className={`${usedPlatforms.includes('twitter') ? 'opacity-30' : ''} w-3 h-3 md:w-4 md:h-4`} 
+              />
+              <Image 
+                src={FacebookIcon || "/placeholder.svg"} 
+                alt="Facebook" 
+                width={16} 
+                height={16} 
+                className={`${usedPlatforms.includes('facebook') ? 'opacity-30' : ''} w-3 h-3 md:w-4 md:h-4`} 
+              />
+              <Image 
+                src={YoutubeIcon || "/placeholder.svg"} 
+                alt="YouTube" 
+                width={16} 
+                height={16} 
+                className={`${usedPlatforms.includes('youtube') ? 'opacity-30' : ''} w-3 h-3 md:w-4 md:h-4`} 
+              />
+              <Image 
+                src={DiscordIcon || "/placeholder.svg"} 
+                alt="Discord" 
+                width={16} 
+                height={16} 
+                className={`${usedPlatforms.includes('discord') ? 'opacity-30' : ''} w-3 h-3 md:w-4 md:h-4`} 
+              />
+              <Image 
+                src={TikTokIcon || "/placeholder.svg"} 
+                alt="TikTok" 
+                width={16} 
+                height={16} 
+                className={`${usedPlatforms.includes('tiktok') ? 'opacity-30' : ''} w-3 h-3 md:w-4 md:h-4`} 
+              />
+              <Image 
+                src={TelegramIcon || "/placeholder.svg"} 
+                alt="Telegram" 
+                width={16} 
+                height={16} 
+                className={`${usedPlatforms.includes('telegram') ? 'opacity-30' : ''} w-3 h-3 md:w-4 md:h-4`} 
+              />
             </div>
           </div>
 
@@ -415,30 +525,27 @@ export default function ProfileSettings() {
             <label className="block mb-2 text-sm">Link Title</label>
             <motion.input
               type="text"
-              value={socialLinkTitle}
-              onChange={(e) => setSocialLinkTitle(e.target.value)}
-              onFocus={() => setFocusedInput("socialLinkTitle")}
-              onBlur={() => setFocusedInput(null)}
+              value={formState.socialLinkTitle}
+              onChange={(e) => updateFormField('socialLinkTitle', e.target.value)}
+              onFocus={() => updateUiState({ focusedInput: "socialLinkTitle" })}
+              onBlur={() => updateUiState({ focusedInput: null })}
               placeholder="e.g. Facebook, Twitter, etc."
               className={getInputStyle("socialLinkTitle")}
-              style={{
-                outlineWidth: 0,
-                boxShadow: "none",
-                marginBottom: "1rem",
-              }}
+              style={{ outlineWidth: 0, boxShadow: "none", marginBottom: "1rem" }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.2 }}
             />
 
             <label className="block mb-2 text-sm">Link URL</label>
-            <div className="relative mb-6">
+            <div className="relative mb-1">
               <motion.input
                 type="text"
-                value={socialLinkUrl}
-                onChange={(e) => setSocialLinkUrl(e.target.value)}
-                onFocus={() => setFocusedInput("socialLinkUrl")}
-                onBlur={() => setFocusedInput(null)}
+                value={formState.socialLinkUrl}
+                onChange={(e) => updateFormField('socialLinkUrl', e.target.value)}
+                onKeyDown={handleKeyDown}
+                onFocus={() => updateUiState({ focusedInput: "socialLinkUrl", duplicateUrlError: false })}
+                onBlur={() => updateUiState({ focusedInput: null })}
                 placeholder="https://www.discord.com/username"
                 className={`${getInputStyle("socialLinkUrl")} pr-32`}
                 style={{ outlineWidth: 0, boxShadow: "none" }}
@@ -448,23 +555,38 @@ export default function ProfileSettings() {
               />
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex gap-2">
                 <AnimatePresence>
-                  {socialLinkUrl && (
+                  {formState.socialLinkUrl && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.8 }}
                       transition={{ duration: 0.2 }}
                     >
-                      {getSocialIcon(detectPlatformFromUrl(socialLinkUrl) || "other")}
+                      {getSocialIcon(detectPlatformFromUrl(formState.socialLinkUrl) || "other")}
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
             </div>
-            <div className="flex justify-end">
+            
+            {/* Error message for duplicate URL */}
+            <AnimatePresence>
+              {uiState.duplicateUrlError && (
+                <motion.p 
+                  className="text-red-500 text-xs mt-1 mb-2"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                >
+                  This URL has already been added. Please use a different URL.
+                </motion.p>
+              )}
+            </AnimatePresence>
+            
+            <div className="flex justify-end mt-2">
               <motion.button
                 onClick={handleAddSocialLink}
-                disabled={socialLinks.length >= 5 || !socialLinkUrl}
+                disabled={socialLinks.length >= 5 || !formState.socialLinkUrl}
                 className="bg-[#2a2a2a] px-6 py-2 rounded-md hover:bg-[#444] transition text-sm disabled:opacity-50"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -489,7 +611,7 @@ export default function ProfileSettings() {
                 {socialLinks.map((link, index) => (
                   <motion.div
                     key={index}
-                    className="bg-[#1e1e1e] p-3 rounded text-sm"
+                    className="flex bg-[#1e1e1e] rounded text-sm"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, height: 0, marginBottom: 0 }}
@@ -497,14 +619,14 @@ export default function ProfileSettings() {
                     layout
                   >
                     {link.isEditing ? (
-                      <>
+                      <div className="p-3">
                         <div className="flex-grow mr-2">
                           <input
                             type="text"
-                            value={editingTitle}
-                            onChange={(e) => setEditingTitle(e.target.value)}
-                            onFocus={() => setFocusedInput("editingTitle")}
-                            onBlur={() => setFocusedInput(null)}
+                            value={editState.editingTitle}
+                            onChange={(e) => setEditState(prev => ({ ...prev, editingTitle: e.target.value }))}
+                            onFocus={() => updateUiState({ focusedInput: "editingTitle" })}
+                            onBlur={() => updateUiState({ focusedInput: null })}
                             className={`${getInputStyle("editingTitle")} w-full rounded px-3 py-1 text-white text-sm mb-2`}
                             style={{
                               outlineWidth: 0,
@@ -516,11 +638,11 @@ export default function ProfileSettings() {
                           />
                           <input
                             type="text"
-                            value={editingLink}
-                            onChange={(e) => setEditingLink(e.target.value)}
-                            onFocus={() => setFocusedInput("editingLink")}
-                            onBlur={() => setFocusedInput(null)}
-                            className={`${getInputStyle("editingLink")} w-full rounded px-3 py-1 text-white text-sm`}
+                            value={editState.editingLink}
+                            onChange={(e) => setEditState(prev => ({ ...prev, editingLink: e.target.value }))}
+                            onFocus={() => updateUiState({ focusedInput: "editingLink", duplicateUrlError: false })}
+                            onBlur={() => updateUiState({ focusedInput: null })}
+                            className={`${getInputStyle("editingLink")} w-full rounded px-3 py-1 text-white text-sm ${uiState.duplicateUrlError ? 'border-red-500' : ''}`}
                             style={{
                               outlineWidth: 0,
                               boxShadow: "none",
@@ -528,10 +650,24 @@ export default function ProfileSettings() {
                             }}
                             placeholder="Link URL"
                           />
+                          
+                          {/* Error message for duplicate URL */}
+                          <AnimatePresence>
+                            {uiState.duplicateUrlError && (
+                              <motion.p 
+                                className="text-red-500 text-xs mt-1"
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                              >
+                                This URL has already been added. Please use a different URL.
+                              </motion.p>
+                            )}
+                          </AnimatePresence>
                         </div>
                         <div className="flex items-center justify-end mt-2">
                           <motion.button
-                            onClick={() => handleUpdateLink(index)}
+                            onClick={handleUpdateLink}
                             className="p-1 text-green-500 hover:text-green-400"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
@@ -539,7 +675,7 @@ export default function ProfileSettings() {
                             <Check size={18} />
                           </motion.button>
                           <motion.button
-                            onClick={() => handleCancelEdit(index)}
+                            onClick={handleCancelEdit}
                             className="p-1 text-red-500 hover:text-red-400 ml-1"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
@@ -547,15 +683,18 @@ export default function ProfileSettings() {
                             <X size={18} />
                           </motion.button>
                         </div>
-                      </>
+                      </div>
                     ) : (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            {getSocialIcon(link.platform)}
-                            <span className="ml-2 font-medium">{link.title}</span>
+                      <div className="flex">
+                        <div className="flex-none p-3 flex items-center justify-center">
+                          {getSocialIcon(link.platform)}
+                        </div>
+                        <div className="flex-1 p-3 border-l border-[#2a2a2a]">
+                          <div className="flex flex-col justify-start">
+                            <span className="font-medium">{link.title}</span>
+                            <div className="text-gray-400 text-xs mt-1 truncate">{link.url}</div>
                           </div>
-                          <div className="flex items-center">
+                          <div className="flex items-center justify-end">
                             <motion.button
                               onClick={() => handleEditLink(index)}
                               className="p-1 text-gray-400 hover:text-white"
@@ -574,8 +713,7 @@ export default function ProfileSettings() {
                             </motion.button>
                           </div>
                         </div>
-                        <div className="text-gray-400 text-xs mt-1 truncate">{link.url}</div>
-                      </>
+                      </div>
                     )}
                   </motion.div>
                 ))}
@@ -593,15 +731,12 @@ export default function ProfileSettings() {
         >
           <h2 className="text-purple-500 text-lg mb-4">Language</h2>
           <div
-            className={`w-full bg-[#1e1e1e] rounded-lg px-4 py-3 text-white text-sm flex justify-between items-center cursor-pointer ${
-              focusedInput === "language" ? "border border-purple-600" : "border border-transparent"
+            className={`w-full bg-[#2a2a2a] rounded-lg px-4 py-3 text-white text-sm flex justify-between items-center cursor-pointer ${
+              uiState.focusedInput === "language" ? "border border-purple-600" : "border border-transparent"
             } transition-all duration-200`}
-            onClick={() => {
-              setFocusedInput("language")
-              setShowLanguageModal(true)
-            }}
+            onClick={() => updateUiState({ focusedInput: "language", showLanguageModal: true })}
           >
-            <span>{language}</span>
+            <span>{formState.language}</span>
             <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
                 d="M1 1.5L6 6.5L11 1.5"
@@ -621,23 +756,23 @@ export default function ProfileSettings() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, delay: 0.2 }}
         >
-          {saveError && <p className="text-red-500 mr-4 self-center">{saveError}</p>}
-          {saveSuccess && <p className="text-green-500 mr-4 self-center">Changes saved successfully!</p>}
+          {uiState.saveError && <p className="text-red-500 mr-4 self-center">{uiState.saveError}</p>}
+          {uiState.saveSuccess && <p className="text-green-500 mr-4 self-center">Changes saved successfully!</p>}
           <motion.button
             onClick={handleSaveChanges}
-            disabled={isSaving}
+            disabled={uiState.isSaving}
             className="bg-purple-700 hover:bg-purple-800 text-white px-6 py-3 rounded-md transition text-sm disabled:opacity-50"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            {isSaving ? "Saving..." : "Save Changes"}
+            {uiState.isSaving ? "Saving..." : "Save Changes"}
           </motion.button>
         </motion.div>
       </div>
 
       {/* Modals */}
       <AnimatePresence>
-        {showAvatarModal && (
+        {uiState.showAvatarModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -646,7 +781,7 @@ export default function ProfileSettings() {
           >
             <AvatarSelectionModal
               currentAvatar={avatar}
-              onClose={() => setShowAvatarModal(false)}
+              onClose={() => updateUiState({ showAvatarModal: false })}
               onSaveAvatar={handleSaveAvatar}
               avatarOptions={avatarOptions}
             />
@@ -655,7 +790,7 @@ export default function ProfileSettings() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {showVerificationPopup && (
+        {uiState.showVerificationPopup && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -663,8 +798,8 @@ export default function ProfileSettings() {
             transition={{ duration: 0.2 }}
           >
             <VerificationPopup
-              email={email}
-              onClose={() => setShowVerificationPopup(false)}
+              email={formState.email}
+              onClose={() => updateUiState({ showVerificationPopup: false })}
               onVerify={handleVerificationComplete}
             />
           </motion.div>
@@ -673,7 +808,7 @@ export default function ProfileSettings() {
 
       {/* Language Modal */}
       <AnimatePresence>
-        {showLanguageModal && (
+        {uiState.showLanguageModal && (
           <motion.div
             className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
             initial={{ opacity: 0 }}
@@ -691,7 +826,7 @@ export default function ProfileSettings() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-purple-500 text-xl font-medium">Select Language</h2>
                 <motion.button
-                  onClick={() => setShowLanguageModal(false)}
+                  onClick={() => updateUiState({ showLanguageModal: false })}
                   className="text-gray-400 hover:text-white"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
@@ -706,7 +841,7 @@ export default function ProfileSettings() {
                     key={lang}
                     onClick={() => handleLanguageSelect(lang)}
                     className={`flex items-center gap-3 p-3 rounded-md cursor-pointer ${
-                      language === lang ? "bg-purple-900 bg-opacity-50" : "bg-[#2a2a2a] hover:bg-[#333]"
+                      formState.language === lang ? "bg-purple-900 bg-opacity-50" : "bg-[#2a2a2a] hover:bg-[#333]"
                     }`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -715,14 +850,14 @@ export default function ProfileSettings() {
                     whileTap={{ scale: 0.98 }}
                   >
                     <span className="text-sm">{lang}</span>
-                    {language === lang && <div className="ml-auto w-2 h-2 rounded-full bg-purple-500"></div>}
+                    {formState.language === lang && <div className="ml-auto w-2 h-2 rounded-full bg-purple-500"></div>}
                   </motion.div>
                 ))}
               </div>
 
               <div className="mt-6 flex justify-end">
                 <motion.button
-                  onClick={() => setShowLanguageModal(false)}
+                  onClick={() => updateUiState({ showLanguageModal: false })}
                   className="bg-purple-700 hover:bg-purple-800 text-white px-6 py-2 rounded-md transition text-sm"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
