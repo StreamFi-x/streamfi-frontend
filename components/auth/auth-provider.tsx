@@ -80,6 +80,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return Date.now() - timestamp < SESSION_TIMEOUT;
   };
 
+  // Set session cookies
+  const setSessionCookies = (walletAddress: string) => {
+    const timestamp = Date.now().toString();
+    document.cookie = `wallet=${walletAddress}; path=/; max-age=${SESSION_TIMEOUT / 1000}`;
+    document.cookie = `wallet_timestamp=${timestamp}; path=/; max-age=${SESSION_TIMEOUT / 1000}`;
+  };
+
+  // Clear session cookies
+  const clearSessionCookies = () => {
+    document.cookie = "wallet=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "wallet_timestamp=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  };
+
   // Fetch user data from API or cache
   const fetchUserData = async (walletAddress: string): Promise<User | null> => {
     try {
@@ -100,11 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isSessionValid(timestamp)) {
           console.log("AuthProvider: Using cached user data");
           setUser(parsedUser);
+          setSessionCookies(walletAddress);
           return parsedUser;
         } else {
           // Clear expired session data
           localStorage.removeItem(`user_${walletAddress}`);
           localStorage.removeItem(`user_timestamp_${walletAddress}`);
+          clearSessionCookies();
         }
       }
 
@@ -122,12 +137,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(`user_${walletAddress}`, JSON.stringify(data.user));
         localStorage.setItem(`user_timestamp_${walletAddress}`, Date.now().toString());
 
-        // Store wallet address for persistence
-        localStorage.setItem("wallet", walletAddress);
-        sessionStorage.setItem("wallet", walletAddress);
-        
-        // Set cookie for middleware
-        document.cookie = `wallet=${walletAddress}; path=/; max-age=${SESSION_TIMEOUT / 1000}`;
+        // Set session cookies
+        setSessionCookies(walletAddress);
 
         return data.user;
       } else if (response.status === 404) {
@@ -211,8 +222,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("wallet");
     sessionStorage.removeItem("wallet");
     
-    // Clear cookie
-    document.cookie = "wallet=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    // Clear session cookies
+    clearSessionCookies();
 
     // Redirect to home
     router.push("/");
@@ -258,7 +269,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("wallet", address);
         sessionStorage.setItem("wallet", address);
 
-        // Fetch user data
+        // Fetch user data and set session
         await fetchUserData(address);
       } else if (!isConnected && user) {
         // Wallet disconnected

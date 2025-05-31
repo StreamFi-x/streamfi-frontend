@@ -28,36 +28,41 @@ import DiscordIcon from "@/public/Images/discord.svg";
 import TikTokIcon from "@/public/Images/tiktok.svg";
 import VerificationPopup from "./popup";
 import AvatarSelectionModal from "./avatar-modal";
+import {
+  EditState,
+  FormState,
+  Platform,
+  SocialLink,
+  UIState,
+} from "@/types/settings/profile";
 
 const avatar1 = Avatar;
 const avatar2 = Avatar;
 const avatar3 = Avatar;
 const avatar4 = Avatar;
 const avatar5 = Avatar;
-interface SocialLink {
-  url: string;
-  title: string;
-  platform:
-    | "instagram"
-    | "twitter"
-    | "facebook"
-    | "youtube"
-    | "telegram"
-    | "discord"
-    | "tiktok"
-    | "other";
-  isEditing?: boolean;
-}
 
 export default function ProfileSettings() {
   const { user, isLoading, updateUserProfile } = useAuth();
   const router = useRouter();
 
   // Immediate redirect if not authenticated
-  if (!isLoading && !user) {
-    router.replace("/explore");
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace("/explore");
+    }
+  }, [user, isLoading, router]);
+
+  // Show loader while checking authentication
+  if (isLoading || !user) {
     return <SimpleLoader />;
   }
+
+  // Toast notification function
+  const showToast = (message: string, type: "success" | "error") => {
+    // You can implement your own toast notification system here
+    console.log(`${type}: ${message}`);
+  };
 
   // State for form fields
   const [username, setUsername] = useState("");
@@ -70,6 +75,15 @@ export default function ProfileSettings() {
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [usedPlatforms, setUsedPlatforms] = useState<Platform[]>([]);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [editingLink, setEditingLink] = useState("");
+  const [editingTitle, setEditingTitle] = useState("");
+  const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showVerificationPopup, setShowVerificationPopup] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [language, setLanguage] = useState("English");
 
   // Form state
   const [formState, setFormState] = useState<FormState>({
@@ -570,7 +584,7 @@ export default function ProfileSettings() {
               <Instagram className="w-3 h-3 md:w-4 md:h-4" />
               <Facebook className="w-3 h-3 md:w-4 md:h-4" />
               <Twitch className="w-3 h-3 md:w-4 md:h-4" />
-              <Youtube className="w-3 h-3 md:w-4 md:h-4" />{" "}
+              <Youtube className="w-3 h-3 md:w-4 md:h-4" />
               <Twitter className="w-3 h-3 md:w-4 md:h-4" />
             </div>
           </div>
@@ -580,9 +594,7 @@ export default function ProfileSettings() {
             <motion.input
               type="text"
               value={formState.socialLinkTitle}
-              onChange={(e) =>
-                updateFormField("socialLinkTitle", e.target.value)
-              }
+              onChange={(e) => updateFormField("socialLinkTitle", e.target.value)}
               onFocus={() => updateUiState({ focusedInput: "socialLinkTitle" })}
               onBlur={() => updateUiState({ focusedInput: null })}
               placeholder="e.g. Facebook, Twitter, etc."
@@ -602,9 +614,7 @@ export default function ProfileSettings() {
               <motion.input
                 type="text"
                 value={formState.socialLinkUrl}
-                onChange={(e) =>
-                  updateFormField("socialLinkUrl", e.target.value)
-                }
+                onChange={(e) => updateFormField("socialLinkUrl", e.target.value)}
                 onKeyDown={handleKeyDown}
                 onFocus={() =>
                   updateUiState({
@@ -627,10 +637,12 @@ export default function ProfileSettings() {
               </div>
             </div>
             <div className="flex justify-end">
-              <button
+              <motion.button
                 onClick={handleAddSocialLink}
                 disabled={socialLinks.length >= 5}
                 className="bg-[#2a2a2a] px-6 py-2 rounded-md hover:bg-[#444] transition text-sm"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 Add
               </motion.button>
@@ -720,7 +732,7 @@ export default function ProfileSettings() {
               ))}
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* Language Section */}
         <motion.div
