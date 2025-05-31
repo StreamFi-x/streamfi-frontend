@@ -17,6 +17,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import profileImage from "@/public/Images/profile.png";
+import SimpleLoader from "@/components/ui/loader/simple-loader";
 import Avatar from "@/public/icons/avatar.svg";
 import InstagramIcon from "@/public/Images/instagram.svg";
 import TwitterIcon from "@/public/Images/twitter.svg";
@@ -35,16 +36,56 @@ import {
   UIState,
 } from "@/types/settings/profile";
 
-export default function ProfileSettings() {
-  const { user, updateUserProfile } = useAuth();
-  const router = useRouter();
-  const avatarOptions = [Avatar, Avatar, Avatar, Avatar, Avatar];
+const avatar1 = Avatar;
+const avatar2 = Avatar;
+const avatar3 = Avatar;
+const avatar4 = Avatar;
+const avatar5 = Avatar;
 
-  // Main state
-  const [avatar, setAvatar] = useState<StaticImageData | string>(profileImage); // Update type to string | StaticImageData
+export default function ProfileSettings() {
+  const { user, isLoading, updateUserProfile } = useAuth();
+  const router = useRouter();
+
+  // Immediate redirect if not authenticated
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace("/explore");
+    }
+  }, [user, isLoading, router]);
+
+  // Show loader while checking authentication
+  if (isLoading || !user) {
+    return <SimpleLoader />;
+  }
+
+  const avatarOptions = [avatar1, avatar2, avatar3, avatar4, avatar5];
+  
+  // Toast notification function
+  const showToast = (message: string, type: "success" | "error") => {
+    // You can implement your own toast notification system here
+    console.log(`${type}: ${message}`);
+  };
+
+  // State for form fields
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [bio, setBio] = useState("");
+  const [wallet, setWallet] = useState("");
+  const [avatar, setAvatar] = useState(profileImage);
+  const [socialLinkUrl, setSocialLinkUrl] = useState("");
+  const [socialLinkTitle, setSocialLinkTitle] = useState("");
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [usedPlatforms, setUsedPlatforms] = useState<Platform[]>([]);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [editingLink, setEditingLink] = useState("");
+  const [editingTitle, setEditingTitle] = useState("");
+  const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showVerificationPopup, setShowVerificationPopup] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [language, setLanguage] = useState("English");
 
   // Form state
   const [formState, setFormState] = useState<FormState>({
@@ -112,21 +153,35 @@ export default function ProfileSettings() {
   // Load user data when available
   useEffect(() => {
     if (user) {
-      setFormState((prev) => ({
-        ...prev,
-        username: user.username || "",
-        email: user.email || "",
-        bio: user.bio || "",
-        wallet: user.wallet || "",
-      }));
+      setUsername(user.username || "");
+      setEmail(user.email || "");
+      setBio(user.bio || "");
+      setWallet(user.wallet || "");
 
       if (user.avatar) {
-        setAvatar(user.avatar);
+        setAvatar(user.avatar as unknown as StaticImageData);
+      }
+
+      // Parse social links if available
+      if (user.socialLinks) {
+        const links: SocialLink[] = [];
+
+        // Convert socialLinks object to array of SocialLink objects
+        Object.entries(user.socialLinks).forEach(([platform, url]) => {
+          if (url && typeof url === "string") {
+            links.push({
+              url,
+              title: platform.charAt(0).toUpperCase() + platform.slice(1),
+              platform: platform as SocialLink["platform"],
+            });
+          }
+        });
+
+        setSocialLinks(links);
       }
     }
   }, [user]);
 
-  // Fix the focusedInput reference error by using uiState.focusedInput instead
   const getInputStyle = (inputName: string) => {
     return `w-full bg-[#2a2a2a] rounded-lg px-4 py-3 text-white text-sm outline-none 
            ${uiState.focusedInput === inputName ? "border border-purple-600" : "border border-transparent"} 
@@ -274,50 +329,27 @@ export default function ProfileSettings() {
     setSocialLinks(newLinks);
   };
 
-  const handleUpdateLink = () => {
-    const { editingLink, editingTitle, editingIndex } = editState;
-
-    if (editingIndex === null) return;
-
+  const handleUpdateLink = (index: number) => {
     const validatedLink = validateAndIdentifyLink(editingLink, editingTitle);
 
     if (validatedLink) {
-      // Check if the updated URL is a duplicate of another link (not the one being edited)
-      if (isDuplicateUrl(editingLink, editingIndex)) {
-        updateUiState({ duplicateUrlError: true });
-        return;
-      }
-
       const newLinks = [...socialLinks];
-      newLinks[editingIndex] = validatedLink;
+      newLinks[index] = validatedLink;
       setSocialLinks(newLinks);
-
-      // Reset edit state
-      setEditState({
-        editingLink: "",
-        editingTitle: "",
-        isEditing: false,
-        editingIndex: null,
-      });
+      setEditingLink("");
+      setEditingTitle("");
+      showToast("Link updated successfully", "success");
+    } else {
+      showToast("Please enter a valid URL", "error");
     }
   };
 
-  const handleCancelEdit = () => {
-    const { editingIndex } = editState;
-
-    if (editingIndex === null) return;
-
+  const handleCancelEdit = (index: number) => {
     const newLinks = [...socialLinks];
-    newLinks[editingIndex] = { ...newLinks[editingIndex], isEditing: false };
+    newLinks[index] = { ...newLinks[index], isEditing: false };
     setSocialLinks(newLinks);
-
-    // Reset edit state
-    setEditState({
-      editingLink: "",
-      editingTitle: "",
-      isEditing: false,
-      editingIndex: null,
-    });
+    setEditingLink("");
+    setEditingTitle("");
   };
 
   const handleDeleteLink = (index: number) => {
@@ -342,9 +374,8 @@ export default function ProfileSettings() {
     updateUiState({ showAvatarModal: true });
   };
 
-  // Fix the avatar type error by updating the handleSaveAvatar function
-  const handleSaveAvatar = (
-    newAvatar: React.SetStateAction<string | StaticImageData>
+  const handleSaveAvatar  = (
+    newAvatar: React.SetStateAction<StaticImageData>
   ) => {
     setAvatar(newAvatar);
   };
@@ -458,28 +489,6 @@ export default function ProfileSettings() {
     }
   };
 
-  const detectPlatformFromUrl = (url: string): Platform | null => {
-    if (!url) return null;
-
-    const domain = url.toLowerCase();
-    if (domain.includes("instagram")) return "instagram";
-    if (domain.includes("twitter") || domain.includes("x.com"))
-      return "twitter";
-    if (domain.includes("facebook") || domain.includes("fb.com"))
-      return "facebook";
-    if (domain.includes("youtube") || domain.includes("youtu.be"))
-      return "youtube";
-    if (domain.includes("telegram") || domain.includes("t.me"))
-      return "telegram";
-    if (domain.includes("discord")) return "discord";
-    if (domain.includes("tiktok")) return "tiktok";
-    return "other";
-  };
-
-  // if (isLoading) {
-  //   return <SimpleLoader />;
-  // }
-
   return (
     <div className="min-h-screen bg-black text-white pb-8">
       <div className="mx-auto max-w-8xl">
@@ -575,7 +584,7 @@ export default function ProfileSettings() {
               <Instagram className="w-3 h-3 md:w-4 md:h-4" />
               <Facebook className="w-3 h-3 md:w-4 md:h-4" />
               <Twitch className="w-3 h-3 md:w-4 md:h-4" />
-              <Youtube className="w-3 h-3 md:w-4 md:h-4" />{" "}
+              <Youtube className="w-3 h-3 md:w-4 md:h-4" />
               <Twitter className="w-3 h-3 md:w-4 md:h-4" />
             </div>
           </div>
@@ -585,9 +594,7 @@ export default function ProfileSettings() {
             <motion.input
               type="text"
               value={formState.socialLinkTitle}
-              onChange={(e) =>
-                updateFormField("socialLinkTitle", e.target.value)
-              }
+              onChange={(e) => updateFormField("socialLinkTitle", e.target.value)}
               onFocus={() => updateUiState({ focusedInput: "socialLinkTitle" })}
               onBlur={() => updateUiState({ focusedInput: null })}
               placeholder="e.g. Facebook, Twitter, etc."
@@ -607,9 +614,7 @@ export default function ProfileSettings() {
               <motion.input
                 type="text"
                 value={formState.socialLinkUrl}
-                onChange={(e) =>
-                  updateFormField("socialLinkUrl", e.target.value)
-                }
+                onChange={(e) => updateFormField("socialLinkUrl", e.target.value)}
                 onKeyDown={handleKeyDown}
                 onFocus={() =>
                   updateUiState({
@@ -625,49 +630,19 @@ export default function ProfileSettings() {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2, delay: 0.1 }}
               />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex gap-2">
-                <AnimatePresence>
-                  {formState.socialLinkUrl && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      {getSocialIcon(
-                        detectPlatformFromUrl(formState.socialLinkUrl) ||
-                          "other"
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+              <div className="absolute right-0 top-0 h-full flex items-center">
+                <div className="flex gap-2 px-2">
+                  {/* Social media icons */}
+                </div>
               </div>
             </div>
-
-            {/* Error message for duplicate URL */}
-            <AnimatePresence>
-              {uiState.duplicateUrlError && (
-                <motion.p
-                  className="text-red-500 text-xs mt-1 mb-2"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  This URL has already been added. Please use a different URL.
-                </motion.p>
-              )}
-            </AnimatePresence>
-
-            <div className="flex justify-end mt-2">
+            <div className="flex justify-end">
               <motion.button
                 onClick={handleAddSocialLink}
-                disabled={socialLinks.length >= 5 || !formState.socialLinkUrl}
-                className="bg-[#2a2a2a] px-6 py-2 rounded-md hover:bg-[#444] transition text-sm disabled:opacity-50"
+                disabled={socialLinks.length >= 5}
+                className="bg-[#2a2a2a] px-6 py-2 rounded-md hover:bg-[#444] transition text-sm"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.2, delay: 0.2 }}
               >
                 Add
               </motion.button>
@@ -675,146 +650,88 @@ export default function ProfileSettings() {
           </div>
 
           {/* Display social links */}
-          <AnimatePresence>
-            {socialLinks.length > 0 && (
-              <motion.div
-                className="space-y-2 mt-4"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-              >
-                {socialLinks.map((link, index) => (
-                  <motion.div
-                    key={index}
-                    className="flex bg-[#1e1e1e] rounded text-sm"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                    transition={{ duration: 0.2, delay: index * 0.05 }}
-                    layout
-                  >
-                    {link.isEditing ? (
-                      <div className="p-3">
-                        <div className="flex-grow mr-2">
-                          <input
-                            type="text"
-                            value={editState.editingTitle}
-                            onChange={(e) =>
-                              setEditState((prev) => ({
-                                ...prev,
-                                editingTitle: e.target.value,
-                              }))
-                            }
-                            onFocus={() =>
-                              updateUiState({ focusedInput: "editingTitle" })
-                            }
-                            onBlur={() => updateUiState({ focusedInput: null })}
-                            className={`${getInputStyle("editingTitle")} w-full rounded px-3 py-1 text-white text-sm mb-2`}
-                            style={{
-                              outlineWidth: 0,
-                              boxShadow: "none",
-                              background: "#333",
-                            }}
-                            placeholder="Link Title"
-                            autoFocus
-                          />
-                          <input
-                            type="text"
-                            value={editState.editingLink}
-                            onChange={(e) =>
-                              setEditState((prev) => ({
-                                ...prev,
-                                editingLink: e.target.value,
-                              }))
-                            }
-                            onFocus={() =>
-                              updateUiState({
-                                focusedInput: "editingLink",
-                                duplicateUrlError: false,
-                              })
-                            }
-                            onBlur={() => updateUiState({ focusedInput: null })}
-                            className={`${getInputStyle("editingLink")} w-full rounded px-3 py-1 text-white text-sm ${uiState.duplicateUrlError ? "border-red-500" : ""}`}
-                            style={{
-                              outlineWidth: 0,
-                              boxShadow: "none",
-                              background: "#333",
-                            }}
-                            placeholder="Link URL"
-                          />
-
-                          {/* Error message for duplicate URL */}
-                          <AnimatePresence>
-                            {uiState.duplicateUrlError && (
-                              <motion.p
-                                className="text-red-500 text-xs mt-1"
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                              >
-                                This URL has already been added. Please use a
-                                different URL.
-                              </motion.p>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                        <div className="flex items-center justify-end mt-2">
-                          <motion.button
-                            onClick={handleUpdateLink}
-                            className="p-1 text-green-500 hover:text-green-400"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                          >
-                            <Check size={18} />
-                          </motion.button>
-                          <motion.button
-                            onClick={handleCancelEdit}
-                            className="p-1 text-red-500 hover:text-red-400 ml-1"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                          >
-                            <X size={18} />
-                          </motion.button>
-                        </div>
+          {socialLinks.length > 0 && (
+            <div className="space-y-2 mt-4">
+              {socialLinks.map((link, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between bg-[#2a2a2a] p-3 rounded text-sm"
+                >
+                  {link.isEditing ? (
+                    <>
+                      <div className="flex-grow mr-2">
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onFocus={() => setFocusedInput("editingTitle")}
+                          onBlur={() => setFocusedInput(null)}
+                          className={`${getInputStyle("editingTitle")} w-full rounded px-3 py-1 text-white text-sm mb-2`}
+                          style={{
+                            outlineWidth: 0,
+                            boxShadow: "none",
+                            background: "#333",
+                          }}
+                          placeholder="Link Title"
+                          autoFocus
+                        />
+                        <input
+                          type="text"
+                          value={editingLink}
+                          onChange={(e) => setEditingLink(e.target.value)}
+                          onFocus={() => setFocusedInput("editingLink")}
+                          onBlur={() => setFocusedInput(null)}
+                          className={`${getInputStyle("editingLink")} w-full rounded px-3 py-1 text-white text-sm`}
+                          style={{
+                            outlineWidth: 0,
+                            boxShadow: "none",
+                            background: "#333",
+                          }}
+                          placeholder="Link URL"
+                        />
                       </div>
-                    ) : (
-                      <div className="flex w-full">
-                        <div className="flex-none p-3 flex items-center justify-center">
-                          {getSocialIcon(link.platform)}
-                        </div>
-                        <div className="flex-1 p-3 border-l border-[#2a2a2a] w-full">
-                          <div className="flex flex-col justify-start">
-                            <span className="font-medium">{link.title}</span>
-                            <div className="text-gray-400 text-xs mt-1 truncate">
-                              {link.url}
-                            </div>
-                          </div>{" "}
-                        </div>
-                        <div className="flex items-center justify-end px-3">
-                          <motion.button
-                            onClick={() => handleEditLink(index)}
-                            className="p-1 text-gray-400 hover:text-white"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                          >
-                            <Edit2 size={16} />
-                          </motion.button>
-                          <motion.button
-                            onClick={() => handleDeleteLink(index)}
-                            className="p-1 text-gray-400 hover:text-red-500 ml-1"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                          >
-                            <Trash2 size={16} />
-                          </motion.button>
-                        </div>
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => handleUpdateLink(index)}
+                          className="p-1 text-green-500 hover:text-green-400"
+                        >
+                          <Check size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleCancelEdit(index)}
+                          className="p-1 text-red-500 hover:text-red-400 ml-1"
+                        >
+                          <X size={18} />
+                        </button>
                       </div>
-                    )}
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center">
+                        {getSocialIcon(link.platform)}
+                        <span className="ml-2 font-medium">{link.title}</span>
+                      </div>
+                      <span className="text-gray-400 text-xs">{link.url}</span>
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => handleEditLink(index)}
+                          className="p-1 text-gray-400 hover:text-white"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteLink(index)}
+                          className="p-1 text-gray-400 hover:text-red-500 ml-1"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </motion.div>
 
         {/* Language Section */}
@@ -858,137 +775,86 @@ export default function ProfileSettings() {
         </motion.div>
 
         {/* Save Button */}
-        <motion.div
-          className="flex justify-end"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-        >
-          {uiState.saveError && (
-            <p className="text-red-500 mr-4 self-center">{uiState.saveError}</p>
+        <div className="flex justify-end">
+          {saveError && (
+            <p className="text-red-500 mr-4 self-center">{saveError}</p>
           )}
           {uiState.saveSuccess && (
             <p className="text-green-500 mr-4 self-center">
               Changes saved successfully!
             </p>
           )}
-          <motion.button
+          <button
             onClick={handleSaveChanges}
-            disabled={uiState.isSaving}
+            disabled={isSaving}
             className="bg-purple-700 hover:bg-purple-800 text-white px-6 py-3 rounded-md transition text-sm disabled:opacity-50"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
           >
-            {uiState.isSaving ? "Saving..." : "Save Changes"}
-          </motion.button>
-        </motion.div>
+            {isSaving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
       </div>
-
       {/* Modals */}
-      <AnimatePresence>
-        {uiState.showAvatarModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <AvatarSelectionModal
-              currentAvatar={avatar}
-              onClose={() => updateUiState({ showAvatarModal: false })}
-              onSaveAvatar={handleSaveAvatar}
-              avatarOptions={avatarOptions}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {uiState.showVerificationPopup && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <VerificationPopup
-              email={formState.email}
-              onClose={() => updateUiState({ showVerificationPopup: false })}
-              onVerify={handleVerificationComplete}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+      {showAvatarModal && (
+        <AvatarSelectionModal
+          currentAvatar={avatar}
+          onClose={() => setShowAvatarModal(false)}
+          onSaveAvatar={handleSaveAvatar}
+          avatarOptions={avatarOptions}
+        />
+      )}
+      {showVerificationPopup && (
+        <VerificationPopup
+          email={email}
+          onClose={() => setShowVerificationPopup(false)}
+          onVerify={handleVerificationComplete}
+        />
+      )}
       {/* Language Modal */}
-      <AnimatePresence>
-        {uiState.showLanguageModal && (
-          <motion.div
-            className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <motion.div
-              className="bg-[#1a1a1a] rounded-lg w-full max-w-md p-6 relative"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-purple-500 text-xl font-medium">
-                  Select Language
-                </h2>
-                <motion.button
-                  onClick={() => updateUiState({ showLanguageModal: false })}
-                  className="text-gray-400 hover:text-white"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <X size={24} />
-                </motion.button>
-              </div>
+      {showLanguageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-[#1a1a1a] rounded-lg w-full max-w-md p-6 relative">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-purple-500 text-xl font-medium">
+                Select Language
+              </h2>
+              <button
+                onClick={() => setShowLanguageModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X size={24} />
+              </button>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto">
-                {languages.map((lang, index) => (
-                  <motion.div
-                    key={lang}
-                    onClick={() => handleLanguageSelect(lang)}
-                    className={`flex items-center gap-3 p-3 rounded-md cursor-pointer ${
-                      formState.language === lang
-                        ? "bg-purple-900 bg-opacity-50"
-                        : "bg-[#2a2a2a] hover:bg-[#333]"
-                    }`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, delay: index * 0.03 }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <span className="text-sm">{lang}</span>
-                    {formState.language === lang && (
-                      <div className="ml-auto w-2 h-2 rounded-full bg-purple-500"></div>
-                    )}
-                  </motion.div>
-                ))}
-              </div>
-
-              <div className="mt-6 flex justify-end">
-                <motion.button
-                  onClick={() => updateUiState({ showLanguageModal: false })}
-                  className="bg-purple-700 hover:bg-purple-800 text-white px-6 py-2 rounded-md transition text-sm"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto">
+              {languages.map((lang) => (
+                <div
+                  key={lang}
+                  onClick={() => handleLanguageSelect(lang)}
+                  className={`flex items-center gap-3 p-3 rounded-md cursor-pointer ${
+                    language === lang
+                      ? "bg-purple-900 bg-opacity-50"
+                      : "bg-[#2a2a2a] hover:bg-[#333]"
+                  }`}
                 >
-                  Close
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  <span className="text-sm">{lang}</span>
+                  {language === lang && (
+                    <div className="ml-auto w-2 h-2 rounded-full bg-purple-500"></div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowLanguageModal(false)}
+                className="bg-purple-700 hover:bg-purple-800 text-white px-6 py-2 rounded-md transition text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
