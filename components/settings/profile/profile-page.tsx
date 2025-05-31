@@ -58,6 +58,8 @@ export default function ProfileSettings() {
     return <SimpleLoader />;
   }
 
+  const avatarOptions = [avatar1, avatar2, avatar3, avatar4, avatar5];
+  
   // Toast notification function
   const showToast = (message: string, type: "success" | "error") => {
     // You can implement your own toast notification system here
@@ -179,8 +181,6 @@ export default function ProfileSettings() {
       }
     }
   }, [user]);
-
-  const avatarOptions = [avatar1, avatar2, avatar3, avatar4, avatar5];
 
   const getInputStyle = (inputName: string) => {
     return `w-full bg-[#2a2a2a] rounded-lg px-4 py-3 text-white text-sm outline-none 
