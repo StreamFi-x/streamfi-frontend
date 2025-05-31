@@ -41,6 +41,12 @@ export default function ProfileSettings() {
   const { user, isLoading, updateUserProfile } = useAuth();
   const router = useRouter();
 
+  // Immediate redirect if not authenticated
+  if (!isLoading && !user) {
+    router.replace("/explore");
+    return <SimpleLoader />;
+  }
+
   // State for form fields
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -75,43 +81,36 @@ export default function ProfileSettings() {
   ];
 
   // Load user data when available
-  // useEffect(() => {
-  //   if (user) {
-  //     setUsername(user.username || "");
-  //     setEmail(user.email || "");
-  //     setBio(user.bio || "");
-  //     setWallet(user.wallet || "");
+  useEffect(() => {
+    if (user) {
+      setUsername(user.username || "");
+      setEmail(user.email || "");
+      setBio(user.bio || "");
+      setWallet(user.wallet || "");
 
-  //     if (user.avatar) {
-  //       setAvatar(user.avatar);
-  //     }
+      if (user.avatar) {
+        setAvatar(user.avatar as unknown as StaticImageData);
+      }
 
-  //     // Parse social links if available
-  //     if (user.socialLinks) {
-  //       const links: SocialLink[] = [];
+      // Parse social links if available
+      if (user.socialLinks) {
+        const links: SocialLink[] = [];
 
-  //       // Convert socialLinks object to array of SocialLink objects
-  //       Object.entries(user.socialLinks).forEach(([platform, url]) => {
-  //         if (url && typeof url === "string") {
-  //           links.push({
-  //             url,
-  //             title: platform.charAt(0).toUpperCase() + platform.slice(1),
-  //             platform: platform as SocialLink["platform"],
-  //           });
-  //         }
-  //       });
+        // Convert socialLinks object to array of SocialLink objects
+        Object.entries(user.socialLinks).forEach(([platform, url]) => {
+          if (url && typeof url === "string") {
+            links.push({
+              url,
+              title: platform.charAt(0).toUpperCase() + platform.slice(1),
+              platform: platform as SocialLink["platform"],
+            });
+          }
+        });
 
-  //       setSocialLinks(links);
-  //     }
-  //   }
-  // }, [user]);
-
-  // Redirect if not authenticated
-  // useEffect(() => {
-  //   if (!isLoading && !user) {
-  //     router.push("/explore");
-  //   }
-  // }, [user, isLoading, router]);
+        setSocialLinks(links);
+      }
+    }
+  }, [user]);
 
   const avatarOptions = [avatar1, avatar2, avatar3, avatar4, avatar5];
 
@@ -358,10 +357,6 @@ export default function ProfileSettings() {
         return null;
     }
   };
-
-  // if (isLoading) {
-  //   return <SimpleLoader />;
-  // }
 
   return (
     <div className="min-h-screen bg-black text-white pb-8">

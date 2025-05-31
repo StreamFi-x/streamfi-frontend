@@ -50,6 +50,9 @@ const AuthContext = createContext<AuthContextType>({
 // Protected routes that require authentication
 const PROTECTED_ROUTES = ["/settings", "/dashboard"];
 
+// Session timeout in milliseconds (24 hours)
+const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
+
 // Hook to use auth context
 export const useAuth = () => useContext(AuthContext);
 
@@ -72,33 +75,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
   };
 
+  // Check if session is valid
+  const isSessionValid = (timestamp: number) => {
+    return Date.now() - timestamp < SESSION_TIMEOUT;
+  };
+
   // Fetch user data from API or cache
   const fetchUserData = async (walletAddress: string): Promise<User | null> => {
     try {
       setError(null);
       setIsLoading(true);
 
-      console.log(
-        "AuthProvider: Fetching user data for wallet:",
-        walletAddress
-      );
+      console.log("AuthProvider: Fetching user data for wallet:", walletAddress);
 
       // Check for cached user data
       const cachedUserData = localStorage.getItem(`user_${walletAddress}`);
-      const cachedTimestamp = localStorage.getItem(
-        `user_timestamp_${walletAddress}`
-      );
+      const cachedTimestamp = localStorage.getItem(`user_timestamp_${walletAddress}`);
 
-      // Use cached data if it's less than 5 minutes old
+      // Use cached data if it's less than 5 minutes old and session is valid
       if (cachedUserData && cachedTimestamp) {
         const parsedUser = JSON.parse(cachedUserData);
         const timestamp = parseInt(cachedTimestamp);
-        const now = Date.now();
-
-        if (now - timestamp < 5 * 60 * 1000) {
+        
+        if (isSessionValid(timestamp)) {
           console.log("AuthProvider: Using cached user data");
           setUser(parsedUser);
           return parsedUser;
+        } else {
+          // Clear expired session data
+          localStorage.removeItem(`user_${walletAddress}`);
+          localStorage.removeItem(`user_timestamp_${walletAddress}`);
         }
       }
 
@@ -112,19 +118,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Store user data
         setUser(data.user);
 
-        // Cache user data
-        localStorage.setItem(
-          `user_${walletAddress}`,
-          JSON.stringify(data.user)
-        );
-        localStorage.setItem(
-          `user_timestamp_${walletAddress}`,
-          Date.now().toString()
-        );
+        // Cache user data with current timestamp
+        localStorage.setItem(`user_${walletAddress}`, JSON.stringify(data.user));
+        localStorage.setItem(`user_timestamp_${walletAddress}`, Date.now().toString());
 
         // Store wallet address for persistence
         localStorage.setItem("wallet", walletAddress);
         sessionStorage.setItem("wallet", walletAddress);
+        
+        // Set cookie for middleware
+        document.cookie = `wallet=${walletAddress}; path=/; max-age=${SESSION_TIMEOUT / 1000}`;
 
         return data.user;
       } else if (response.status === 404) {
@@ -147,10 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Refresh user data
   const refreshUser = async (): Promise<User | null> => {
     // Get wallet address from connected wallet or storage
-    const walletAddress =
-      address ||
-      localStorage.getItem("wallet") ||
-      sessionStorage.getItem("wallet");
+    const walletAddress = address || localStorage.getItem("wallet") || sessionStorage.getItem("wallet");
 
     if (!walletAddress) {
       console.log("AuthProvider: No wallet address available for refresh");
@@ -202,10 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
 
     // Clear storage
-    const walletToRemove =
-      address ||
-      localStorage.getItem("wallet") ||
-      sessionStorage.getItem("wallet");
+    const walletToRemove = address || localStorage.getItem("wallet") || sessionStorage.getItem("wallet");
     if (walletToRemove) {
       localStorage.removeItem(`user_${walletToRemove}`);
       localStorage.removeItem(`user_timestamp_${walletToRemove}`);
@@ -213,6 +210,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     localStorage.removeItem("wallet");
     sessionStorage.removeItem("wallet");
+    
+    // Clear cookie
+    document.cookie = "wallet=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 
     // Redirect to home
     router.push("/");
@@ -223,12 +223,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initAuth = async () => {
       try {
         // Check for wallet in storage or connected wallet
-        const storedWallet =
-          localStorage.getItem("wallet") || sessionStorage.getItem("wallet");
+        const storedWallet = localStorage.getItem("wallet") || sessionStorage.getItem("wallet");
         const walletToUse = storedWallet || (isConnected ? address : null);
 
         if (walletToUse) {
-          await fetchUserData(walletToUse);
+          const cachedTimestamp = localStorage.getItem(`user_timestamp_${walletToUse}`);
+          
+          // Check if session is still valid
+          if (cachedTimestamp && isSessionValid(parseInt(cachedTimestamp))) {
+            await fetchUserData(walletToUse);
+          } else {
+            // Clear expired session
+            logout();
+          }
         }
       } catch (err) {
         console.error("AuthProvider: Error initializing auth:", err);
@@ -269,20 +276,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       if (isProtectedRoute() && !isInitializing) {
-        const walletAddress =
-          address ||
-          localStorage.getItem("wallet") ||
-          sessionStorage.getItem("wallet");
+        const walletAddress = address || localStorage.getItem("wallet") || sessionStorage.getItem("wallet");
 
         if (!walletAddress) {
-          // Not authenticated, redirect to home
-          console.log(
-            "AuthProvider: Not authenticated, redirecting from protected route"
-          );
-          router.push("/");
+          // Not authenticated, redirect to explore
+          console.log("AuthProvider: Not authenticated, redirecting from protected route");
+          router.push("/explore");
         } else if (!user && !isLoading) {
           // Try to fetch user data
-          await fetchUserData(walletAddress);
+          const userData = await fetchUserData(walletAddress);
+          if (!userData) {
+            // If user data fetch fails, redirect to explore
+            router.push("/explore");
+          }
         }
       }
     };
