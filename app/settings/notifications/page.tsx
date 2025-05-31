@@ -1,15 +1,11 @@
-"use client";
-import React from "react";
-import { ToastProvider } from "@/components/ui/toast-provider";
+"use client"
+import { ToastProvider } from "@/components/ui/toast-provider"
+import NotificationSettings from "@/components/settings/notifications/NotificationSettings"
 
-import NotificationsContent  from "@/components/settings/notifications/NotificationSettings";
-
-const NotificationsSettings: React.FC = () => {
+export default function NotificationSettingsPage() {
   return (
     <ToastProvider>
-      <NotificationsContent />
+      <NotificationSettings />
     </ToastProvider>
-  );
-};
-
-export default NotificationsSettings;
+  )
+}
