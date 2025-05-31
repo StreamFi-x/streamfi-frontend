@@ -38,14 +38,17 @@ export async function sendEmailVerificationToken(email: string, token: string) {
       pass: process.env.EMAIL_PASS,
     },
     dkim: {
-      domainName: process.env.EMAIL_DOMAIN || "streamfi.xyz",
+      domainName: process.env.EMAIL_DOMAIN || "https://streamfi.netlify.app",
       keySelector: "default",
       privateKey: process.env.DKIM_PRIVATE_KEY || "",
     },
   });
 
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: {
+      name: "StreamFi", 
+      address: process.env.EMAIL_USER || "support@streamfi.xyz", 
+    },
     to: email,
     subject: "Email Verification",
     text: `Your verification token is: ${token}`,
