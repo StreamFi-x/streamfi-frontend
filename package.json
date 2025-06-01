@@ -10,7 +10,6 @@
     "lint": "next lint",
     "setup-db": "node scripts/setup-db.cjs",
     "update-schema": "node scripts/updateUserSchema.mjs"
-
   },
   "dependencies": {
     "@fontsource/inter": "^5.1.1",
@@ -21,6 +20,7 @@
     "@starknet-react/chains": "^3.1.2",
     "@starknet-react/core": "^3.7.2",
     "@starknet-react/typescript-config": "^0.0.1",
+    "@tanstack/react-query": "^5.79.0",
     "@vercel/postgres": "^0.10.0",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.6.1",
@@ -50,6 +50,8 @@
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^11.1.0",
+    "viem": "^2.30.5",
+    "wagmi": "^2.15.4",
     "zod": "^3.24.2"
   },
   "devDependencies": {
