@@ -1,12 +1,11 @@
-import React from 'react'
-import Streampreference from "@/components/settings/Stream & Channel Preferences/stream-preference"
+"use client"
+import { ToastProvider } from "@/components/ui/toast-provider"
+import StreamPreferenceSettings from "@/components/settings/Stream & Channel Preferences/stream-preference"
 
-const page = () => {
+export default function StreamPreferenceSettingsPage() {
   return (
-    <div>
-        <Streampreference />
-    </div>
+    <ToastProvider>
+      <StreamPreferenceSettings />
+    </ToastProvider>
   )
 }
-
-export default page
