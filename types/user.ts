@@ -1,5 +1,3 @@
-// types/user.ts
-
 export interface SocialLink {
   socialTitle: string;
   socialLink: string;

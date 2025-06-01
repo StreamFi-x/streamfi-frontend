@@ -1,12 +1,11 @@
-import React from 'react'
-import Connected from '@/components/settings/Connected Accounts/connected-account'
+"use client"
+import { ToastProvider } from "@/components/ui/toast-provider"
+import ConnectedAccountsSettings from "@/components/settings/Connected Accounts/connected-account"
 
-const page = () => {
+export default function ConnectedAccountsSettingsPage() {
   return (
-    <div>
-      <Connected />
-    </div>
+    <ToastProvider>
+      <ConnectedAccountsSettings />
+    </ToastProvider>
   )
 }
-
-export default page
