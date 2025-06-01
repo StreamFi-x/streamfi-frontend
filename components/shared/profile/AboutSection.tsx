@@ -35,7 +35,7 @@ const AboutSection = ({
   return (
     <div className="bg-[#1A1A1A] rounded-md p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-6">
+        <div className="flex flex-col items-center gap-6">
           <h2 className="text-white text-lg font-medium">About {username}</h2>
           <span className="text-sm text-gray-400 mr-4">
             <span className="text-lightPrimary">{followers.toLocaleString()}</span>{" "}

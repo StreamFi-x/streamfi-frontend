@@ -62,15 +62,15 @@ const ProfilePage = ({ params }: PageProps) => {
   }
 
   // If stream is live, show the ViewStream component
-  // if (isLive) {
-  //   return (
-  //     <ViewStream
-  //       username={username}
-  //       isLive={true}
-  //       onStatusChange={(status) => setIsLive(status)}
-  //     />
-  //   );
-  // }
+  if (isLive) {
+    return (
+      <ViewStream
+        username={username}
+        isLive={true}
+        onStatusChange={(status) => setIsLive(status)}
+      />
+    );
+  }
 
   // Render different components based on whether the current user is the owner
   if (isOwner) {

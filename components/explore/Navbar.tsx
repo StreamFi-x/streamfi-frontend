@@ -141,18 +141,12 @@ export default function Navbar({}: NavbarProps) {
 
   return (
     <>
-      <header className="h-20 flex items-center justify-between px-4 border-b-[0.5px] border-white/30 bg-background z-10">
+      <header className="h-20 flex items-center justify-between px-4 border-b-[0.5px] border-white/30 bg-background z-50">
         <div className="flex items-center gap-4">
-          {/* <button
-            onClick={toggleSidebar}
-            className="p-2 rounded-full text-white hover:bg-[#2D2F31]/60 lg:hidden"
-          >
-            <Menu size={24} />
-          </button> */}
           <Image src={StreamfiLogoShort} alt="Streamfi Logo" />
         </div>
 
-        <div className="hidden md:block flex-1 items-center max-w-xl mx-4 relative">
+        <div className="hidden md:block flex-1 items-center max-w-xl mx-4 relative text-white">
           <div className="relative">
             <input
               type="text"
@@ -243,7 +237,7 @@ export default function Navbar({}: NavbarProps) {
                       <ProfileDropdown
                         username={
                           username
-                            ? `${username.length > 12 ? username.substring(0, 12) : username}..`
+                            ? `${username.length > 12 ? username.substring(0, 12) : username}`
                             : `${address.substring(0, 12)}..`
                         }
                       />
