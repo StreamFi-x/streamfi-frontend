@@ -32,7 +32,6 @@ export async function sendWelcomeRegistrationEmail(
 }
 
 export async function sendEmailVerificationToken(email: string, token: string) {
-  console.log(`Sending token ${token} to ${email}`);
 
   const transporter = nodemailer.createTransport({
     service: "Gmail",
@@ -53,7 +52,7 @@ export async function sendEmailVerificationToken(email: string, token: string) {
       address: process.env.EMAIL_USER || "support@streamfi.xyz", 
     },
     to: email,
-    subject: "Email Verification",
+    subject: "StreamFi Email Verification",
     text: `Your verification token is: ${token}`,
     html: `<p>Your verification token is: <strong>${token}</strong></p>`,
   };
