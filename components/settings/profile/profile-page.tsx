@@ -17,6 +17,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import profileImage from "@/public/Images/profile.png";
+import SimpleLoader from "@/components/ui/loader/simple-loader";
 import Avatar from "@/public/icons/avatar.svg";
 import InstagramIcon from "@/public/Images/instagram.svg";
 import TwitterIcon from "@/public/Images/twitter.svg";
@@ -36,13 +37,25 @@ import {
 } from "@/types/settings/profile";
 
 export default function ProfileSettings() {
-  const { user, updateUserProfile } = useAuth();
-
+  const { user, isLoading, updateUserProfile } = useAuth();
   const router = useRouter();
+
+  // Immediate redirect if not authenticated
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace("/explore");
+    }
+  }, [user, isLoading, router]);
+
+  // Show loader while checking authentication
+  if (isLoading || !user) {
+    return <SimpleLoader />;
+  }
+
   const avatarOptions = [Avatar, Avatar, Avatar, Avatar, Avatar];
 
   // Main state
-  const [avatar, setAvatar] = useState<StaticImageData | string>(profileImage); // Update type to string | StaticImageData
+  const [avatar, setAvatar] = useState<StaticImageData | string>(profileImage);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [usedPlatforms, setUsedPlatforms] = useState<Platform[]>([]);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
@@ -476,10 +489,6 @@ export default function ProfileSettings() {
     if (domain.includes("tiktok")) return "tiktok";
     return "other";
   };
-
-  // if (isLoading) {
-  //   return <SimpleLoader />;
-  // }
 
   return (
     <div className="min-h-screen bg-black text-white pb-8">

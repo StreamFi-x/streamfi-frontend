@@ -6,6 +6,7 @@ import {
   useEffect,
   useState,
   ReactNode,
+  useCallback,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAccount, useDisconnect } from "wagmi";
@@ -27,6 +28,7 @@ type User = {
 
 // Session timeout in milliseconds (24 hours)
 const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
+const SESSION_REFRESH_INTERVAL = 30 * 60 * 1000; // Refresh every 30 minutes
 
 // Protected routes that require authentication
 const PROTECTED_ROUTES = ["/settings", "/dashboard"];
@@ -90,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Fetch user data from API or cache
   const fetchUserData = async (walletAddress?: string): Promise<User | null> => {
     if (!walletAddress) {
-      walletAddress = address || localStorage.getItem("wallet") || sessionStorage.getItem("wallet");
+      walletAddress = address || localStorage.getItem("wallet") || sessionStorage.getItem("wallet") || undefined;
       if (!walletAddress) return null;
     }
 
@@ -250,6 +252,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     checkAuth();
   }, [pathname, user, isInitializing]);
+
+  // Refresh session
+  const refreshSession = useCallback(() => {
+    const storedWallet = localStorage.getItem("wallet");
+    const sessionWallet = sessionStorage.getItem("wallet");
+    const walletAddress = address || (storedWallet ? storedWallet : undefined) || (sessionWallet ? sessionWallet : undefined);
+    if (walletAddress) {
+      setSessionCookies(walletAddress);
+    }
+  }, [address]);
+
+  // Set up session refresh interval
+  useEffect(() => {
+    if (user) {
+      const interval = setInterval(refreshSession, SESSION_REFRESH_INTERVAL);
+      return () => clearInterval(interval);
+    }
+  }, [user, refreshSession]);
+
+  // Refresh session on user activity
+  useEffect(() => {
+    const handleUserActivity = () => {
+      if (user) {
+        refreshSession();
+      }
+    };
+
+    // Add event listeners for user activity
+    window.addEventListener("mousemove", handleUserActivity);
+    window.addEventListener("keydown", handleUserActivity);
+    window.addEventListener("click", handleUserActivity);
+    window.addEventListener("scroll", handleUserActivity);
+
+    return () => {
+      window.removeEventListener("mousemove", handleUserActivity);
+      window.removeEventListener("keydown", handleUserActivity);
+      window.removeEventListener("click", handleUserActivity);
+      window.removeEventListener("scroll", handleUserActivity);
+    };
+  }, [user, refreshSession]);
 
   return (
     <AuthContext.Provider
