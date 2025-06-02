@@ -14,14 +14,14 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
   const userData = {
     username,
     followers: 2000,
-    avatarUrl: "/placeholder.svg?height=64&width=64",
+    avatarUrl: "/Images/user.png",
   }
 
   const recentStreams = [
     {
       id: "1",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/placeholder.svg?height=180&width=320",
+      thumbnailUrl: "/Images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -31,7 +31,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
     {
       id: "2",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/placeholder.svg?height=180&width=320",
+      thumbnailUrl: "/Images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -41,7 +41,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
     {
       id: "3",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/placeholder.svg?height=180&width=320",
+      thumbnailUrl: "/Images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -51,7 +51,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
     {
       id: "4",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/placeholder.svg?height=180&width=320",
+      thumbnailUrl: "/Images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -64,7 +64,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
     {
       id: "5",
       title: "Amazing headshot",
-      thumbnailUrl: "/placeholder.svg?height=180&width=320",
+      thumbnailUrl: "/Images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -74,7 +74,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
     {
       id: "6",
       title: "Epic win",
-      thumbnailUrl: "/placeholder.svg?height=180&width=320",
+      thumbnailUrl: "/Images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],

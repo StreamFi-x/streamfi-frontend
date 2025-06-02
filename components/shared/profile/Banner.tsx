@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { BellDot, Dot } from "lucide-react";
 
 interface BannerProps {
   username: string;
@@ -9,85 +10,51 @@ interface BannerProps {
 
 const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
   return (
-    <div className="relative w-full h-[200px] bg-gradient-to-r from-gray-900 to-gray-800 overflow-hidden">
-      {/* Background collage of images */}
-      <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 gap-1 opacity-50">
-        <div
-          className="bg-cover bg-center"
-          style={{
-            backgroundImage: `url('/placeholder.svg?height=300&width=400')`,
-          }}
-        ></div>
-        <div
-          className="bg-cover bg-center"
-          style={{
-            backgroundImage: `url('/placeholder.svg?height=300&width=400')`,
-          }}
-        ></div>
-        <div
-          className="bg-cover bg-center"
-          style={{
-            backgroundImage: `url('/placeholder.svg?height=300&width=400')`,
-          }}
-        ></div>
-        <div
-          className="bg-cover bg-center"
-          style={{
-            backgroundImage: `url('/placeholder.svg?height=300&width=400')`,
-          }}
-        ></div>
-        <div
-          className="bg-cover bg-center"
-          style={{
-            backgroundImage: `url('/placeholder.svg?height=300&width=400')`,
-          }}
-        ></div>
-        <div
-          className="bg-cover bg-center"
-          style={{
-            backgroundImage: `url('/placeholder.svg?height=300&width=400')`,
-          }}
-        ></div>
-      </div>
+    <div
+      className="relative font-inter w-full h-[280px] xl:h-[320px] bg-gradient-to-r from-gray-900 to-gray-800 overflow-hidden bg-center bg-no-repeat bg-cover"
+      style={{
+        backgroundImage: `url('/images/banner-bg.png')`,
+      }}
+    >
+      <div className="absolute top-0 left-0 w-1/3 h-full bg-gradient-to-r from-[#17191A]/90 to-transparent z-10" />
+      <div className="absolute top-0 right-0 w-1/4 h-full bg-gradient-to-l from-[#17191A]/90 to-transparent z-10" />
 
-      {/* Banner content */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="text-center p-6 max-w-lg">
+      <div className="absolute inset-0 flex items-center px-10 justify-start z-20">
+        <div className="text- bg-background-4 p-8 w-full max-w-sm xl:max-w-md rounded-md">
           {isLive ? (
             <>
-              <div className="flex items-center justify-center mb-2">
-                <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-sm mr-2">
+              <div className="flex items-center justify-start mb-2">
+                <span className="flex items-center bg-red-600 text-white text-xs px-2 py-1 rounded-lg font-semibold ">
+                  <Dot size={20} className="text-white" />
                   Live
                 </span>
               </div>
-              <h2 className="text-white text-2xl font-bold mb-3">
+              <h2 className="text-white text-xl font-medium mb-6">
                 {username} is streaming
                 <br />
-                co-working and designing
+                {streamTitle}
               </h2>
               <Link href={`/${username}/watch`}>
-                <Button className="bg-purple-600 hover:bg-purple-700 text-white">
+                <Button className="text-[#A473FB] font-semibold text-xs bg-transparent p-0">
                   Watch Now
                 </Button>
               </Link>
             </>
           ) : (
             <>
-              <div className="flex items-center justify-center mb-2">
-                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded-sm mr-2">
+              <div className="flex items-center justify-start">
+                <span className="bg-background text-white text-xs px-2 py-1 rounded-sm ">
                   OFFLINE
                 </span>
               </div>
-              <h2 className="text-white text-2xl font-bold mb-3">
+              <h2 className="text-white text-xl font-medium">
                 {username} is offline
               </h2>
-              <p className="text-gray-300 text-sm mb-3">
+              <p className="text-grayish2 text-xs mb-3">
                 Follow and get notified when {username} goes live
               </p>
-              <Button
-              
-                className="bg-purple-600 hover:bg-purple-700 text-white"
-              >
+              <Button className="flex items-center gap-1 bg-primary hover:bg-primary/70 text-white text-[10px]">
+                <BellDot size={12} />
                 Turn on Notifications
               </Button>
             </>
