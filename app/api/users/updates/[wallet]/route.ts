@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { uploadImage, deleteImage } from "@/utils/upload/Dcloudinary";
@@ -8,12 +9,14 @@ import { validateEmail } from "@/utils/validators";
 import { validateUserUpdate } from "../../../../../utils/userValidators";
 import { UserUpdateInput } from "../../../../../types/user";
 
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: { wallet: string } }
 ) {
   try {
     const wallet = params.wallet.toLowerCase();
+
 
     // Fetching current user data
     const existingResult = await sql`
@@ -155,5 +158,3 @@ function extractPublicIdFromUrl(url: string): string | null {
     return null;
   }
 }
-
-

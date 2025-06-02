@@ -1,27 +1,28 @@
-import Banner from "@/components/shared/profile/Banner"
-import ProfileHeader from "@/components/shared/profile/ProfileHeader"
-import TabsNavigation from "@/components/shared/profile/TabsNavigation"
-import StreamCard from "@/components/shared/profile/StreamCard"
+import Banner from "@/components/shared/profile/Banner";
+import ProfileHeader from "@/components/shared/profile/ProfileHeader";
+import TabsNavigation from "@/components/shared/profile/TabsNavigation";
+import StreamCard from "@/components/shared/profile/StreamCard";
 
 interface ChannelHomeProps {
-  username: string
-  isLive: boolean
-  streamTitle?: string
+  username: string;
+  isLive: boolean;
+  streamTitle?: string;
+  avatarUrl?: string;
 }
 
-const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
+const ChannelHome = ({ username, isLive, streamTitle, avatarUrl }: ChannelHomeProps) => {
   // Mock data - would be fetched from API in a real implementation
   const userData = {
     username,
     followers: 2000,
-    avatarUrl: "/placeholder.svg?height=64&width=64",
-  }
+    avatarUrl: avatarUrl || "/Images/user.png",
+  };
 
   const recentStreams = [
     {
       id: "1",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/placeholder.svg?height=180&width=320",
+      thumbnailUrl: "/Images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -31,7 +32,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
     {
       id: "2",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/placeholder.svg?height=180&width=320",
+      thumbnailUrl: "/Images/explore/home/live-stream/img2.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -41,7 +42,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
     {
       id: "3",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/placeholder.svg?height=180&width=320",
+      thumbnailUrl: "/Images/explore/home/live-stream/img3.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -51,20 +52,20 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
     {
       id: "4",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/placeholder.svg?height=180&width=320",
+      thumbnailUrl: "/Images/explore/home/live-stream/img4.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
       viewCount: 14500,
       isLive: true,
     },
-  ]
+  ];
 
   const popularClips = [
     {
       id: "5",
       title: "Amazing headshot",
-      thumbnailUrl: "/placeholder.svg?height=180&width=320",
+      thumbnailUrl: "/Images/explore/home/live-stream/img4.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -74,14 +75,14 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
     {
       id: "6",
       title: "Epic win",
-      thumbnailUrl: "/placeholder.svg?height=180&width=320",
+      thumbnailUrl: "/Images/explore/home/live-stream/img3.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
       viewCount: 14500,
       isLive: true,
     },
-  ]
+  ];
 
   return (
     <div className="bg-gray-950 min-h-screen">
@@ -96,7 +97,9 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
 
       <div className="p-6">
         <section className="mb-8">
-          <h2 className="text-white text-xl font-medium mb-4">Recent Streams</h2>
+          <h2 className="text-white text-xl font-medium mb-4">
+            Recent Streams
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {recentStreams.map((stream) => (
               <StreamCard key={stream.id} {...stream} />
@@ -114,7 +117,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
         </section>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ChannelHome
+export default ChannelHome;
