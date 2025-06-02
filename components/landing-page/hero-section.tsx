@@ -5,7 +5,7 @@ import type React from "react";
 import "@fontsource/inter";
 import { CoinbaseLogo, StripeLogo, YoutubeLogo } from "@/public/Images";
 import LogoDesktop from "@/public/Images/hero-image-streamfi.png";
-import Button from "@/components/ui/Button";
+import { Button } from "@/components/ui/shadcn-button";
 import Section from "@/components/layout/Section";
 
 const HeroSection: React.FC = () => {
