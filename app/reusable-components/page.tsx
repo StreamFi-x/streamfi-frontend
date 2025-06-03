@@ -18,6 +18,8 @@ import React, { useState } from "react"
 
 type Checked = DropdownMenuCheckboxItemProps["checked"]
 
+// Customization not needed in all components
+
 export default function ReusableComponents () {
     const [showPanel, setShowPanel] = React.useState<Checked>(false)
     const [isUploading, setIsUploading] = useState(false);
