@@ -36,7 +36,6 @@ interface MenuItemProps {
   onClick: (item: MenuItem) => void;
 }
 
-// Menu item component
 const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
   return (
     <Link
@@ -50,13 +49,11 @@ const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
   );
 };
 
-// Menu section component props
 interface MenuSectionProps {
   items: MenuItem[];
   onClick: (item: MenuItem) => void;
 }
 
-// Menu section component
 const MenuSection = ({ items, onClick }: MenuSectionProps) => {
   return (
     <>
@@ -141,7 +138,7 @@ const UserDropdown = ({ username }: UserDropdownProps) => {
           label: "Creator Dashboard",
           route: "/dashboard/stream-manager",
         },
-        { icon: <Globe size={20} />, label: "Language", route: "/language" },
+        { icon: <Globe size={20} />, label: "Language", route: "" },
         { icon: <Settings size={20} />, label: "Settings", route: "/settings" },
       ],
     },
@@ -155,16 +152,14 @@ const UserDropdown = ({ username }: UserDropdownProps) => {
     console.log(`Clicked on ${item.label}`);
 
     if (item.label === "Disconnect") {
-      // Use our auth context's logout function
       if (isConnected) {
-        disconnect(); // Disconnect if already connected
+        disconnect();
       }
       logout();
       return;
     }
 
     if (item.route) {
-      // Navigate to the route
       router.push(item.route);
     }
   };
@@ -193,21 +188,19 @@ const UserDropdown = ({ username }: UserDropdownProps) => {
 
   return (
     <motion.div
-      className="relative w-64"
+      className="relative w-64 z-50"
       initial="hidden"
       animate="visible"
       exit="hidden"
       variants={dropdownVariants}
     >
       <div className="bg-[#161616] text-white rounded-md shadow-lg">
-        {/* User profile section */}
         <UserProfile
           avatar={userAvatar}
           name={userName}
           onClick={() => {}} // Empty function since toggle is handled by parent
         />
 
-        {/* Menu items - always visible */}
         <div className="block">
           {menuItems.map((section, index) => (
             <div

@@ -2,7 +2,10 @@
 import nodemailer from "nodemailer";
 import WelcomeUserEmail from "@/components/templates/WelcomeUserEmail";
 
-export async function sendWelcomeRegistrationEmail(email: any, name: any) {
+export async function sendWelcomeRegistrationEmail(
+  email: string,
+  name: string
+) {
   const transporter = nodemailer.createTransport({
     service: "Gmail",
     auth: {
@@ -14,7 +17,7 @@ export async function sendWelcomeRegistrationEmail(email: any, name: any) {
   const htmlContent = WelcomeUserEmail(name);
 
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: "process.env.EMAIL_USER",
     to: email,
     subject: "Welcome to Streamfi!",
     html: htmlContent,

@@ -4,11 +4,13 @@ import type React from "react"
 import Sidebar from "@/components/explore/Sidebar"
 import Navbar from "@/components/explore/Navbar"
 
+// Mock data for sidebar props
 
 export default function UsernameLayout({
   children,
 }: {
   children: React.ReactNode
+  params: { username: string }
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
