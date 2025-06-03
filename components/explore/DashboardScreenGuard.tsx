@@ -4,6 +4,7 @@ import type React from "react";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Monitor, Tablet } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 interface DashboardScreenGuardProps {
@@ -95,15 +96,12 @@ export default function DashboardScreenGuard({
               exit="hidden"
             >
               <div className="flex justify-center items-center space-x-3 mb-6">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full blur-lg opacity-75"></div>
-                  <div className="relative p-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full">
-                    <Monitor className="w-10 h-10 text-white" />
-                  </div>
-                </div>
-                <div className="text-4xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                  StreamFi
-                </div>
+                <Image
+                  src={"/Images/streamFiLogo.svg"}
+                  alt="StreamFi Logo"
+                  width={120}
+                  height={120}
+                />
               </div>
 
               <div className="flex justify-center space-x-4 mb-6">
