@@ -129,7 +129,7 @@ const StreamPreferencesPage: React.FC = () => {
     };
   }, []);
 
-  // Add effect to handle page visibility changes
+  // Add effect to handle page visibility changes and auto-hide
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -140,9 +140,28 @@ const StreamPreferencesPage: React.FC = () => {
       }
     };
 
+    // Add visibility change listener
     document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Add beforeunload listener
+    window.addEventListener("beforeunload", () => {
+      updateState("keyVisible", false);
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+      }
+    });
+
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("beforeunload", () => {
+        updateState("keyVisible", false);
+        if (hideTimerRef.current) {
+          clearTimeout(hideTimerRef.current);
+        }
+      });
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+      }
     };
   }, []);
 
@@ -163,10 +182,7 @@ const StreamPreferencesPage: React.FC = () => {
     }
   };
 
-  console.log("Check Reveal Modal Open", isRevealModalOpen);
-
   const confirmRevealKey = () => {
-    console.log("Attempted to reveal key");
     updateState("keyVisible", true);
     setIsRevealModalOpen(false);
 
@@ -225,14 +241,14 @@ const StreamPreferencesPage: React.FC = () => {
   const streamKeyActions = (
     <div className="flex flex-col items-end gap-4 md:flex-row md:justify-start">
       <button
-        className="w-40 bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg whitespace-nowrap"
+        className=" bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md whitespace-nowrap"
         onClick={copyKey}
       >
         Copy Key
       </button>
       <button
         onClick={handleReset}
-        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+        className="px-6 py-2 bg-[#383838] text-white rounded-md hover:bg-[#383838]/70"
       >
         Reset
       </button>
@@ -261,24 +277,26 @@ const StreamPreferencesPage: React.FC = () => {
           />
         </SectionCard>
 
-        <SectionCard>
-          <ToggleSection
-            title="Disconnected Protection"
-            description={placeholderDescription}
-            enabled={state.disconnectedProtection}
-            onToggle={() => toggleSetting("disconnectedProtection")}
-          />
-        </SectionCard>
+        <SectionCard className="flex w-full bg-[#1a1a1a] flex-col items-center-justify-center">
+          <SectionCard className="bg-transparent py-2 px-4 mb-0">
+            <ToggleSection
+              title="Disconnected Protection"
+              description={placeholderDescription}
+              enabled={state.disconnectedProtection}
+              onToggle={() => toggleSetting("disconnectedProtection")}
+            />
+          </SectionCard>
 
-        <hr className="border-gray-800 my-8" />
+          <hr className="border-gray-800 my-4" />
 
-        <SectionCard>
-          <ToggleSection
-            title="Copyright Warning"
-            description={placeholderDescription}
-            enabled={state.copyrightWarning}
-            onToggle={() => toggleSetting("copyrightWarning")}
-          />
+          <SectionCard className="bg-transparent py-2 px-4 mb-0">
+            <ToggleSection
+              title="Copyright Warning"
+              description={placeholderDescription}
+              enabled={state.copyrightWarning}
+              onToggle={() => toggleSetting("copyrightWarning")}
+            />
+          </SectionCard>
         </SectionCard>
       </div>
 

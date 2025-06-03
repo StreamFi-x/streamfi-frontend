@@ -52,13 +52,13 @@ const StreamKeyConfirmationModal: React.FC<StreamKeyConfirmationModalProps> = ({
 
   const handleConfirmation = () => {
     try {
-      const timestamp = new Date().getTime();
-      const sessionId = sessionStorage.getItem("browser_session_id");
+      // const timestamp = new Date().getTime();
+      // const sessionId = sessionStorage.getItem("browser_session_id");
 
-      localStorage.setItem(
-        STREAM_KEY_CONFIRMATION_KEY,
-        JSON.stringify({ timestamp, sessionId })
-      );
+      // localStorage.setItem(
+      //   STREAM_KEY_CONFIRMATION_KEY,
+      //   JSON.stringify({ timestamp, sessionId })
+      // );
 
       setHasConfirmed(true);
       onConfirm();
@@ -67,12 +67,6 @@ const StreamKeyConfirmationModal: React.FC<StreamKeyConfirmationModalProps> = ({
       console.error("Error storing stream key confirmation:", error);
     }
   };
-
-  useEffect(() => {
-    if (hasConfirmed && isOpen) {
-      onClose();
-    }
-  }, [hasConfirmed, isOpen, onClose]);
 
   return (
     <AnimatePresence>
@@ -85,7 +79,7 @@ const StreamKeyConfirmationModal: React.FC<StreamKeyConfirmationModalProps> = ({
           onClick={onClose}
         >
           <motion.div
-            className="bg-[#1C1C1C] rounded-lg w-full py-10 px-6 max-w-sm  lg:max-w-[450px]  mx-4 text-center shadow-lg"
+            className="bg-[#1C1C1C] rounded-xl w-full py-10 px-6 max-w-sm  lg:max-w-[450px]  mx-4 text-center shadow-lg"
             initial={{ scale: 0.9, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
