@@ -1,37 +1,49 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Twitter, Instagram, DiscIcon as Discord, Edit3 } from "lucide-react"
-import Button from "@/components/ui/Button"
-import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal"
+import { useState } from "react";
+import { Twitter, Instagram, DiscIcon as Discord, Edit3 } from "lucide-react";
+import Button from "@/components/ui/Button";
+import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 
 interface AboutSectionProps {
-  username: string
-  followers: number
-  bio?: string
+  username: string;
+  followers: number;
+  bio?: string;
   socialLinks?: {
-    twitter?: string
-    instagram?: string
-    discord?: string
-  }
-  isOwner: boolean
+    twitter?: string;
+    instagram?: string;
+    discord?: string;
+  };
+  isOwner: boolean;
 }
 
-const AboutSection = ({ username, followers, bio, socialLinks, isOwner }: AboutSectionProps) => {
-  const [showBioModal, setShowBioModal] = useState(false)
-  const [userBio, setUserBio] = useState(bio || "")
+const AboutSection = ({
+  username,
+  followers,
+  bio,
+  socialLinks,
+  isOwner,
+}: AboutSectionProps) => {
+  const [showBioModal, setShowBioModal] = useState(false);
+  const [userBio, setUserBio] = useState(bio || "");
 
   const handleSaveBio = (data: any) => {
-    setUserBio(data.description || "")
-    setShowBioModal(false)
-  }
+    setUserBio(data.description || "");
+    setShowBioModal(false);
+  };
 
   return (
     <div className="bg-[#1A1A1A] rounded-md p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-white text-lg font-medium">About {username}</h2>
+        <div className="flex flex-col items-center gap-6">
+          <h2 className="text-white text-lg font-medium">About {username}</h2>
+          <span className="text-sm text-gray-400 mr-4">
+            <span className="text-lightPrimary">{followers.toLocaleString()}</span>{" "}
+            followers
+          </span>
+        </div>
+
         <div className="flex items-center">
-          <span className="text-sm text-gray-400 mr-4">{followers.toLocaleString()} followers</span>
           {isOwner && (
             <Button
               variant="outline"
@@ -88,7 +100,10 @@ const AboutSection = ({ username, followers, bio, socialLinks, isOwner }: AboutS
           {isOwner ? (
             <div className="bg-[#2D2F31] p-4 rounded-md">
               <p className="mb-2">You haven&apos;t added a bio yet.</p>
-              <p>Tell viewers about yourself, your content, and your streaming schedule.</p>
+              <p>
+                Tell viewers about yourself, your content, and your streaming
+                schedule.
+              </p>
               <Button
                 variant="outline"
                 size="sm"
@@ -117,7 +132,7 @@ const AboutSection = ({ username, followers, bio, socialLinks, isOwner }: AboutS
         />
       )}
     </div>
-  )
-}
+  );
+};
 
-export default AboutSection
+export default AboutSection;

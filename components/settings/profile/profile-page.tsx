@@ -37,6 +37,7 @@ import {
 
 export default function ProfileSettings() {
   const { user, updateUserProfile } = useAuth();
+
   const router = useRouter();
   const avatarOptions = [Avatar, Avatar, Avatar, Avatar, Avatar];
 

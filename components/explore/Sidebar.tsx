@@ -29,29 +29,26 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     };
   }, [isOpen]);
 
-  
   const handleOverlayClick = useCallback(() => {
     onClose();
   }, [onClose]);
 
-  
   const toggleCollapsed = useCallback(() => {
-    setIsCollapsed(prev => !prev);
+    setIsCollapsed((prev) => !prev);
   }, []);
 
-  
   const isRouteActive = (href: string) => {
     if (href === "/" && pathname === "/explore") return true;
-    return pathname === `/explore${href}` || pathname.startsWith(`/explore${href}/`);
+    return (
+      pathname === `/explore${href}` || pathname.startsWith(`/explore${href}/`)
+    );
   };
 
-  
   const renderExpandedContent = () => (
     <>
-      
       <div className="flex justify-between items-center w-full mb-4 px-[1em]">
         <span className="text-white/60 font-medium">MENU</span>
-        <button 
+        <button
           className="text-white p-1 hover:bg-[#2D2F31]/60 rounded-full"
           onClick={toggleCollapsed}
         >
@@ -72,7 +69,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   : "text-white/60 hover:text-white hover:bg-[#2D2F31]/60"
               }`}
             >
-              <item.icon size={20} className={isActive ? "text-white" : "text-white/60"} />
+              <item.icon
+                size={20}
+                className={isActive ? "text-white" : "text-white/60"}
+              />
               <span>{item.label}</span>
             </Link>
           );
@@ -152,9 +152,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   {user.name}
                 </div>
                 <div className="text-xs text-white/40">
-                  {user.name === "Zyn" ? "100K Followers" : 
-                   user.name === "monki" ? "3.7K followers" : 
-                   "520K followers"}
+                  {user.name === "Zyn"
+                    ? "100K Followers"
+                    : user.name === "monki"
+                      ? "3.7K followers"
+                      : "520K followers"}
                 </div>
               </div>
             </Link>
@@ -169,7 +171,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const renderCollapsedContent = () => (
     <>
       <div className="flex justify-center items-center w-full mb-4">
-        <button 
+        <button
           className="text-white p-1 hover:bg-[#2D2F31]/60 rounded-full"
           onClick={toggleCollapsed}
         >
@@ -191,7 +193,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               }`}
               title={item.label}
             >
-              <item.icon size={20} className={isActive ? "text-white" : "text-white/60"} />
+              <item.icon
+                size={20}
+                className={isActive ? "text-white" : "text-white/60"}
+              />
             </Link>
           );
         })}
@@ -201,12 +206,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       <div className="flex flex-col items-center gap-3">
         {recommendedUsers.map((user) => (
-          <Link
-            key={user.name}
-            href="#"
-            className="relative"
-            title={user.name}
-          >
+          <Link key={user.name} href="#" className="relative" title={user.name}>
             <div className="w-9 h-9 rounded-full bg-gray-700 overflow-hidden">
               <Image
                 src={user.avatar || "/placeholder.svg"}
@@ -255,12 +255,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     </>
   );
 
-  
   const renderMobileSidebarContent = () => (
     <div className="p-4 flex flex-col gap-5 h-full overflow-y-auto">
       <div className="flex justify-between items-center w-full mb-4 px-[1em]">
         <span className="text-white/60 font-medium">MENU</span>
-        <button 
+        <button
           className="text-white p-1 hover:bg-[#2D2F31]/60 rounded-full"
           onClick={onClose}
         >
@@ -282,7 +281,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               }`}
               onClick={onClose}
             >
-              <item.icon size={20} className={isActive ? "text-white" : "text-white/60"} />
+              <item.icon
+                size={20}
+                className={isActive ? "text-white" : "text-white/60"}
+              />
               <span>{item.label}</span>
             </Link>
           );
@@ -326,7 +328,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Link>
           ))}
         </div>
-        <button 
+        <button
           className="w-full mt-3 text-sm text-white bg-[#2D2F31]/60 hover:bg-[#2D2F31] rounded-md py-2.5 text-center"
           onClick={onClose}
         >
@@ -367,15 +369,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   {user.name}
                 </div>
                 <div className="text-xs text-white/40">
-                  {user.name === "Zyn" ? "100K Followers" : 
-                   user.name === "monki" ? "3.7K followers" : 
-                   "520K followers"}
+                  {user.name === "Zyn"
+                    ? "100K Followers"
+                    : user.name === "monki"
+                      ? "3.7K followers"
+                      : "520K followers"}
                 </div>
               </div>
             </Link>
           ))}
         </div>
-        <button 
+        <button
           className="w-full mt-3 text-sm text-white bg-[#2D2F31]/60 hover:bg-[#2D2F31] rounded-md py-2.5 text-center"
           onClick={onClose}
         >
@@ -387,7 +391,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <>
-      
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -401,7 +404,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
       </AnimatePresence>
 
-      
       <motion.div
         className="fixed top-0 left-0 bottom-0 w-64 bg-black z-30 lg:hidden scrollbar-hide overflow-y-auto"
         initial="closed"
@@ -411,15 +413,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {renderMobileSidebarContent()}
       </motion.div>
 
-      
       <motion.div
         className="hidden lg:block bg-[#17191A] flex-shrink-0"
         initial={{ width: "260px" }}
         animate={{ width: isCollapsed ? "70px" : "260px" }}
-        transition={{ 
-          type: "spring", 
-          stiffness: 300, 
-          damping: 30 
+        transition={{
+          type: "spring",
+          stiffness: 300,
+          damping: 30,
         }}
       >
         <div className="p-4 flex flex-col gap-5 h-full overflow-y-auto scrollbar-hide">
