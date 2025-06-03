@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Providers } from "../components/providers";
 import "./globals.css";
 import { Toaster } from "sonner";
-import MobNav from "@/components/settings/mob-nav";
+
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -48,7 +48,6 @@ export default function RootLayout({
       <body className="antialiased bg-[#16062B]">
         <Providers>
           {children}
-          <MobNav />
           <Toaster position="top-right" closeButton />
         </Providers>
       </body>

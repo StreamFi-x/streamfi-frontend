@@ -19,8 +19,6 @@ interface NavbarProps {
 }
 
 export default function Navbar({
-  toggleSidebar,
-  onConnectWallet,
 }: NavbarProps) {
   // Removed unused searchOpen and setSearchOpen state
   const [searchQuery, setSearchQuery] = useState("");

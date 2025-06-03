@@ -74,7 +74,7 @@ const MenuSection = ({ items, onClick }: MenuSectionProps) => {
 };
 
 interface UserProfileProps {
-  avatar: any; // Changed to accept StaticImageData
+  avatar: import("next/image").StaticImageData | string; // Accepts StaticImageData or string URL
   name: string;
   onClick: () => void;
 }

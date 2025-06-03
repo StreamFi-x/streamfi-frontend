@@ -4,18 +4,11 @@ import type React from "react"
 import Sidebar from "@/components/explore/Sidebar"
 import Navbar from "@/components/explore/Navbar"
 
-// Mock data for sidebar props
-const sidebarProps = {
-  isOpen: true,
-  onClose: () => {},
-}
 
 export default function UsernameLayout({
   children,
-  params,
 }: {
   children: React.ReactNode
-  params: { username: string }
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
@@ -25,7 +18,7 @@ export default function UsernameLayout({
 
   return (
     <div className="flex h-screen bg-[#17191A] text-white">
-      <Sidebar {...sidebarProps} />
+      <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar toggleSidebar={toggleSidebar} />
         <main className="flex-1 overflow-auto">{children}</main>
