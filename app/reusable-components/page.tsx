@@ -2,21 +2,25 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Button from "@/components/ui/Button"
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuPortal, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, StreamFiDropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dropzone, DropZoneArea, DropzoneMessage, DropzoneTrigger, useDropzone } from "@/components/ui/dropzone"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PasswordInput } from "@/components/ui/passwordInput"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { StreamFiDropzone } from "@/components/ui/streamfi-dropzone"
+import Pagination from "@/components/ui/streamfi-pagination"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { DropdownMenuCheckboxItemProps } from "@radix-ui/react-dropdown-menu"
-import React from "react"
+import React, { useState } from "react"
 
 type Checked = DropdownMenuCheckboxItemProps["checked"]
 
 export default function ReusableComponents () {
     const [showPanel, setShowPanel] = React.useState<Checked>(false)
+    const [isUploading, setIsUploading] = useState(false);
     const dropzone = useDropzone({
         onDropFile: async(file: File) => {
             await new Promise((resolve) => setTimeout(resolve, 100));
@@ -37,6 +41,15 @@ export default function ReusableComponents () {
 
     const avatarSrc = dropzone.fileStatuses?.[0]?.result;
     const isPending = dropzone.fileStatuses?.[0]?.status === "pending"
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const totalPages = 10
+
+    const handlePageChange = (newPage: number) => {
+        // fetch new data or something
+        console.log('Fetching new page: ', newPage);
+        setCurrentPage(newPage)
+    }
 
     return (
         <>
@@ -82,25 +95,59 @@ export default function ReusableComponents () {
         
             </div>
 
-            <Dropzone {...dropzone}>
-                <div className="flex justify-between">
-                    <DropzoneMessage />
-                </div>
-                <DropZoneArea className="">
-                    <DropzoneTrigger className="flex gap-8 bg-transparent text-sm">
-                    <Avatar className={cn(isPending && "animate-pulse")}>
-                        <AvatarImage className="object-cover" src={avatarSrc} />
-                        <AvatarFallback>JG</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col gap-1 font-semibold">
-                        <p>Upload a new avatar</p>
-                        <p className="text-xs text-muted-foreground">
-                        Please select an image smaller than 10MB
-                        </p>
+            
+
+            <StreamFiDropzone 
+                onFileUploaded={(file: File) => {
+                    console.log('Uploaded file: ', file);
+                }}
+                className="w-[100%] bg-primary text-white"
+                dropzoneOptions={{}}
+                fallbackText="S.U"
+                isPending={isUploading}
+                hintText="Supports JPG, PNG Up to 10MB"
+            />
+
+            <Pagination 
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                maxVisiblePages={3}
+                showPrevNext
+            />
+
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="outline">Share</Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                    <DialogTitle>Share link</DialogTitle>
+                    <DialogDescription>
+                        Anyone who has this link will be able to view this.
+                    </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex items-center gap-2">
+                    <div className="grid flex-1 gap-2">
+                        <Label htmlFor="link" className="sr-only">
+                        Link
+                        </Label>
+                        <Input
+                        id="link"
+                        defaultValue="https://ui.shadcn.com/docs/installation"
+                        readOnly
+                        />
                     </div>
-                    </DropzoneTrigger>
-                </DropZoneArea>
-            </Dropzone>
+                    </div>
+                    <DialogFooter className="sm:justify-start">
+                    <DialogClose asChild>
+                        <Button type="button" variant="outline">
+                        Close
+                        </Button>
+                    </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     )
 }

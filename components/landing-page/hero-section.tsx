@@ -5,7 +5,7 @@ import type React from "react";
 import "@fontsource/inter";
 import { CoinbaseLogo, StripeLogo, YoutubeLogo } from "@/public/Images";
 import LogoDesktop from "@/public/Images/hero-image-streamfi.png";
-import { Button } from "@/components/ui/shadcn-button";
+import { Button } from "@/components/ui/Button";
 import Section from "@/components/layout/Section";
 
 const HeroSection: React.FC = () => {
@@ -38,9 +38,10 @@ const HeroSection: React.FC = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row justify-center lg:justify-start pt-4 space-y-4 sm:space-y-0 sm:space-x-3">
                   <Button
-                    className="bg-primary hover:bg-primary/60 duration-300 text-white px-[20px] py-[12px] rounded-lg font-medium w-full sm:w-auto text-base"
+                    className="bg-primary hover:bg-primary/60 duration-300 text-white px-[20px] py-[15px] rounded-lg font-medium w-full sm:w-auto text-base"
                     isLink
                     href="/explore"
+                    size={"lg"}
                   >
                     Explore Streams
                   </Button>
