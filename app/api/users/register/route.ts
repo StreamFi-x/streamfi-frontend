@@ -1,6 +1,5 @@
 
 import { NextResponse } from "next/server";
-import { rateLimit } from "../../../../utils/rate-limit";
 import {
   checkExistingTableDetail,
   validateEmail,
@@ -8,13 +7,8 @@ import {
 import { sql } from "@vercel/postgres";
 import { sendWelcomeRegistrationEmail } from "@/utils/send-email";
 
-// Rate limiter: 5 requests per minute
-const limiter = rateLimit({
-  interval: 60 * 1000,
-  
-});
 
-async function handler(req: Request, res: any) {
+async function handler(req: Request) {
   try {
     const tableCheck = await sql`
       SELECT table_name 
