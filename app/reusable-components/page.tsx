@@ -101,7 +101,7 @@ export default function ReusableComponents () {
                 onFileUploaded={(file: File) => {
                     console.log('Uploaded file: ', file);
                 }}
-                className="w-[100%] bg-primary text-white"
+                className="w-[100%] bg-[#16062b] text-white"
                 dropzoneOptions={{}}
                 fallbackText="S.U"
                 isPending={isUploading}
