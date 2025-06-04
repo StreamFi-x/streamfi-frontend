@@ -46,7 +46,7 @@ export async function PUT(
           typeof socialLinks === "string" ? JSON.parse(socialLinks) : socialLinks
         );
       } catch (err) {
-        console.error("Invalid socialLinks JSON");
+        console.error("Invalid socialLinks JSON" + err);
       }
     }
 
