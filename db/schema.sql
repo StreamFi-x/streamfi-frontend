@@ -22,6 +22,10 @@ CREATE TABLE users (
     avatar VARCHAR(255),
     bio TEXT,
     socialLinks JSONB,
+    notifications JSONB[],
+    categories TEXT[],
+    followers TEXT[],
+    following TEXT[],
 
     created_at TIMESTAMP
     WITH

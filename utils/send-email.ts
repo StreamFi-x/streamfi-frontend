@@ -1,9 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 import nodemailer from "nodemailer";
 import WelcomeUserEmail from "@/components/templates/WelcomeUserEmail";
 
-export async function sendWelcomeRegistrationEmail(email: any, name: any) {
+export async function sendWelcomeRegistrationEmail(
+  email: string,
+  name: string
+) {
   const transporter = nodemailer.createTransport({
     service: "Gmail",
     auth: {
@@ -15,7 +17,7 @@ export async function sendWelcomeRegistrationEmail(email: any, name: any) {
   const htmlContent = WelcomeUserEmail(name);
 
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: "process.env.EMAIL_USER",
     to: email,
     subject: "Welcome to Streamfi!",
     html: htmlContent,
@@ -28,6 +30,41 @@ export async function sendWelcomeRegistrationEmail(email: any, name: any) {
     throw error;
   }
 }
+
+export async function sendEmailVerificationToken(email: string, token: string) {
+
+  const transporter = nodemailer.createTransport({
+    service: "Gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+    dkim: {
+      domainName: process.env.EMAIL_DOMAIN || "https://streamfi.netlify.app",
+      keySelector: "default",
+      privateKey: process.env.DKIM_PRIVATE_KEY || "",
+    },
+  });
+
+  const mailOptions = {
+    from: {
+      name: "StreamFi", 
+      address: process.env.EMAIL_USER || "support@streamfi.xyz", 
+    },
+    to: email,
+    subject: "StreamFi Email Verification",
+    text: `Your verification token is: ${token}`,
+    html: `<p>Your verification token is: <strong>${token}</strong></p>`,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent:", info.response);
+  } catch (error) {
+    console.error("Error sending email:", error);
+  }
+}
+
 
 export async function sendWelcomeEmail(email: any, name: any) {
   // Create a more professional transporter with additional configuration
@@ -44,6 +81,8 @@ export async function sendWelcomeEmail(email: any, name: any) {
       privateKey: process.env.DKIM_PRIVATE_KEY || "",
     },
   });
+
+  
 
   // Cloudinary URLs
   const cloudName = "dwjnkuvqv";
@@ -159,17 +198,17 @@ export async function sendWelcomeEmail(email: any, name: any) {
 
   const mailOptions = {
     from: {
-      name: "StreamFi", // Shorter sender name is less spammy
-      address: process.env.EMAIL_USER || "support@streamfi.xyz", // Use a branded email address
+      name: "StreamFi", 
+      address: process.env.EMAIL_USER || "support@streamfi.xyz", 
     },
     to: email,
-    subject: "Your StreamFi Waitlist Confirmation", // Clear, concise subject
+    subject: "Your StreamFi Waitlist Confirmation", 
     html: emailTemplate,
     headers: {
       "Message-ID": `<${messageId}>`,
       "List-Unsubscribe": `<https://streamfi.xyz/unsubscribe?email=${encodeURIComponent(email)}&id=${messageId}>`,
-      Precedence: "bulk", // Can be removed for non-bulk emails
-      "X-Mailer": "StreamFi Mailer", // Could be more neutral
+      Precedence: "bulk", 
+      "X-Mailer": "StreamFi Mailer", 
       "X-Entity-Ref-ID": messageId,
       "Feedback-ID": `waitlist:streamfi:${messageId}`,
     },

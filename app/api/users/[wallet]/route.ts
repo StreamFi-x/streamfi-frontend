@@ -17,7 +17,7 @@ export async function GET(
 
     console.log("API: Query result rows:", result.rowCount);
 
-    const user = result.rows[0]; // grab first user (assuming unique wallet)
+    const user = result.rows[0]; 
 
     if (!user) {
       console.log("API: User not found for wallet:", params.wallet);
