@@ -22,13 +22,8 @@ export function middleware(request: NextRequest) {
     const isSessionValid = wallet && walletTimestamp && 
       (Date.now() - parseInt(walletTimestamp)) < SESSION_TIMEOUT;
 
-    if (!isSessionValid) {
-      // Clear invalid session cookies
-      const response = NextResponse.redirect(new URL("/explore", request.url));
-      response.cookies.delete("wallet");
-      response.cookies.delete("wallet_timestamp");
-      return response;
-    }
+    // For now, we're not redirecting
+    // Just pass through
   }
 
   return NextResponse.next();

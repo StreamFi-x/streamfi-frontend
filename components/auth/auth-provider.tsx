@@ -9,7 +9,7 @@ import {
   useCallback,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useAccount, useDisconnect } from "wagmi";
+import { useAccount, useDisconnect } from "@starknet-react/core";
 import SimpleLoader from "@/components/ui/loader/simple-loader";
 
 // Define user type
@@ -217,6 +217,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("wallet", address);
         sessionStorage.setItem("wallet", address);
 
+        // Set session cookies immediately
+        setSessionCookies(address);
+
         // Fetch user data and set session
         await fetchUserData(address);
       } else if (!isConnected && user) {
@@ -233,25 +236,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Protect routes
   useEffect(() => {
     const checkAuth = async () => {
-      if (PROTECTED_ROUTES.some(route => pathname.startsWith(route)) && !isInitializing) {
-        const walletAddress = address || localStorage.getItem("wallet") || sessionStorage.getItem("wallet");
+      const walletAddress = address || localStorage.getItem("wallet") || sessionStorage.getItem("wallet");
+      const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
+      const isExploreRoute = pathname === "/explore";
 
-        if (!walletAddress) {
-          // Not authenticated, redirect to explore
-          router.push("/explore");
-        } else if (!user && !isLoading) {
-          // Try to fetch user data
-          const userData = await fetchUserData(walletAddress);
-          if (!userData) {
-            // If user data fetch fails, redirect to explore
+      if (!isInitializing) {
+        if (isProtectedRoute) {
+          // For protected routes, only redirect if there's no wallet connection
+          if (!walletAddress) {
             router.push("/explore");
+          } else if (!user && !isLoading) {
+            // Try to fetch user data but don't redirect if it fails
+            await fetchUserData(walletAddress);
           }
+        } else if (isExploreRoute && walletAddress) {
+          // If user is connected and on explore page, redirect to settings
+          router.push("/settings");
         }
       }
     };
 
-    checkAuth();
-  }, [pathname, user, isInitializing]);
+    // Only run the check if we're not already loading
+    if (!isLoading) {
+      checkAuth();
+    }
+  }, [pathname, user, isInitializing, isLoading, address]);
 
   // Refresh session
   const refreshSession = useCallback(() => {
@@ -324,10 +333,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-      {/* Show loader for protected routes during initialization or loading */}
-      {(isInitializing || isLoading) && PROTECTED_ROUTES.some(route => pathname.startsWith(route)) && (
-        <SimpleLoader />
-      )}
+      {/* Only show loader during initial app load */}
+      {isInitializing && <SimpleLoader />}
     </AuthContext.Provider>
   );
 }
