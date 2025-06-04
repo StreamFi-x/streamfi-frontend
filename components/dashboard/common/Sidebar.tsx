@@ -3,7 +3,14 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Home, LinkIcon, Settings, CreditCard } from "lucide-react";
+import {
+  House,
+  LinkIcon,
+  Settings,
+  ChartColumnDecreasing,
+  ArrowLeftToLine,
+} from "lucide-react";
+import { LiaCoinsSolid } from "react-icons/lia";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -14,10 +21,10 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
 
   const navItems = [
-    { name: "Home", icon: <Home size={24} />, path: "/dashboard/home" },
+    { name: "Home", icon: <House size={24} />, path: "/dashboard/home" },
     {
       name: "Stream Manager",
-      icon: <MonitorIcon size={24} />,
+      icon: <ChartColumnDecreasing size={24} />,
       path: "/dashboard/stream-manager",
     },
     {
@@ -27,7 +34,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     },
     {
       name: "Payout",
-      icon: <CreditCard size={24} />,
+      icon: <LiaCoinsSolid size={24} />,
       path: "/dashboard/payout",
     },
     {
@@ -41,7 +48,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     <motion.aside
       className="bg-[#1A1A1A] border-r border-gray-800 flex flex-col"
       initial={false}
-      animate={{ width: isCollapsed ? "64px" : "220px" }}
+      animate={{ width: isCollapsed ? "64px" : "240px" }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
     >
       {/* Header */}
@@ -58,9 +65,9 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         )}
         <button
           onClick={onToggle}
-          className="p-2 rounded-md hover:bg-gray-800 transition-colors"
+          className="p-2 rounded-md  transition- focus-within:bg-transparent"
         >
-          <CollapseIcon direction={isCollapsed ? "right" : "left"} />
+          <ArrowLeftToLine className={` ${isCollapsed ? "rotate-180 " : ""}`} />
         </button>
       </div>
 
@@ -96,45 +103,5 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </ul>
       </nav>
     </motion.aside>
-  );
-}
-
-function MonitorIcon({ size = 24 }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="2" y="3" width="20" height="14" rx="2" />
-      <line x1="8" y1="21" x2="16" y2="21" />
-      <line x1="12" y1="17" x2="12" y2="21" />
-    </svg>
-  );
-}
-
-function CollapseIcon({ direction = "left", size = 20 }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {direction === "left" ? (
-        <path d="M15 18l-6-6 6-6" />
-      ) : (
-        <path d="M9 18l6-6-6-6" />
-      )}
-    </svg>
   );
 }
