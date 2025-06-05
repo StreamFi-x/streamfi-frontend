@@ -4,7 +4,6 @@ import type React from "react";
 
 import { useState, useEffect, useRef, JSX } from "react";
 import Image from "next/image";
-import closeIcon from "@/public/Images/cancel_button.png";
 import {
   Play,
   Pause,
@@ -19,6 +18,7 @@ import {
   ChevronRight,
   Edit3,
   Share2,
+  X,
 } from "lucide-react";
 import Button from "../ui/Button";
 import StreamInfoModal from "../dashboard/common/StreamInfoModal";
@@ -172,7 +172,7 @@ const TippingModal = ({
           onClick={onClose}
           aria-label="Close"
         >
-          <Image src={closeIcon} alt="close" width={20} height={20} />
+          <X className="w-5 h-5" />
         </button>
         <h2 className="text-2xl font-bold text-center mb-8">Tip to Creator</h2>
         <div className="mb-6 flex justify-center gap-8 items-center">
