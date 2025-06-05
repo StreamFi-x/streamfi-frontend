@@ -12,14 +12,11 @@ export default function ClientLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
   const [connectStep, setConnectStep] = useState<
     "profile" | "verify" | "success"
   >("profile");
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
-  const closeSidebar = () => setSidebarOpen(false);
 
   // const handleConnect = () => {
   //   setConnectModalOpen(true);
@@ -37,12 +34,14 @@ export default function ClientLayout({
   return (
     <main>
       <div className="flex  flex-col h-screen">
-        <Navbar toggleSidebar={toggleSidebar} />
+        <Navbar />
 
         <div className="flex flel flex- h-screen overflow-hidden">
-          <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
+          <Sidebar />
 
-          <main className="flex-1 overflow-y-auto">{children}</main>
+          <main className="flex-1 overflow-y-auto">{children}
+      
+          </main>
         </div>
       </div>
 
@@ -52,11 +51,9 @@ export default function ClientLayout({
             isOpen={connectModalOpen}
             currentStep={connectStep}
             onClose={handleCloseModal}
-            onNextStep={handleNextStep}
-            setIsProfileModalOpen={function (open: boolean): void {
+            onNextStep={handleNextStep} setIsProfileModalOpen={function (): void {
               throw new Error("Function not implemented.");
-            }}
-          />
+            } }          />
         )}
       </AnimatePresence>
     </main>
