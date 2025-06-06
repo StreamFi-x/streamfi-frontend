@@ -1,6 +1,6 @@
 "use client"
 import type React from "react"
-import { useState, Suspense } from "react"
+import { Suspense } from "react"
 import Loader from "@/components/ui/loader/loader"
 import SimpleLoader from "@/components/ui/loader/simple-loader"
 import Navbar from "@/components/explore/Navbar"
@@ -13,19 +13,14 @@ export default function SettingsLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen)
-  const closeSidebar = () => setSidebarOpen(false)
-
   return (
     <ProtectedRoute>
       <main>
         <div className="flex flex-col h-screen bg-black">
-          <Navbar toggleSidebar={toggleSidebar} />
+          <Navbar />
 
           <div className="flex justify-start h-screen overflow-hidden">
-            <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
+            <Sidebar />
 
             <div className="bg-black text-white pt-[2em] px-[1em] lg:px-[2em] w-full flex flex-col items-start">
               <div className="flex-none w-full">

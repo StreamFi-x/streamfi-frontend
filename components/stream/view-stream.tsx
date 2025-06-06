@@ -12,6 +12,7 @@ import {
   Play,
   Settings,
   Share2,
+  X,
   Twitter,
   Users,
   Volume2,
@@ -124,6 +125,109 @@ const mockChatMessages = [
   },
 ];
 
+// TippingModal component
+const TIPPING_CURRENCIES = [
+  { label: 'ETH', value: 'ETH' },
+  { label: 'STRK', value: 'STRK' },
+  { label: 'STRM', value: 'STRM' },
+  { label: 'USDC', value: 'USDC' },
+];
+
+function formatAddress(address: string) {
+  if (!address) return '';
+  return address.slice(0, 5) + '....' + address.slice(-5);
+}
+
+const TippingModal = ({
+  isOpen,
+  onClose,
+  creatorAddress,
+  username,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  creatorAddress: string;
+  username: string;
+}) => {
+  const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState('STRK');
+  // Mock USD value for now
+  const usdValue = amount && !isNaN(Number(amount)) ? (0).toFixed(2) : '0';
+
+  const handleQuickSelect = (val: number) => {
+    setAmount(val.toString());
+  };
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only allow numbers and decimals
+    const val = e.target.value;
+    if (/^\d*\.?\d*$/.test(val)) setAmount(val);
+  };
+
+  return isOpen ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+      <div className="bg-[#1D2027] rounded-2xl p-8 max-w-md w-full relative text-white shadow-lg">
+        {/* Close button */}
+        <button
+          className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-[#35363C] hover:bg-[#44454B] text-2xl text-white/80"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        <h2 className="text-2xl font-bold text-center mb-8">Tip to Creator</h2>
+        <div className="mb-6 flex justify-center gap-8 items-center">
+          <span className="text-gray-400 text-sm mb-1">Starknet address:</span>
+          <span className="bg-[#18191C] px-4 py-2 rounded-lg font-mono text-base tracking-wider select-all">
+            {formatAddress(creatorAddress)}
+          </span>
+        </div>
+        <div className="mb-2 flex items-center justify-between">
+          <label className="text-white text-base font-medium">Amount:</label>
+          <span className="text-white text-base font-medium">{usdValue} <span className="text-gray-400 text-sm">USD</span></span>
+        </div>
+        <div className="flex items-center mb-4">
+          <input
+            type="text"
+            inputMode="decimal"
+            value={amount}
+            onChange={handleAmountChange}
+            placeholder="Enter amount"
+            className="flex-1 bg-[#18191C] text-white rounded-l-lg px-4 py-3 text-base focus:outline-none border border-[#35363C] border-r-0"
+          />
+          <select
+            value={currency}
+            onChange={e => setCurrency(e.target.value)}
+            className="bg-[#18191C] text-white rounded-r-lg px-4 py-3 text-base border border-[#35363C] border-l-0 focus:outline-none"
+          >
+            {TIPPING_CURRENCIES.map(c => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex gap-3 mb-6">
+          {[1, 5, 10, 50, 100].map(val => (
+            <button
+              key={val}
+              type="button"
+              className={`px-5 py-2 rounded-full border border-[#35363C] text-white text-base font-medium transition-colors ${amount === val.toString() ? 'bg-[#35363C]' : 'bg-transparent hover:bg-[#2D2F31]'}`}
+              onClick={() => handleQuickSelect(val)}
+            >
+              {val}
+            </button>
+          ))}
+        </div>
+        <button
+          className="w-full py-4 rounded-xl text-lg font-semibold mt-2 transition-colors bg-[#5A189A] text-white disabled:bg-[#2D2F31] disabled:text-gray-400"
+          disabled={!amount || isNaN(Number(amount)) || Number(amount) <= 0}
+        >
+          Tip Creator
+        </button>
+      </div>
+    </div>
+  ) : null;
+};
+
 const ViewStream = ({
   username,
   isLive: initialIsLive,
@@ -144,6 +248,7 @@ const ViewStream = ({
   const [showControls, setShowControls] = useState(false);
   const [videoQuality, setVideoQuality] = useState("720p");
   const [showQualityOptions, setShowQualityOptions] = useState(false);
+  const [showTipModal, setShowTipModal] = useState(false);
 
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
@@ -492,6 +597,8 @@ const ViewStream = ({
                           <Button
                             onClick={() => setShowStreamInfoModal(true)}
                             variant="outline"
+                            className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-gray-600"
+                            onClick={() => setShowTipModal(true)}
                             className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-none"
                           >
                             <Edit3 className="h-4 w-4 mr-2" />
@@ -635,6 +742,32 @@ const ViewStream = ({
           />
         )}
       </div>
+
+      {/* Stream Info Modal */}
+      {showStreamInfoModal && (
+        <StreamInfoModal
+          initialData={{
+            title: streamData.title,
+            description: streamData.bio,
+            category: "Gaming",
+            tags: streamData.tags,
+            thumbnail: streamData.thumbnailUrl,
+          }}
+          onClose={() => setShowStreamInfoModal(false)}
+          onSave={handleSaveStreamInfo}
+        />
+      )}
+
+      {/* Tipping Modal */}
+      {showTipModal && (
+        <TippingModal
+          isOpen={showTipModal}
+          onClose={() => setShowTipModal(false)}
+          creatorAddress={streamData.starknetAddress || '0x5sddf6c7df6c7df6c7df6c7df6c7df6c7df6c7df6c'}
+          username={username}
+        />
+      )}
+    </div>
     </DashboardScreenGuard>
   );
 };

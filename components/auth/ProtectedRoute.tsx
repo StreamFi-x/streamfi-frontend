@@ -12,24 +12,29 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter();
   const { isConnected, address } = useAccount();
   const [isLoading, setIsLoading] = useState(true);
+  const [hasChecked, setHasChecked] = useState(false);
 
   useEffect(() => {
     const checkWallet = async () => {
       console.log("[ProtectedRoute] Checking wallet:", { isConnected, address });
       
-      if (!isConnected || !address) {
+      // Only redirect if we've checked and there's no connection
+      if (hasChecked && (!isConnected || !address)) {
         console.log("[ProtectedRoute] No wallet connection, redirecting to explore");
         router.replace("/explore");
-      } else {
+      } else if (isConnected && address) {
         console.log("[ProtectedRoute] Wallet connected, allowing access");
         setIsLoading(false);
       }
+      
+      setHasChecked(true);
     };
 
     checkWallet();
-  }, [isConnected, address, router]);
+  }, [isConnected, address, router, hasChecked]);
 
-  if (isLoading) {
+  // Show loading state while checking connection
+  if (isLoading || !hasChecked) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
@@ -38,6 +43,11 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         </div>
       </div>
     );
+  }
+
+  // Only render children if wallet is connected
+  if (!isConnected || !address) {
+    return null;
   }
 
   return <>{children}</>;
