@@ -40,35 +40,28 @@ export default function ProfileSettings() {
   const { user, isLoading, updateUserProfile } = useAuth();
   const router = useRouter();
 
-  // Only redirect if we're sure there's no wallet connection
-  useEffect(() => {
-    if (!isLoading) {
-      const walletAddress = localStorage.getItem("wallet") || sessionStorage.getItem("wallet");
-      if (!walletAddress) {
-        router.replace("/explore");
-      }
-    }
-  }, [isLoading, router]);
-
-  // Show loading state while checking wallet connection
+  
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl mb-4">Loading...</h2>
-          <p className="text-gray-400">Please wait while we check your wallet connection.</p>
+          <p className="text-gray-400">Please wait while we load your profile.</p>
         </div>
       </div>
     );
   }
 
-  // If no user but we have a wallet, show empty state
+
   if (!user) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl mb-4">Loading Profile...</h2>
-          <p className="text-gray-400">Please wait while we load your profile data.</p>
+      <div className="min-h-screen bg-black text-white">
+        <div className="mx-auto max-w-8xl p-8">
+          <div className="bg-[#1a1a1a] rounded-lg p-4 mb-6">
+            <h2 className="text-xl mb-4">Profile Settings</h2>
+            <p className="text-gray-400">Your wallet is connected. Set up your profile to get started.</p>
+          </div>
+          {/* Add your profile setup form here */}
         </div>
       </div>
     );
@@ -76,13 +69,13 @@ export default function ProfileSettings() {
 
   const avatarOptions = [Avatar, Avatar, Avatar, Avatar, Avatar];
 
-  // Main state
+
   const [avatar, setAvatar] = useState<StaticImageData | string>(profileImage);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [usedPlatforms, setUsedPlatforms] = useState<Platform[]>([]);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
 
-  // Form state
+  
   const [formState, setFormState] = useState<FormState>({
     username: "",
     email: "",
@@ -124,28 +117,27 @@ export default function ProfileSettings() {
     "Japanese",
   ];
 
-  // Update form field
+  
   const updateFormField = (field: keyof FormState, value: string) => {
     setFormState((prev) => ({ ...prev, [field]: value }));
 
-    // Clear duplicate error when URL changes
+   
     if (field === "socialLinkUrl") {
       setUiState((prev) => ({ ...prev, duplicateUrlError: false }));
     }
   };
 
-  // Update UI state
   const updateUiState = (updates: Partial<UIState>) => {
     setUiState((prev) => ({ ...prev, ...updates }));
   };
 
-  // Update used platforms when social links change
+ 
   useEffect(() => {
     const platforms = socialLinks.map((link) => link.platform);
     setUsedPlatforms(platforms);
   }, [socialLinks]);
 
-  // Load user data when available
+
   useEffect(() => {
     if (user) {
       setFormState((prev) => ({
@@ -162,25 +154,21 @@ export default function ProfileSettings() {
     }
   }, [user]);
 
-  // Fix the focusedInput reference error by using uiState.focusedInput instead
   const getInputStyle = (inputName: string) => {
     return `w-full bg-[#2a2a2a] rounded-lg px-4 py-3 text-white text-sm outline-none 
            ${uiState.focusedInput === inputName ? "border border-purple-600" : "border border-transparent"} 
            transition-all duration-200`;
   };
 
-  // Generate a default title based on platform and existing links
   const generateDefaultTitle = useCallback(
     (platform: Platform): string => {
-      // Count existing links with the same platform
+  
       const existingCount = socialLinks.filter(
         (link) => link.platform === platform
       ).length;
 
-      // Capitalize the first letter of platform name
       const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
 
-      // If there are existing links with this platform, add a number
       return existingCount > 0
         ? `${platformName} ${existingCount + 1}`
         : platformName;
@@ -270,7 +258,7 @@ export default function ProfileSettings() {
     const { socialLinkUrl, socialLinkTitle } = formState;
 
     if (socialLinkUrl && socialLinks.length < 5) {
-      // Check for duplicate URL
+   
       if (isDuplicateUrl(socialLinkUrl)) {
         updateUiState({ duplicateUrlError: true });
         return;
@@ -347,7 +335,7 @@ export default function ProfileSettings() {
     newLinks[editingIndex] = { ...newLinks[editingIndex], isEditing: false };
     setSocialLinks(newLinks);
 
-    // Reset edit state
+  
     setEditState({
       editingLink: "",
       editingTitle: "",
