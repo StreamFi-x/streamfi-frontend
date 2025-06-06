@@ -17,6 +17,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import profileImage from "@/public/Images/profile.png";
+import SimpleLoader from "@/components/ui/loader/simple-loader";
 import Avatar from "@/public/icons/avatar.svg";
 import InstagramIcon from "@/public/Images/instagram.svg";
 import TwitterIcon from "@/public/Images/twitter.svg";
@@ -36,18 +37,45 @@ import {
 } from "@/types/settings/profile";
 
 export default function ProfileSettings() {
-  const { user, updateUserProfile } = useAuth();
-
+  const { user, isLoading, updateUserProfile } = useAuth();
   const router = useRouter();
+
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl mb-4">Loading...</h2>
+          <p className="text-gray-400">Please wait while we load your profile.</p>
+        </div>
+      </div>
+    );
+  }
+
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-black text-white">
+        <div className="mx-auto max-w-8xl p-8">
+          <div className="bg-[#1a1a1a] rounded-lg p-4 mb-6">
+            <h2 className="text-xl mb-4">Profile Settings</h2>
+            <p className="text-gray-400">Your wallet is connected. Set up your profile to get started.</p>
+          </div>
+          {/* Add your profile setup form here */}
+        </div>
+      </div>
+    );
+  }
+
   const avatarOptions = [Avatar, Avatar, Avatar, Avatar, Avatar];
 
-  // Main state
-  const [avatar, setAvatar] = useState<StaticImageData | string>(profileImage); // Update type to string | StaticImageData
+
+  const [avatar, setAvatar] = useState<StaticImageData | string>(profileImage);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [usedPlatforms, setUsedPlatforms] = useState<Platform[]>([]);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
 
-  // Form state
+  
   const [formState, setFormState] = useState<FormState>({
     username: "",
     email: "",
@@ -89,28 +117,27 @@ export default function ProfileSettings() {
     "Japanese",
   ];
 
-  // Update form field
+  
   const updateFormField = (field: keyof FormState, value: string) => {
     setFormState((prev) => ({ ...prev, [field]: value }));
 
-    // Clear duplicate error when URL changes
+   
     if (field === "socialLinkUrl") {
       setUiState((prev) => ({ ...prev, duplicateUrlError: false }));
     }
   };
 
-  // Update UI state
   const updateUiState = (updates: Partial<UIState>) => {
     setUiState((prev) => ({ ...prev, ...updates }));
   };
 
-  // Update used platforms when social links change
+ 
   useEffect(() => {
     const platforms = socialLinks.map((link) => link.platform);
     setUsedPlatforms(platforms);
   }, [socialLinks]);
 
-  // Load user data when available
+
   useEffect(() => {
     if (user) {
       setFormState((prev) => ({
@@ -127,25 +154,21 @@ export default function ProfileSettings() {
     }
   }, [user]);
 
-  // Fix the focusedInput reference error by using uiState.focusedInput instead
   const getInputStyle = (inputName: string) => {
     return `w-full bg-[#2a2a2a] rounded-lg px-4 py-3 text-white text-sm outline-none 
            ${uiState.focusedInput === inputName ? "border border-purple-600" : "border border-transparent"} 
            transition-all duration-200`;
   };
 
-  // Generate a default title based on platform and existing links
   const generateDefaultTitle = useCallback(
     (platform: Platform): string => {
-      // Count existing links with the same platform
+  
       const existingCount = socialLinks.filter(
         (link) => link.platform === platform
       ).length;
 
-      // Capitalize the first letter of platform name
       const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
 
-      // If there are existing links with this platform, add a number
       return existingCount > 0
         ? `${platformName} ${existingCount + 1}`
         : platformName;
@@ -155,68 +178,68 @@ export default function ProfileSettings() {
 
   const validateAndIdentifyLink = useCallback(
     (url: string, title: string): SocialLink | null => {
-      const urlRegex =
-        /^(https?:\/\/)?(www\.)?([a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+)(\/[^\s]*)?$/;
+    const urlRegex =
+      /^(https?:\/\/)?(www\.)?([a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+)(\/[^\s]*)?$/;
 
-      if (!urlRegex.test(url)) {
-        return null;
-      }
+    if (!urlRegex.test(url)) {
+      return null;
+    }
 
-      const domainMatch = url.match(
-        /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z0-9-]+)/
-      );
-      const domain = domainMatch ? domainMatch[1].toLowerCase() : "";
+    const domainMatch = url.match(
+      /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z0-9-]+)/
+    );
+    const domain = domainMatch ? domainMatch[1].toLowerCase() : "";
 
-      if (domain.includes("instagram")) {
+    if (domain.includes("instagram")) {
         const platform = "instagram";
         return {
           url,
           title: title || generateDefaultTitle(platform),
           platform,
         };
-      } else if (domain.includes("twitter") || domain.includes("x.com")) {
+    } else if (domain.includes("twitter") || domain.includes("x.com")) {
         const platform = "twitter";
         return {
           url,
           title: title || generateDefaultTitle(platform),
           platform,
         };
-      } else if (domain.includes("facebook") || domain.includes("fb.com")) {
+    } else if (domain.includes("facebook") || domain.includes("fb.com")) {
         const platform = "facebook";
         return {
           url,
           title: title || generateDefaultTitle(platform),
           platform,
         };
-      } else if (domain.includes("youtube") || domain.includes("youtu.be")) {
+    } else if (domain.includes("youtube") || domain.includes("youtu.be")) {
         const platform = "youtube";
         return {
           url,
           title: title || generateDefaultTitle(platform),
           platform,
         };
-      } else if (domain.includes("telegram") || domain.includes("t.me")) {
+    } else if (domain.includes("telegram") || domain.includes("t.me")) {
         const platform = "telegram";
         return {
           url,
           title: title || generateDefaultTitle(platform),
           platform,
         };
-      } else if (domain.includes("discord")) {
+    } else if (domain.includes("discord")) {
         const platform = "discord";
         return {
           url,
           title: title || generateDefaultTitle(platform),
           platform,
         };
-      } else if (domain.includes("tiktok")) {
+    } else if (domain.includes("tiktok")) {
         const platform = "tiktok";
         return {
           url,
           title: title || generateDefaultTitle(platform),
           platform,
         };
-      } else {
+    } else {
         return { url, title: title || "Other", platform: "other" };
       }
     },
@@ -235,7 +258,7 @@ export default function ProfileSettings() {
     const { socialLinkUrl, socialLinkTitle } = formState;
 
     if (socialLinkUrl && socialLinks.length < 5) {
-      // Check for duplicate URL
+   
       if (isDuplicateUrl(socialLinkUrl)) {
         updateUiState({ duplicateUrlError: true });
         return;
@@ -312,7 +335,7 @@ export default function ProfileSettings() {
     newLinks[editingIndex] = { ...newLinks[editingIndex], isEditing: false };
     setSocialLinks(newLinks);
 
-    // Reset edit state
+  
     setEditState({
       editingLink: "",
       editingTitle: "",
@@ -477,10 +500,6 @@ export default function ProfileSettings() {
     return "other";
   };
 
-  // if (isLoading) {
-  //   return <SimpleLoader />;
-  // }
-
   return (
     <div className="min-h-screen bg-black text-white pb-8">
       <div className="mx-auto max-w-8xl">
@@ -570,8 +589,8 @@ export default function ProfileSettings() {
           <h2 className="text-white text-xl font-medium mb-1">Social Links</h2>
           <div className="flex flex-wrap items-center gap-2 mb-6">
             <p className="text-gray-400 text-sm">
-              Add up to 5 social media links to showcase your online presence.
-            </p>
+            Add up to 5 social media links to showcase your online presence.
+          </p>
             <div className="flex items-center gap-2 flex-wrap">
               <Instagram className="w-3 h-3 md:w-4 md:h-4" />
               <Facebook className="w-3 h-3 md:w-4 md:h-4" />
@@ -642,8 +661,8 @@ export default function ProfileSettings() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+                </div>
               </div>
-            </div>
 
             {/* Error message for duplicate URL */}
             <AnimatePresence>
@@ -677,28 +696,28 @@ export default function ProfileSettings() {
 
           {/* Display social links */}
           <AnimatePresence>
-            {socialLinks.length > 0 && (
+          {socialLinks.length > 0 && (
               <motion.div
                 className="space-y-2 mt-4"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
               >
-                {socialLinks.map((link, index) => (
+              {socialLinks.map((link, index) => (
                   <motion.div
-                    key={index}
+                  key={index}
                     className="flex bg-[#1e1e1e] rounded text-sm"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                     transition={{ duration: 0.2, delay: index * 0.05 }}
                     layout
-                  >
-                    {link.isEditing ? (
+                >
+                  {link.isEditing ? (
                       <div className="p-3">
-                        <div className="flex-grow mr-2">
-                          <input
-                            type="text"
+                      <div className="flex-grow mr-2">
+                        <input
+                          type="text"
                             value={editState.editingTitle}
                             onChange={(e) =>
                               setEditState((prev) => ({
@@ -710,17 +729,17 @@ export default function ProfileSettings() {
                               updateUiState({ focusedInput: "editingTitle" })
                             }
                             onBlur={() => updateUiState({ focusedInput: null })}
-                            className={`${getInputStyle("editingTitle")} w-full rounded px-3 py-1 text-white text-sm mb-2`}
-                            style={{
-                              outlineWidth: 0,
-                              boxShadow: "none",
-                              background: "#333",
-                            }}
-                            placeholder="Link Title"
-                            autoFocus
-                          />
-                          <input
-                            type="text"
+                          className={`${getInputStyle("editingTitle")} w-full rounded px-3 py-1 text-white text-sm mb-2`}
+                          style={{
+                            outlineWidth: 0,
+                            boxShadow: "none",
+                            background: "#333",
+                          }}
+                          placeholder="Link Title"
+                          autoFocus
+                        />
+                        <input
+                          type="text"
                             value={editState.editingLink}
                             onChange={(e) =>
                               setEditState((prev) => ({
@@ -736,13 +755,13 @@ export default function ProfileSettings() {
                             }
                             onBlur={() => updateUiState({ focusedInput: null })}
                             className={`${getInputStyle("editingLink")} w-full rounded px-3 py-1 text-white text-sm ${uiState.duplicateUrlError ? "border-red-500" : ""}`}
-                            style={{
-                              outlineWidth: 0,
-                              boxShadow: "none",
-                              background: "#333",
-                            }}
-                            placeholder="Link URL"
-                          />
+                          style={{
+                            outlineWidth: 0,
+                            boxShadow: "none",
+                            background: "#333",
+                          }}
+                          placeholder="Link URL"
+                        />
 
                           {/* Error message for duplicate URL */}
                           <AnimatePresence>
@@ -758,31 +777,31 @@ export default function ProfileSettings() {
                               </motion.p>
                             )}
                           </AnimatePresence>
-                        </div>
+                      </div>
                         <div className="flex items-center justify-end mt-2">
                           <motion.button
                             onClick={handleUpdateLink}
-                            className="p-1 text-green-500 hover:text-green-400"
+                          className="p-1 text-green-500 hover:text-green-400"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                          >
-                            <Check size={18} />
+                        >
+                          <Check size={18} />
                           </motion.button>
                           <motion.button
                             onClick={handleCancelEdit}
-                            className="p-1 text-red-500 hover:text-red-400 ml-1"
+                          className="p-1 text-red-500 hover:text-red-400 ml-1"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                          >
-                            <X size={18} />
+                        >
+                          <X size={18} />
                           </motion.button>
-                        </div>
                       </div>
-                    ) : (
+                      </div>
+                  ) : (
                       <div className="flex w-full">
                         <div className="flex-none p-3 flex items-center justify-center">
-                          {getSocialIcon(link.platform)}
-                        </div>
+                        {getSocialIcon(link.platform)}
+                      </div>
                         <div className="flex-1 p-3 border-l border-[#2a2a2a] w-full">
                           <div className="flex flex-col justify-start">
                             <span className="font-medium">{link.title}</span>
@@ -793,28 +812,28 @@ export default function ProfileSettings() {
                         </div>
                         <div className="flex items-center justify-end px-3">
                           <motion.button
-                            onClick={() => handleEditLink(index)}
-                            className="p-1 text-gray-400 hover:text-white"
+                          onClick={() => handleEditLink(index)}
+                          className="p-1 text-gray-400 hover:text-white"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                          >
-                            <Edit2 size={16} />
+                        >
+                          <Edit2 size={16} />
                           </motion.button>
                           <motion.button
-                            onClick={() => handleDeleteLink(index)}
-                            className="p-1 text-gray-400 hover:text-red-500 ml-1"
+                          onClick={() => handleDeleteLink(index)}
+                          className="p-1 text-gray-400 hover:text-red-500 ml-1"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                          >
-                            <Trash2 size={16} />
+                        >
+                          <Trash2 size={16} />
                           </motion.button>
-                        </div>
                       </div>
+                </div>
                     )}
                   </motion.div>
-                ))}
+              ))}
               </motion.div>
-            )}
+          )}
           </AnimatePresence>
         </motion.div>
 
@@ -883,7 +902,7 @@ export default function ProfileSettings() {
             {uiState.isSaving ? "Saving..." : "Save Changes"}
           </motion.button>
         </motion.div>
-      </div>
+        </div>
 
       {/* Modals */}
       <AnimatePresence>
@@ -894,12 +913,12 @@ export default function ProfileSettings() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <AvatarSelectionModal
-              currentAvatar={avatar}
+        <AvatarSelectionModal
+          currentAvatar={avatar}
               onClose={() => updateUiState({ showAvatarModal: false })}
-              onSaveAvatar={handleSaveAvatar}
-              avatarOptions={avatarOptions}
-            />
+          onSaveAvatar={handleSaveAvatar}
+          avatarOptions={avatarOptions}
+        />
           </motion.div>
         )}
       </AnimatePresence>
@@ -912,13 +931,13 @@ export default function ProfileSettings() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <VerificationPopup
+        <VerificationPopup
               email={formState.email}
               onClose={() => updateUiState({ showVerificationPopup: false })}
-              onVerify={handleVerificationComplete}
-            />
+          onVerify={handleVerificationComplete}
+        />
           </motion.div>
-        )}
+      )}
       </AnimatePresence>
 
       {/* Language Modal */}
@@ -938,57 +957,57 @@ export default function ProfileSettings() {
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-purple-500 text-xl font-medium">
-                  Select Language
-                </h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-purple-500 text-xl font-medium">
+                Select Language
+              </h2>
                 <motion.button
                   onClick={() => updateUiState({ showLanguageModal: false })}
-                  className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-white"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                >
-                  <X size={24} />
+              >
+                <X size={24} />
                 </motion.button>
-              </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto">
                 {languages.map((lang, index) => (
                   <motion.div
-                    key={lang}
-                    onClick={() => handleLanguageSelect(lang)}
-                    className={`flex items-center gap-3 p-3 rounded-md cursor-pointer ${
+                  key={lang}
+                  onClick={() => handleLanguageSelect(lang)}
+                  className={`flex items-center gap-3 p-3 rounded-md cursor-pointer ${
                       formState.language === lang
-                        ? "bg-purple-900 bg-opacity-50"
-                        : "bg-[#2a2a2a] hover:bg-[#333]"
-                    }`}
+                      ? "bg-purple-900 bg-opacity-50"
+                      : "bg-[#2a2a2a] hover:bg-[#333]"
+                  }`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2, delay: index * 0.03 }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                  >
-                    <span className="text-sm">{lang}</span>
+                >
+                  <span className="text-sm">{lang}</span>
                     {formState.language === lang && (
-                      <div className="ml-auto w-2 h-2 rounded-full bg-purple-500"></div>
-                    )}
+                    <div className="ml-auto w-2 h-2 rounded-full bg-purple-500"></div>
+                  )}
                   </motion.div>
-                ))}
-              </div>
+              ))}
+            </div>
 
-              <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex justify-end">
                 <motion.button
                   onClick={() => updateUiState({ showLanguageModal: false })}
-                  className="bg-purple-700 hover:bg-purple-800 text-white px-6 py-2 rounded-md transition text-sm"
+                className="bg-purple-700 hover:bg-purple-800 text-white px-6 py-2 rounded-md transition text-sm"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                >
-                  Close
+              >
+                Close
                 </motion.button>
-              </div>
+            </div>
             </motion.div>
           </motion.div>
-        )}
+      )}
       </AnimatePresence>
     </div>
   );

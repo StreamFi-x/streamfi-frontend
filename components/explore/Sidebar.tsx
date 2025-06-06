@@ -12,7 +12,12 @@ import Image from "next/image";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import QuickActions from "./quick-actions";
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
