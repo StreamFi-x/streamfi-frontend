@@ -1,57 +1,111 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
+"use client";
 
-import { cn } from "@/lib/utils"
+import type { ReactNode } from "react";
+import Link from "next/link";
+import { twMerge } from "tailwind-merge";
+import { Loader2 } from "lucide-react";
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-  {
-    variants: {
-      variant: {
-        default:
-          "bg-primary text-primary-foreground shadow hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
-        outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
-        secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-10 rounded-md px-8",
-        icon: "h-9 w-9",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
-
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean
+interface ButtonProps {
+  className?: string;
+  children: ReactNode;
+  onClick?: () => void;
+  href?: string;
+  isLink?: boolean;
+  disabled?: boolean;
+  loading?: boolean;
+  type?: "button" | "submit" | "reset";
+  variant?: "default" | "outline" | "ghost" | "link" | "destructive";
+  size?: "sm" | "md" | "lg";
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
-    return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Button.displayName = "Button"
+export const Button = ({
+  className,
+  children,
+  onClick,
+  href,
+  isLink,
+  disabled,
+  loading = false,
+  type = "button",
+  variant = "default",
+  size = "md",
+}: ButtonProps) => {
+  // Base button styles
+  const baseStyles =
+    "font-medium rounded-md text-base transition-all px-[20px] py-[12px] duration-300 flex items-center justify-center";
 
-export { Button, buttonVariants }
+  const variantStyles = {
+    default:
+      "bg-primary text-white hover:bg-purple-700 focus:ring-2 py-3 px-5  focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black",
+    outline:
+      "bg-transparent border border-purple-600 text-purple-600 hover:bg-purple-600/10 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black",
+    ghost:
+      "bg-transparent text-white hover:bg-white/10 focus:ring-2 focus:ring-white/20",
+    link: "bg-transparent text-purple-600 hover:underline  h-auto",
+    destructive:
+      "bg-red-600 text-white hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-black",
+  };
+
+  // Size styles
+  const sizeStyles = {
+    sm: "text-xs px-3 py-1.5",
+    md: "text-sm px-4 py-2",
+    lg: "text-base px-6 py-3",
+  };
+
+  const stateStyles = {
+    disabled: "opacity-60 cursor-not-allowed",
+    loading: "cursor-wait",
+  };
+
+  // Combine all styles
+  const buttonClass = twMerge(
+    baseStyles,
+    variantStyles[variant],
+    sizeStyles[size],
+    disabled || loading ? stateStyles.disabled : "",
+    loading ? stateStyles.loading : "",
+    className
+  );
+
+  // Button content with loading indicator
+  const buttonContent = (
+    <>
+      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {children}
+    </>
+  );
+
+  // Return link button if isLink is true and href is provided
+  if (isLink && href) {
+    return (
+      <Link
+        href={href}
+        className={disabled || loading ? "pointer-events-none" : ""}
+      >
+        <button
+          type={type}
+          disabled={disabled || loading}
+          className={buttonClass}
+          onClick={onClick}
+        >
+          {buttonContent}
+        </button>
+      </Link>
+    );
+  }
+
+  // Return regular button
+  return (
+    <button
+      type={type}
+      disabled={disabled || loading}
+      className={buttonClass}
+      onClick={onClick}
+    >
+      {buttonContent}
+    </button>
+  );
+};
+
+export default Button;

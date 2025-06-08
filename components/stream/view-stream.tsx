@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import type React from "react";
-
+import { mockChatMessages } from "@/data/dashboard";
 import {
   ChevronRight,
   Edit3,
@@ -65,77 +66,18 @@ const fetchStreamData = async (username: string) => {
 };
 
 // Mock chat messages
-const mockChatMessages = [
-  {
-    id: 1,
-    username: "Wagner",
-    message: "First viewer joining in today",
-    color: "#9333ea",
-  },
-  { id: 2, username: "Wolf", message: "Wait crates ?", color: "#10b981" },
-  {
-    id: 3,
-    username: "Wagner",
-    message: "First viewer joining in today",
-    color: "#9333ea",
-  },
-  { id: 4, username: "Cleo", message: "Nyo in epi biko", color: "#f59e0b" },
-  { id: 5, username: "Cleo", message: "Nyo in epi biko", color: "#f59e0b" },
-  {
-    id: 6,
-    username: "Spencer Smith",
-    message: "what game are we streaming today ?",
-    color: "#ef4444",
-  },
-  {
-    id: 7,
-    username: "Wagner",
-    message: "First viewer joining in today",
-    color: "#9333ea",
-  },
-  {
-    id: 8,
-    username: "Hack",
-    message: "Send Funds here: 0x0d7f7a8d9a7f8d9a7f8d9a7f8d9a7f8d9a7f8d9a",
-    color: "#3b82f6",
-  },
-  {
-    id: 9,
-    username: "Spencer Smith",
-    message: "what game are we streaming today ?",
-    color: "#ef4444",
-  },
-  {
-    id: 10,
-    username: "Spencer Smith",
-    message: "what game are we streaming today ?",
-    color: "#ef4444",
-  },
-  {
-    id: 11,
-    username: "Spencer Smith",
-    message: "what game are we streaming today ?",
-    color: "#ef4444",
-  },
-  {
-    id: 12,
-    username: "Wagner",
-    message: "First viewer joining in today",
-    color: "#9333ea",
-  },
-];
 
 // TippingModal component
 const TIPPING_CURRENCIES = [
-  { label: 'ETH', value: 'ETH' },
-  { label: 'STRK', value: 'STRK' },
-  { label: 'STRM', value: 'STRM' },
-  { label: 'USDC', value: 'USDC' },
+  { label: "ETH", value: "ETH" },
+  { label: "STRK", value: "STRK" },
+  { label: "STRM", value: "STRM" },
+  { label: "USDC", value: "USDC" },
 ];
 
 function formatAddress(address: string) {
-  if (!address) return '';
-  return address.slice(0, 5) + '....' + address.slice(-5);
+  if (!address) return "";
+  return address.slice(0, 5) + "...." + address.slice(-5);
 }
 
 const TippingModal = ({
@@ -149,10 +91,10 @@ const TippingModal = ({
   creatorAddress: string;
   username: string;
 }) => {
-  const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState('STRK');
+  const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("STRK");
   // Mock USD value for now
-  const usdValue = amount && !isNaN(Number(amount)) ? (0).toFixed(2) : '0';
+  const usdValue = amount && !isNaN(Number(amount)) ? (0).toFixed(2) : "0";
 
   const handleQuickSelect = (val: number) => {
     setAmount(val.toString());
@@ -184,7 +126,9 @@ const TippingModal = ({
         </div>
         <div className="mb-2 flex items-center justify-between">
           <label className="text-white text-base font-medium">Amount:</label>
-          <span className="text-white text-base font-medium">{usdValue} <span className="text-gray-400 text-sm">USD</span></span>
+          <span className="text-white text-base font-medium">
+            {usdValue} <span className="text-gray-400 text-sm">USD</span>
+          </span>
         </div>
         <div className="flex items-center mb-4">
           <input
@@ -197,20 +141,22 @@ const TippingModal = ({
           />
           <select
             value={currency}
-            onChange={e => setCurrency(e.target.value)}
+            onChange={(e) => setCurrency(e.target.value)}
             className="bg-[#18191C] text-white rounded-r-lg px-4 py-3 text-base border border-[#35363C] border-l-0 focus:outline-none"
           >
-            {TIPPING_CURRENCIES.map(c => (
-              <option key={c.value} value={c.value}>{c.label}</option>
+            {TIPPING_CURRENCIES.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
             ))}
           </select>
         </div>
         <div className="flex gap-3 mb-6">
-          {[1, 5, 10, 50, 100].map(val => (
+          {[1, 5, 10, 50, 100].map((val) => (
             <button
               key={val}
               type="button"
-              className={`px-5 py-2 rounded-full border border-[#35363C] text-white text-base font-medium transition-colors ${amount === val.toString() ? 'bg-[#35363C]' : 'bg-transparent hover:bg-[#2D2F31]'}`}
+              className={`px-5 py-2 rounded-full border border-[#35363C] text-white text-base font-medium transition-colors ${amount === val.toString() ? "bg-[#35363C]" : "bg-transparent hover:bg-[#2D2F31]"}`}
               onClick={() => handleQuickSelect(val)}
             >
               {val}
@@ -595,9 +541,8 @@ const ViewStream = ({
                       <div className="flex items-center space-x-2">
                         {isOwner ? (
                           <Button
-                            onClick={() => setShowStreamInfoModal(true)}
+                            // onClick={() => setShowStreamInfoModal(true)}
                             variant="outline"
-                            className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-gray-600"
                             onClick={() => setShowTipModal(true)}
                             className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-none"
                           >
@@ -763,11 +708,13 @@ const ViewStream = ({
         <TippingModal
           isOpen={showTipModal}
           onClose={() => setShowTipModal(false)}
-          creatorAddress={streamData.starknetAddress || '0x5sddf6c7df6c7df6c7df6c7df6c7df6c7df6c7df6c'}
+          creatorAddress={
+            streamData.starknetAddress ||
+            "0x5sddf6c7df6c7df6c7df6c7df6c7df6c7df6c7df6c"
+          }
           username={username}
         />
       )}
-    </div>
     </DashboardScreenGuard>
   );
 };

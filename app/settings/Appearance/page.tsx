@@ -1,10 +1,10 @@
 import React from 'react'
-import Appearance from '@/components/settings/appearance/appearance'
+import ThemeSettingsPage from '@/components/settings/appearance/appearance'
 
 const page = () => {
   return (
     <div>
-        <Appearance />
+        <ThemeSettingsPage />
     </div>
   )
 }

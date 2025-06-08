@@ -1,9 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { notFound } from "next/navigation";
-import Banner from "@/components/shared/profile/Banner";
-import ProfileHeader from "@/components/shared/profile/ProfileHeader";
-import TabsNavigation from "@/components/shared/profile/TabsNavigation";
 import EmptyState from "@/components/shared/profile/EmptyState";
 
 interface PageProps {
@@ -65,15 +62,6 @@ const ClipsPage = ({ params }: PageProps) => {
 
   return (
     <div className="bg-[#17191A] min-h-screen">
-      <Banner username={username} isLive={isLive} streamTitle={streamTitle} />
-      <ProfileHeader
-        username={userData.username}
-        followers={userData.followers}
-        avatarUrl={userData.avatarUrl}
-        isOwner={isOwner}
-      />
-      <TabsNavigation username={username} />
-
       <div className="p-6">
         {loading ? (
           <div className="flex justify-center py-12">

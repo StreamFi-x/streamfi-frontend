@@ -1,9 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
-import { notFound } from "next/navigation";
-import OwnerChannelHome from "@/components/owner/profile/ChannelHome";
-import ViewerChannelHome from "@/components/viewer/profile/ChannelHome";
-import ViewStream from "@/components/stream/view-stream";
+import StreamCard from "@/components/shared/profile/StreamCard";
 
 interface PageProps {
   params: {
@@ -11,73 +7,97 @@ interface PageProps {
   };
 }
 
-// Mock function to check if a stream is live
-const checkStreamStatus = async (username: string) => {
-  // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  // For demo purposes, randomly determine if stream is live
-  // In a real app, this would be a real API call
-  return Math.random() > 0.5;
-};
-
 const ProfilePage = ({ params }: PageProps) => {
   const { username } = params;
-  const [isLive, setIsLive] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  // Mock function to check if user exists - would be a DB call in real app
-  const userExists = true;
+  // Mock data for streams
+  const recentStreams = [
+    {
+      id: "1",
+      title: "Clash of clans Live play",
+      thumbnailUrl: "/Images/explore/home/live-stream/img1.png",
+      username,
+      category: "Flexgames",
+      tags: ["Nigerian", "Gameplay"],
+      viewCount: 14500,
+      isLive: true,
+    },
+    {
+      id: "2",
+      title: "Clash of clans Live play",
+      thumbnailUrl: "/Images/explore/home/live-stream/img2.png",
+      username,
+      category: "Flexgames",
+      tags: ["Nigerian", "Gameplay"],
+      viewCount: 14500,
+      isLive: true,
+    },
+    {
+      id: "3",
+      title: "Clash of clans Live play",
+      thumbnailUrl: "/Images/explore/home/live-stream/img3.png",
+      username,
+      category: "Flexgames",
+      tags: ["Nigerian", "Gameplay"],
+      viewCount: 14500,
+      isLive: true,
+    },
+    {
+      id: "4",
+      title: "Clash of clans Live play",
+      thumbnailUrl: "/Images/explore/home/live-stream/img4.png",
+      username,
+      category: "Flexgames",
+      tags: ["Nigerian", "Gameplay"],
+      viewCount: 14500,
+      isLive: true,
+    },
+  ];
 
-  // Mock function to check if current user is the owner of this profile
-  const isOwner = username === "chidinma"; // Just for demo purposes
+  const popularClips = [
+    {
+      id: "5",
+      title: "Amazing headshot",
+      thumbnailUrl: "/Images/explore/home/live-stream/img4.png",
+      username,
+      category: "Flexgames",
+      tags: ["Nigerian", "Gameplay"],
+      viewCount: 14500,
+      isLive: true,
+    },
+    {
+      id: "6",
+      title: "Epic win",
+      thumbnailUrl: "/Images/explore/home/live-stream/img3.png",
+      username,
+      category: "Flexgames",
+      tags: ["Nigerian", "Gameplay"],
+      viewCount: 14500,
+      isLive: true,
+    },
+  ];
 
-  useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        setLoading(true);
-        const status = await checkStreamStatus(username);
-        setIsLive(status);
-      } catch (error) {
-        console.error("Failed to check stream status:", error);
-        setIsLive(false);
-      } finally {
-        setLoading(false);
-      }
-    };
+  return (
+    <>
+      <section className="mb-8">
+        <h2 className="text-white text-xl font-medium mb-4">Recent Streams</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {recentStreams.map((stream) => (
+            <StreamCard key={stream.id} {...stream} />
+          ))}
+        </div>
+      </section>
 
-    checkStatus();
-  }, [username]);
-
-  if (!userExists) {
-    return notFound();
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-white">Loading...</p>
-      </div>
-    );
-  }
-
-  // If stream is live, show the ViewStream component
-  if (isLive) {
-    return (
-      <ViewStream
-        username={username}
-        isLive={true}
-        onStatusChange={(status) => setIsLive(status)}
-      />
-    );
-  }
-
-  // Render different components based on whether the current user is the owner
-  if (isOwner) {
-    return <OwnerChannelHome username={username} isLive={false} />;
-  }
-
-  return <ViewerChannelHome username={username} isLive={false} />;
+      <section>
+        <h2 className="text-white text-xl font-medium mb-4">Popular Clips</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {popularClips.map((clip) => (
+            <StreamCard key={clip.id} {...clip} />
+          ))}
+        </div>
+      </section>
+    </>
+  );
 };
 
 export default ProfilePage;

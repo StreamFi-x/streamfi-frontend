@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { StreamfiLogoShort } from "@/public/icons";
 import { Search } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { SearchResult } from "@/types/explore";
 import { useAccount, useDisconnect } from "@starknet-react/core";
@@ -18,11 +19,13 @@ interface NavbarProps {
   onConnect?: () => void;
 }
 
-export default function Navbar({
-  onConnectWallet,
-  toggleSidebar,
-  onConnect
-}: NavbarProps) {
+export default function Navbar(
+  {
+    // onConnectWallet,
+    // toggleSidebar,
+    // onConnect
+  }: NavbarProps
+) {
   // Removed unused searchOpen and setSearchOpen state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -96,12 +99,14 @@ export default function Navbar({
     fetch(`/api/users/${address}`)
       .then(async (res) => {
         if (res.status === 404) {
-          // Pop up the complete profile model here
           setProfileModalOpen(true);
         }
         if (res.ok) {
           const result = await res.json();
           setUsername(result.user.username);
+          console.log("User found:", result);
+          localStorage.setItem("username", result.user.username);
+          localStorage.setItem("wallet", result.user.wallet);
         }
         setIsLoading(false);
       })
@@ -145,18 +150,14 @@ export default function Navbar({
 
   return (
     <>
-      <header className="h-20 flex items-center justify-between px-4 border-b-[0.5px] border-white/30 bg-background z-10">
+      <header className="h-20 flex items-center justify-between px-4 border-b-[0.5px] border-white/30 bg-background z-50">
         <div className="flex items-center gap-4">
-          {/* <button
-            onClick={toggleSidebar}
-            className="p-2 rounded-full text-white hover:bg-[#2D2F31]/60 lg:hidden"
-          >
-            <Menu size={24} />
-          </button> */}
-          <Image src={StreamfiLogoShort} alt="Streamfi Logo" />
+          <Link href="/explore" className="flex items-center gap-2">
+            <Image src={StreamfiLogoShort} alt="Streamfi Logo" />
+          </Link>
         </div>
 
-        <div className="hidden md:block flex-1 items-center max-w-xl mx-4 relative">
+        <div className="hidden md:block flex-1 items-center max-w-xl mx-4 relative text-white">
           <div className="relative">
             <input
               type="text"
@@ -262,8 +263,8 @@ export default function Navbar({
                       <ProfileDropdown
                         username={
                           username
-                            ? `${username.length > 12 ? username.substring(0, 12) : username}..`
-                            : `${address.substring(0, 12)}..`
+                            ? `${username.length > 12 ? username.substring(0, 12) : username}`
+                            : `${address.substring(0, 12)}`
                         }
                       />
                     </div>

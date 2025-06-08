@@ -111,8 +111,8 @@ export default function StreamInfoModal({
   // }
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   interface DropEvent extends React.DragEvent<HTMLDivElement> {
@@ -236,9 +236,10 @@ export default function StreamInfoModal({
                   {thumbnailPreview ? (
                     <div className="relative">
                       <Image
-                        src={thumbnailPreview || "/placeholder.svg"}
+                        src={thumbnailPreview || "/Images/banner-bg.png"}
                         alt="Thumbnail preview"
                         className="max-h-40 mx-auto rounded-md"
+                        fill
                       />
                       <button
                         type="button"
