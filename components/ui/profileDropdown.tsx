@@ -37,11 +37,26 @@ interface MenuItemProps {
 }
 
 const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
+  if (label === "Disconnect") {
+    return (
+      <div
+        className="flex items-center px-4 py-3 hover:bg-[#282828] cursor-pointer"
+        onClick={() => onClick({ icon, label, route })}
+      >
+        <div className="text-white mr-3">{icon}</div>
+        <span className="text-white text-base">{label}</span>
+      </div>
+    );
+  }
+
   return (
     <Link
       href={route || "#"}
       className="flex items-center px-4 py-3 hover:bg-[#282828] cursor-pointer"
-      onClick={() => onClick({ icon, label, route })}
+      onClick={(e) => {
+        e.preventDefault();
+        onClick({ icon, label, route });
+      }}
     >
       <div className="text-white mr-3">{icon}</div>
       <span className="text-white text-base">{label}</span>
