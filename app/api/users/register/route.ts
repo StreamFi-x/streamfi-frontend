@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import {
   checkExistingTableDetail,
   validateEmail,
-} from "../../../../utils/validators";
+} from "@/utils/validators";
 import { sql } from "@vercel/postgres";
 import { sendWelcomeRegistrationEmail } from "@/utils/send-email";
 

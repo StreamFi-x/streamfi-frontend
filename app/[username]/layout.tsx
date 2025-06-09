@@ -135,10 +135,10 @@ export default function UsernameLayout({
   // Only show live stream if we're on the default route AND the stream is live
   if (isDefaultRoute && isLive) {
     return (
-      <div className="flex h-screen bg-[#17191A] text-white">
-        <Sidebar {...sidebarProps} />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Navbar toggleSidebar={toggleSidebar} />
+      <div className="flex flex-col h-screen bg-[#17191A] text-white">
+        <Navbar toggleSidebar={toggleSidebar} />
+        <div className="flex-1 flex overflow-hidden">
+          <Sidebar />
           <main className="flex-1 overflow-auto">
             <ViewStream
               username={username}
@@ -154,10 +154,10 @@ export default function UsernameLayout({
 
   // Default layout with Banner, ProfileHeader, and TabsNavigation for all other cases
   return (
-    <div className="flex h-screen bg-[#17191A] text-white">
-      <Sidebar {...sidebarProps} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Navbar toggleSidebar={toggleSidebar} />
+    <div className="flex flex-col h-screen bg-[#17191A] text-white">
+      <Navbar toggleSidebar={toggleSidebar} />
+      <div className="flex-1 flex overflow-hidden">
+        <Sidebar {...sidebarProps} />
         <main className="flex-1 overflow-auto">
           <div className="bg-[#17191A] min-h-screen">
             <Banner
