@@ -17,7 +17,7 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
+export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -40,10 +40,10 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       scale: 1,
       transition: {
         duration: 0.4,
-        delay: 0.1,
+
         ease: [0.25, 0.1, 0.25, 1], 
         staggerChildren: 0.03,
-        delayChildren: 0.1
+
       }
     },
     collapsed: {
@@ -81,7 +81,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const renderExpandedContent = () => (
     <motion.div
       variants={contentVariants}
-      initial="collapsed"
+      initial={false}
       animate="expanded"
       exit="collapsed"
       className="w-full"
@@ -245,10 +245,10 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
 
   const renderCollapsedContent = () => (
     <motion.div
-      variants={contentVariants}
-      initial="collapsed"
-      animate="expanded"
-      exit="collapsed"
+      // variants={contentVariants}
+      // initial="collapsed"
+      // animate="expanded"
+      // exit="collapsed"
       className="w-full"
     >
       <div className="flex justify-center items-center w-full mb-4">
@@ -383,7 +383,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             <motion.div
               key={isCollapsed ? "collapsed" : "expanded"}
               variants={contentVariants}
-              initial="collapsed"
+              initial={false}
               animate="expanded"
               exit="collapsed"
               className="w-full h-full gpu-accelerated"
