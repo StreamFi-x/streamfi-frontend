@@ -1,0 +1,450 @@
+openapi: 3.0.3
+info:
+  title: Streamfi API
+  description: API documentation for Streamfi platform - user management, creator tools, and waitlist functionality
+  version: 1.0.0
+  contact:
+    name: Streamfi API Support
+servers:
+  - url: '{base_url}'
+    description: Base server URL
+    variables:
+      base_url:
+        default: 'https://streamfi.netlify.app/'
+        description: The base URL for the API
+
+paths:
+  /api/users/register:
+    post:
+      tags:
+        - Users
+      summary: Register User
+      description: Register a new user with creator profile information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - username
+                - wallet
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "test@example.com"
+                username:
+                  type: string
+                  example: "johndoe"
+                wallet:
+                  type: string
+                  example: "0x123..."
+                socialLinks:
+                  type: array
+                  items:
+                    type: string
+                  example: []
+                emailNotifications:
+                  type: boolean
+                  example: true
+                creator:
+                  type: object
+                  properties:
+                    streamTitle:
+                      type: string
+                      example: "My Stream"
+                    tags:
+                      type: array
+                      items:
+                        type: string
+                      example: ["gaming"]
+                    category:
+                      type: string
+                      example: "Tech"
+                    payout:
+                      type: string
+                      example: "paypal"
+                    thumbnail:
+                      type: string
+                      example: "url-to-image"
+      responses:
+        '201':
+          description: User registered successfully
+        '400':
+          description: Bad request - invalid input data
+        '409':
+          description: Conflict - user already exists
+
+  /api/users/updates/{wallet}:
+    put:
+      tags:
+        - Users
+      summary: Update User
+      description: Update user profile information including avatar upload
+      parameters:
+        - in: path
+          name: wallet
+          required: true
+          schema:
+            type: string
+          description: User's wallet address
+          example: "0x123..."
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: "newname"
+                email:
+                  type: string
+                  format: email
+                  example: "new@example.com"
+                bio:
+                  type: string
+                  example: "New bio here"
+                avatar:
+                  type: string
+                  format: binary
+                  description: User avatar image file
+      responses:
+        '200':
+          description: User updated successfully
+        '400':
+          description: Bad request - invalid input data
+        '404':
+          description: User not found
+
+  /api/waitlist/subscribe:
+    post:
+      tags:
+        - Waitlist
+      summary: Subscribe to Waitlist
+      description: Subscribe a user to the waitlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+              properties:
+                name:
+                  type: string
+                  example: "user's name"
+                email:
+                  type: string
+                  format: email
+                  example: "new@example.com"
+      responses:
+        '200':
+          description: Successfully subscribed to waitlist
+        '400':
+          description: Bad request - invalid input data
+        '409':
+          description: Email already subscribed
+
+  /api/waitlist/unsubscribe:
+    post:
+      tags:
+        - Waitlist
+      summary: Unsubscribe from Waitlist
+      description: Unsubscribe a user from the waitlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+              properties:
+                name:
+                  type: string
+                  example: "user's name"
+                email:
+                  type: string
+                  format: email
+                  example: "new@example.com"
+      responses:
+        '200':
+          description: Successfully unsubscribed from waitlist
+        '400':
+          description: Bad request - invalid input data
+        '404':
+          description: Email not found in waitlist
+
+  /api/search-username:
+    get:
+      tags:
+        - Search
+      summary: Search Users
+      description: Search for users by username
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+          description: Search query for username
+          example: "name"
+      responses:
+        '200':
+          description: Search results returned successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    username:
+                      type: string
+                    email:
+                      type: string
+                    wallet:
+                      type: string
+        '400':
+          description: Bad request - missing or invalid query parameter
+
+  /api/users/update-creator:
+    patch:
+      tags:
+        - Users
+        - Creator
+      summary: Update Creator Info
+      description: Update creator-specific information for a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@example.com"
+                creator:
+                  type: object
+                  properties:
+                    streamTitle:
+                      type: string
+                      example: "My Live Stream"
+                    tags:
+                      type: array
+                      items:
+                        type: string
+                      example: ["gaming", "tech"]
+                    category:
+                      type: string
+                      example: "Gaming"
+                    payout:
+                      type: string
+                      example: "monthly"
+                    thumbnail:
+                      type: string
+                      format: uri
+                      example: "https://example.com/image.jpg"
+      responses:
+        '200':
+          description: Creator information updated successfully
+        '400':
+          description: Bad request - invalid input data
+        '404':
+          description: User not found
+
+  /api/request-email-verification:
+    post:
+      tags:
+        - Authentication
+      summary: Send Email Verification Token
+      description: Send a verification token to the user's email address
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@example.com"
+      responses:
+        '200':
+          description: Verification token sent successfully
+        '400':
+          description: Bad request - invalid email format
+        '404':
+          description: Email not found
+
+  /api/users/verify-email:
+    post:
+      tags:
+        - Authentication
+      summary: Verify Email Token
+      description: Verify the email address using the provided token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - token
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@example.com"
+                token:
+                  type: string
+                  example: "123456"
+      responses:
+        '200':
+          description: Email verified successfully
+        '400':
+          description: Bad request - invalid token or email
+        '404':
+          description: User not found
+        '410':
+          description: Token expired
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        wallet:
+          type: string
+        socialLinks:
+          type: array
+          items:
+            type: string
+        emailNotifications:
+          type: boolean
+        creator:
+          $ref: '#/components/schemas/Creator'
+
+    Creator:
+      type: object
+      properties:
+        streamTitle:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        category:
+          type: string
+        payout:
+          type: string
+        thumbnail:
+          type: string
+
+    WaitlistSubscription:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+
+    EmailVerification:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+
+    EmailVerificationConfirm:
+      type: object
+      required:
+        - email
+        - token
+      properties:
+        email:
+          type: string
+          format: email
+        token:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Invalid input data"
+              message:
+                type: string
+                example: "Please check your request parameters"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Not found"
+              message:
+                type: string
+                example: "The requested resource was not found"
+
+    Conflict:
+      description: Conflict - resource already exists
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Conflict"
+              message:
+                type: string
+                example: "Resource already exists"
+
+tags:
+  - name: Users
+    description: User management endpoints
+  - name: Creator
+    description: Creator-specific functionality
+  - name: Waitlist
+    description: Waitlist subscription management
+  - name: Search
+    description: Search functionality
+  - name: Authentication
+    description: Email verification and authentication
