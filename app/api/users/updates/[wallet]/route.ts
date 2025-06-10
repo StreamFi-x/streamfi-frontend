@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { uploadImage, deleteImage } from "@/utils/upload/Dcloudinary";
@@ -9,14 +8,12 @@ import { validateEmail } from "@/utils/validators";
 import { validateUserUpdate } from "../../../../../utils/userValidators";
 import { UserUpdateInput } from "../../../../../types/user";
 
-
 export async function PUT(
   req: NextRequest,
   { params }: { params: { wallet: string } }
 ) {
   try {
     const wallet = params.wallet.toLowerCase();
-
 
     // Fetching current user data
     const existingResult = await sql`
@@ -26,7 +23,6 @@ export async function PUT(
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-    
 
     const formData = await req.formData();
 
@@ -37,31 +33,30 @@ export async function PUT(
     const emailVerified = formData.get("emailVerified") ?? user.emailVerified;
     const emailNotifications = formData.get("emailNotifications") ?? user.emailNotifications;
 
-    // Social links
+    // Social links - Use lowercase column name to match database
     let processedSocialLinks = user.sociallinks;
     const socialLinks = formData.get("socialLinks");
-    if (socialLinks) {
+    if (socialLinks && socialLinks !== "" && socialLinks !== "null" && socialLinks !== "undefined") {
       try {
-        processedSocialLinks = JSON.stringify(
-          typeof socialLinks === "string" ? JSON.parse(socialLinks) : socialLinks
-        );
+        const parsedLinks = typeof socialLinks === "string" ? JSON.parse(socialLinks) : socialLinks;
+        processedSocialLinks = JSON.stringify(parsedLinks);
       } catch (err) {
-        console.error("Invalid socialLinks JSON" + err);
+        console.error("Invalid socialLinks JSON:", err);
+        return NextResponse.json({ error: "Invalid socialLinks format" }, { status: 400 });
       }
     }
 
     const creatorRaw = formData.get("creator");
-let creator = user.creator;
+    let creator = user.creator;
 
-if (creatorRaw) {
-  try {
-    creator = typeof creatorRaw === "string" ? JSON.parse(creatorRaw) : creatorRaw;
-  } catch (err) {
-    console.error("Invalid creator JSON:", err);
-    return NextResponse.json({ error: "Invalid creator format" }, { status: 400 });
-  }
-}
-
+    if (creatorRaw && creatorRaw !== "" && creatorRaw !== "null" && creatorRaw !== "undefined") {
+      try {
+        creator = typeof creatorRaw === "string" ? JSON.parse(creatorRaw) : creatorRaw;
+      } catch (err) {
+        console.error("Invalid creator JSON:", err);
+        return NextResponse.json({ error: "Invalid creator format" }, { status: 400 });
+      }
+    }
 
     // Validate
     const updateData: UserUpdateInput = {
@@ -72,7 +67,7 @@ if (creatorRaw) {
       bio,
       emailVerified,
       emailNotifications,
-      socialLinks: processedSocialLinks ? JSON.parse(processedSocialLinks) : undefined,
+      socialLinks: processedSocialLinks ? (typeof processedSocialLinks === 'string' ? JSON.parse(processedSocialLinks) : processedSocialLinks) : undefined,
     };
 
     const validation = validateUserUpdate(updateData);
@@ -81,22 +76,27 @@ if (creatorRaw) {
     }
 
     // Email validation & uniqueness
-    if (email && !validateEmail(email)) {
+    if (email && email !== user.email && !validateEmail(email)) {
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
     }
-    const emailExists = await sql`
-      SELECT id FROM users WHERE email = ${email} AND wallet != ${wallet}
-    `;
-    if (emailExists.rows.length > 0) {
-      return NextResponse.json({ error: "Email already in use" }, { status: 400 });
+    
+    if (email && email !== user.email) {
+      const emailExists = await sql`
+        SELECT id FROM users WHERE email = ${email} AND wallet != ${wallet}
+      `;
+      if (emailExists.rows.length > 0) {
+        return NextResponse.json({ error: "Email already in use" }, { status: 400 });
+      }
     }
 
     // Username uniqueness
-    const usernameExists = await sql`
-      SELECT id FROM users WHERE username = ${username} AND wallet != ${wallet}
-    `;
-    if (usernameExists.rows.length > 0) {
-      return NextResponse.json({ error: "Username already in use" }, { status: 400 });
+    if (username && username !== user.username) {
+      const usernameExists = await sql`
+        SELECT id FROM users WHERE username = ${username} AND wallet != ${wallet}
+      `;
+      if (usernameExists.rows.length > 0) {
+        return NextResponse.json({ error: "Username already in use" }, { status: 400 });
+      }
     }
 
     // Handle avatar upload
@@ -119,7 +119,7 @@ if (creatorRaw) {
       }
     }
 
-    // Prepare SQL update
+    // Prepare SQL update - Use lowercase column name
     const updatedUser = await sql`
       UPDATE users SET
         username = ${username},
@@ -127,13 +127,13 @@ if (creatorRaw) {
         avatar = ${avatarUrl},
         bio = ${bio},
         streamkey = ${streamkey},
-        "socialLinks" = ${processedSocialLinks},
-        "emailVerified" = ${emailVerified},
-        "emailNotifications" = ${emailNotifications},
-        creator = ${JSON.stringify(creator)},
+        sociallinks = ${processedSocialLinks},
+        emailverified = ${emailVerified},
+        emailnotifications = ${emailNotifications},
+        creator = ${creator ? JSON.stringify(creator) : user.creator},
         updated_at = CURRENT_TIMESTAMP
       WHERE LOWER(wallet) = LOWER(${wallet})
-      RETURNING id, username, email, streamkey, avatar, bio, "socialLinks", "emailVerified", "emailNotifications", wallet, created_at, updated_at
+      RETURNING id, username, email, streamkey, avatar, bio, sociallinks, emailverified, emailnotifications, creator, wallet, created_at, updated_at
     `;
 
     return NextResponse.json({
@@ -158,3 +158,5 @@ function extractPublicIdFromUrl(url: string): string | null {
     return null;
   }
 }
+
+

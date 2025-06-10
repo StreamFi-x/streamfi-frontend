@@ -157,7 +157,7 @@ export default function UsernameLayout({
     <div className="flex flex-col h-screen bg-[#17191A] text-white">
       <Navbar toggleSidebar={toggleSidebar} />
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar {...sidebarProps} />
+        <Sidebar />
         <main className="flex-1 overflow-auto">
           <div className="bg-[#17191A] min-h-screen">
             <Banner
