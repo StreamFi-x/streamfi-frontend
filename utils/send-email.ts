@@ -1,6 +1,7 @@
 "use server";
 import nodemailer from "nodemailer";
 import WelcomeUserEmail from "@/components/templates/WelcomeUserEmail";
+import VerifyEmailCode from "@/components/templates/VerifyEmailCode";
 import { WaitlistConfirmation } from "@/components/templates/WaitlistConfirm";
 export async function sendWelcomeRegistrationEmail(
   email: string,
@@ -45,6 +46,7 @@ export async function sendEmailVerificationToken(email: string, token: string) {
     },
   });
 
+  const htmlContent = VerifyEmailCode(email, token);
   const mailOptions = {
     from: {
       name: "StreamFi",
@@ -52,8 +54,8 @@ export async function sendEmailVerificationToken(email: string, token: string) {
     },
     to: email,
     subject: "StreamFi Email Verification",
-    text: `Your verification token is: ${token}`,
-    html: `<p>Your verification token is: <strong>${token}</strong></p>`,
+    // text: `Your verification token is: ${token}`,
+    html: htmlContent,
   };
 
   try {
@@ -63,7 +65,6 @@ export async function sendEmailVerificationToken(email: string, token: string) {
     console.error("Error sending email:", error);
   }
 }
-
 export async function sendWelcomeEmail(email: string, name: string) {
   const htmlContent = WaitlistConfirmation(name, email);
   // Create a more professional transporter with additional configuration
@@ -80,6 +81,13 @@ export async function sendWelcomeEmail(email: string, name: string) {
       privateKey: process.env.DKIM_PRIVATE_KEY || "",
     },
   });
+
+  // Cloudinary URLs
+  const cloudName = "dwjnkuvqv";
+  const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/streamfi_pu5tfp.png`;
+  const twitterIconUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/x_ha8udb.png`;
+  const discordIconUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/discord_sekzwp.png`;
+  const facebookIconUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/facebook_cdmnek.png`;
 
   // Generate a unique message ID for this email
   const messageId = `${Date.now()}.${Math.random().toString(36).substring(2)}@streamfi.xyz`;
