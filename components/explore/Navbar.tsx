@@ -7,6 +7,7 @@ import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import type { SearchResult } from "@/types/explore"
 import { useAccount, useDisconnect } from "@starknet-react/core"
+import { useAuth } from "@/components/auth/auth-provider"
 import ConnectModal from "../connectWallet"
 import ProfileModal from "./ProfileModal"
 import SimpleLoader from "../ui/loader/simple-loader"
@@ -19,22 +20,45 @@ interface NavbarProps {
   onConnect?: () => void
 }
 
-export default function Navbar({
-  // onConnectWallet,
-  // toggleSidebar,
-  // onConnect
-}: NavbarProps) {
-  // Removed unused searchOpen and setSearchOpen state
+export default function Navbar({}: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const { address, isConnected } = useAccount()
+  const { user, refreshUser } = useAuth()
   const { disconnect } = useDisconnect()
   const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [connectStep, setConnectStep] = useState<"profile" | "verify" | "success">("profile")
   const [isLoading, setIsLoading] = useState(false)
-  const [username, setUsername] = useState("")
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
+
+  // Get display name from user data or fallback to address
+  const getDisplayName = useCallback(() => {
+    if (user?.username) {
+      return user.username
+    }
+
+    // Fallback to sessionStorage if user context doesn't have username yet
+    try {
+      const userData = sessionStorage.getItem("userData")
+      if (userData) {
+        const parsedUser = JSON.parse(userData)
+        if (parsedUser.username) {
+          return parsedUser.username
+        }
+      }
+    } catch (error) {
+      console.error("Error parsing user data from sessionStorage:", error)
+    }
+
+    // Final fallback to shortened address
+    if (address) {
+      return `${address.substring(0, 6)}...${address.slice(-4)}`
+    }
+
+    return "Unknown User"
+  }, [user?.username, address])
 
   const handleCloseProfileModal = () => {
     setProfileModalOpen(false)
@@ -43,8 +67,6 @@ export default function Navbar({
   const handleNextStep = (step: "profile" | "verify" | "success") => {
     setConnectStep(step)
   }
-  // New state for profile dropdown
-  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -84,33 +106,40 @@ export default function Navbar({
 
   const handleConnectWallet = () => {
     if (isConnected) {
-      disconnect() // Disconnect if already connected
+      disconnect()
     } else {
-      setIsModalOpen(true) // Open modal to connect
+      setIsModalOpen(true)
     }
   }
 
-  const handleProfileDisplayModal = useCallback(() => {
-    setIsLoading(true)
-    fetch(`/api/users/${address}`)
-      .then(async (res) => {
-        if (res.status === 404) {
-          setProfileModalOpen(true)
-        }
-        if (res.ok) {
-          const result = await res.json()
-          setUsername(result.user.username)
-          console.log("User found:", result)
+  const handleProfileDisplayModal = useCallback(async () => {
+    if (!address) return
 
-          // Store the entire user object in sessionStorage instead of individual items in localStorage
-          sessionStorage.setItem("userData", JSON.stringify(result.user))
+    setIsLoading(true)
+    try {
+      const response = await fetch(`/api/users/${address}`)
+
+      if (response.status === 404) {
+        setProfileModalOpen(true)
+      } else if (response.ok) {
+        const result = await response.json()
+        console.log("User found:", result)
+
+        // Store the entire user object in sessionStorage
+        sessionStorage.setItem("userData", JSON.stringify(result.user))
+
+        // Refresh user in auth context if needed
+        if (!user || user.wallet !== result.user.wallet) {
+          await refreshUser(address)
         }
-        setIsLoading(false)
-      })
-      .catch((reason) => {
-        console.log("Error finding user ", reason)
-      })
-  }, [address])
+      }
+    } catch (error) {
+      console.error("Error finding user:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [address, user, refreshUser])
+
   // Toggle profile dropdown
   const toggleProfileDropdown = () => {
     setIsProfileDropdownOpen(!isProfileDropdownOpen)
@@ -138,9 +167,15 @@ export default function Navbar({
     }
   }, [isConnected])
 
+  // Fetch user data when wallet connects
   useEffect(() => {
-    if (isConnected && address) handleProfileDisplayModal()
-  }, [address, handleProfileDisplayModal, isConnected])
+    if (isConnected && address && !user) {
+      handleProfileDisplayModal()
+    }
+  }, [address, isConnected, user, handleProfileDisplayModal])
+
+  const displayName = getDisplayName()
+  const truncatedDisplayName = displayName.length > 12 ? displayName.substring(0, 12) : displayName
 
   return (
     <>
@@ -200,32 +235,18 @@ export default function Navbar({
 
         <div className="flex items-center gap-4">
           {isConnected && address && (
-            // <span className="text-white text-sm truncate max-w-[150px]">
-            //   {address.substring(0, 6)}...{address.slice(-4)}
-            // </span>
             <>
               <button>
-                <Image src={"/Images/notification.svg"} width={24} height={24} alt="pfp" />
+                <Image src={"/Images/notification.svg"} width={24} height={24} alt="notification" />
               </button>
-              {/* <div className="flex gap-[10px] font-medium items-center text-[14px] text-white">
-                <span>
-                  {username ||
-                    `${address.substring(0, 6)}...${address.slice(-4)}`}
-                </span>
-                <Image
-                  src={"/Images/profile2.svg"}
-                  width={36}
-                  height={36}
-                  alt="pfp"
-                />
-              </div> */}
+
               {/* Avatar with dropdown */}
               <div className="relative avatar-container">
                 <div
                   className="cursor-pointer flex gap-[10px] font-medium items-center text-[14px] text-white"
                   onClick={toggleProfileDropdown}
                 >
-                  <span>{username || `${address.substring(0, 6)}...${address.slice(-4)}`}</span>
+                  <span>{truncatedDisplayName}</span>
                   <Image src={Avatar || "/placeholder.svg"} alt="Avatar" width={40} height={40} className="" />
                 </div>
 
@@ -233,13 +254,7 @@ export default function Navbar({
                 <AnimatePresence>
                   {isProfileDropdownOpen && (
                     <div className="absolute top-full right-0 mt-2 profile-dropdown-container z-50">
-                      <ProfileDropdown
-                        username={
-                          username
-                            ? `${username.length > 12 ? username.substring(0, 12) : username}`
-                            : `${address.substring(0, 12)}`
-                        }
-                      />
+                      <ProfileDropdown username={truncatedDisplayName} />
                     </div>
                   )}
                 </AnimatePresence>
@@ -251,7 +266,7 @@ export default function Navbar({
               onClick={handleConnectWallet}
               className="bg-primary hover:bg-purple-700 text-white px-4 py-3 rounded-md text-sm font-medium transition-colors"
             >
-              {isConnected ? "Disconnect" : "Connect Wallet"}
+              Connect Wallet
             </button>
           )}
         </div>

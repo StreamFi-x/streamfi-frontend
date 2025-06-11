@@ -1,34 +1,29 @@
+"use client"
 
-"use client";
-import { ReactNode } from "react";
+import type React from "react"
+import { sepolia, mainnet } from "@starknet-react/chains"
+import { StarknetConfig, publicProvider, argent, braavos, useInjectedConnectors, voyager } from "@starknet-react/core"
+import { AuthProvider } from "./auth/auth-provider"
 
-import { sepolia } from "@starknet-react/chains";
-import {
-  StarknetConfig,
-  argent,
-  braavos,
-  useInjectedConnectors,
-  publicProvider,
-  voyager,
-} from "@starknet-react/core";
-
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({ children }: { children: React.ReactNode }) {
   const { connectors } = useInjectedConnectors({
-    // Show these connectors if the user has no connector installed.
+    // Recommended connectors for StarkNet
     recommended: [argent(), braavos()],
-    // Hide recommended connectors if the user has any connector installed.
+    // Include all injected connectors
     includeRecommended: "onlyIfNoConnectors",
-    // Randomize the order of the connectors.
+    // Order of connectors
     order: "random",
-  });
+  })
+
   return (
     <StarknetConfig
-      chains={[sepolia]}
+      chains={[mainnet, sepolia]}
       provider={publicProvider()}
       connectors={connectors}
       explorer={voyager}
+      autoConnect={true} // Enable auto-connect for persistence
     >
-      {children}
+      <AuthProvider>{children}</AuthProvider>
     </StarknetConfig>
-  );
+  )
 }

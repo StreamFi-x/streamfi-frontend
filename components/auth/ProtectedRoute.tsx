@@ -5,6 +5,7 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAccount } from "@starknet-react/core"
+import { useAuth } from "./auth-provider"
 import ConnectWalletModal from "@/components/connectWallet"
 
 interface ProtectedRouteProps {
@@ -13,67 +14,75 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter()
-  const { isConnected, address } = useAccount()
-  const [isLoading, setIsLoading] = useState(true)
-  const [hasChecked, setHasChecked] = useState(false)
+  const { address, isConnected, status } = useAccount()
+  const { isInitializing, isWalletConnecting } = useAuth()
   const [showWalletModal, setShowWalletModal] = useState(false)
-  const [modalWasClosed, setModalWasClosed] = useState(false)
+  const [hasCompletedInitialCheck, setHasCompletedInitialCheck] = useState(false)
 
   useEffect(() => {
-    const checkWallet = async () => {
-      console.log("[ProtectedRoute] Checking wallet:", { isConnected, address })
+    const checkAccess = () => {
+      console.log("[ProtectedRoute] Checking access:", {
+        isConnected,
+        address,
+        status,
+        isInitializing,
+        isWalletConnecting,
+        hasCompletedInitialCheck,
+      })
 
-      if (hasChecked) {
+      // Don't do anything while the auth system is initializing or wallet is connecting
+      if (isInitializing || isWalletConnecting) {
+        return
+      }
+
+      // Mark that we've completed the initial check
+      if (!hasCompletedInitialCheck) {
+        setHasCompletedInitialCheck(true)
+      }
+
+      // Only after initialization is complete, check wallet connection
+      if (hasCompletedInitialCheck || (!isInitializing && !isWalletConnecting)) {
         if (!isConnected || !address) {
-          // Show wallet connect modal instead of immediate redirect
-          if (!showWalletModal && !modalWasClosed) {
-            console.log("[ProtectedRoute] No wallet connection, showing connect modal")
-            setShowWalletModal(true)
-          } else if (modalWasClosed) {
-            // Only redirect if the modal was closed without connecting
-            console.log("[ProtectedRoute] Modal was closed without connecting, redirecting to explore")
-            router.replace("/explore")
-          }
+          console.log("[ProtectedRoute] No wallet connection after initialization, showing connect modal")
+          setShowWalletModal(true)
         } else {
           console.log("[ProtectedRoute] Wallet connected, allowing access")
-          setIsLoading(false)
           setShowWalletModal(false)
         }
       }
-
-      setHasChecked(true)
     }
 
-    checkWallet()
-  }, [isConnected, address, router, hasChecked, showWalletModal, modalWasClosed])
+    checkAccess()
+  }, [isConnected, address, status, isInitializing, isWalletConnecting, hasCompletedInitialCheck])
 
   // Handle modal close without connection
   const handleModalClose = () => {
     setShowWalletModal(false)
-    setModalWasClosed(true)
+    console.log("[ProtectedRoute] Modal closed, redirecting to explore")
+    router.replace("/explore")
   }
 
-  // If wallet connects while modal is open, this effect will catch it
+  // If wallet connects while modal is open, close the modal
   useEffect(() => {
     if (isConnected && address && showWalletModal) {
+      console.log("[ProtectedRoute] Wallet connected while modal was open, closing modal")
       setShowWalletModal(false)
-      setIsLoading(false)
     }
   }, [isConnected, address, showWalletModal])
 
-  // Show loading state while checking connection
-  if (isLoading && hasChecked && !showWalletModal) {
+  // Show loading state during initialization or wallet connection
+  if (isInitializing || isWalletConnecting || !hasCompletedInitialCheck) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl mb-4">Loading...</h2>
-          <p className="text-gray-400">Please wait while we verify your wallet connection.</p>
+          <p className="text-gray-400">{isInitializing ? "Initializing application..." : "Connecting wallet..."}</p>
         </div>
       </div>
     )
   }
 
-  // Show wallet connect modal if needed
+  // Show wallet connect modal if needed (only after initialization is complete)
   if (showWalletModal) {
     return <ConnectWalletModal isModalOpen={showWalletModal} setIsModalOpen={handleModalClose} />
   }
