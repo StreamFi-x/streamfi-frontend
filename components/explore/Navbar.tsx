@@ -1,59 +1,55 @@
-"use client";
-import { useState, useRef, useEffect, useCallback } from "react";
-import { StreamfiLogoShort } from "@/public/icons";
-import { Search } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { SearchResult } from "@/types/explore";
-import { useAccount, useDisconnect } from "@starknet-react/core";
-import ConnectModal from "../connectWallet";
-import ProfileModal from "./ProfileModal";
-import SimpleLoader from "../ui/loader/simple-loader";
-import Avatar from "@/public/Images/user.png";
-import ProfileDropdown from "../ui/profileDropdown";
+"use client"
+import { useState, useRef, useEffect, useCallback } from "react"
+import { StreamfiLogoShort } from "@/public/icons"
+import { Search } from "lucide-react"
+import Image from "next/image"
+import Link from "next/link"
+import { motion, AnimatePresence } from "framer-motion"
+import type { SearchResult } from "@/types/explore"
+import { useAccount, useDisconnect } from "@starknet-react/core"
+import ConnectModal from "../connectWallet"
+import ProfileModal from "./ProfileModal"
+import SimpleLoader from "../ui/loader/simple-loader"
+import Avatar from "@/public/Images/user.png"
+import ProfileDropdown from "../ui/profileDropdown"
 
 interface NavbarProps {
-  onConnectWallet?: () => void;
-  toggleSidebar?: () => void;
-  onConnect?: () => void;
+  onConnectWallet?: () => void
+  toggleSidebar?: () => void
+  onConnect?: () => void
 }
 
-export default function Navbar(
-  {
-    // onConnectWallet,
-    // toggleSidebar,
-    // onConnect
-  }: NavbarProps
-) {
+export default function Navbar({
+  // onConnectWallet,
+  // toggleSidebar,
+  // onConnect
+}: NavbarProps) {
   // Removed unused searchOpen and setSearchOpen state
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const { address, isConnected } = useAccount();
-  const { disconnect } = useDisconnect();
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [connectStep, setConnectStep] = useState<
-    "profile" | "verify" | "success"
-  >("profile");
-  const [isLoading, setIsLoading] = useState(false);
-  const [username, setUsername] = useState("");
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const { address, isConnected } = useAccount()
+  const { disconnect } = useDisconnect()
+  const [profileModalOpen, setProfileModalOpen] = useState(false)
+  const [connectStep, setConnectStep] = useState<"profile" | "verify" | "success">("profile")
+  const [isLoading, setIsLoading] = useState(false)
+  const [username, setUsername] = useState("")
 
   const handleCloseProfileModal = () => {
-    setProfileModalOpen(false);
-  };
+    setProfileModalOpen(false)
+  }
 
   const handleNextStep = (step: "profile" | "verify" | "success") => {
-    setConnectStep(step);
-  };
+    setConnectStep(step)
+  }
   // New state for profile dropdown
-  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
-      setSearchResults([]);
-      return;
+      setSearchResults([])
+      return
     }
 
     const mockResults: SearchResult[] = [
@@ -75,85 +71,83 @@ export default function Navbar(
         type: "video",
         image: "/icons/Recommend pfps.svg",
       },
-    ];
+    ]
 
-    setSearchResults(mockResults);
-  }, [searchQuery]);
+    setSearchResults(mockResults)
+  }, [searchQuery])
 
   useEffect(() => {
     if (searchInputRef.current) {
-      searchInputRef.current.focus();
+      searchInputRef.current.focus()
     }
-  }, []);
+  }, [])
 
   const handleConnectWallet = () => {
     if (isConnected) {
-      disconnect(); // Disconnect if already connected
+      disconnect() // Disconnect if already connected
     } else {
-      setIsModalOpen(true); // Open modal to connect
+      setIsModalOpen(true) // Open modal to connect
     }
-  };
+  }
 
   const handleProfileDisplayModal = useCallback(() => {
-    setIsLoading(true);
+    setIsLoading(true)
     fetch(`/api/users/${address}`)
       .then(async (res) => {
         if (res.status === 404) {
-          setProfileModalOpen(true);
+          setProfileModalOpen(true)
         }
         if (res.ok) {
-          const result = await res.json();
-          setUsername(result.user.username);
-          console.log("User found:", result);
-          localStorage.setItem("username", result.user.username);
-          localStorage.setItem("wallet", result.user.wallet);
+          const result = await res.json()
+          setUsername(result.user.username)
+          console.log("User found:", result)
+
+          // Store the entire user object in sessionStorage instead of individual items in localStorage
+          sessionStorage.setItem("userData", JSON.stringify(result.user))
         }
-        setIsLoading(false);
+        setIsLoading(false)
       })
       .catch((reason) => {
-        console.log("Error finding user ", reason);
-      });
-  }, [address]);
+        console.log("Error finding user ", reason)
+      })
+  }, [address])
   // Toggle profile dropdown
   const toggleProfileDropdown = () => {
-    setIsProfileDropdownOpen(!isProfileDropdownOpen);
-  };
+    setIsProfileDropdownOpen(!isProfileDropdownOpen)
+  }
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (
-        !target.closest(".profile-dropdown-container") &&
-        !target.closest(".avatar-container")
-      ) {
-        setIsProfileDropdownOpen(false);
+      const target = event.target as HTMLElement
+      if (!target.closest(".profile-dropdown-container") && !target.closest(".avatar-container")) {
+        setIsProfileDropdownOpen(false)
       }
-    };
+    }
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside)
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
 
   // Close modal automatically when wallet is connected
   useEffect(() => {
     if (isConnected) {
-      setIsModalOpen(false);
+      setIsModalOpen(false)
     }
-  }, [isConnected]);
+  }, [isConnected])
 
   useEffect(() => {
-    if (isConnected && address) handleProfileDisplayModal();
-  }, [address, handleProfileDisplayModal, isConnected]);
+    if (isConnected && address) handleProfileDisplayModal()
+  }, [address, handleProfileDisplayModal, isConnected])
 
   return (
     <>
       <header className="h-20 flex items-center justify-between px-4 border-b-[0.5px] border-white/30 bg-background z-50">
         <div className="flex items-center gap-4">
           <Link href="/explore" className="flex items-center gap-2">
-            <Image src={StreamfiLogoShort} alt="Streamfi Logo" />
+            <Image src={StreamfiLogoShort || "/placeholder.svg"} alt="Streamfi Logo" />
           </Link>
         </div>
 
@@ -166,10 +160,7 @@ export default function Navbar(
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-black rounded-md py-2 pl-10 pr-4 text-sm outline-none duration-200 focus:outline-none focus:ring-1 focus:ring-purple-600"
             />
-            <Search
-              className="absolute left-3 top-[47%] transform -translate-y-1/2 text-gray-400"
-              size={16}
-            />
+            <Search className="absolute left-3 top-[47%] transform -translate-y-1/2 text-gray-400" size={16} />
           </div>
           <AnimatePresence>
             {searchResults.length > 0 && (
@@ -196,12 +187,8 @@ export default function Navbar(
                         />
                       </div>
                       <div>
-                        <div className="text-sm font-medium">
-                          {result.title}
-                        </div>
-                        <div className="text-xs text-white/30 capitalize">
-                          {result.type}
-                        </div>
+                        <div className="text-sm font-medium">{result.title}</div>
+                        <div className="text-xs text-white/30 capitalize">{result.type}</div>
                       </div>
                     </div>
                   ))}
@@ -218,12 +205,7 @@ export default function Navbar(
             // </span>
             <>
               <button>
-                <Image
-                  src={"/Images/notification.svg"}
-                  width={24}
-                  height={24}
-                  alt="pfp"
-                />
+                <Image src={"/Images/notification.svg"} width={24} height={24} alt="pfp" />
               </button>
               {/* <div className="flex gap-[10px] font-medium items-center text-[14px] text-white">
                 <span>
@@ -243,17 +225,8 @@ export default function Navbar(
                   className="cursor-pointer flex gap-[10px] font-medium items-center text-[14px] text-white"
                   onClick={toggleProfileDropdown}
                 >
-                  <span>
-                    {username ||
-                      `${address.substring(0, 6)}...${address.slice(-4)}`}
-                  </span>
-                  <Image
-                    src={Avatar}
-                    alt="Avatar"
-                    width={40}
-                    height={40}
-                    className=""
-                  />
+                  <span>{username || `${address.substring(0, 6)}...${address.slice(-4)}`}</span>
+                  <Image src={Avatar || "/placeholder.svg"} alt="Avatar" width={40} height={40} className="" />
                 </div>
 
                 {/* Render ProfileDropdown with AnimatePresence */}
@@ -289,16 +262,10 @@ export default function Navbar(
         {isModalOpen && (
           <motion.div className="fixed inset-0 z-50 flex items-center justify-center">
             {/* Backdrop */}
-            <div
-              className="absolute inset-0 bg-black opacity-50"
-              onClick={() => setIsModalOpen(false)}
-            />
+            <div className="absolute inset-0 bg-black opacity-50" onClick={() => setIsModalOpen(false)} />
             {/* Modal Content */}
             <motion.div className="bg-background p-6 rounded-md z-10">
-              <ConnectModal
-                isModalOpen={isModalOpen}
-                setIsModalOpen={setIsModalOpen}
-              />
+              <ConnectModal isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} />
             </motion.div>
           </motion.div>
         )}
@@ -315,5 +282,5 @@ export default function Navbar(
 
       {isLoading && <SimpleLoader />}
     </>
-  );
+  )
 }
