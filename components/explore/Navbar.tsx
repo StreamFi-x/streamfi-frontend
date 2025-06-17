@@ -13,6 +13,14 @@ import ProfileModal from "./ProfileModal"
 import SimpleLoader from "../ui/loader/simple-loader"
 import Avatar from "@/public/Images/user.png"
 import ProfileDropdown from "../ui/profileDropdown"
+import {
+  bgClasses,
+  textClasses,
+  borderClasses,
+  ringClasses,
+  buttonClasses,
+  componentClasses,
+} from "@/lib/theme-classes"
 
 interface NavbarProps {
   onConnectWallet?: () => void
@@ -179,7 +187,9 @@ export default function Navbar({}: NavbarProps) {
 
   return (
     <>
-      <header className="h-20 flex items-center justify-between px-4 border-b-[0.5px] border-white/30 bg-background z-50">
+      <header
+        className={`h-20 flex items-center justify-between px-4 border-b-[0.5px] ${borderClasses.primary}  ${bgClasses.highlight} z-50`}
+      >
         <div className="flex items-center gap-4">
           <Link href="/explore" className="flex items-center gap-2">
             <Image src={StreamfiLogoShort || "/placeholder.svg"} alt="Streamfi Logo" />
@@ -193,7 +203,7 @@ export default function Navbar({}: NavbarProps) {
               placeholder="Search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-black rounded-md py-2 pl-10 pr-4 text-sm outline-none duration-200 focus:outline-none focus:ring-1 focus:ring-purple-600"
+              className={`w-full bg-white/90 dark:bg-black rounded-xl py-2 pl-10 pr-4 text-sm outline-none ${ringClasses.primary}`}
             />
             <Search className="absolute left-3 top-[47%] transform -translate-y-1/2 text-gray-400" size={16} />
           </div>
@@ -203,13 +213,13 @@ export default function Navbar({}: NavbarProps) {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute top-full left-0 right-0 mt-2 bg-[#1A1B1D] rounded-md shadow-lg overflow-hidden z-20"
+                className={`absolute top-full left-0 right-0 mt-2 ${componentClasses.dropdown} z-20`}
               >
                 <div className="p-2">
                   {searchResults.map((result) => (
                     <div
                       key={result.id}
-                      className="flex items-center gap-3 p-2 hover:bg-[#2D2F31] rounded-md cursor-pointer"
+                      className={`flex items-center gap-3 p-2 ${bgClasses.hover} rounded-md cursor-pointer`}
                     >
                       <div className="w-10 h-10 rounded bg-gray-700 overflow-hidden">
                         <Image
@@ -222,8 +232,8 @@ export default function Navbar({}: NavbarProps) {
                         />
                       </div>
                       <div>
-                        <div className="text-sm font-medium">{result.title}</div>
-                        <div className="text-xs text-white/30 capitalize">{result.type}</div>
+                        <div className={`text-sm font-medium ${textClasses.primary}`}>{result.title}</div>
+                        <div className={`text-xs ${textClasses.tertiary} capitalize`}>{result.type}</div>
                       </div>
                     </div>
                   ))}
@@ -243,7 +253,7 @@ export default function Navbar({}: NavbarProps) {
               {/* Avatar with dropdown */}
               <div className="relative avatar-container">
                 <div
-                  className="cursor-pointer flex gap-[10px] font-medium items-center text-[14px] text-white"
+                  className={`cursor-pointer flex gap-[10px] font-medium items-center text-[14px] ${textClasses.onColor}`}
                   onClick={toggleProfileDropdown}
                 >
                   <span>{truncatedDisplayName}</span>
@@ -264,7 +274,7 @@ export default function Navbar({}: NavbarProps) {
           {!isConnected && (
             <button
               onClick={handleConnectWallet}
-              className="bg-primary hover:bg-purple-700 text-white px-4 py-3 rounded-md text-sm font-medium transition-colors"
+              className={`${buttonClasses.primary} px-4 py-3 rounded-md text-sm font-medium`}
             >
               Connect Wallet
             </button>
@@ -277,9 +287,9 @@ export default function Navbar({}: NavbarProps) {
         {isModalOpen && (
           <motion.div className="fixed inset-0 z-50 flex items-center justify-center">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black opacity-50" onClick={() => setIsModalOpen(false)} />
+            <div className={`absolute inset-0 ${bgClasses.overlay}`} onClick={() => setIsModalOpen(false)} />
             {/* Modal Content */}
-            <motion.div className="bg-background p-6 rounded-md z-10">
+            <motion.div className={`${componentClasses.modal} p-6 z-10`}>
               <ConnectModal isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} />
             </motion.div>
           </motion.div>

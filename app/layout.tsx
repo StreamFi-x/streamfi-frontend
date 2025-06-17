@@ -44,8 +44,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="">
-      <body className="antialiased bg-[#16062B]">
+    <html lang="en" suppressHydrationWarning className="bg-transparent">
+      <body className="antialiased" >
         <Providers>
           {children}
           <Toaster position="top-right" closeButton />

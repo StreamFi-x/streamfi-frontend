@@ -1,8 +1,17 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import type React from "react";
+import { useState, useRef, useEffect } from "react";
 import { Eye } from "lucide-react";
 import StreamKeyModal from "@/components/ui/streamkeyModal";
 import StreamKeyConfirmationModal from "@/components/ui/streamKeyConfirmationModal";
+import {
+  bgClasses,
+  textClasses,
+  borderClasses,
+  buttonClasses,
+  componentClasses,
+  combineClasses,
+} from "@/lib/theme-classes";
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -47,7 +56,9 @@ const SectionCard: React.FC<SectionCardProps> = ({
   className = "",
 }) => {
   return (
-    <div className={`bg-[#1a1a1a] rounded-lg p-6 mb-6 ${className}`}>
+    <div
+      className={combineClasses(componentClasses.card, "p-6 mb-6", className)}
+    >
       {children}
     </div>
   );
@@ -62,17 +73,27 @@ const SecretField: React.FC<SecretFieldProps> = ({
 }) => {
   return (
     <div className="mb-8">
-      <h2 className="text-xl text-purple-400 font-medium mb-4">{label}</h2>
+      <h2
+        className={combineClasses(
+          textClasses.highlight,
+          "text-xl font-medium mb-4"
+        )}
+      >
+        {label}
+      </h2>
       <div className="w-full flex flex-col md:flex-row gap-4">
         <div className="relative w-full">
           <input
             type={isVisible ? "text" : "password"}
             value={value}
             readOnly
-            className="w-full bg-[#2a2a2a] text-white rounded-lg p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className={componentClasses.secretInput}
           />
           <button
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+            className={combineClasses(
+              textClasses.tertiary,
+              "absolute right-3 top-1/2 transform -translate-y-1/2 hover:text-white"
+            )}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -97,10 +118,19 @@ const ToggleSection: React.FC<ToggleSectionProps> = ({
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl text-purple-400 font-medium">{title}</h2>
+        <h2
+          className={combineClasses(
+            textClasses.highlight,
+            "text-xl font-medium"
+          )}
+        >
+          {title}
+        </h2>
         <ToggleSwitch enabled={enabled} onChange={onToggle} />
       </div>
-      <p className="text-gray-400 text-sm italic">{description}</p>
+      <p className={combineClasses(textClasses.tertiary, "text-sm italic")}>
+        {description}
+      </p>
     </div>
   );
 };
@@ -241,22 +271,28 @@ const StreamPreferencesPage: React.FC = () => {
   const streamKeyActions = (
     <div className="flex flex-col items-end gap-4 md:flex-row md:justify-start">
       <button
-        className=" bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md whitespace-nowrap"
+        className={combineClasses(
+          buttonClasses.secondary,
+          "px-4 py-2 rounded-md whitespace-nowrap"
+        )}
         onClick={copyKey}
       >
         Copy Key
       </button>
-      <button
-        onClick={handleReset}
-        className="px-6 py-2 bg-[#383838] text-white rounded-md hover:bg-[#383838]/70"
-      >
+      <button onClick={handleReset} className={buttonClasses.reset}>
         Reset
       </button>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div
+      className={combineClasses(
+        "min-h-screen",
+        bgClasses.secondary,
+        textClasses.primary
+      )}
+    >
       <div className="max-w-8xl mx-auto px-4 pt-12 pb-16">
         <SectionCard>
           {/* Stream URL */}
@@ -277,7 +313,7 @@ const StreamPreferencesPage: React.FC = () => {
           />
         </SectionCard>
 
-        <SectionCard className="flex w-full bg-[#1a1a1a] flex-col items-center-justify-center">
+        <SectionCard className="flex w-full flex-col items-center-justify-center">
           <SectionCard className="bg-transparent py-2 px-4 mb-0">
             <ToggleSection
               title="Disconnected Protection"
@@ -287,7 +323,7 @@ const StreamPreferencesPage: React.FC = () => {
             />
           </SectionCard>
 
-          <hr className="border-gray-800 my-4" />
+          <hr className={combineClasses(borderClasses.divider, "my-4")} />
 
           <SectionCard className="bg-transparent py-2 px-4 mb-0">
             <ToggleSection

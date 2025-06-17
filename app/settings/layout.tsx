@@ -7,6 +7,7 @@ import Navbar from "@/components/explore/Navbar"
 import Sidebar from "@/components/explore/Sidebar"
 import SettingsNavigation from "@/components/settings/SettingsNavigation"
 import ProtectedRoute from "@/components/auth/ProtectedRoute"
+import { bgClasses, textClasses } from "@/lib/theme-classes"
 
 export default function SettingsLayout({
   children,
@@ -22,7 +23,7 @@ export default function SettingsLayout({
           <div className="flex justify-start h-screen overflow-hidden">
             <Sidebar />
 
-            <div className="bg-black text-white pt-[2em] px-[1em] lg:px-[2em] w-full flex flex-col items-start">
+            <div className={`${bgClasses.secondary} ${textClasses.secondary}  pt-[2em] px-[1em] lg:px-[2em] w-full flex flex-col items-start `}>
               <div className="flex-none w-full">
                 <h1 className="text-4xl font-bold mb-8">Settings</h1>
                 <SettingsNavigation />

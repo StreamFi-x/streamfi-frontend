@@ -1,9 +1,17 @@
-'use client'
-import React from 'react';
-import Image from 'next/image';
-import DiscordLogo from '@/public/Images/discord.svg'
-import SteamLogo from '@/public/Images/steam.svg'
-import YoutubeLogo from '@/public/Images/youtube.svg'
+"use client";
+import type React from "react";
+import Image from "next/image";
+import DiscordLogo from "@/public/Images/discord.svg";
+import SteamLogo from "@/public/Images/steam.svg";
+import YoutubeLogo from "@/public/Images/youtube.svg";
+import {
+  bgClasses,
+  textClasses,
+  borderClasses,
+  buttonClasses,
+  componentClasses,
+  combineClasses,
+} from "@/lib/theme-classes";
 
 interface ConnectionItemProps {
   icon: string;
@@ -21,7 +29,7 @@ interface SectionCardProps {
 
 const SectionCard: React.FC<SectionCardProps> = ({ children }) => {
   return (
-    <div className="bg-[#1a1a1a] rounded-lg py-6 px-3 lg:px-6">
+    <div className={combineClasses(componentClasses.card, "py-6 px-3 lg:px-6")}>
       {children}
     </div>
   );
@@ -34,14 +42,16 @@ const ConnectionItem: React.FC<ConnectionItemProps> = ({
   isConnected,
   onConnect,
   onDisconnect,
-  isLast = false
+  isLast = false,
 }) => {
   return (
-    <div className={`flex items-center justify-between py-5 ${!isLast ? 'border-b border-[#333333]' : ''}`}>
+    <div
+      className={`flex items-center justify-between py-5 ${!isLast ? `border-b ${borderClasses.divider}` : ""}`}
+    >
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 relative">
           <Image
-            src={icon}
+            src={icon || "/placeholder.svg"}
             alt={name}
             width={54}
             height={50}
@@ -49,20 +59,30 @@ const ConnectionItem: React.FC<ConnectionItemProps> = ({
           />
         </div>
         <div>
-          <h3 className="text-white text-lg font-medium">{name}</h3>
-          <p className="text-gray-400">{description}</p>
+          <h3
+            className={combineClasses(
+              textClasses.primary,
+              "text-lg font-medium"
+            )}
+          >
+            {name}
+          </h3>
+          <p className={textClasses.tertiary}>{description}</p>
         </div>
       </div>
       {isConnected ? (
-        <button 
-          className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
+        <button
+          className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
           onClick={onDisconnect}
         >
           Disconnect
         </button>
       ) : (
-        <button 
-          className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg"
+        <button
+          className={combineClasses(
+            buttonClasses.secondary,
+            "px-6 py-2 rounded-lg"
+          )}
           onClick={onConnect}
         >
           Connect
@@ -76,26 +96,26 @@ const ConnectionsPage: React.FC = () => {
   // Connection data
   const connections = [
     {
-      id: 'discord',
+      id: "discord",
       icon: DiscordLogo,
-      name: 'Discord',
-      description: 'Join community servers and chat with followers',
-      isConnected: false
+      name: "Discord",
+      description: "Join community servers and chat with followers",
+      isConnected: false,
     },
     {
-      id: 'steam',
+      id: "steam",
       icon: SteamLogo,
-      name: 'Steam',
-      description: 'Share visual content across platforms',
-      isConnected: false
+      name: "Steam",
+      description: "Share visual content across platforms",
+      isConnected: false,
     },
     {
-      id: 'youtube',
+      id: "youtube",
       icon: YoutubeLogo,
-      name: 'Youtube',
-      description: 'Connected to [Channel Name] 12 hours ago',
-      isConnected: true
-    }
+      name: "Youtube",
+      description: "Connected to [Channel Name] 12 hours ago",
+      isConnected: true,
+    },
   ];
 
   const handleConnect = (id: string) => {
@@ -109,16 +129,37 @@ const ConnectionsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div
+      className={combineClasses(
+        "min-h-screen",
+        bgClasses.secondary,
+        textClasses.primary
+      )}
+    >
       <div className="max-w-8xl mx-auto">
         <SectionCard>
-          <h2 className="text-xl text-purple-600 font-medium mb-2">Recommended Connections</h2>
-          <p className="text-gray-400 text-sm italic mb-8">
-            Link your external accounts to enhance your experience across platforms. When you connect an account, we may share limited profile information and activity data
-            based on your privacy settings. You can disconnect accounts at any time, which will revoke all sharing permissions. We never post on your behalf without explicit
+          <h2
+            className={combineClasses(
+              textClasses.highlight,
+              "text-xl font-medium mb-2"
+            )}
+          >
+            Recommended Connections
+          </h2>
+          <p
+            className={combineClasses(
+              textClasses.tertiary,
+              "text-sm italic mb-8"
+            )}
+          >
+            Link your external accounts to enhance your experience across
+            platforms. When you connect an account, we may share limited profile
+            information and activity data based on your privacy settings. You
+            can disconnect accounts at any time, which will revoke all sharing
+            permissions. We never post on your behalf without explicit
             permission for each action.
           </p>
-          
+
           {connections.map((connection, index) => (
             <ConnectionItem
               key={connection.id}

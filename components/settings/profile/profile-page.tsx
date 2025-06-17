@@ -4,6 +4,7 @@ import type React from "react"
 import Image, { type StaticImageData } from "next/image"
 import { Edit2, Trash2, Check, X, Instagram, Facebook, Twitch, Youtube, Twitter } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
+import { bgClasses, textClasses, buttonClasses, componentClasses, combineClasses } from "@/lib/theme-classes"
 
 import { motion, AnimatePresence } from "framer-motion"
 import profileImage from "@/public/Images/profile.png"
@@ -108,9 +109,13 @@ export default function ProfileSettings() {
   }, [user])
 
   const getInputStyle = (inputName: string) => {
-    return `w-full bg-[#2a2a2a] rounded-lg px-4 py-3 text-white text-sm outline-none 
-           ${uiState.focusedInput === inputName ? "border border-purple-600" : "border border-transparent"} 
-           transition-all duration-200`
+    return combineClasses(
+      "w-full",
+      bgClasses.input,
+      "rounded-lg px-4 py-3 text-sm outline-none",
+      uiState.focusedInput === inputName ? "border border-purple-600" : "border border-transparent",
+      "transition-all duration-200",
+    )
   }
 
   const generateDefaultTitle = useCallback(
@@ -195,30 +200,22 @@ export default function ProfileSettings() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div
+        className={combineClasses(
+          "min-h-screen",
+          bgClasses.secondary,
+          textClasses.primary,
+          "flex items-center justify-center",
+        )}
+      >
         <div className="text-center">
           <h2 className="text-xl mb-4">Loading...</h2>
-          <p className="text-gray-400">Please wait while we load your profile.</p>
+          <p className={textClasses.tertiary}>Please wait while we load your profile.</p>
         </div>
       </div>
     )
   }
 
-  // if (!user) {
-  //   return (
-  //     <div className="min-h-screen bg-black text-white">
-  //       <div className="mx-auto max-w-8xl p-8">
-  //         <div className="bg-[#1a1a1a] rounded-lg p-4 mb-6">
-  //           <h2 className="text-xl mb-4">Profile Settings</h2>
-  //           <p className="text-gray-400">
-  //             Your wallet is connected. Set up your profile to get started.
-  //           </p>
-  //         </div>
-  //         {/* Add your profile setup form here */}
-  //       </div>
-  //     </div>
-  //   );
-  // }
   const updateFormField = (field: keyof FormState, value: string) => {
     setFormState((prev) => ({ ...prev, [field]: value }))
 
@@ -421,10 +418,10 @@ export default function ProfileSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white pb-8">
+    <div className={combineClasses("min-h-screen", bgClasses.secondary, textClasses.primary, "pb-8")}>
       <div className="mx-auto max-w-8xl">
         {/* Avatar Section */}
-        <div className="bg-[#1a1a1a] rounded-lg p-4 mb-6">
+        <div className={combineClasses(componentClasses.card, "p-4 mb-6")}>
           <div className="flex items-center gap-4">
             <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-purple-700">
               <Image src={avatar || "/placeholder.svg"} alt="Profile Avatar" fill className="object-cover" priority />
@@ -432,18 +429,24 @@ export default function ProfileSettings() {
             <div>
               <button
                 onClick={handleAvatarClick}
-                className="bg-[#2a2a2a] text-white px-3 py-2 rounded text-sm hover:bg-[#333] transition"
+                className={combineClasses(
+                  bgClasses.input,
+                  textClasses.primary,
+                  "px-3 py-2 rounded text-sm hover:bg-[#333] transition",
+                )}
               >
                 Edit Avatar
               </button>
-              <p className="text-gray-400 mt-2 text-xs">Must be JPEG, PNG, or GIF and cannot exceed 10MB</p>
+              <p className={combineClasses(textClasses.tertiary, "mt-2 text-xs")}>
+                Must be JPEG, PNG, or GIF and cannot exceed 10MB
+              </p>
             </div>
           </div>
         </div>
 
         {/* Basic Settings Section */}
-        <div className="bg-[#1a1a1a] rounded-lg p-4 mb-6">
-          <h2 className="text-white text-lg mb-4">Basic Settings</h2>
+        <div className={combineClasses(componentClasses.card, "p-4 mb-6")}>
+          <h2 className={combineClasses(textClasses.primary, "text-lg mb-4")}>Basic Settings</h2>
 
           <div className="mb-5">
             <label className="block mb-2 text-sm">User Name</label>
@@ -456,7 +459,9 @@ export default function ProfileSettings() {
               className={getInputStyle("username")}
               style={{ outlineWidth: 0, boxShadow: "none" }}
             />
-            <p className="text-gray-500 italic text-xs mt-1">You can only change your display name once in a month.</p>
+            <p className={combineClasses(textClasses.tertiary, "italic text-xs mt-1")}>
+              You can only change your display name once in a month.
+            </p>
           </div>
 
           <div className="mb-5">
@@ -465,10 +470,12 @@ export default function ProfileSettings() {
               type="text"
               value={formState.wallet}
               readOnly
-              className={`${getInputStyle("wallet")} opacity-70`}
+              className={combineClasses(getInputStyle("wallet"), "opacity-70")}
               style={{ outlineWidth: 0, boxShadow: "none" }}
             />
-            <p className="text-gray-500 italic text-xs mt-1">Your wallet address cannot be changed.</p>
+            <p className={combineClasses(textClasses.tertiary, "italic text-xs mt-1")}>
+              Your wallet address cannot be changed.
+            </p>
           </div>
 
           <div className="mb-5">
@@ -478,23 +485,27 @@ export default function ProfileSettings() {
               onChange={(e) => updateFormField("bio", e.target.value)}
               onFocus={() => updateUiState({ focusedInput: "bio" })}
               onBlur={() => updateUiState({ focusedInput: null })}
-              className={`${getInputStyle("bio")} min-h-[7em]`}
+              className={combineClasses(getInputStyle("bio"), "min-h-[7em]")}
               style={{ outlineWidth: 0, boxShadow: "none", height: "7em" }}
             />
-            <p className="text-gray-500 italic text-xs mt-1">Share a bit about yourself. (Max 150 words)</p>
+            <p className={combineClasses(textClasses.tertiary, "italic text-xs mt-1")}>
+              Share a bit about yourself. (Max 150 words)
+            </p>
           </div>
         </div>
 
         {/* Social Links Section */}
         <motion.div
-          className="bg-[#1a1a1a] rounded-lg p-4 mb-6"
+          className={combineClasses(componentClasses.card, "p-4 mb-6")}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <h2 className="text-white text-xl font-medium mb-1">Social Links</h2>
+          <h2 className={combineClasses(textClasses.primary, "text-xl font-medium mb-1")}>Social Links</h2>
           <div className="flex flex-wrap items-center gap-2 mb-6">
-            <p className="text-gray-400 text-sm">Add up to 5 social media links to showcase your online presence.</p>
+            <p className={combineClasses(textClasses.tertiary, "text-sm")}>
+              Add up to 5 social media links to showcase your online presence.
+            </p>
             <div className="flex items-center gap-2 flex-wrap">
               <Instagram className="w-3 h-3 md:w-4 md:h-4" />
               <Facebook className="w-3 h-3 md:w-4 md:h-4" />
@@ -538,7 +549,7 @@ export default function ProfileSettings() {
                 }
                 onBlur={() => updateUiState({ focusedInput: null })}
                 placeholder="https://www.discord.com/username"
-                className={`${getInputStyle("socialLinkUrl")} pr-32`}
+                className={combineClasses(getInputStyle("socialLinkUrl"), "pr-32")}
                 style={{ outlineWidth: 0, boxShadow: "none" }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -564,7 +575,7 @@ export default function ProfileSettings() {
             <AnimatePresence>
               {uiState.duplicateUrlError && (
                 <motion.p
-                  className="text-red-500 text-xs mt-1 mb-2"
+                  className={combineClasses(textClasses.error, "text-xs mt-1 mb-2")}
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
@@ -578,7 +589,10 @@ export default function ProfileSettings() {
               <motion.button
                 onClick={handleAddSocialLink}
                 disabled={socialLinks.length >= 5 || !formState.socialLinkUrl}
-                className="bg-[#2a2a2a] px-6 py-2 rounded-md hover:bg-[#444] transition text-sm disabled:opacity-50"
+                className={combineClasses(
+                  bgClasses.input,
+                  "px-6 py-2 rounded-md hover:bg-[#444] transition text-sm disabled:opacity-50",
+                )}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 initial={{ opacity: 0 }}
@@ -623,7 +637,10 @@ export default function ProfileSettings() {
                             }
                             onFocus={() => updateUiState({ focusedInput: "editingTitle" })}
                             onBlur={() => updateUiState({ focusedInput: null })}
-                            className={`${getInputStyle("editingTitle")} w-full rounded px-3 py-1 text-white text-sm mb-2`}
+                            className={combineClasses(
+                              getInputStyle("editingTitle"),
+                              "w-full rounded px-3 py-1 text-sm mb-2",
+                            )}
                             style={{
                               outlineWidth: 0,
                               boxShadow: "none",
@@ -648,7 +665,11 @@ export default function ProfileSettings() {
                               })
                             }
                             onBlur={() => updateUiState({ focusedInput: null })}
-                            className={`${getInputStyle("editingLink")} w-full rounded px-3 py-1 text-white text-sm ${uiState.duplicateUrlError ? "border-red-500" : ""}`}
+                            className={combineClasses(
+                              getInputStyle("editingLink"),
+                              "w-full rounded px-3 py-1 text-sm",
+                              uiState.duplicateUrlError ? "border-red-500" : "",
+                            )}
                             style={{
                               outlineWidth: 0,
                               boxShadow: "none",
@@ -661,7 +682,7 @@ export default function ProfileSettings() {
                           <AnimatePresence>
                             {uiState.duplicateUrlError && (
                               <motion.p
-                                className="text-red-500 text-xs mt-1"
+                                className={combineClasses(textClasses.error, "text-xs mt-1")}
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: "auto" }}
                                 exit={{ opacity: 0, height: 0 }}
@@ -698,13 +719,15 @@ export default function ProfileSettings() {
                         <div className="flex-1 p-3 border-l border-[#2a2a2a] w-full">
                           <div className="flex flex-col justify-start">
                             <span className="font-medium">{link.title}</span>
-                            <div className="text-gray-400 text-xs mt-1 truncate">{link.url}</div>
+                            <div className={combineClasses(textClasses.tertiary, "text-xs mt-1 truncate")}>
+                              {link.url}
+                            </div>
                           </div>{" "}
                         </div>
                         <div className="flex items-center justify-end px-3">
                           <motion.button
                             onClick={() => handleEditLink(index)}
-                            className="p-1 text-gray-400 hover:text-white"
+                            className={combineClasses(textClasses.tertiary, "p-1 hover:text-white")}
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                           >
@@ -712,7 +735,7 @@ export default function ProfileSettings() {
                           </motion.button>
                           <motion.button
                             onClick={() => handleDeleteLink(index)}
-                            className="p-1 text-gray-400 hover:text-red-500 ml-1"
+                            className={combineClasses(textClasses.tertiary, "p-1 hover:text-red-500 ml-1")}
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                           >
@@ -730,16 +753,20 @@ export default function ProfileSettings() {
 
         {/* Language Section */}
         <motion.div
-          className="bg-[#1a1a1a] rounded-lg p-4 mb-6"
+          className={combineClasses(componentClasses.card, "p-4 mb-6")}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
         >
-          <h2 className="text-white text-lg mb-4">Language</h2>
+          <h2 className={combineClasses(textClasses.primary, "text-lg mb-4")}>Language</h2>
           <div
-            className={`w-full bg-[#2a2a2a] rounded-lg px-4 py-3 text-white text-sm flex justify-between items-center cursor-pointer ${
-              uiState.focusedInput === "language" ? "border border-purple-600" : "border border-transparent"
-            } transition-all duration-200`}
+            className={combineClasses(
+              "w-full",
+              bgClasses.input,
+              "rounded-lg px-4 py-3 text-sm flex justify-between items-center cursor-pointer",
+              uiState.focusedInput === "language" ? "border border-purple-600" : "border border-transparent",
+              "transition-all duration-200",
+            )}
             onClick={() =>
               updateUiState({
                 focusedInput: "language",
@@ -751,7 +778,7 @@ export default function ProfileSettings() {
             <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
                 d="M1 1.5L6 6.5L11 1.5"
-                stroke="white"
+                stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -767,12 +794,16 @@ export default function ProfileSettings() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, delay: 0.2 }}
         >
-          {uiState.saveError && <p className="text-red-500 mr-4 self-center">{uiState.saveError}</p>}
-          {uiState.saveSuccess && <p className="text-green-500 mr-4 self-center">Changes saved successfully!</p>}
+          {uiState.saveError && (
+            <p className={combineClasses(textClasses.error, "mr-4 self-center")}>{uiState.saveError}</p>
+          )}
+          {uiState.saveSuccess && (
+            <p className={combineClasses(textClasses.success, "mr-4 self-center")}>Changes saved successfully!</p>
+          )}
           <motion.button
             onClick={handleSaveChanges}
             disabled={uiState.isSaving}
-            className="bg-purple-700 hover:bg-purple-800 text-white px-6 py-3 rounded-md transition text-sm disabled:opacity-50"
+            className={combineClasses(buttonClasses.secondary, "px-6 py-3 rounded-md text-sm disabled:opacity-50")}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -821,24 +852,24 @@ export default function ProfileSettings() {
       <AnimatePresence>
         {uiState.showLanguageModal && (
           <motion.div
-            className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+            className={combineClasses(bgClasses.overlay, "fixed inset-0 flex items-center justify-center z-50")}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
             <motion.div
-              className="bg-[#1a1a1a] rounded-lg w-full max-w-md p-6 relative"
+              className={combineClasses(componentClasses.modal, "w-full max-w-md p-6 relative")}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-purple-500 text-xl font-medium">Select Language</h2>
+                <h2 className={combineClasses(textClasses.highlight, "text-xl font-medium")}>Select Language</h2>
                 <motion.button
                   onClick={() => updateUiState({ showLanguageModal: false })}
-                  className="text-gray-400 hover:text-white"
+                  className={combineClasses(textClasses.tertiary, "hover:text-white")}
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                 >
@@ -852,7 +883,9 @@ export default function ProfileSettings() {
                     key={lang}
                     onClick={() => handleLanguageSelect(lang)}
                     className={`flex items-center gap-3 p-3 rounded-md cursor-pointer ${
-                      formState.language === lang ? "bg-purple-900 bg-opacity-50" : "bg-[#2a2a2a] hover:bg-[#333]"
+                      formState.language === lang
+                        ? "bg-purple-900 bg-opacity-50"
+                        : combineClasses(bgClasses.input, bgClasses.hover)
                     }`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -869,7 +902,7 @@ export default function ProfileSettings() {
               <div className="mt-6 flex justify-end">
                 <motion.button
                   onClick={() => updateUiState({ showLanguageModal: false })}
-                  className="bg-purple-700 hover:bg-purple-800 text-white px-6 py-2 rounded-md transition text-sm"
+                  className={combineClasses(buttonClasses.secondary, "px-6 py-2 rounded-md text-sm")}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
