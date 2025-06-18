@@ -15,15 +15,16 @@ export const bgClasses = {
   secondary: `bg-gray-100 dark:bg-black ${themeTransition}`,
   sidebar: `bg-white dark:bg-[#17191A] ${themeTransition}`,
   tertiary: `bg-gray-100 dark:bg-[#151515] ${themeTransition}`,
+  wallet: `bg-[#161616] dark:bg-[#1A1B1D] ${themeTransition}`,
 
   // Component backgrounds
   card: `bg-white dark:bg-[#1A1B1D] ${themeTransition}`,
   modal: `bg-white dark:bg-background ${themeTransition}`,
-  dropdown: `bg-white dark:bg-[#1A1B1D] ${themeTransition}`,
+  dropdown: `bg-white dark:bg-[#161616] shadow-lg rounded-md ${themeTransition}`,
   input: `bg-gray-100 dark:bg-[#2a2a2a] ${themeTransition}`,
 
   // Interactive backgrounds
-  hover: `hover:bg-gray-100 dark:hover:bg-[#2D2F31] ${themeTransition}`,
+  hover: `hover:bg-gray-100 dark:hover:bg-[#282828] ${themeTransition}`,
   active: `active:bg-gray-200 dark:active:bg-[#3D3F41] ${themeTransition}`,
   selected: `bg-purple-50 dark:bg-purple-900/20 ${themeTransition}`,
 
@@ -63,7 +64,7 @@ export const borderClasses = {
   // Primary borders
   primary: `border-gray-200 dark:border-white/10 ${themeTransition}`,
   secondary: `border-gray-100 dark:border-white/5 ${themeTransition}`,
-  divider: `border-gray-200 dark:border-gray-800 ${themeTransition}`,
+  divider: `border-gray-200 dark:border-gray-700 ${themeTransition}`,
 
   // Interactive borders
   focus: `focus:border-purple-600 dark:focus:border-purple-400 ${themeTransition}`,
@@ -91,6 +92,7 @@ export const buttonClasses = {
   outline: `bg-transparent border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-white ${themeTransition}`,
   ghost: `bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-white ${themeTransition}`,
   reset: `bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-[#383838] dark:hover:bg-[#383838]/70 dark:text-white px-6 py-2 rounded-md ${themeTransition}`,
+  connect: `bg-purple-700 hover:bg-purple-500 text-white  ${themeTransition}`,
 }
 
 // Common component classes
