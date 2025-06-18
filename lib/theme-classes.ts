@@ -18,7 +18,7 @@ export const bgClasses = {
   wallet: `bg-[#161616] dark:bg-[#1A1B1D] ${themeTransition}`,
 
   // Component backgrounds
-  card: `bg-white dark:bg-[#1A1B1D] ${themeTransition}`,
+  card: `bg-white dark:bg-[#17191A] ${themeTransition}`,
   modal: `bg-white dark:bg-background ${themeTransition}`,
   dropdown: `bg-white dark:bg-[#161616] shadow-lg rounded-md ${themeTransition}`,
   input: `bg-gray-100 dark:bg-[#2a2a2a] ${themeTransition}`,
