@@ -12,8 +12,8 @@ const themeTransition = "transition-colors duration-700"
 export const bgClasses = {
   // Primary backgrounds
   primary: `bg-white dark:bg-background ${themeTransition}`,
-  secondary: `bg-gray-50 dark:bg-black ${themeTransition}`,
-  sidebar: `bg-gray-100 dark:bg-[#17191A] ${themeTransition}`,
+  secondary: `bg-gray-100 dark:bg-black ${themeTransition}`,
+  sidebar: `bg-white dark:bg-[#17191A] ${themeTransition}`,
   tertiary: `bg-gray-100 dark:bg-[#151515] ${themeTransition}`,
 
   // Component backgrounds
@@ -28,7 +28,7 @@ export const bgClasses = {
   selected: `bg-purple-50 dark:bg-purple-900/20 ${themeTransition}`,
 
   // Special backgrounds
-  highlight: `bg-gray-100 dark:bg-[#17191A] ${themeTransition}`,
+  highlight: `bg-white dark:bg-[#17191A] ${themeTransition}`,
   warning: `bg-amber-50 dark:bg-amber-900/20 ${themeTransition}`,
   error: `bg-red-50 dark:bg-red-900/20 ${themeTransition}`,
   success: `bg-green-50 dark:bg-green-900/20 ${themeTransition}`,
