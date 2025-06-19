@@ -139,7 +139,7 @@ export default function StreamSettings() {
 
             <button
               onClick={handleEditSettings}
-              className={`w-full py-2 ${buttonClasses.primary} rounded-md transition-colors`}
+              className={`w-full py-2 ${buttonClasses.primary} ${textClasses.inverseHover} rounded-md transition-colors`}
             >
               Edit Stream Settings
             </button>

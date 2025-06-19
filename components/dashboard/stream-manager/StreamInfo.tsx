@@ -103,7 +103,7 @@ export default function StreamInfo({ data, onEditClick }: StreamInfoProps) {
 
             <button
               onClick={onEditClick}
-              className={`w-full py-2 ${buttonClasses.primary} rounded-md transition-colors`}
+              className={`w-full py-2 ${buttonClasses.primary} ${textClasses.inverseHover} rounded-md transition-colors`}
             >
               Edit Stream Info
             </button>

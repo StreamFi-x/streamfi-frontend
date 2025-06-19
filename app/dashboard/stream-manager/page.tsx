@@ -95,7 +95,7 @@ export default function StreamManagerPage() {
   return (
     <>
       <div
-        className={`flex flex-col h-screen ${bgClasses.primary} ${textClasses.primary}`}
+        className={`flex flex-col h-screen ${bgClasses.secondary} ${textClasses.primary}`}
       >
         {/* Stats Bar */}
         <div
