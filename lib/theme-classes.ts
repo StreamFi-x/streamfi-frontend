@@ -44,10 +44,12 @@ export const textClasses = {
   primary: `text-gray-900 dark:text-white ${themeTransition}`,
   secondary: `text-gray-600 dark:text-gray-300 ${themeTransition}`,
   tertiary: `text-gray-500 dark:text-gray-400 ${themeTransition}`,
+  inverse: `text-white dark:text-gray-900 ${themeTransition}`,
 
   // Interactive text
   link: `text-purple-600 dark:text-purple-400 ${themeTransition}`,
   linkHover: `hover:text-purple-800 dark:hover:text-purple-300 ${themeTransition}`,
+  inverseHover: `hover:text-purple-100 dark:hover:text-purple-100 ${themeTransition}`,
 
   // Special text
   highlight: `text-purple-600 dark:text-purple-400 ${themeTransition}`,
