@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 import { useState, useEffect } from "react";
 import StreamPreview from "@/components/dashboard/stream-manager/StreamPreview";
 import ActivityFeed from "@/components/dashboard/stream-manager/ActivityFeed";
@@ -8,6 +10,7 @@ import StreamInfo from "@/components/dashboard/stream-manager/StreamInfo";
 import StreamSettings from "@/components/dashboard/stream-manager/StreamSettings";
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
+import { bgClasses, textClasses, borderClasses } from "@/lib/theme-classes";
 
 export default function StreamManagerPage() {
   const [streamData, setStreamData] = useState({
@@ -91,15 +94,19 @@ export default function StreamManagerPage() {
 
   return (
     <>
-      <div className="flex flex-col h-screen bg-[#121212] text-white">
+      <div
+        className={`flex flex-col h-screen ${bgClasses.primary} ${textClasses.primary}`}
+      >
         {/* Stats Bar */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-800">
+        <div
+          className={`flex justify-between items-center p-4 border-b ${borderClasses.primary}`}
+        >
           <div className="flex space-x-4">
             <StatsCard title="Viewers" value={stats.viewers} />
             <StatsCard title="New followers" value={stats.followers} />
             <StatsCard title="Donations" value={stats.donations} />
           </div>
-          <div className="text-gray-300">
+          <div className={textClasses.secondary}>
             <span>Stream Session: </span>
             <span className="font-mono">{streamSession}</span>
           </div>
@@ -126,13 +133,16 @@ export default function StreamManagerPage() {
 
             {/* Stream Info & Settings - Takes up 2 columns on large screens */}
             <div className="col-span-12 lg:col-span-3 flex flex-col gap-2 h-[calc(100vh-8rem)]">
-              <div className="flex-1">
+              {/* Stream Info - Dynamic height based on content */}
+              <div>
                 <StreamInfo
                   data={streamData}
                   onEditClick={() => setIsStreamInfoModalOpen(true)}
                 />
               </div>
-              <div className="flex-1">
+
+              {/* Stream Settings - Dynamic height based on content */}
+              <div>
                 <StreamSettings />
               </div>
             </div>
@@ -150,9 +160,14 @@ export default function StreamManagerPage() {
 
         {/* Toast Notification */}
         {toastMessage && (
-          <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50">
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+            className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50"
+          >
             {toastMessage}
-          </div>
+          </motion.div>
         )}
       </div>
     </>
@@ -164,12 +179,12 @@ const StatsCard: React.FC<{ title: string; value: number }> = ({
   value,
 }) => (
   <motion.div
-    className="bg-gray-800 px-6 py-3 rounded-md text-center"
+    className={`${bgClasses.card} px-6 py-3 rounded-md text-center border ${borderClasses.primary}`}
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.3 }}
   >
-    <div className="text-2xl font-bold">{value}</div>
-    <div className="text-sm text-gray-400">{title}</div>
+    <div className={`text-2xl font-bold ${textClasses.primary}`}>{value}</div>
+    <div className={`text-sm ${textClasses.tertiary}`}>{title}</div>
   </motion.div>
 );
