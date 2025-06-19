@@ -1,25 +1,25 @@
-"use client"
+"use client";
 
-import { usePathname } from "next/navigation"
-import Link from "next/link"
-import { motion, AnimatePresence } from "framer-motion"
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   HomeIcon as House,
   LinkIcon,
   Settings,
   BarChartIcon as ChartColumnDecreasing,
   ArrowLeftToLine,
-} from "lucide-react"
-import { LiaCoinsSolid } from "react-icons/lia"
-import { bgClasses, textClasses, borderClasses } from "@/lib/theme-classes"
+} from "lucide-react";
+import { LiaCoinsSolid } from "react-icons/lia";
+import { bgClasses, textClasses, borderClasses } from "@/lib/theme-classes";
 
 interface SidebarProps {
-  isCollapsed: boolean
-  onToggle: () => void
+  isCollapsed: boolean;
+  onToggle: () => void;
 }
 
 export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   const navItems = [
     { name: "Home", icon: <House size={24} />, path: "/dashboard/home" },
@@ -43,7 +43,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       icon: <Settings size={24} />,
       path: "/dashboard/settings",
     },
-  ]
+  ];
 
   // Enhanced animation variants matching explore sidebar
   const sidebarVariants = {
@@ -63,7 +63,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         type: "tween",
       },
     },
-  }
+  };
 
   const contentVariants = {
     expanded: {
@@ -88,7 +88,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         staggerDirection: -1,
       },
     },
-  }
+  };
 
   const itemVariants = {
     expanded: {
@@ -114,7 +114,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         ease: [0.23, 1, 0.32, 1],
       },
     },
-  }
+  };
 
   const navItemVariants = {
     rest: {
@@ -139,11 +139,20 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         ease: "easeOut",
       },
     },
-  }
+  };
 
   const renderExpandedContent = () => (
-    <motion.div variants={contentVariants} initial="collapsed" animate="expanded" exit="collapsed" className="w-full">
-      <motion.div variants={itemVariants} className="flex justify-between items-center w-full mb-4 px-4">
+    <motion.div
+      variants={contentVariants}
+      initial="collapsed"
+      animate="expanded"
+      exit="collapsed"
+      className="w-full"
+    >
+      <motion.div
+        variants={itemVariants}
+        className="flex justify-between items-center w-full mb-4 px-4"
+      >
         <motion.span
           variants={itemVariants}
           className={`${textClasses.secondary} font-semibold tracking-wider`}
@@ -178,7 +187,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
       <motion.nav variants={itemVariants} className="flex flex-col gap-1">
         {navItems.map((item, index) => {
-          const isActive = pathname === item.path
+          const isActive = pathname === item.path;
           return (
             <motion.div
               key={item.name}
@@ -202,7 +211,13 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                     animate={isActive ? { scale: [1, 1.2, 1] } : {}}
                     transition={{ duration: 0.5, ease: "easeInOut" }}
                   >
-                    <div className={isActive ? textClasses.primary : textClasses.secondary}>{item.icon}</div>
+                    <div
+                      className={
+                        isActive ? textClasses.primary : textClasses.secondary
+                      }
+                    >
+                      {item.icon}
+                    </div>
                   </motion.div>
                   <motion.span
                     initial={{ opacity: 0, x: -10 }}
@@ -223,11 +238,14 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                 </Link>
               </motion.div>
             </motion.div>
-          )
+          );
         })}
       </motion.nav>
 
-      <motion.hr variants={itemVariants} className={`my-4 border-t ${borderClasses.primary}`} />
+      <motion.hr
+        variants={itemVariants}
+        className={`my-4 border-t ${borderClasses.primary}`}
+      />
 
       <motion.div variants={itemVariants}>
         <motion.h3
@@ -260,7 +278,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </div>
       </motion.div>
     </motion.div>
-  )
+  );
 
   const renderCollapsedContent = () => (
     <motion.div
@@ -295,13 +313,17 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
       <motion.nav className="flex flex-col gap-3 items-center">
         {navItems.map((item, index) => {
-          const isActive = pathname === item.path
+          const isActive = pathname === item.path;
           return (
             <motion.div
               key={item.name}
               initial={{ opacity: 0, y: 20, scale: 0.8 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: index * 0.1, duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+              transition={{
+                delay: index * 0.1,
+                duration: 0.4,
+                ease: [0.23, 1, 0.32, 1],
+              }}
               whileHover={{ scale: 1.1, y: -2 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -318,7 +340,13 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   animate={isActive ? { scale: [1, 1.3, 1] } : {}}
                   transition={{ duration: 0.6, ease: "easeInOut" }}
                 >
-                  <div className={isActive ? textClasses.primary : textClasses.secondary}>{item.icon}</div>
+                  <div
+                    className={
+                      isActive ? textClasses.primary : textClasses.secondary
+                    }
+                  >
+                    {item.icon}
+                  </div>
                 </motion.div>
                 {isActive && (
                   <motion.div
@@ -330,7 +358,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                 )}
               </Link>
             </motion.div>
-          )
+          );
         })}
       </motion.nav>
 
@@ -366,7 +394,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </motion.button>
       </motion.div>
     </motion.div>
-  )
+  );
 
   return (
     <motion.aside
@@ -389,5 +417,5 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </div>
       </div>
     </motion.aside>
-  )
+  );
 }

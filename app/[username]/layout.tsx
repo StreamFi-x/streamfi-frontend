@@ -1,35 +1,35 @@
-"use client"
-import { useState, useEffect } from "react"
-import type React from "react"
-import { notFound, usePathname } from "next/navigation"
-import Sidebar from "@/components/explore/Sidebar"
-import Navbar from "@/components/explore/Navbar"
-import Banner from "@/components/shared/profile/Banner"
-import ProfileHeader from "@/components/shared/profile/ProfileHeader"
-import TabsNavigation from "@/components/shared/profile/TabsNavigation"
-import ViewStream from "@/components/stream/view-stream"
-import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes"
+"use client";
+import { useState, useEffect } from "react";
+import type React from "react";
+import { notFound, usePathname } from "next/navigation";
+import Sidebar from "@/components/explore/Sidebar";
+import Navbar from "@/components/explore/Navbar";
+import Banner from "@/components/shared/profile/Banner";
+import ProfileHeader from "@/components/shared/profile/ProfileHeader";
+import TabsNavigation from "@/components/shared/profile/TabsNavigation";
+import ViewStream from "@/components/stream/view-stream";
+import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
 
 // Mock data for sidebar props
 const sidebarProps = {
   isOpen: true,
   onClose: () => {},
-}
+};
 
 // Mock function to check if a stream is live
 const checkStreamStatus = async (username: string) => {
   // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  await new Promise((resolve) => setTimeout(resolve, 500));
 
   // For demo purposes, randomly determine if stream is live
   // In a real app, this would be a real API call
-  return Math.random() > 0.7 // Lower chance of being live for testing
-}
+  return Math.random() > 0.7; // Lower chance of being live for testing
+};
 
 // Mock function to fetch user data
 const fetchUserData = async (username: string) => {
   // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
+  await new Promise((resolve) => setTimeout(resolve, 300));
   // const response = await fetch(`/api/search-username/${username}`, {
   //   headers: {
   //     "Content-Type": "application/json",
@@ -52,71 +52,71 @@ const fetchUserData = async (username: string) => {
       instagram: "https://instagram.com/kass_dinma",
       discord: "https://discord.gg/kassinma",
     },
-  }
-}
+  };
+};
 
 export default function UsernameLayout({
   children,
   params,
 }: {
-  children: React.ReactNode
-  params: { username: string }
+  children: React.ReactNode;
+  params: { username: string };
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [isLive, setIsLive] = useState<boolean | null>(null)
-  const [userData, setUserData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [userExists, setUserExists] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isLive, setIsLive] = useState<boolean | null>(null);
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [userExists, setUserExists] = useState(true);
 
-  const { username } = params
-  const pathname = usePathname()
+  const { username } = params;
+  const pathname = usePathname();
 
   // Check if we're on the default route (just /[username])
-  const isDefaultRoute = pathname === `/${username}`
+  const isDefaultRoute = pathname === `/${username}`;
 
   // Mock function to check if current user is the owner of this profile
-  const isOwner = username === "chidinma" // Just for demo purposes
+  const isOwner = username === "chidinma"; // Just for demo purposes
 
   const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen)
-  }
+    setSidebarOpen(!sidebarOpen);
+  };
 
   useEffect(() => {
     const initializeProfile = async () => {
       try {
-        setLoading(true)
+        setLoading(true);
 
         // Check if user exists (in a real app, this would be an API call)
         // For demo purposes, assume user exists unless username is "nonexistent"
         if (username === "nonexistent") {
-          setUserExists(false)
-          return
+          setUserExists(false);
+          return;
         }
 
         // Always fetch user data
-        const userData = await fetchUserData(username)
-        setUserData(userData)
+        const userData = await fetchUserData(username);
+        setUserData(userData);
 
         // Only check stream status if we're on the default route
         if (isDefaultRoute) {
-          const streamStatus = await checkStreamStatus(username)
-          setIsLive(streamStatus)
+          const streamStatus = await checkStreamStatus(username);
+          setIsLive(streamStatus);
         } else {
-          setIsLive(false) // Always false for non-default routes
+          setIsLive(false); // Always false for non-default routes
         }
       } catch (error) {
-        console.error("Failed to initialize profile:", error)
-        setUserExists(false)
+        console.error("Failed to initialize profile:", error);
+        setUserExists(false);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    initializeProfile()
-  }, [username, isDefaultRoute])
+    initializeProfile();
+  }, [username, isDefaultRoute]);
 
   if (!userExists) {
-    return notFound()
+    return notFound();
   }
 
   // if (loading) {
@@ -136,7 +136,13 @@ export default function UsernameLayout({
   // Only show live stream if we're on the default route AND the stream is live
   if (isDefaultRoute && isLive) {
     return (
-      <div className={combineClasses("flex flex-col h-screen", bgClasses.secondary, textClasses.primary)}>
+      <div
+        className={combineClasses(
+          "flex flex-col h-screen",
+          bgClasses.secondary,
+          textClasses.primary
+        )}
+      >
         <Navbar toggleSidebar={toggleSidebar} />
         <div className="flex-1 flex overflow-hidden">
           <Sidebar />
@@ -150,18 +156,28 @@ export default function UsernameLayout({
           </main>
         </div>
       </div>
-    )
+    );
   }
 
   // Default layout with Banner, ProfileHeader, and TabsNavigation for all other cases
   return (
-    <div className={combineClasses("flex flex-col h-screen", bgClasses.secondary, textClasses.primary)}>
+    <div
+      className={combineClasses(
+        "flex flex-col h-screen",
+        bgClasses.secondary,
+        textClasses.primary
+      )}
+    >
       <Navbar toggleSidebar={toggleSidebar} />
       <div className="flex-1 flex overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-auto">
           <div className={combineClasses(bgClasses.secondary, "min-h-screen")}>
-            <Banner username={username} isLive={isDefaultRoute && !!isLive} streamTitle={undefined} />
+            <Banner
+              username={username}
+              isLive={isDefaultRoute && !!isLive}
+              streamTitle={undefined}
+            />
             <ProfileHeader
               username={userData?.username || username}
               followers={userData?.followers || 0}
@@ -176,5 +192,5 @@ export default function UsernameLayout({
         </main>
       </div>
     </div>
-  )
+  );
 }

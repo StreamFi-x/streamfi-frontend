@@ -1,15 +1,15 @@
-"use client"
-import StreamCard from "@/components/shared/profile/StreamCard"
-import { textClasses } from "@/lib/theme-classes"
+"use client";
+import StreamCard from "@/components/shared/profile/StreamCard";
+import { textClasses } from "@/lib/theme-classes";
 
 interface PageProps {
   params: {
-    username: string
-  }
+    username: string;
+  };
 }
 
 const ProfilePage = ({ params }: PageProps) => {
-  const { username } = params
+  const { username } = params;
 
   // Mock data for streams
   const recentStreams = [
@@ -53,7 +53,7 @@ const ProfilePage = ({ params }: PageProps) => {
       viewCount: 14500,
       isLive: true,
     },
-  ]
+  ];
 
   const popularClips = [
     {
@@ -76,12 +76,14 @@ const ProfilePage = ({ params }: PageProps) => {
       viewCount: 14500,
       isLive: true,
     },
-  ]
+  ];
 
   return (
     <>
       <section className="mb-8">
-        <h2 className={`${textClasses.primary} text-xl font-medium mb-4`}>Recent Streams</h2>
+        <h2 className={`${textClasses.primary} text-xl font-medium mb-4`}>
+          Recent Streams
+        </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {recentStreams.map((stream) => (
             <StreamCard key={stream.id} {...stream} />
@@ -90,7 +92,9 @@ const ProfilePage = ({ params }: PageProps) => {
       </section>
 
       <section>
-        <h2 className={`${textClasses.primary} text-xl font-medium mb-4`}>Popular Clips</h2>
+        <h2 className={`${textClasses.primary} text-xl font-medium mb-4`}>
+          Popular Clips
+        </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {popularClips.map((clip) => (
             <StreamCard key={clip.id} {...clip} />
@@ -98,7 +102,7 @@ const ProfilePage = ({ params }: PageProps) => {
         </div>
       </section>
     </>
-  )
-}
+  );
+};
 
-export default ProfilePage
+export default ProfilePage;

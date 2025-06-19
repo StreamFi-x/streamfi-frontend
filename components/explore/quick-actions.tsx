@@ -8,27 +8,25 @@ import { useAccount } from "@starknet-react/core";
 import { useState, useEffect, useCallback } from "react";
 import ConnectModal from "../connectWallet";
 
-
 interface QuickActionItem {
   icon: React.ElementType;
   label: string;
   href: string;
-  type: 'link' | 'action';
+  type: "link" | "action";
 }
-
 
 export default function QuickActions() {
   const pathname = usePathname();
   const { address, isConnected } = useAccount();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [username, setUsername] = useState("");
-  
+
   const handleConnectWallet = () => {
     setIsModalOpen(true);
   };
   const handleProfileDisplayModal = useCallback(() => {
     if (!address) return;
-    
+
     fetch(`/api/users/${address}`)
       .then(async (res) => {
         if (res.ok) {
@@ -50,23 +48,28 @@ export default function QuickActions() {
       handleProfileDisplayModal();
     }
   }, [address, handleProfileDisplayModal, isConnected]);
-  const allowedRoutes = ['/explore', '/settings', '/browse', username ? `/${username}` : '/profile'];
-  
-  const shouldShowQuickActions = allowedRoutes.some(route =>
-    pathname === route || pathname.startsWith(`${route}/`)
+  const allowedRoutes = [
+    "/explore",
+    "/settings",
+    "/browse",
+    username ? `/${username}` : "/profile",
+  ];
+
+  const shouldShowQuickActions = allowedRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
   const quickActionItems: QuickActionItem[] = [
-    { icon: Home, label: 'Home', href: '/explore', type: 'link' },
-    { icon: Search, label: 'Search', href: '/explore/search', type: 'link' },
-    { icon: Settings, label: 'Settings', href: '/settings', type: 'link' },
+    { icon: Home, label: "Home", href: "/explore", type: "link" },
+    { icon: Search, label: "Search", href: "/explore/search", type: "link" },
+    { icon: Settings, label: "Settings", href: "/settings", type: "link" },
     isConnected && address
-      ? { 
-          icon: User, 
-          label: 'Profile', 
-          href: username ? `/${username}` : '/profile', 
-          type: 'link' 
+      ? {
+          icon: User,
+          label: "Profile",
+          href: username ? `/${username}` : "/profile",
+          type: "link",
         }
-      : { icon: Wallet, label: 'Connect', href: '#', type: 'action' }
+      : { icon: Wallet, label: "Connect", href: "#", type: "action" },
   ];
 
   if (!shouldShowQuickActions) return null;
@@ -82,8 +85,10 @@ export default function QuickActions() {
       >
         <div className="flex items-center justify-around py-2 px-4 safe-area-pb">
           {quickActionItems.map((item, index) => {
-            const isActive = item.type === 'link' && (pathname === item.href || pathname.startsWith(`${item.href}/`));
-            if (item.type === 'action') {
+            const isActive =
+              item.type === "link" &&
+              (pathname === item.href || pathname.startsWith(`${item.href}/`));
+            if (item.type === "action") {
               return (
                 <button
                   key={`${item.label}-${index}`}
@@ -95,8 +100,7 @@ export default function QuickActions() {
                 </button>
               );
             }
-            
-       
+
             return (
               <Link
                 key={`${item.label}-${index}`}
@@ -115,7 +119,6 @@ export default function QuickActions() {
         </div>
       </motion.div>
 
-
       <AnimatePresence>
         {isModalOpen && (
           <motion.div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -123,7 +126,8 @@ export default function QuickActions() {
             <div
               className="absolute inset-0 bg-black opacity-50"
               onClick={() => setIsModalOpen(false)}
-            />=
+            />
+            =
             <motion.div className="bg-background p-6 rounded-md z-10">
               <ConnectModal
                 isModalOpen={isModalOpen}

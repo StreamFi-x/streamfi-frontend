@@ -22,7 +22,6 @@ import {
   componentClasses,
 } from "@/lib/theme-classes";
 
-
 interface NavbarProps {
   onConnectWallet?: () => void;
   toggleSidebar?: () => void;
@@ -268,7 +267,7 @@ export default function Navbar({}: NavbarProps) {
           {isConnected && address && (
             <>
               <button>
-                <Bell  className={`${textClasses.primary} w-4 h-4 `}/>
+                <Bell className={`${textClasses.primary} w-4 h-4 `} />
               </button>
 
               {/* Avatar with dropdown */}

@@ -1,61 +1,66 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Eye, ChevronDown, ChevronUp } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
-import Button from "@/components/ui/button"
-import type { LiveStreamProps } from "@/types/explore/home"
-import Image from "next/image"
-import { textClasses, bgClasses, buttonClasses, combineClasses } from "@/lib/theme-classes"
+import { useState, useEffect } from "react";
+import { Eye, ChevronDown, ChevronUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import Button from "@/components/ui/button";
+import type { LiveStreamProps } from "@/types/explore/home";
+import Image from "next/image";
+import {
+  textClasses,
+  bgClasses,
+  buttonClasses,
+  combineClasses,
+} from "@/lib/theme-classes";
 
 export function LiveStreams({ title, category, streams }: LiveStreamProps) {
-  const [visibleStreams, setVisibleStreams] = useState(4)
-  const [expanded, setExpanded] = useState(false)
-  const [isCollapsing, setIsCollapsing] = useState(false)
+  const [visibleStreams, setVisibleStreams] = useState(4);
+  const [expanded, setExpanded] = useState(false);
+  const [isCollapsing, setIsCollapsing] = useState(false);
 
   const getInitialCount = () => {
-    if (typeof window === "undefined") return 4
-    if (window.innerWidth < 640) return 2 // Mobile: 2 cards
-    if (window.innerWidth < 1024) return 3 // Tablet: 3 cards
-    return 4 // Desktop: 4 cards
-  }
+    if (typeof window === "undefined") return 4;
+    if (window.innerWidth < 640) return 2; // Mobile: 2 cards
+    if (window.innerWidth < 1024) return 3; // Tablet: 3 cards
+    return 4; // Desktop: 4 cards
+  };
 
   const getIncrementCount = () => {
-    if (typeof window === "undefined") return 4
-    if (window.innerWidth < 640) return 2 // Mobile: +2 cards
-    if (window.innerWidth < 1024) return 3 // Tablet: +3 cards
-    return 4 // Desktop: +4 cards
-  }
+    if (typeof window === "undefined") return 4;
+    if (window.innerWidth < 640) return 2; // Mobile: +2 cards
+    if (window.innerWidth < 1024) return 3; // Tablet: +3 cards
+    return 4; // Desktop: +4 cards
+  };
 
   // Initialize with the correct count based on screen size
   useEffect(() => {
-    setVisibleStreams(getInitialCount())
+    setVisibleStreams(getInitialCount());
 
     // Update count on window resize
     const handleResize = () => {
       if (!expanded) {
-        setVisibleStreams(getInitialCount())
+        setVisibleStreams(getInitialCount());
       }
-    }
+    };
 
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
-  }, [expanded])
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [expanded]);
 
   const handleSeeMore = () => {
-    setVisibleStreams((prev) => prev + getIncrementCount())
-    setExpanded(true)
-  }
+    setVisibleStreams((prev) => prev + getIncrementCount());
+    setExpanded(true);
+  };
 
   const handleSeeLess = () => {
-    setIsCollapsing(true)
+    setIsCollapsing(true);
     // Delay the actual collapse to allow for animation
     setTimeout(() => {
-      setVisibleStreams(getInitialCount())
-      setExpanded(false)
-      setIsCollapsing(false)
-    }, 500) // Match this with the animation duration
-  }
+      setVisibleStreams(getInitialCount());
+      setExpanded(false);
+      setIsCollapsing(false);
+    }, 500); // Match this with the animation duration
+  };
 
   // Calculate which items should be animated out during collapse
   const getItemVariants = (index: number) => {
@@ -76,7 +81,7 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
           scale: 1,
           transition: { duration: 0.3 },
         },
-      }
+      };
     }
 
     return {
@@ -86,12 +91,19 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
         y: 0,
         transition: { duration: 0.3 },
       },
-    }
-  }
+    };
+  };
 
   return (
     <div className="w-full py-6">
-      <h2 className={combineClasses("text-2xl font-bold mb-6", textClasses.primary)}>{title}</h2>
+      <h2
+        className={combineClasses(
+          "text-2xl font-bold mb-6",
+          textClasses.primary
+        )}
+      >
+        {title}
+      </h2>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-6 md:gap-y-10">
         <AnimatePresence>
@@ -113,7 +125,9 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
                   className="w-full aspect-video object-cover transition-transform group-hover:scale-105"
                 />
 
-                <div className="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 text-sm rounded">Live</div>
+                <div className="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 text-sm rounded">
+                  Live
+                </div>
 
                 <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-0.5 text-sm rounded flex items-center">
                   <Eye className="w-3 h-3 mr-1" />
@@ -132,16 +146,29 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <p className={combineClasses("text-sm", textClasses.secondary)}>{stream.streamer.name}</p>
+                  <p
+                    className={combineClasses("text-sm", textClasses.secondary)}
+                  >
+                    {stream.streamer.name}
+                  </p>
                 </div>
 
                 <div>
-                  <h3 className={combineClasses("font-semibold text-lg line-clamp-1", textClasses.primary)}>
+                  <h3
+                    className={combineClasses(
+                      "font-semibold text-lg line-clamp-1",
+                      textClasses.primary
+                    )}
+                  >
                     {stream.title}
                   </h3>
                   <div className="flex flex-wrap gap-2 mt-1">
                     <span
-                      className={combineClasses("text-sm px-2 py-0.5 rounded", bgClasses.selected, textClasses.primary)}
+                      className={combineClasses(
+                        "text-sm px-2 py-0.5 rounded",
+                        bgClasses.selected,
+                        textClasses.primary
+                      )}
                     >
                       {stream.location}
                     </span>
@@ -151,7 +178,7 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
                         className={combineClasses(
                           "text-sm px-2 py-0.5 rounded",
                           bgClasses.selected,
-                          textClasses.primary,
+                          textClasses.primary
                         )}
                       >
                         {tag}
@@ -167,12 +194,16 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
 
       <div className="mt-4 flex justify-center">
         {streams.length > visibleStreams ? (
-          <motion.div className="w-full" whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+          <motion.div
+            className="w-full"
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+          >
             <Button
               onClick={handleSeeMore}
               className={combineClasses(
                 "flex items-center gap-2 w-full outline-none border-none focus:ring-0",
-                buttonClasses.secondary,
+                buttonClasses.secondary
               )}
             >
               See more
@@ -192,7 +223,7 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
               onClick={handleSeeLess}
               className={combineClasses(
                 "flex items-center gap-2 w-full outline-none border-none focus:ring-0",
-                buttonClasses.secondary,
+                buttonClasses.secondary
               )}
               disabled={isCollapsing}
             >
@@ -203,5 +234,5 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
         ) : null}
       </div>
     </div>
-  )
+  );
 }

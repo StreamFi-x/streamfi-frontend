@@ -10,7 +10,12 @@ interface ChannelHomeProps {
   avatarUrl?: string;
 }
 
-const ChannelHome = ({ username, isLive, streamTitle, avatarUrl }: ChannelHomeProps) => {
+const ChannelHome = ({
+  username,
+  isLive,
+  streamTitle,
+  avatarUrl,
+}: ChannelHomeProps) => {
   // Mock data - would be fetched from API in a real implementation
   const userData = {
     username,

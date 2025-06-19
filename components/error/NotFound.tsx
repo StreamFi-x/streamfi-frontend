@@ -1,29 +1,34 @@
-"use client"
+"use client";
 
-import { type FC, useEffect, useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import Link from "next/link"
-import { Home, Compass, Play, Users, Monitor, Camera } from "lucide-react"
-import { bgClasses, textClasses, buttonClasses, borderClasses } from "@/lib/theme-classes"
+import { type FC, useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { Home, Compass, Play, Users, Monitor, Camera } from "lucide-react";
+import {
+  bgClasses,
+  textClasses,
+  buttonClasses,
+  borderClasses,
+} from "@/lib/theme-classes";
 
 interface NotFoundProps {
-  onGoBack: () => void
+  onGoBack: () => void;
 }
 
 const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
-  const [isVisible, setIsVisible] = useState(false)
-  const [currentIcon, setCurrentIcon] = useState(0)
+  const [isVisible, setIsVisible] = useState(false);
+  const [currentIcon, setCurrentIcon] = useState(0);
 
-  const streamingIcons = [Play, Users, Monitor, Camera]
+  const streamingIcons = [Play, Users, Monitor, Camera];
 
   useEffect(() => {
-    setIsVisible(true)
+    setIsVisible(true);
     const iconInterval = setInterval(() => {
-      setCurrentIcon((prev) => (prev + 1) % streamingIcons.length)
-    }, 2000)
+      setCurrentIcon((prev) => (prev + 1) % streamingIcons.length);
+    }, 2000);
 
-    return () => clearInterval(iconInterval)
-  }, [])
+    return () => clearInterval(iconInterval);
+  }, []);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -34,7 +39,7 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
         staggerChildren: 0.2,
       },
     },
-  }
+  };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 30 },
@@ -46,7 +51,7 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
         ease: "easeOut",
       },
     },
-  }
+  };
 
   const floatingVariants = {
     animate: {
@@ -57,7 +62,7 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
         ease: "easeInOut",
       },
     },
-  }
+  };
 
   const pulseVariants = {
     animate: {
@@ -69,12 +74,14 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
         ease: "easeInOut",
       },
     },
-  }
+  };
 
-  const CurrentIcon = streamingIcons[currentIcon]
+  const CurrentIcon = streamingIcons[currentIcon];
 
   return (
-    <div className={`min-h-screen flex items-center justify-center p-4 ${bgClasses.primary} relative overflow-hidden`}>
+    <div
+      className={`min-h-screen flex items-center justify-center p-4 ${bgClasses.primary} relative overflow-hidden`}
+    >
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Floating circles */}
@@ -120,13 +127,19 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
                 animate={{ scale: 1, opacity: 0.1 }}
                 transition={{ duration: 1, delay: 0.3 }}
               >
-                <span className="text-[20rem] font-black leading-none">404</span>
+                <span className="text-[20rem] font-black leading-none">
+                  404
+                </span>
               </motion.div>
 
               {/* Foreground Content */}
               <div className="relative z-10 py-16">
                 {/* Animated Icon */}
-                <motion.div variants={floatingVariants} animate="animate" className="mb-8 flex justify-center">
+                <motion.div
+                  variants={floatingVariants}
+                  animate="animate"
+                  className="mb-8 flex justify-center"
+                >
                   <div className="relative">
                     <motion.div
                       variants={pulseVariants}
@@ -144,7 +157,9 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
                           exit={{ opacity: 0, rotate: 180, scale: 0.5 }}
                           transition={{ duration: 0.5 }}
                         >
-                          <CurrentIcon className={`w-16 h-16 ${textClasses.highlight}`} />
+                          <CurrentIcon
+                            className={`w-16 h-16 ${textClasses.highlight}`}
+                          />
                         </motion.div>
                       </AnimatePresence>
                     </div>
@@ -161,9 +176,16 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
 
                 {/* Stream Offline Message */}
                 <motion.div variants={itemVariants} className="mb-6">
-                  <h2 className={`text-3xl md:text-4xl font-bold ${textClasses.primary} mb-2`}>Page Not Found</h2>
-                  <p className={`text-lg ${textClasses.secondary} max-w-md mx-auto leading-relaxed`}>
-                    Looks like the page you're looking for doesn't exist or has been moved. Let's get you back on track!
+                  <h2
+                    className={`text-3xl md:text-4xl font-bold ${textClasses.primary} mb-2`}
+                  >
+                    Page Not Found
+                  </h2>
+                  <p
+                    className={`text-lg ${textClasses.secondary} max-w-md mx-auto leading-relaxed`}
+                  >
+                    Looks like the page you're looking for doesn't exist or has
+                    been moved. Let's get you back on track!
                   </p>
                 </motion.div>
 
@@ -172,7 +194,10 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
                   variants={itemVariants}
                   className="flex flex-col sm:flex-row gap-4 justify-center items-center"
                 >
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
                     <Link
                       href="/"
                       className={`inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg shadow-lg ${buttonClasses.primary} ${borderClasses.primary} ${textClasses.inverse} ${textClasses.inverseHover} border-2 w-64`}
@@ -182,7 +207,10 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
                     </Link>
                   </motion.div>
 
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
                     <Link
                       href="/explore"
                       className={`inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg shadow-lg ${buttonClasses.outline} w-64`}
@@ -201,18 +229,31 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
                   <div className="flex items-center justify-center gap-2 mb-4">
                     <motion.div
                       animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Number.POSITIVE_INFINITY,
+                      }}
                       className="w-3 h-3 bg-red-500 rounded-full"
                     />
-                    <span className={`text-sm font-medium ${textClasses.secondary}`}>
+                    <span
+                      className={`text-sm font-medium ${textClasses.secondary}`}
+                    >
                       Live streams are still running
                     </span>
                   </div>
                   <div className="flex items-center justify-center gap-6">
                     {[
-                      { icon: Users, label: "1.2k viewers", color: "text-blue-500" },
+                      {
+                        icon: Users,
+                        label: "1.2k viewers",
+                        color: "text-blue-500",
+                      },
                       { icon: Play, label: "24 live", color: "text-green-500" },
-                      { icon: Monitor, label: "Active now", color: "text-purple-500" },
+                      {
+                        icon: Monitor,
+                        label: "Active now",
+                        color: "text-purple-500",
+                      },
                     ].map((item, index) => (
                       <motion.div
                         key={index}
@@ -222,7 +263,9 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
                         className="flex items-center gap-2"
                       >
                         <item.icon className={`w-4 h-4 ${item.color}`} />
-                        <span className={`text-sm ${textClasses.tertiary}`}>{item.label}</span>
+                        <span className={`text-sm ${textClasses.tertiary}`}>
+                          {item.label}
+                        </span>
                       </motion.div>
                     ))}
                   </div>
@@ -233,7 +276,7 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
         )}
       </AnimatePresence>
     </div>
-  )
-}
+  );
+};
 
-export default NotFound
+export default NotFound;

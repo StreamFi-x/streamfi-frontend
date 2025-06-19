@@ -1,34 +1,41 @@
-"use client"
+"use client";
 
-import { useCallback, useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { navItems, recommendedUsers } from "@/data/explore/sidebar"
-import Image from "next/image"
-import { ArrowLeft, ArrowRight } from "lucide-react"
-import QuickActions from "./quick-actions"
-import { bgClasses, textClasses, borderClasses, buttonClasses } from "@/lib/theme-classes"
+import { useCallback, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { navItems, recommendedUsers } from "@/data/explore/sidebar";
+import Image from "next/image";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import QuickActions from "./quick-actions";
+import {
+  bgClasses,
+  textClasses,
+  borderClasses,
+  buttonClasses,
+} from "@/lib/theme-classes";
 
 interface SidebarProps {
-  isOpen?: boolean
-  onClose?: () => void
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export default function Sidebar() {
-  const pathname = usePathname()
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const pathname = usePathname();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const toggleCollapsed = useCallback(() => {
-    setIsCollapsed((prev) => !prev)
-  }, [])
+    setIsCollapsed((prev) => !prev);
+  }, []);
 
   const isRouteActive = (href: string) => {
-    if (href === "/" && pathname === "/explore") return true
-    return pathname === `/explore${href}` || pathname.startsWith(`/explore${href}/`)
-  }
+    if (href === "/" && pathname === "/explore") return true;
+    return (
+      pathname === `/explore${href}` || pathname.startsWith(`/explore${href}/`)
+    );
+  };
 
-  const sidebarWidth = isCollapsed ? 70 : 260
+  const sidebarWidth = isCollapsed ? 70 : 260;
 
   // Enhanced animation variants
   const sidebarVariants = {
@@ -48,7 +55,7 @@ export default function Sidebar() {
         type: "tween",
       },
     },
-  }
+  };
 
   const contentVariants = {
     expanded: {
@@ -73,7 +80,7 @@ export default function Sidebar() {
         staggerDirection: -1,
       },
     },
-  }
+  };
 
   const itemVariants = {
     expanded: {
@@ -99,7 +106,7 @@ export default function Sidebar() {
         ease: [0.23, 1, 0.32, 1],
       },
     },
-  }
+  };
 
   const navItemVariants = {
     rest: {
@@ -124,7 +131,7 @@ export default function Sidebar() {
         ease: "easeOut",
       },
     },
-  }
+  };
 
   const avatarVariants = {
     rest: {
@@ -143,7 +150,7 @@ export default function Sidebar() {
         ease: "easeOut",
       },
     },
-  }
+  };
 
   const liveIndicatorVariants = {
     animate: {
@@ -155,11 +162,20 @@ export default function Sidebar() {
         ease: "easeInOut",
       },
     },
-  }
+  };
 
   const renderExpandedContent = () => (
-    <motion.div variants={contentVariants} initial="collapsed" animate="expanded" exit="collapsed" className="w-full">
-      <motion.div variants={itemVariants} className="flex justify-between items-center w-full mb-4 px-[1em]">
+    <motion.div
+      variants={contentVariants}
+      initial="collapsed"
+      animate="expanded"
+      exit="collapsed"
+      className="w-full"
+    >
+      <motion.div
+        variants={itemVariants}
+        className="flex justify-between items-center w-full mb-4 px-[1em]"
+      >
         <motion.span
           variants={itemVariants}
           className={`${textClasses.secondary} font-semibold tracking-wider`}
@@ -194,7 +210,7 @@ export default function Sidebar() {
 
       <motion.nav variants={itemVariants} className="flex flex-col gap-1">
         {navItems.map((item, index) => {
-          const isActive = isRouteActive(item.href)
+          const isActive = isRouteActive(item.href);
           return (
             <motion.div
               key={item.label}
@@ -218,7 +234,12 @@ export default function Sidebar() {
                     animate={isActive ? { scale: [1, 1.2, 1] } : {}}
                     transition={{ duration: 0.5, ease: "easeInOut" }}
                   >
-                    <item.icon size={20} className={isActive ? textClasses.primary : textClasses.secondary} />
+                    <item.icon
+                      size={20}
+                      className={
+                        isActive ? textClasses.primary : textClasses.secondary
+                      }
+                    />
                   </motion.div>
                   <motion.span
                     initial={{ opacity: 0, x: -10 }}
@@ -239,11 +260,14 @@ export default function Sidebar() {
                 </Link>
               </motion.div>
             </motion.div>
-          )
+          );
         })}
       </motion.nav>
 
-      <motion.hr variants={itemVariants} className={`my-4 border-t ${borderClasses.primary}`} />
+      <motion.hr
+        variants={itemVariants}
+        className={`my-4 border-t ${borderClasses.primary}`}
+      />
 
       <motion.div variants={itemVariants}>
         <motion.h3
@@ -265,7 +289,10 @@ export default function Sidebar() {
               animate="rest"
             >
               <motion.div variants={navItemVariants}>
-                <Link href="#" className={`flex items-center gap-3 px-2 py-2 rounded-lg ${bgClasses.hover}`}>
+                <Link
+                  href="#"
+                  className={`flex items-center gap-3 px-2 py-2 rounded-lg ${bgClasses.hover}`}
+                >
                   <motion.div
                     variants={avatarVariants}
                     className={`relative w-8 h-8 rounded-full ${bgClasses.tertiary} overflow-hidden`}
@@ -321,7 +348,10 @@ export default function Sidebar() {
         </motion.button>
       </motion.div>
 
-      <motion.hr variants={itemVariants} className={`my-4 border-t ${borderClasses.primary}`} />
+      <motion.hr
+        variants={itemVariants}
+        className={`my-4 border-t ${borderClasses.primary}`}
+      />
 
       <motion.div variants={itemVariants}>
         <motion.h3
@@ -343,7 +373,10 @@ export default function Sidebar() {
               animate="rest"
             >
               <motion.div variants={navItemVariants}>
-                <Link href="#" className={`flex items-center gap-3 px-2 py-2 rounded-lg ${bgClasses.hover}`}>
+                <Link
+                  href="#"
+                  className={`flex items-center gap-3 px-2 py-2 rounded-lg ${bgClasses.hover}`}
+                >
                   <motion.div
                     variants={avatarVariants}
                     className={`relative w-8 h-8 rounded-full ${bgClasses.tertiary} overflow-hidden`}
@@ -403,7 +436,7 @@ export default function Sidebar() {
         </motion.button>
       </motion.div>
     </motion.div>
-  )
+  );
 
   const renderCollapsedContent = () => (
     <motion.div
@@ -438,13 +471,17 @@ export default function Sidebar() {
 
       <motion.nav className="flex flex-col gap-3 items-center">
         {navItems.map((item, index) => {
-          const isActive = isRouteActive(item.href)
+          const isActive = isRouteActive(item.href);
           return (
             <motion.div
               key={item.label}
               initial={{ opacity: 0, y: 20, scale: 0.8 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: index * 0.1, duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+              transition={{
+                delay: index * 0.1,
+                duration: 0.4,
+                ease: [0.23, 1, 0.32, 1],
+              }}
               whileHover={{ scale: 1.1, y: -2 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -461,7 +498,12 @@ export default function Sidebar() {
                   animate={isActive ? { scale: [1, 1.3, 1] } : {}}
                   transition={{ duration: 0.6, ease: "easeInOut" }}
                 >
-                  <item.icon size={20} className={isActive ? textClasses.primary : textClasses.secondary} />
+                  <item.icon
+                    size={20}
+                    className={
+                      isActive ? textClasses.primary : textClasses.secondary
+                    }
+                  />
                 </motion.div>
                 {isActive && (
                   <motion.div
@@ -473,7 +515,7 @@ export default function Sidebar() {
                 )}
               </Link>
             </motion.div>
-          )
+          );
         })}
       </motion.nav>
 
@@ -490,12 +532,18 @@ export default function Sidebar() {
             key={user.name}
             initial={{ opacity: 0, scale: 0.5, rotate: -10 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            transition={{ delay: 0.6 + index * 0.1, duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+            transition={{
+              delay: 0.6 + index * 0.1,
+              duration: 0.4,
+              ease: [0.23, 1, 0.32, 1],
+            }}
             whileHover={{ scale: 1.15, rotate: 5, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
             <Link href="#" className="relative" title={user.name}>
-              <div className={`w-9 h-9 rounded-full ${bgClasses.tertiary} overflow-hidden shadow-lg`}>
+              <div
+                className={`w-9 h-9 rounded-full ${bgClasses.tertiary} overflow-hidden shadow-lg`}
+              >
                 <Image
                   src={user.avatar || "/placeholder.svg"}
                   alt={user.name}
@@ -531,12 +579,18 @@ export default function Sidebar() {
             key={`following-${user.name}`}
             initial={{ opacity: 0, scale: 0.5, rotate: 10 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            transition={{ delay: 0.9 + index * 0.1, duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+            transition={{
+              delay: 0.9 + index * 0.1,
+              duration: 0.4,
+              ease: [0.23, 1, 0.32, 1],
+            }}
             whileHover={{ scale: 1.15, rotate: -5, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
             <Link href="#" className="relative" title={user.name}>
-              <div className={`w-9 h-9 rounded-full ${bgClasses.tertiary} overflow-hidden shadow-lg`}>
+              <div
+                className={`w-9 h-9 rounded-full ${bgClasses.tertiary} overflow-hidden shadow-lg`}
+              >
                 <Image
                   src={user.avatar || "/placeholder.svg"}
                   alt={user.name}
@@ -559,7 +613,7 @@ export default function Sidebar() {
         ))}
       </motion.div>
     </motion.div>
-  )
+  );
 
   return (
     <>
@@ -577,7 +631,9 @@ export default function Sidebar() {
                 className="w-full h-full"
                 style={{ willChange: "transform, opacity" }}
               >
-                {isCollapsed ? renderCollapsedContent() : renderExpandedContent()}
+                {isCollapsed
+                  ? renderCollapsedContent()
+                  : renderExpandedContent()}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -586,7 +642,7 @@ export default function Sidebar() {
 
       <QuickActions />
     </>
-  )
+  );
 }
 
 // "use client";

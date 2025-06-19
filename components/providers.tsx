@@ -1,9 +1,16 @@
-"use client"
-import type React from "react"
-import { sepolia, mainnet } from "@starknet-react/chains"
-import { StarknetConfig, publicProvider, argent, braavos, useInjectedConnectors, voyager } from "@starknet-react/core"
-import { AuthProvider } from "./auth/auth-provider"
-import { ThemeProvider } from "@/contexts/theme-context"
+"use client";
+import type React from "react";
+import { sepolia, mainnet } from "@starknet-react/chains";
+import {
+  StarknetConfig,
+  publicProvider,
+  argent,
+  braavos,
+  useInjectedConnectors,
+  voyager,
+} from "@starknet-react/core";
+import { AuthProvider } from "./auth/auth-provider";
+import { ThemeProvider } from "@/contexts/theme-context";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const { connectors } = useInjectedConnectors({
@@ -13,7 +20,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     includeRecommended: "onlyIfNoConnectors",
     // Order of connectors
     order: "random",
-  })
+  });
 
   return (
     <StarknetConfig
@@ -27,5 +34,5 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <AuthProvider>{children}</AuthProvider>
       </ThemeProvider>
     </StarknetConfig>
-  )
+  );
 }

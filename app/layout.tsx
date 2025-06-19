@@ -3,7 +3,6 @@ import { Providers } from "../components/providers";
 import "./globals.css";
 import { Toaster } from "sonner";
 
-
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL || "https://streamfi.com" // Replace with your actual domain
@@ -45,7 +44,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="bg-transparent">
-      <body className="antialiased" >
+      <body className="antialiased">
         <Providers>
           {children}
           <Toaster position="top-right" closeButton />

@@ -1,18 +1,25 @@
-"use client"
+"use client";
 
-import { type FC, useEffect, useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import Link from "next/link"
-import { Home, Compass, Gamepad2, Zap, Star, Sparkles } from "lucide-react"
-import { bgClasses, textClasses, buttonClasses, borderClasses } from "@/lib/theme-classes"
+import { type FC, useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { Home, Compass, Gamepad2, Zap, Star, Sparkles } from "lucide-react";
+import {
+  bgClasses,
+  textClasses,
+  buttonClasses,
+  borderClasses,
+} from "@/lib/theme-classes";
 
 interface GameCentric404Props {
-  onGoBack: () => void
+  onGoBack: () => void;
 }
 
 const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
-  const [glitchActive, setGlitchActive] = useState(false)
-  const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; delay: number }>>([])
+  const [glitchActive, setGlitchActive] = useState(false);
+  const [particles, setParticles] = useState<
+    Array<{ id: number; x: number; y: number; delay: number }>
+  >([]);
 
   useEffect(() => {
     // Generate random particles
@@ -21,20 +28,20 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
       x: Math.random() * 100,
       y: Math.random() * 100,
       delay: Math.random() * 2,
-    }))
-    setParticles(newParticles)
+    }));
+    setParticles(newParticles);
 
     // Random glitch effect
     const glitchInterval = setInterval(
       () => {
-        setGlitchActive(true)
-        setTimeout(() => setGlitchActive(false), 200)
+        setGlitchActive(true);
+        setTimeout(() => setGlitchActive(false), 200);
       },
-      3000 + Math.random() * 2000,
-    )
+      3000 + Math.random() * 2000
+    );
 
-    return () => clearInterval(glitchInterval)
-  }, [])
+    return () => clearInterval(glitchInterval);
+  }, []);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -45,7 +52,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
         staggerChildren: 0.1,
       },
     },
-  }
+  };
 
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
@@ -57,7 +64,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
         ease: "easeOut",
       },
     },
-  }
+  };
 
   const glitchVariants = {
     normal: {
@@ -67,14 +74,18 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
     },
     glitch: {
       x: [-2, 2, -1, 1, 0],
-      textShadow: ["2px 0 #ff00ff, -2px 0 #00ffff", "-2px 0 #ff00ff, 2px 0 #00ffff", "2px 0 #ff00ff, -2px 0 #00ffff"],
+      textShadow: [
+        "2px 0 #ff00ff, -2px 0 #00ffff",
+        "-2px 0 #ff00ff, 2px 0 #00ffff",
+        "2px 0 #ff00ff, -2px 0 #00ffff",
+      ],
       filter: ["hue-rotate(0deg)", "hue-rotate(90deg)", "hue-rotate(0deg)"],
       transition: {
         duration: 0.2,
         times: [0, 0.25, 0.5, 0.75, 1],
       },
     },
-  }
+  };
 
   const floatingVariants = {
     animate: {
@@ -86,7 +97,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
         ease: "easeInOut",
       },
     },
-  }
+  };
 
   const pulseVariants = {
     animate: {
@@ -98,10 +109,12 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
         ease: "easeInOut",
       },
     },
-  }
+  };
 
   return (
-    <div className={`min-h-screen flex items-center justify-center relative overflow-hidden ${bgClasses.secondary}`}>
+    <div
+      className={`min-h-screen flex items-center justify-center relative overflow-hidden ${bgClasses.secondary}`}
+    >
       {/* Animated Background Particles */}
       <div className="absolute inset-0 overflow-hidden">
         {particles.map((particle) => (
@@ -148,7 +161,10 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
           animate="visible"
         >
           {/* Gaming Icons */}
-          <motion.div className="flex justify-center gap-4 mb-8" variants={itemVariants}>
+          <motion.div
+            className="flex justify-center gap-4 mb-8"
+            variants={itemVariants}
+          >
             <motion.div
               variants={pulseVariants}
               animate="animate"
@@ -182,7 +198,9 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
               animate={glitchActive ? "glitch" : "normal"}
               style={{
                 fontFamily: "monospace",
-                textShadow: glitchActive ? "2px 0 #ff00ff, -2px 0 #00ffff" : "none",
+                textShadow: glitchActive
+                  ? "2px 0 #ff00ff, -2px 0 #00ffff"
+                  : "none",
               }}
             >
               404
@@ -225,7 +243,8 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
               className={`text-lg ${textClasses.secondary} max-w-md mx-auto leading-relaxed`}
               variants={itemVariants}
             >
-              Looks like you've wandered into uncharted territory! The page you're looking for has respawned elsewhere.
+              Looks like you've wandered into uncharted territory! The page
+              you're looking for has respawned elsewhere.
             </motion.p>
           </motion.div>
 
@@ -234,7 +253,10 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
             variants={itemVariants}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8"
           >
-            <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}>
+            <motion.div
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+            >
               <Link
                 href="/"
                 className={`inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg ${buttonClasses.primary} shadow-lg hover:shadow-xl transform transition-all duration-200`}
@@ -244,7 +266,10 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
               </Link>
             </motion.div>
 
-            <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}>
+            <motion.div
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+            >
               <Link
                 href="/explore"
                 className={`inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg ${buttonClasses.outline} ${borderClasses.primary} shadow-lg hover:shadow-xl transform transition-all duration-200`}
@@ -262,7 +287,9 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
           >
             <div className="flex items-center gap-2">
               <Sparkles className={`w-4 h-4 ${textClasses.highlight}`} />
-              <span className={`text-sm font-medium ${textClasses.secondary}`}>Error Code: 404</span>
+              <span className={`text-sm font-medium ${textClasses.secondary}`}>
+                Error Code: 404
+              </span>
             </div>
             <div className={`w-px h-4 ${bgClasses.tertiary}`} />
             <div className="flex items-center gap-2">
@@ -277,7 +304,9 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
                   ease: "easeInOut",
                 }}
               />
-              <span className={`text-sm font-medium ${textClasses.secondary}`}>Connection Lost</span>
+              <span className={`text-sm font-medium ${textClasses.secondary}`}>
+                Connection Lost
+              </span>
             </div>
           </motion.div>
 
@@ -321,7 +350,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
         transition={{ delay: 1.6, duration: 0.5 }}
       />
     </div>
-  )
-}
+  );
+};
 
-export default GameCentric404
+export default GameCentric404;

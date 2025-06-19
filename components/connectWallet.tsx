@@ -1,80 +1,85 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import Image from "next/image"
-import { useState, useEffect } from "react"
-import { MdClose } from "react-icons/md"
-import { useConnect, useAccount } from "@starknet-react/core"
+import Image from "next/image";
+import { useState, useEffect } from "react";
+import { MdClose } from "react-icons/md";
+import { useConnect, useAccount } from "@starknet-react/core";
 
 interface ConnectModalProps {
-  isModalOpen: boolean
-  setIsModalOpen: (isModalOpen: boolean) => void
+  isModalOpen: boolean;
+  setIsModalOpen: (isModalOpen: boolean) => void;
 }
 
-export default function ConnectWalletModal({ isModalOpen, setIsModalOpen }: ConnectModalProps) {
-  const { connect, connectors } = useConnect()
-  const { isConnected, status } = useAccount()
+export default function ConnectWalletModal({
+  isModalOpen,
+  setIsModalOpen,
+}: ConnectModalProps) {
+  const { connect, connectors } = useConnect();
+  const { isConnected, status } = useAccount();
 
-  const [selectedWallet, setSelectedWallet] = useState(connectors?.[0] || null)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [connectionError, setConnectionError] = useState<string | null>(null)
+  const [selectedWallet, setSelectedWallet] = useState(connectors?.[0] || null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Close modal when wallet connects successfully
   useEffect(() => {
     if (isConnected && isModalOpen) {
-      console.log("[ConnectWalletModal] Wallet connected, closing modal")
-      setIsModalOpen(false)
-      setIsConnecting(false)
-      setConnectionError(null)
+      console.log("[ConnectWalletModal] Wallet connected, closing modal");
+      setIsModalOpen(false);
+      setIsConnecting(false);
+      setConnectionError(null);
     }
-  }, [isConnected, isModalOpen, setIsModalOpen])
+  }, [isConnected, isModalOpen, setIsModalOpen]);
 
   // Handle connection status changes
   useEffect(() => {
     if (status === "connecting") {
-      setIsConnecting(true)
-      setConnectionError(null)
+      setIsConnecting(true);
+      setConnectionError(null);
     } else if (status === "disconnected" && isConnecting) {
-      setIsConnecting(false)
-      setConnectionError("Connection failed. Please try again.")
+      setIsConnecting(false);
+      setConnectionError("Connection failed. Please try again.");
     }
-  }, [status, isConnecting])
+  }, [status, isConnecting]);
 
   const handleOverlayClick = () => {
     if (!isConnecting) {
-      setIsModalOpen(false)
-      setConnectionError(null)
+      setIsModalOpen(false);
+      setConnectionError(null);
     }
-  }
+  };
 
   const handleModalClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-  }
+    e.stopPropagation();
+  };
 
   const handleWalletClick = async (wallet: (typeof connectors)[0]) => {
-    if (isConnecting) return
+    if (isConnecting) return;
 
     try {
-      console.log(`[ConnectWalletModal] Attempting to connect to ${wallet.name}`)
-      setSelectedWallet(wallet)
-      setIsConnecting(true)
-      setConnectionError(null)
+      console.log(
+        `[ConnectWalletModal] Attempting to connect to ${wallet.name}`
+      );
+      setSelectedWallet(wallet);
+      setIsConnecting(true);
+      setConnectionError(null);
 
-      await connect({ connector: wallet })
+      await connect({ connector: wallet });
     } catch (error) {
-      console.error("[ConnectWalletModal] Connection error:", error)
-      setConnectionError("Failed to connect wallet. Please try again.")
-      setIsConnecting(false)
+      console.error("[ConnectWalletModal] Connection error:", error);
+      setConnectionError("Failed to connect wallet. Please try again.");
+      setIsConnecting(false);
     }
-  }
+  };
 
   const handleCloseModal = () => {
     if (!isConnecting) {
-      setIsModalOpen(false)
-      setConnectionError(null)
+      setIsModalOpen(false);
+      setConnectionError(null);
     }
-  }
+  };
 
   return (
     <div
@@ -113,7 +118,9 @@ export default function ConnectWalletModal({ isModalOpen, setIsModalOpen }: Conn
         {/* Connection Error */}
         {connectionError && (
           <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-            <p className="text-red-400 text-sm text-center">{connectionError}</p>
+            <p className="text-red-400 text-sm text-center">
+              {connectionError}
+            </p>
           </div>
         )}
 
@@ -132,7 +139,11 @@ export default function ConnectWalletModal({ isModalOpen, setIsModalOpen }: Conn
                 disabled={isConnecting}
               >
                 <Image
-                  src={typeof wallet.icon === "object" ? wallet.icon.dark || wallet.icon.light : wallet.icon}
+                  src={
+                    typeof wallet.icon === "object"
+                      ? wallet.icon.dark || wallet.icon.light
+                      : wallet.icon
+                  }
                   alt={wallet.name || "Unknown Wallet"}
                   height={40}
                   width={40}
@@ -163,5 +174,5 @@ export default function ConnectWalletModal({ isModalOpen, setIsModalOpen }: Conn
         </p>
       </div>
     </div>
-  )
+  );
 }
