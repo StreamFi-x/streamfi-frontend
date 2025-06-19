@@ -1,5 +1,5 @@
 import Image from "next/image"
-import { Button } from "@/components/ui/Button"
+import { Button } from "@/components/ui/button"
 import { ExternalLink } from "lucide-react"
 import CustomizeChannelButton from "./CustomizeChannelButton"
 import { textClasses, buttonClasses, combineClasses } from "@/lib/theme-classes"

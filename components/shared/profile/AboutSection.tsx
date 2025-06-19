@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Twitter, Instagram, DiscIcon as Discord, Edit3 } from "lucide-react"
-import Button from "@/components/ui/Button"
+import Button from "@/components/ui/button"
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal"
 import { bgClasses, textClasses, buttonClasses, componentClasses, combineClasses } from "@/lib/theme-classes"
 

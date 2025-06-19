@@ -8,7 +8,7 @@ import {
     PaginationPrevious,
     Pagination as ShadcnPagination
 } from './pagination'
-import { number } from "framer-motion";
+
 
 type PaginationProps = {
     currentPage: number,

@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/Button"
+import { Button } from "@/components/ui/button"
 import { VideoIcon, Scissors, Upload } from "lucide-react"
 import { bgClasses, textClasses, buttonClasses, combineClasses } from "@/lib/theme-classes"
 
