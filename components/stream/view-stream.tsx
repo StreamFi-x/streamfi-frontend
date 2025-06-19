@@ -24,7 +24,7 @@ import { JSX, useEffect, useRef, useState } from "react";
 import { FaDiscord, FaFacebook } from "react-icons/fa";
 import StreamInfoModal from "../dashboard/common/StreamInfoModal";
 import DashboardScreenGuard from "../explore/DashboardScreenGuard";
-import Button from "../ui/Button";
+import Button from "../ui/button";
 import ChatSection from "./chat-section";
 
 const socialIcons: Record<string, JSX.Element> = {

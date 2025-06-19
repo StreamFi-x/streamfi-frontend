@@ -7,7 +7,8 @@ import { TrendingStreams } from "@/components/explore/home/TrendingStreams";
 import { featuredStream } from "@/data/explore/home/featured-stream";
 import { liveStreams } from "@/data/explore/home/live-streams";
 import { trendingStreams } from "@/data/explore/home/trending-streams";
-import SimpleLoader from "@/components/ui/loader/simple-loader"
+import SimpleLoader from "@/components/ui/loader/simple-loader";
+import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
@@ -15,7 +16,7 @@ export default function Home() {
   useEffect(() => {
     const timeout = setTimeout(() => {
       setIsLoading(false);
-    }, 100); 
+    }, 100);
 
     return () => clearTimeout(timeout);
   }, []);
@@ -25,7 +26,13 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div
+      className={combineClasses(
+        "min-h-screen",
+        bgClasses.secondary,
+        textClasses.primary
+      )}
+    >
       <main className="container mx-auto px-4 py-8">
         <FeaturedStream stream={featuredStream} />
 

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import Button from "@/components/ui/Button";
+import Button from "@/components/ui/button";
 import Section from "@/components/layout/Section";
 
 const Navbar = () => {

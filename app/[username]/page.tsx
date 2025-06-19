@@ -1,5 +1,6 @@
 "use client";
 import StreamCard from "@/components/shared/profile/StreamCard";
+import { textClasses } from "@/lib/theme-classes";
 
 interface PageProps {
   params: {
@@ -80,7 +81,9 @@ const ProfilePage = ({ params }: PageProps) => {
   return (
     <>
       <section className="mb-8">
-        <h2 className="text-white text-xl font-medium mb-4">Recent Streams</h2>
+        <h2 className={`${textClasses.primary} text-xl font-medium mb-4`}>
+          Recent Streams
+        </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {recentStreams.map((stream) => (
             <StreamCard key={stream.id} {...stream} />
@@ -89,7 +92,9 @@ const ProfilePage = ({ params }: PageProps) => {
       </section>
 
       <section>
-        <h2 className="text-white text-xl font-medium mb-4">Popular Clips</h2>
+        <h2 className={`${textClasses.primary} text-xl font-medium mb-4`}>
+          Popular Clips
+        </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {popularClips.map((clip) => (
             <StreamCard key={clip.id} {...clip} />

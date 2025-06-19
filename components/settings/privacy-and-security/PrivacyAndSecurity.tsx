@@ -4,6 +4,14 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import { Check, ChevronDown, X, AlertTriangle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  bgClasses,
+  textClasses,
+  borderClasses,
+  buttonClasses,
+  componentClasses,
+  combineClasses,
+} from "@/lib/theme-classes";
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -73,25 +81,40 @@ const Modal: React.FC<ModalProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+            className={combineClasses(
+              bgClasses.overlay,
+              "fixed inset-0 z-50 flex items-center justify-center p-4"
+            )}
             onClick={onClose}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className={`bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto ${className}`}
+              className={combineClasses(
+                componentClasses.modal,
+                "max-w-md w-full max-h-[90vh] overflow-y-auto",
+                className
+              )}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6">
                 {title && (
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-white">
+                    <h3
+                      className={combineClasses(
+                        textClasses.primary,
+                        "text-lg font-semibold"
+                      )}
+                    >
                       {title}
                     </h3>
                     <button
                       onClick={onClose}
-                      className="text-gray-400 hover:text-white transition-colors"
+                      className={combineClasses(
+                        textClasses.tertiary,
+                        "hover:text-white transition-colors"
+                      )}
                     >
                       <X size={20} />
                     </button>
@@ -122,22 +145,29 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
   };
 
   const colors = {
-    success: "text-green-400",
-    error: "text-red-400",
-    warning: "text-yellow-400",
+    success: textClasses.success,
+    error: textClasses.error,
+    warning: textClasses.warning,
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <div className="text-center">
         {icons[type]}
-        <h3 className={`text-lg font-semibold mt-4 ${colors[type]}`}>
+        <h3
+          className={combineClasses("text-lg font-semibold mt-4", colors[type])}
+        >
           {title}
         </h3>
-        <p className="text-gray-400 mt-2">{message}</p>
+        <p className={combineClasses(textClasses.tertiary, "mt-2")}>
+          {message}
+        </p>
         <button
           onClick={onClose}
-          className="w-full mt-6 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+          className={combineClasses(
+            buttonClasses.secondary,
+            "w-full mt-6 px-4 py-2 rounded-lg"
+          )}
         >
           Close
         </button>
@@ -299,13 +329,18 @@ const VerifyEmailModal: React.FC<{
     <>
       <Modal isOpen={isOpen} onClose={onClose}>
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-white mb-2">
+          <h3
+            className={combineClasses(
+              textClasses.primary,
+              "text-lg font-semibold mb-2"
+            )}
+          >
             Verify Your Email
           </h3>
 
-          <p className="text-gray-400 mb-6 text-sm">
+          <p className={combineClasses(textClasses.tertiary, "mb-6 text-sm")}>
             Enter the 6-digit code sent to{" "}
-            <strong className="text-white">{email}</strong>.<br />
+            <strong className={textClasses.primary}>{email}</strong>.<br />
             This code is valid for 5 minutes.
           </p>
 
@@ -321,7 +356,12 @@ const VerifyEmailModal: React.FC<{
                 value={digit}
                 onChange={(e) => handleCodeChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
-                className="w-12 h-12 text-center text-lg font-semibold bg-[#333] border border-gray-600 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:ring-opacity-20 outline-none transition-colors text-white"
+                className={combineClasses(
+                  bgClasses.input,
+                  borderClasses.primary,
+                  "w-12 h-12 text-center text-lg font-semibold rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:ring-opacity-20 outline-none transition-colors",
+                  textClasses.primary
+                )}
                 disabled={isLoading}
               />
             ))}
@@ -330,7 +370,10 @@ const VerifyEmailModal: React.FC<{
           <button
             onClick={handleSubmit}
             disabled={isLoading || code.some((digit) => !digit)}
-            className="w-full bg-[#5A189A] text-white py-3 rounded-lg font-medium hover:bg-opacity-90 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors flex items-center justify-center mb-4"
+            className={combineClasses(
+              buttonClasses.secondary,
+              "w-full py-3 rounded-lg font-medium disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center mb-4"
+            )}
           >
             {isLoading ? (
               <>
@@ -342,11 +385,14 @@ const VerifyEmailModal: React.FC<{
             )}
           </button>
 
-          <div className="text-sm text-gray-400">
+          <div className={combineClasses(textClasses.tertiary, "text-sm")}>
             Didn't receive a code?{" "}
             <button
               onClick={handleResendCode}
-              className="text-white hover:text-gray-300 font-medium underline"
+              className={combineClasses(
+                textClasses.primary,
+                "hover:text-gray-300 font-medium underline"
+              )}
               disabled={isLoading}
             >
               Resend
@@ -369,7 +415,7 @@ const VerifyEmailModal: React.FC<{
 const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ enabled, onChange }) => {
   return (
     <div
-      className={`w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${enabled ? "bg-purple-600" : "bg-gray-700"}`}
+      className={`w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${enabled ? "bg-purple-600" : "bg-gray-700 dark:bg-gray-700"}`}
       onClick={onChange}
     >
       <div
@@ -388,7 +434,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className={`mb-6 bg-[#1a1a1a] rounded-lg p-6 ${className}`}
+      className={combineClasses(componentClasses.card, "mb-6 p-6", className)}
     >
       {children}
     </motion.div>
@@ -405,14 +451,28 @@ const ToggleSection: React.FC<ToggleSectionProps> = ({
   return (
     <SectionCard>
       <div className="flex justify-between items-center">
-        <h2 className="text-xl text-purple-400 font-medium">{title}</h2>
+        <h2
+          className={combineClasses(
+            textClasses.highlight,
+            "text-xl font-medium"
+          )}
+        >
+          {title}
+        </h2>
         <ToggleSwitch enabled={enabled} onChange={onToggle} />
       </div>
-      <p className="italic text-gray-400 text-sm mt-2">{description}</p>
+      <p
+        className={combineClasses(textClasses.tertiary, "italic text-sm mt-2")}
+      >
+        {description}
+      </p>
       {actionButton && (
         <div className="flex justify-end mt-4">
           <button
-            className="bg-[#5A189A] hover:bg-opacity-90 text-white px-4 py-2 rounded-md transition"
+            className={combineClasses(
+              buttonClasses.secondary,
+              "px-4 py-2 rounded-md"
+            )}
             onClick={actionButton.onClick}
           >
             {actionButton.text}
@@ -439,11 +499,17 @@ const Dropdown: React.FC<DropdownProps> = ({
 
   return (
     <div className="mb-6">
-      <h3 className="text-white text-base mb-3">{label}</h3>
+      <h3 className={combineClasses(textClasses.primary, "text-base mb-3")}>
+        {label}
+      </h3>
 
       <div className="relative">
         <button
-          className="w-full px-4 py-3 bg-[#222] rounded-lg flex justify-between items-center text-white"
+          className={combineClasses(
+            bgClasses.input,
+            textClasses.primary,
+            "w-full px-4 py-3 rounded-lg flex justify-between items-center"
+          )}
           onClick={() => setIsOpen(!isOpen)}
         >
           <span>{selected}</span>
@@ -451,11 +517,20 @@ const Dropdown: React.FC<DropdownProps> = ({
         </button>
 
         {isOpen && (
-          <div className="absolute w-full mt-1 bg-[#222] rounded-lg shadow-lg z-10">
+          <div
+            className={combineClasses(
+              componentClasses.dropdown,
+              "absolute w-full mt-1 z-10"
+            )}
+          >
             {options.map((option) => (
               <button
                 key={option}
-                className="w-full px-4 py-3 text-left text-white hover:bg-[#333] transition-colors"
+                className={combineClasses(
+                  textClasses.primary,
+                  bgClasses.hover,
+                  "w-full px-4 py-3 text-left"
+                )}
                 onClick={() => handleSelect(option)}
               >
                 {option}
@@ -465,7 +540,11 @@ const Dropdown: React.FC<DropdownProps> = ({
         )}
       </div>
 
-      <p className="text-gray-400 text-sm mt-2 italic">{description}</p>
+      <p
+        className={combineClasses(textClasses.tertiary, "text-sm mt-2 italic")}
+      >
+        {description}
+      </p>
     </div>
   );
 };
@@ -478,19 +557,23 @@ const Checkbox: React.FC<CheckboxProps> = ({
 }) => {
   return (
     <div>
-      <h3 className="text-white text-base mb-3">{label}</h3>
+      <h3 className={combineClasses(textClasses.primary, "text-base mb-3")}>
+        {label}
+      </h3>
 
       <div className="flex items-start gap-3 mb-2">
         <div
-          className={`flex items-center justify-center w-5 h-5 rounded border ${checked ? "bg-purple-600 border-purple-400" : "bg-transparent border-gray-500"} cursor-pointer mt-1`}
+          className={`flex items-center justify-center w-5 h-5 rounded border ${checked ? "bg-purple-600 border-purple-400" : `bg-transparent ${borderClasses.primary}`} cursor-pointer mt-1`}
           onClick={onChange}
         >
           {checked && <Check size={16} className="text-white" />}
         </div>
-        <span className="text-white">{label}</span>
+        <span className={textClasses.primary}>{label}</span>
       </div>
 
-      <p className="text-gray-400 text-sm italic">{description}</p>
+      <p className={combineClasses(textClasses.tertiary, "text-sm italic")}>
+        {description}
+      </p>
     </div>
   );
 };
@@ -660,23 +743,44 @@ const PrivacySecurityPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div
+      className={combineClasses(
+        bgClasses.secondary,
+        textClasses.primary,
+        "min-h-screen"
+      )}
+    >
       <div className="max-w-8xl mx-auto">
         {/* Email Verification Section */}
         <SectionCard>
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <h2 className="text-xl text-purple-400 font-medium mb-2">
+              <h2
+                className={combineClasses(
+                  textClasses.highlight,
+                  "text-xl font-medium mb-2"
+                )}
+              >
                 Verify Email Address
               </h2>
-              <p className="italic text-gray-400 text-sm mb-4">
+              <p
+                className={combineClasses(
+                  textClasses.tertiary,
+                  "italic text-sm mb-4"
+                )}
+              >
                 Your account is protected with an additional verification step
                 using your Authenticator App. You'll need to provide a
                 verification code along with your password when signing in from
                 new devices.
               </p>
-              <div className="flex w-full justify-between bg-[#CBCBCB1A] px-3 py-4 items-center gap-2">
-                <span className="text-[#FFFFFFB2] font-inter text-sm">
+              <div
+                className={combineClasses(
+                  bgClasses.input,
+                  "flex w-full justify-between px-3 py-4 items-center gap-2 rounded"
+                )}
+              >
+                <span className={textClasses.secondary}>
                   {userEmail || "No email found"}
                 </span>
                 {settings.emailVerified ? (
@@ -698,7 +802,10 @@ const PrivacySecurityPage: React.FC = () => {
             ) : (
               <button
                 onClick={handleVerifyEmail}
-                className="bg-[#5A189A] hover:bg-opacity-90 text-white px-4 py-2 rounded-md transition"
+                className={combineClasses(
+                  buttonClasses.secondary,
+                  "px-4 py-2 rounded-md"
+                )}
               >
                 Verify Email
               </button>
@@ -719,10 +826,20 @@ const PrivacySecurityPage: React.FC = () => {
 
         {/* Password */}
         <SectionCard>
-          <h2 className="text-xl text-purple-400 font-medium mb-2">Password</h2>
-          <p className="text-gray-400 text-sm">
+          <h2
+            className={combineClasses(
+              textClasses.highlight,
+              "text-xl font-medium mb-2"
+            )}
+          >
+            Password
+          </h2>
+          <p className={textClasses.tertiary}>
             <button
-              className="text-purple-400 hover:underline italic"
+              className={combineClasses(
+                textClasses.highlight,
+                "hover:underline italic"
+              )}
               onClick={handleChangePassword}
             >
               Change password
@@ -732,7 +849,12 @@ const PrivacySecurityPage: React.FC = () => {
         </SectionCard>
 
         <SectionCard>
-          <h2 className="text-xl text-purple-400 font-medium mb-4">
+          <h2
+            className={combineClasses(
+              textClasses.highlight,
+              "text-xl font-medium mb-4"
+            )}
+          >
             Privacy Controls
           </h2>
 
@@ -744,7 +866,7 @@ const PrivacySecurityPage: React.FC = () => {
             onSelect={selectVisibilityOption}
           />
 
-          <hr className="border-gray-700 my-4" />
+          <hr className={combineClasses(borderClasses.primary, "my-4")} />
 
           <Checkbox
             label="Show Activity Status"
@@ -757,7 +879,10 @@ const PrivacySecurityPage: React.FC = () => {
         {/* Save Changes Button */}
         <div className="flex justify-end mb-8">
           <button
-            className="bg-[#5A189A] w-full md:w-auto hover:bg-opacity-90 text-white px-6 py-3 rounded-md transition mb-[4em] lg:mb-0"
+            className={combineClasses(
+              buttonClasses.secondary,
+              "w-full md:w-auto px-6 py-3 rounded-md mb-[4em] lg:mb-0"
+            )}
             onClick={handleSaveChanges}
           >
             Save Changes

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Settings, Maximize } from "lucide-react";
+import { bgClasses, textClasses, borderClasses } from "@/lib/theme-classes";
 
 export default function StreamPreview() {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -27,20 +28,24 @@ export default function StreamPreview() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <div className="bg-gray-800 p-2 flex justify-between items-center">
+      <div
+        className={`${bgClasses.card} p-2 flex justify-between items-center border-b ${borderClasses.primary}`}
+      >
         <div className="flex items-center">
-          <MonitorIcon size={18} className="mr-2" />
-          <span>Stream Preview</span>
+          <MonitorIcon size={18} className={`mr-2 ${textClasses.primary}`} />
+          <span className={textClasses.primary}>Stream Preview</span>
         </div>
         <div className="flex space-x-2">
-          <button className="p-1 hover:bg-gray-700 rounded-md transition-colors">
-            <Settings size={18} />
+          <button
+            className={`p-1 ${bgClasses.hover} rounded-md transition-colors`}
+          >
+            <Settings size={18} className={textClasses.secondary} />
           </button>
           <button
-            className="p-1 hover:bg-gray-700 rounded-md transition-colors"
+            className={`p-1 ${bgClasses.hover} rounded-md transition-colors`}
             onClick={toggleFullscreen}
           >
-            <Maximize size={18} />
+            <Maximize size={18} className={textClasses.secondary} />
           </button>
         </div>
       </div>
@@ -64,15 +69,17 @@ export default function StreamPreview() {
                 alt="Stream preview"
                 className="object-cover"
               />
-              <div className="absolute top-4 left-4 bg-red-600 px-2 py-1 text-xs font-semibold rounded">
+              <div className="absolute top-4 left-4 bg-red-600 px-2 py-1 text-xs font-semibold rounded text-white">
                 OFFLINE
               </div>
             </>
           )}
         </div>
         <div className="absolute bottom-4 right-4 flex space-x-2">
-          <button className="bg-gray-800 bg-opacity-70 p-2 rounded-md hover:bg-opacity-100 transition-colors">
-            <Settings size={18} />
+          <button
+            className={`${bgClasses.card} bg-opacity-70 p-2 rounded-md hover:bg-opacity-100 transition-colors border ${borderClasses.primary}`}
+          >
+            <Settings size={18} className={textClasses.primary} />
           </button>
         </div>
       </div>

@@ -1,5 +1,6 @@
-import { Button } from "@/components/ui/Button"
+import { Button } from "@/components/ui/button"
 import { VideoIcon, Scissors, Upload } from "lucide-react"
+import { bgClasses, textClasses, buttonClasses, combineClasses } from "@/lib/theme-classes"
 
 interface EmptyStateProps {
   type: "videos" | "clips"
@@ -10,19 +11,21 @@ interface EmptyStateProps {
 const EmptyState = ({ type, isOwner, username }: EmptyStateProps) => {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-      <div className="bg-[#2D2F31] w-16 h-16 rounded-full flex items-center justify-center mb-4">
+      <div
+        className={combineClasses(bgClasses.tertiary, "w-16 h-16 rounded-full flex items-center justify-center mb-4")}
+      >
         {type === "videos" ? (
-          <VideoIcon className="h-8 w-8 text-gray-400" />
+          <VideoIcon className={combineClasses(textClasses.tertiary, "h-8 w-8")} />
         ) : (
-          <Scissors className="h-8 w-8 text-gray-400" />
+          <Scissors className={combineClasses(textClasses.tertiary, "h-8 w-8")} />
         )}
       </div>
 
-      <h2 className="text-white text-xl font-medium mb-2">
+      <h2 className={combineClasses(textClasses.primary, "text-xl font-medium mb-2")}>
         {isOwner ? `You don't have any ${type} yet` : `${username} doesn't have any ${type} yet`}
       </h2>
 
-      <p className="text-gray-400 max-w-md mb-6">
+      <p className={combineClasses(textClasses.tertiary, "max-w-md mb-6")}>
         {isOwner
           ? type === "videos"
             ? "Your past streams will appear here once you start streaming."
@@ -33,7 +36,7 @@ const EmptyState = ({ type, isOwner, username }: EmptyStateProps) => {
       </p>
 
       {isOwner && (
-        <Button className="bg-purple-600 hover:bg-purple-700 text-white">
+        <Button className={combineClasses(buttonClasses.secondary, textClasses.onColor)}>
           <Upload className="h-4 w-4 mr-2" />
           {type === "videos" ? "Upload a Video" : "Create a Clip"}
         </Button>

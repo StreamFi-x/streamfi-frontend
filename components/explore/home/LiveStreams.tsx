@@ -3,9 +3,15 @@
 import { useState, useEffect } from "react";
 import { Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import Button from "@/components/ui/Button";
-import { LiveStreamProps } from "@/types/explore/home";
+import Button from "@/components/ui/button";
+import type { LiveStreamProps } from "@/types/explore/home";
 import Image from "next/image";
+import {
+  textClasses,
+  bgClasses,
+  buttonClasses,
+  combineClasses,
+} from "@/lib/theme-classes";
 
 export function LiveStreams({ title, category, streams }: LiveStreamProps) {
   const [visibleStreams, setVisibleStreams] = useState(4);
@@ -90,7 +96,14 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
 
   return (
     <div className="w-full py-6">
-      <h2 className="text-2xl font-bold mb-6">{title}</h2>
+      <h2
+        className={combineClasses(
+          "text-2xl font-bold mb-6",
+          textClasses.primary
+        )}
+      >
+        {title}
+      </h2>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-6 md:gap-y-10">
         <AnimatePresence>
@@ -101,9 +114,9 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
               animate="visible"
               exit="hidden"
               variants={getItemVariants(index)}
-              className="group cursor-pointer"
+              className={`${bgClasses.card} group cursor-pointer  p-2 pb-4 rounded-lg`}
             >
-              <div className="relative rounded-lg overflow-hidden">
+              <div className="relative rounded-lg overflow-hidden ">
                 <Image
                   width={500}
                   height={300}
@@ -133,23 +146,40 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                  <p
+                    className={combineClasses("text-sm", textClasses.secondary)}
+                  >
                     {stream.streamer.name}
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-lg line-clamp-1">
+                  <h3
+                    className={combineClasses(
+                      "font-semibold text-lg line-clamp-1",
+                      textClasses.primary
+                    )}
+                  >
                     {stream.title}
                   </h3>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    <span className="text-sm bg-muted px-2 py-0.5 rounded bg-white/10">
+                    <span
+                      className={combineClasses(
+                        "text-sm px-2 py-0.5 rounded",
+                        bgClasses.selected,
+                        textClasses.primary
+                      )}
+                    >
                       {stream.location}
                     </span>
                     {stream.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="text-sm bg-muted px-2 py-0.5 rounded bg-white/10"
+                        className={combineClasses(
+                          "text-sm px-2 py-0.5 rounded",
+                          bgClasses.selected,
+                          textClasses.primary
+                        )}
                       >
                         {tag}
                       </span>
@@ -171,7 +201,10 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
           >
             <Button
               onClick={handleSeeMore}
-              className="flex items-center gap-2 bg-white/10 active:bg-white/20 hover:bg-white/20 w-full  outline-none border-none focus:ring-0"
+              className={combineClasses(
+                "flex items-center gap-2 w-full outline-none border-none focus:ring-0",
+                buttonClasses.secondary
+              )}
             >
               See more
               <ChevronDown className="h-4 w-4" />
@@ -188,7 +221,10 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
           >
             <Button
               onClick={handleSeeLess}
-              className="flex items-center gap-2 bg-white/10 active:bg-white/20 hover:bg-white/20 w-full outline-none border-none focus:ring-0"
+              className={combineClasses(
+                "flex items-center gap-2 w-full outline-none border-none focus:ring-0",
+                buttonClasses.secondary
+              )}
               disabled={isCollapsing}
             >
               See less

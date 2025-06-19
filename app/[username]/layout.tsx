@@ -8,6 +8,7 @@ import Banner from "@/components/shared/profile/Banner";
 import ProfileHeader from "@/components/shared/profile/ProfileHeader";
 import TabsNavigation from "@/components/shared/profile/TabsNavigation";
 import ViewStream from "@/components/stream/view-stream";
+import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
 
 // Mock data for sidebar props
 const sidebarProps = {
@@ -120,12 +121,12 @@ export default function UsernameLayout({
 
   // if (loading) {
   //   return (
-  //     <div className="flex h-screen bg-[#17191A] text-white">
+  //     <div className={combineClasses("flex h-screen", bgClasses.secondary, textClasses.primary)}>
   //       <Sidebar {...sidebarProps} />
   //       <div className="flex-1 flex flex-col overflow-hidden">
   //         <Navbar toggleSidebar={toggleSidebar} />
   //         <main className="flex-1 overflow-auto flex items-center justify-center">
-  //           <p className="text-white">Loading...</p>
+  //           <p className={textClasses.primary}>Loading...</p>
   //         </main>
   //       </div>
   //     </div>
@@ -135,7 +136,13 @@ export default function UsernameLayout({
   // Only show live stream if we're on the default route AND the stream is live
   if (isDefaultRoute && isLive) {
     return (
-      <div className="flex flex-col h-screen bg-[#17191A] text-white">
+      <div
+        className={combineClasses(
+          "flex flex-col h-screen",
+          bgClasses.secondary,
+          textClasses.primary
+        )}
+      >
         <Navbar toggleSidebar={toggleSidebar} />
         <div className="flex-1 flex overflow-hidden">
           <Sidebar />
@@ -154,12 +161,18 @@ export default function UsernameLayout({
 
   // Default layout with Banner, ProfileHeader, and TabsNavigation for all other cases
   return (
-    <div className="flex flex-col h-screen bg-[#17191A] text-white">
+    <div
+      className={combineClasses(
+        "flex flex-col h-screen",
+        bgClasses.secondary,
+        textClasses.primary
+      )}
+    >
       <Navbar toggleSidebar={toggleSidebar} />
       <div className="flex-1 flex overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-auto">
-          <div className="bg-[#17191A] min-h-screen">
+          <div className={combineClasses(bgClasses.secondary, "min-h-screen")}>
             <Banner
               username={username}
               isLive={isDefaultRoute && !!isLive}

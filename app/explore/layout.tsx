@@ -17,7 +17,6 @@ export default function ClientLayout({
     "profile" | "verify" | "success"
   >("profile");
 
-
   // const handleConnect = () => {
   //   setConnectModalOpen(true);
   //   setConnectStep("profile");
@@ -39,9 +38,7 @@ export default function ClientLayout({
         <div className="flex flel flex- h-screen overflow-hidden">
           <Sidebar />
 
-          <main className="flex-1 overflow-y-auto">{children}
-      
-          </main>
+          <main className="flex-1 overflow-y-auto">{children}</main>
         </div>
       </div>
 
@@ -51,9 +48,11 @@ export default function ClientLayout({
             isOpen={connectModalOpen}
             currentStep={connectStep}
             onClose={handleCloseModal}
-            onNextStep={handleNextStep} setIsProfileModalOpen={function (): void {
+            onNextStep={handleNextStep}
+            setIsProfileModalOpen={function (): void {
               throw new Error("Function not implemented.");
-            } }          />
+            }}
+          />
         )}
       </AnimatePresence>
     </main>
