@@ -10,11 +10,11 @@
     "lint": "next lint",
     "setup-db": "node scripts/setup-db.cjs",
     "update-schema": "node scripts/updateUserSchema.mjs"
-
   },
   "dependencies": {
     "@fontsource/inter": "^5.1.1",
     "@hookform/resolvers": "^5.0.1",
+    "@livepeer/react": "^4.3.5",
     "@neondatabase/serverless": "^1.0.0",
     "@radix-ui/react-slot": "^1.1.2",
     "@react-email/render": "^1.0.6",
@@ -30,7 +30,9 @@
     "embla-carousel-react": "^8.5.2",
     "formidable": "^3.5.4",
     "framer-motion": "^12.5.0",
+    "hls.js": "^1.6.5",
     "input-otp": "^1.4.2",
+    "livepeer": "^3.5.0",
     "lucide": "^0.475.0",
     "lucide-react": "^0.475.0",
     "mongoose": "^8.14.1",
@@ -59,8 +61,8 @@
     "@types/node": "^20",
     "@types/nodemailer": "^6.4.17",
     "@types/nprogress": "^0.2.3",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
     "eslint": "^9",
     "eslint-config-next": "15.1.6",
     "postcss": "^8",
