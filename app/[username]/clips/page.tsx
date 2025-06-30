@@ -1,10 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { notFound } from "next/navigation";
-import Banner from "@/components/shared/profile/Banner";
-import ProfileHeader from "@/components/shared/profile/ProfileHeader";
-import TabsNavigation from "@/components/shared/profile/TabsNavigation";
 import EmptyState from "@/components/shared/profile/EmptyState";
+import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
 
 interface PageProps {
   params: {
@@ -32,10 +30,6 @@ const ClipsPage = ({ params }: PageProps) => {
   // Mock function to check if current user is the owner of this profile
   const isOwner = username === "chidinma"; // Just for demo purposes
 
-  // Mock function to check if streamer is live
-  const isLive = false;
-  const streamTitle = isLive ? "co-working and designing" : undefined;
-
   useEffect(() => {
     const getClips = async () => {
       try {
@@ -56,32 +50,18 @@ const ClipsPage = ({ params }: PageProps) => {
     return notFound();
   }
 
-  // Mock data - would be fetched from API in a real implementation
-  const userData = {
-    username,
-    followers: 2000,
-    avatarUrl: "/placeholder.svg?height=64&width=64",
-  };
-
   return (
-    <div className="bg-[#17191A] min-h-screen">
-      <Banner username={username} isLive={isLive} streamTitle={streamTitle} />
-      <ProfileHeader
-        username={userData.username}
-        followers={userData.followers}
-        avatarUrl={userData.avatarUrl}
-        isOwner={isOwner}
-      />
-      <TabsNavigation username={username} />
-
+    <div className={combineClasses(bgClasses.secondary, "min-h-screen")}>
       <div className="p-6">
         {loading ? (
           <div className="flex justify-center py-12">
-            <p className="text-gray-400">Loading clips...</p>
+            <p className={textClasses.tertiary}>Loading clips...</p>
           </div>
         ) : clips.length > 0 ? (
           <section>
-            <h2 className="text-white text-xl font-medium mb-4">Clips</h2>
+            <h2 className={`${textClasses.primary} text-xl font-medium mb-4`}>
+              Clips
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Clips would be rendered here */}
             </div>

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Providers } from "../components/providers";
 import "./globals.css";
 import { Toaster } from "sonner";
-import MobNav from "@/components/settings/mob-nav";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -44,11 +43,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="">
-      <body className="antialiased bg-[#16062B]">
+    <html lang="en" suppressHydrationWarning className="bg-transparent">
+      <body className="antialiased">
         <Providers>
           {children}
-          <MobNav />
           <Toaster position="top-right" closeButton />
         </Providers>
       </body>

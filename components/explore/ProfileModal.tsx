@@ -7,8 +7,8 @@ import { motion } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
 import { MdClose } from "react-icons/md";
 import { useRouter } from "next/navigation";
-import SimpleLoader from "@/components/ui/loader/simple-loader";
 import { useAccount } from "@starknet-react/core";
+import SimpleLoader from "@/components/ui/loader/simple-loader";
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -16,7 +16,6 @@ interface ProfileModalProps {
   onClose: () => void;
   onNextStep: (step: "profile" | "verify" | "success") => void;
   walletAddress?: string;
-  refreshUser?: () => Promise<any>;
   setIsProfileModalOpen: (open: boolean) => void;
 }
 
@@ -24,7 +23,7 @@ export default function ProfileModal({
   isOpen,
   currentStep,
   onNextStep,
-  refreshUser,
+  walletAddress = "",
   setIsProfileModalOpen,
 }: ProfileModalProps) {
   // Form state
@@ -40,9 +39,9 @@ export default function ProfileModal({
   // Loading state
   const [isLoading, setIsLoading] = useState(false);
 
-  // Router
-  const { address } = useAccount();
+  // Router and wallet
   const router = useRouter();
+  const { address } = useAccount();
 
   // Verification code state
   const [verificationCode, setVerificationCode] = useState([
@@ -110,9 +109,13 @@ export default function ProfileModal({
         if (response.ok) {
           console.log("ProfileModal: Registration successful");
 
-          // Store wallet address for persistence
-          sessionStorage.setItem("wallet", address ?? "");
-          localStorage.setItem("wallet", address ?? "");
+          // Store wallet and username in localStorage for persistence
+          localStorage.setItem("wallet", address || "");
+          localStorage.setItem("username", displayName);
+
+          // Also store in sessionStorage for redundancy
+          sessionStorage.setItem("wallet", address || "");
+          sessionStorage.setItem("username", displayName);
 
           // Skip verification for now and go straight to success
           onNextStep("success");
@@ -165,13 +168,6 @@ export default function ProfileModal({
   // Handle modal close
   const handleProfileModalClose = () => {
     setIsProfileModalOpen(false);
-
-    // Refresh user data after modal closes
-    if (refreshUser) {
-      setTimeout(() => {
-        refreshUser();
-      }, 500);
-    }
   };
 
   if (!isOpen) return null;
@@ -263,9 +259,10 @@ export default function ProfileModal({
 
               <button
                 type="submit"
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 rounded-md mt-6 transition-colors"
+                disabled={isLoading}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 rounded-md mt-6 transition-colors disabled:opacity-50"
               >
-                Confirm
+                {isLoading ? "Creating Profile..." : "Confirm"}
               </button>
             </form>
           </div>
@@ -355,10 +352,10 @@ export default function ProfileModal({
             </div>
 
             <h2 className="text-2xl font-normal mb-4 text-white">
-              Verification Successful!
+              Registration Successful!
             </h2>
             <p className="text-gray-400 font-light text-center mb-8">
-              Your account has been successfully verified. Welcome to Streamfi!
+              Your account has been successfully created. Welcome to Streamfi!
             </p>
 
             <div className="space-y-3">
@@ -376,7 +373,7 @@ export default function ProfileModal({
                 }}
                 className="w-full bg-[#333333] hover:bg-gray-700 text-white font-semibold py-3 rounded-md transition-colors"
               >
-                Go to Dashboard
+                Go to Settings
               </button>
             </div>
           </div>
