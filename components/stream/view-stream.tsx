@@ -470,7 +470,7 @@ const ViewStream = ({
                                 >
                                   {quality}
                                 </button>
-                              )
+                              ),
                             )}
                           </div>
                         )}
@@ -605,7 +605,7 @@ const ViewStream = ({
                             <span>{platform}</span>
                             <span>{socialIcons[platform.toLowerCase()]}</span>
                           </a>
-                        )
+                        ),
                       )}
                     </div>
                   </div>

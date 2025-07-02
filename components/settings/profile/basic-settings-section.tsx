@@ -28,7 +28,7 @@ export function BasicSettingsSection({
       uiState.focusedInput === inputName
         ? "border border-purple-600"
         : "border border-transparent",
-      "transition-all duration-200"
+      "transition-all duration-200",
     );
   };
 
@@ -52,7 +52,7 @@ export function BasicSettingsSection({
         <p
           className={combineClasses(
             textClasses.tertiary,
-            "italic text-xs mt-1"
+            "italic text-xs mt-1",
           )}
         >
           You can only change your display name once in a month.
@@ -71,7 +71,7 @@ export function BasicSettingsSection({
         <p
           className={combineClasses(
             textClasses.tertiary,
-            "italic text-xs mt-1"
+            "italic text-xs mt-1",
           )}
         >
           Your wallet address cannot be changed.
@@ -91,7 +91,7 @@ export function BasicSettingsSection({
         <p
           className={combineClasses(
             textClasses.tertiary,
-            "italic text-xs mt-1"
+            "italic text-xs mt-1",
           )}
         >
           Share a bit about yourself. (Max 150 words)

@@ -1,15 +1,19 @@
-"use client"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { ArrowRight } from "lucide-react"
-import { borderClasses, textClasses, combineClasses } from "@/lib/theme-classes"
+"use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ArrowRight } from "lucide-react";
+import {
+  borderClasses,
+  textClasses,
+  combineClasses,
+} from "@/lib/theme-classes";
 
 interface TabsNavigationProps {
-  username: string
+  username: string;
 }
 
 const TabsNavigation = ({ username }: TabsNavigationProps) => {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   const tabs = [
     { name: "Home", path: `/${username}` },
@@ -21,14 +25,14 @@ const TabsNavigation = ({ username }: TabsNavigationProps) => {
       path: `/${username}/watch`,
       icon: <ArrowRight className="h-4 w-4 ml-1" />,
     },
-  ]
+  ];
 
   const isActive = (path: string) => {
     if (path === `/${username}`) {
-      return pathname === `/${username}`
+      return pathname === `/${username}`;
     }
-    return pathname === path
-  }
+    return pathname === path;
+  };
 
   return (
     <div className={combineClasses("border-b", borderClasses.divider)}>
@@ -50,7 +54,7 @@ const TabsNavigation = ({ username }: TabsNavigationProps) => {
         ))}
       </nav>
     </div>
-  )
-}
+  );
+};
 
-export default TabsNavigation
+export default TabsNavigation;

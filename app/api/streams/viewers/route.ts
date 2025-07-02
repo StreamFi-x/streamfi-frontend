@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 
-
 export async function POST(req: Request) {
   try {
     const { playbackId, sessionId, userId } = await req.json();
@@ -9,11 +8,10 @@ export async function POST(req: Request) {
     if (!playbackId || !sessionId) {
       return NextResponse.json(
         { error: "Playback ID and session ID are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    
     const streamResult = await sql`
       SELECT id, username, is_live, current_viewers
       FROM users 
@@ -21,10 +19,7 @@ export async function POST(req: Request) {
     `;
 
     if (streamResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: "Stream not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Stream not found" }, { status: 404 });
     }
 
     const stream = streamResult.rows[0];
@@ -32,11 +27,10 @@ export async function POST(req: Request) {
     if (!stream.is_live) {
       return NextResponse.json(
         { error: "Stream is not currently live" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
-    
     const sessionResult = await sql`
       SELECT id FROM stream_sessions
       WHERE user_id = ${stream.id} AND ended_at IS NULL
@@ -47,13 +41,12 @@ export async function POST(req: Request) {
     if (sessionResult.rows.length === 0) {
       return NextResponse.json(
         { error: "No active stream session found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const streamSession = sessionResult.rows[0];
 
-    
     const existingViewer = await sql`
       SELECT id FROM stream_viewers
       WHERE session_id = ${sessionId} AND left_at IS NULL
@@ -62,11 +55,10 @@ export async function POST(req: Request) {
     if (existingViewer.rows.length > 0) {
       return NextResponse.json(
         { message: "Already tracking this viewer" },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
-    
     await sql`
       INSERT INTO stream_viewers (
         stream_session_id, 
@@ -77,9 +69,8 @@ export async function POST(req: Request) {
       VALUES (${streamSession.id}, ${userId || null}, ${sessionId}, CURRENT_TIMESTAMP)
     `;
 
-    
     const newViewerCount = stream.current_viewers + 1;
-    
+
     await sql`
       UPDATE users SET
         current_viewers = ${newViewerCount},
@@ -96,26 +87,24 @@ export async function POST(req: Request) {
     `;
 
     return NextResponse.json(
-      { 
+      {
         message: "Viewer joined successfully",
         currentViewers: newViewerCount,
         streamInfo: {
           username: stream.username,
           isLive: stream.is_live,
-        }
+        },
       },
-      { status: 201 }
+      { status: 201 },
     );
-
   } catch (error) {
     console.error("Viewer join error:", error);
     return NextResponse.json(
       { error: "Failed to join stream" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-
 
 export async function DELETE(req: Request) {
   try {
@@ -124,7 +113,7 @@ export async function DELETE(req: Request) {
     if (!sessionId) {
       return NextResponse.json(
         { error: "Session ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const viewerResult = await sql`
@@ -137,13 +126,12 @@ export async function DELETE(req: Request) {
     if (viewerResult.rows.length === 0) {
       return NextResponse.json(
         { message: "Viewer session not found or already ended" },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
     const streamSessionId = viewerResult.rows[0].stream_session_id;
 
-    
     const sessionResult = await sql`
       SELECT user_id FROM stream_sessions
       WHERE id = ${streamSessionId}
@@ -152,7 +140,6 @@ export async function DELETE(req: Request) {
     if (sessionResult.rows.length > 0) {
       const userId = sessionResult.rows[0].user_id;
 
-      
       await sql`
         UPDATE users SET
           current_viewers = GREATEST(current_viewers - 1, 0),
@@ -163,14 +150,13 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json(
       { message: "Viewer left successfully" },
-      { status: 200 }
+      { status: 200 },
     );
-
   } catch (error) {
     console.error("Viewer leave error:", error);
     return NextResponse.json(
       { error: "Failed to leave stream" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

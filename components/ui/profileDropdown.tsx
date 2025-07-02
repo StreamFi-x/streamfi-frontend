@@ -1,67 +1,92 @@
-"use client"
+"use client";
 
-import type { ReactNode } from "react"
-import Image from "next/image"
-import { Globe, Settings, LogOut, MonitorPlay, LayoutDashboard } from "lucide-react"
-import User from "@/public/Images/user.png"
-import { motion } from "framer-motion"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { useAuth } from "@/components/auth/auth-provider"
-import { useAccount, useDisconnect } from "@starknet-react/core"
-import { bgClasses, textClasses, borderClasses, combineClasses } from "@/lib/theme-classes"
+import type { ReactNode } from "react";
+import Image from "next/image";
+import {
+  Globe,
+  Settings,
+  LogOut,
+  MonitorPlay,
+  LayoutDashboard,
+} from "lucide-react";
+import User from "@/public/Images/user.png";
+import { motion, easeInOut, easeOut } from "framer-motion";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "@/components/auth/auth-provider";
+import { useAccount, useDisconnect } from "@starknet-react/core";
+import {
+  bgClasses,
+  textClasses,
+  borderClasses,
+  combineClasses,
+} from "@/lib/theme-classes";
 
 // Define types for menu items
 interface MenuItem {
-  icon: ReactNode
-  label: string
-  route?: string // Added route property
+  icon: ReactNode;
+  label: string;
+  route?: string; // Added route property
 }
 
 interface MenuSection {
-  id: string
-  items: MenuItem[]
+  id: string;
+  items: MenuItem[];
 }
 
 // Menu item component props
 interface MenuItemProps {
-  icon: ReactNode
-  label: string
-  route?: string
-  onClick: (item: MenuItem) => void
+  icon: ReactNode;
+  label: string;
+  route?: string;
+  onClick: (item: MenuItem) => void;
 }
 
 const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
   if (label === "Disconnect") {
     return (
       <div
-        className={combineClasses("flex items-center px-4 py-3 cursor-pointer", bgClasses.hover, textClasses.primary)}
+        className={combineClasses(
+          "flex items-center px-4 py-3 cursor-pointer",
+          bgClasses.hover,
+          textClasses.primary,
+        )}
         onClick={() => onClick({ icon, label, route })}
       >
-        <div className={combineClasses(textClasses.primary, "mr-3")}>{icon}</div>
-        <span className={combineClasses(textClasses.primary, "text-base")}>{label}</span>
+        <div className={combineClasses(textClasses.primary, "mr-3")}>
+          {icon}
+        </div>
+        <span className={combineClasses(textClasses.primary, "text-base")}>
+          {label}
+        </span>
       </div>
-    )
+    );
   }
 
   return (
     <Link
       href={route || "#"}
-      className={combineClasses("flex items-center px-4 py-3 cursor-pointer", bgClasses.hover, textClasses.primary)}
+      className={combineClasses(
+        "flex items-center px-4 py-3 cursor-pointer",
+        bgClasses.hover,
+        textClasses.primary,
+      )}
       onClick={(e) => {
-        e.preventDefault()
-        onClick({ icon, label, route })
+        e.preventDefault();
+        onClick({ icon, label, route });
       }}
     >
       <div className={combineClasses(textClasses.primary, "mr-3")}>{icon}</div>
-      <span className={combineClasses(textClasses.primary, "text-base")}>{label}</span>
+      <span className={combineClasses(textClasses.primary, "text-base")}>
+        {label}
+      </span>
     </Link>
-  )
-}
+  );
+};
 
 interface MenuSectionProps {
-  items: MenuItem[]
-  onClick: (item: MenuItem) => void
+  items: MenuItem[];
+  onClick: (item: MenuItem) => void;
 }
 
 const MenuSection = ({ items, onClick }: MenuSectionProps) => {
@@ -77,13 +102,13 @@ const MenuSection = ({ items, onClick }: MenuSectionProps) => {
         />
       ))}
     </>
-  )
-}
+  );
+};
 
 interface UserProfileProps {
-  avatar: import("next/image").StaticImageData | string // Accepts StaticImageData or string URL
-  name: string
-  onClick: () => void
+  avatar: import("next/image").StaticImageData | string; // Accepts StaticImageData or string URL
+  name: string;
+  onClick: () => void;
 }
 
 const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
@@ -106,30 +131,40 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
             className="object-cover"
             onError={(e) => {
               // If image fails to load, replace with placeholder
-              const target = e.target as HTMLImageElement
-              target.src = "/Images/user.png"
+              const target = e.target as HTMLImageElement;
+              target.src = "/Images/user.png";
             }}
           />
         ) : (
-          <Image src="/Images/user.png" alt="Default avatar" fill sizes="40px" className="object-cover" />
+          <Image
+            src="/Images/user.png"
+            alt="Default avatar"
+            fill
+            sizes="40px"
+            className="object-cover"
+          />
         )}
       </div>
-      <span className={combineClasses(textClasses.primary, "font-medium text-lg")}>{name}</span>
+      <span
+        className={combineClasses(textClasses.primary, "font-medium text-lg")}
+      >
+        {name}
+      </span>
     </div>
-  )
-}
+  );
+};
 
 interface UserDropdownProps {
-  username: string
+  username: string;
 }
 
 const UserDropdown = ({ username }: UserDropdownProps) => {
-  const router = useRouter()
-  const userAvatar = User
-  const { disconnect } = useDisconnect()
-  const { isConnected } = useAccount()
-  const userName = username
-  const { logout } = useAuth() // Use our auth context for logout
+  const router = useRouter();
+  const userAvatar = User;
+  const { disconnect } = useDisconnect();
+  const { isConnected } = useAccount();
+  const userName = username;
+  const { logout } = useAuth(); // Use our auth context for logout
 
   // Menu data structure with routes
   const menuItems: MenuSection[] = [
@@ -154,25 +189,26 @@ const UserDropdown = ({ username }: UserDropdownProps) => {
       id: "footer",
       items: [{ icon: <LogOut size={20} />, label: "Disconnect", route: "#" }],
     },
-  ]
+  ];
 
   const handleItemClick = (item: MenuItem) => {
-    console.log(`Clicked on ${item.label}`)
+    console.log(`Clicked on ${item.label}`);
 
     if (item.label === "Disconnect") {
       if (isConnected) {
-        disconnect()
+        disconnect();
       }
-      logout()
-      return
+      logout();
+      return;
     }
 
     if (item.route) {
-      router.push(item.route)
+      router.push(item.route);
     }
-  }
+  };
 
   // Animation variants
+
   const dropdownVariants = {
     hidden: {
       opacity: 0,
@@ -180,7 +216,7 @@ const UserDropdown = ({ username }: UserDropdownProps) => {
       scale: 0.95,
       transition: {
         duration: 0.2,
-        ease: "easeInOut",
+        ease: easeInOut,
       },
     },
     visible: {
@@ -189,10 +225,10 @@ const UserDropdown = ({ username }: UserDropdownProps) => {
       scale: 1,
       transition: {
         duration: 0.2,
-        ease: "easeOut",
+        ease: easeOut,
       },
     },
-  }
+  };
 
   return (
     <motion.div
@@ -213,7 +249,10 @@ const UserDropdown = ({ username }: UserDropdownProps) => {
           {menuItems.map((section, index) => (
             <div
               key={section.id}
-              className={combineClasses("py-2", index > 0 ? `border-t ${borderClasses.divider}` : "")}
+              className={combineClasses(
+                "py-2",
+                index > 0 ? `border-t ${borderClasses.divider}` : "",
+              )}
             >
               <MenuSection items={section.items} onClick={handleItemClick} />
             </div>
@@ -221,7 +260,7 @@ const UserDropdown = ({ username }: UserDropdownProps) => {
         </div>
       </div>
     </motion.div>
-  )
-}
+  );
+};
 
-export default UserDropdown
+export default UserDropdown;

@@ -62,7 +62,7 @@ const ConnectionItem: React.FC<ConnectionItemProps> = ({
           <h3
             className={combineClasses(
               textClasses.primary,
-              "text-lg font-medium"
+              "text-lg font-medium",
             )}
           >
             {name}
@@ -81,7 +81,7 @@ const ConnectionItem: React.FC<ConnectionItemProps> = ({
         <button
           className={combineClasses(
             buttonClasses.secondary,
-            "px-6 py-2 rounded-lg"
+            "px-6 py-2 rounded-lg",
           )}
           onClick={onConnect}
         >
@@ -133,7 +133,7 @@ const ConnectionsPage: React.FC = () => {
       className={combineClasses(
         "min-h-screen",
         bgClasses.secondary,
-        textClasses.primary
+        textClasses.primary,
       )}
     >
       <div className="max-w-8xl mx-auto">
@@ -141,7 +141,7 @@ const ConnectionsPage: React.FC = () => {
           <h2
             className={combineClasses(
               textClasses.highlight,
-              "text-xl font-medium mb-2"
+              "text-xl font-medium mb-2",
             )}
           >
             Recommended Connections
@@ -149,7 +149,7 @@ const ConnectionsPage: React.FC = () => {
           <p
             className={combineClasses(
               textClasses.tertiary,
-              "text-sm italic mb-8"
+              "text-sm italic mb-8",
             )}
           >
             Link your external accounts to enhance your experience across

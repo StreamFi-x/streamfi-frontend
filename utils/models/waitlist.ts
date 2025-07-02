@@ -1,5 +1,4 @@
-
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IWaitlist extends Document {
   email: string;
@@ -11,40 +10,40 @@ export interface IWaitlist extends Document {
 
 // Define schema
 const WaitlistSchema = new Schema<IWaitlist>({
-  email: { 
-    type: String, 
-    required: true, 
+  email: {
+    type: String,
+    required: true,
     unique: true,
     trim: true,
-    lowercase: true
+    lowercase: true,
   },
-  name: { 
+  name: {
     type: String,
-    trim: true
+    trim: true,
   },
-  unsubscribed_at: { 
-    type: Date, 
-    default: null 
+  unsubscribed_at: {
+    type: Date,
+    default: null,
   },
-  created_at: { 
-    type: Date, 
-    default: Date.now 
+  created_at: {
+    type: Date,
+    default: Date.now,
   },
-  updated_at: { 
-    type: Date, 
-    default: Date.now 
-  }
+  updated_at: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 // Create or get model - prevents "Cannot overwrite model once compiled" error
-const Waitlist: Model<IWaitlist> = 
-  (mongoose.models.Waitlist as Model<IWaitlist>) || 
-  mongoose.model<IWaitlist>('Waitlist', WaitlistSchema);
+const Waitlist: Model<IWaitlist> =
+  (mongoose.models.Waitlist as Model<IWaitlist>) ||
+  mongoose.model<IWaitlist>("Waitlist", WaitlistSchema);
 
 // Add TypeScript type guard to ensure the model is properly initialized
-if (!Waitlist || typeof Waitlist.findOne !== 'function') {
-  console.error('Waitlist model initialization failed:', Waitlist);
-  throw new Error('Waitlist model not properly initialized');
+if (!Waitlist || typeof Waitlist.findOne !== "function") {
+  console.error("Waitlist model initialization failed:", Waitlist);
+  throw new Error("Waitlist model not properly initialized");
 }
 
 export default Waitlist;

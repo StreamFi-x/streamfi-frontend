@@ -10,7 +10,7 @@ import { UserUpdateInput } from "../../../../../types/user";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { wallet: string } }
+  { params }: { params: { wallet: string } },
 ) {
   try {
     const wallet = params.wallet.toLowerCase();
@@ -26,35 +26,56 @@ export async function PUT(
 
     const formData = await req.formData();
 
-    const username = formData.get("username") as string ?? user.username;
-    const email = formData.get("email") as string ?? user.email;
-    const bio = formData.get("bio") as string ?? user.bio;
-    const streamkey = formData.get("streamkey") as string ?? user.streamkey;
+    const username = (formData.get("username") as string) ?? user.username;
+    const email = (formData.get("email") as string) ?? user.email;
+    const bio = (formData.get("bio") as string) ?? user.bio;
+    const streamkey = (formData.get("streamkey") as string) ?? user.streamkey;
     const emailVerified = formData.get("emailVerified") ?? user.emailVerified;
-    const emailNotifications = formData.get("emailNotifications") ?? user.emailNotifications;
+    const emailNotifications =
+      formData.get("emailNotifications") ?? user.emailNotifications;
 
     // Social links - Use lowercase column name to match database
     let processedSocialLinks = user.sociallinks;
     const socialLinks = formData.get("socialLinks");
-    if (socialLinks && socialLinks !== "" && socialLinks !== "null" && socialLinks !== "undefined") {
+    if (
+      socialLinks &&
+      socialLinks !== "" &&
+      socialLinks !== "null" &&
+      socialLinks !== "undefined"
+    ) {
       try {
-        const parsedLinks = typeof socialLinks === "string" ? JSON.parse(socialLinks) : socialLinks;
+        const parsedLinks =
+          typeof socialLinks === "string"
+            ? JSON.parse(socialLinks)
+            : socialLinks;
         processedSocialLinks = JSON.stringify(parsedLinks);
       } catch (err) {
         console.error("Invalid socialLinks JSON:", err);
-        return NextResponse.json({ error: "Invalid socialLinks format" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid socialLinks format" },
+          { status: 400 },
+        );
       }
     }
 
     const creatorRaw = formData.get("creator");
     let creator = user.creator;
 
-    if (creatorRaw && creatorRaw !== "" && creatorRaw !== "null" && creatorRaw !== "undefined") {
+    if (
+      creatorRaw &&
+      creatorRaw !== "" &&
+      creatorRaw !== "null" &&
+      creatorRaw !== "undefined"
+    ) {
       try {
-        creator = typeof creatorRaw === "string" ? JSON.parse(creatorRaw) : creatorRaw;
+        creator =
+          typeof creatorRaw === "string" ? JSON.parse(creatorRaw) : creatorRaw;
       } catch (err) {
         console.error("Invalid creator JSON:", err);
-        return NextResponse.json({ error: "Invalid creator format" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid creator format" },
+          { status: 400 },
+        );
       }
     }
 
@@ -63,11 +84,15 @@ export async function PUT(
       username,
       email,
       streamkey,
-      avatar: user.avatar, 
+      avatar: user.avatar,
       bio,
       emailVerified,
       emailNotifications,
-      socialLinks: processedSocialLinks ? (typeof processedSocialLinks === 'string' ? JSON.parse(processedSocialLinks) : processedSocialLinks) : undefined,
+      socialLinks: processedSocialLinks
+        ? typeof processedSocialLinks === "string"
+          ? JSON.parse(processedSocialLinks)
+          : processedSocialLinks
+        : undefined,
     };
 
     const validation = validateUserUpdate(updateData);
@@ -77,15 +102,21 @@ export async function PUT(
 
     // Email validation & uniqueness
     if (email && email !== user.email && !validateEmail(email)) {
-      return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid email format" },
+        { status: 400 },
+      );
     }
-    
+
     if (email && email !== user.email) {
       const emailExists = await sql`
         SELECT id FROM users WHERE email = ${email} AND wallet != ${wallet}
       `;
       if (emailExists.rows.length > 0) {
-        return NextResponse.json({ error: "Email already in use" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Email already in use" },
+          { status: 400 },
+        );
       }
     }
 
@@ -95,7 +126,10 @@ export async function PUT(
         SELECT id FROM users WHERE username = ${username} AND wallet != ${wallet}
       `;
       if (usernameExists.rows.length > 0) {
-        return NextResponse.json({ error: "Username already in use" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Username already in use" },
+          { status: 400 },
+        );
       }
     }
 
@@ -142,7 +176,10 @@ export async function PUT(
     });
   } catch (err) {
     console.error("Update error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -152,11 +189,12 @@ function extractPublicIdFromUrl(url: string): string | null {
     const parts = urlObj.pathname.split("/");
     const uploadIndex = parts.indexOf("upload");
     if (uploadIndex < 0 || uploadIndex + 2 >= parts.length) return null;
-    return parts.slice(uploadIndex + 2).join("/").replace(/\.[^/.]+$/, "");
+    return parts
+      .slice(uploadIndex + 2)
+      .join("/")
+      .replace(/\.[^/.]+$/, "");
   } catch (err) {
     console.error("Failed to extract public ID:", err);
     return null;
   }
 }
-
-

@@ -53,7 +53,7 @@ const StreamKeyModal: React.FC<StreamKeyModalProps> = ({ isOpen, onClose }) => {
 
       localStorage.setItem(
         STREAM_KEY_CONFIRMATION_KEY,
-        JSON.stringify({ timestamp, sessionId })
+        JSON.stringify({ timestamp, sessionId }),
       );
 
       setHasConfirmed(true);

@@ -60,7 +60,7 @@ export default function ConnectWalletModal({
 
     try {
       console.log(
-        `[ConnectWalletModal] Attempting to connect to ${wallet.name}`
+        `[ConnectWalletModal] Attempting to connect to ${wallet.name}`,
       );
       setSelectedWallet(wallet);
       setIsConnecting(true);

@@ -4,9 +4,9 @@ type TestimonialProps = {
   // role: string;
   // comment: string | string[];
   // stars: number;
-}
+};
 
-export const testimonial_content:TestimonialProps[] = [
+export const testimonial_content: TestimonialProps[] = [
   {
     image: "/Images/testimonial/yourmama.svg",
   },
@@ -25,4 +25,4 @@ export const testimonial_content:TestimonialProps[] = [
   {
     image: "/Images/testimonial/archie.svg",
   },
-]
+];

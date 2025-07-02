@@ -1,56 +1,68 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { Eye, ChevronDown, ChevronUp } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
-import Button from "@/components/ui/button"
-import type { LiveStreamProps } from "@/types/explore/home"
-import Image from "next/image"
-import { textClasses, bgClasses, buttonClasses, combineClasses } from "@/lib/theme-classes"
+import { useState, useEffect, useRef } from "react";
+import { Eye, ChevronDown, ChevronUp } from "lucide-react";
+import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
+import Button from "@/components/ui/button";
+import type { LiveStreamProps } from "@/types/explore/home";
+import Image from "next/image";
+import {
+  textClasses,
+  bgClasses,
+  buttonClasses,
+  combineClasses,
+} from "@/lib/theme-classes";
 
-export function LiveStreams({ title, category, streams }: LiveStreamProps) {
-  const [showAll, setShowAll] = useState(false)
-  const [initialCount, setInitialCount] = useState(4)
-  const [isTransitioning, setIsTransitioning] = useState(false)
-  const sectionRef = useRef<HTMLDivElement>(null)
+export function LiveStreams({
+  title,
+  streams,
+}: Omit<LiveStreamProps, "category">) {
+  const [showAll, setShowAll] = useState(false);
+  const [initialCount, setInitialCount] = useState(4);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  // Define easing functions properly
+  const customEase: Easing = [0.25, 0.46, 0.45, 0.94];
+  const easeInOut: Easing = "easeInOut";
 
   const getInitialCount = () => {
-    if (typeof window === "undefined") return 4
-    if (window.innerWidth < 640) return 2 // Mobile: 2 cards
-    if (window.innerWidth < 1024) return 3 // Tablet: 3 cards
-    return 4 // Desktop: 4 cards
-  }
+    if (typeof window === "undefined") return 4;
+    if (window.innerWidth < 640) return 2; // Mobile: 2 cards
+    if (window.innerWidth < 1024) return 3; // Tablet: 3 cards
+    return 4; // Desktop: 4 cards
+  };
 
   useEffect(() => {
-    const count = getInitialCount()
-    setInitialCount(count)
+    const count = getInitialCount();
+    setInitialCount(count);
 
     const handleResize = () => {
       // Only update initial count if we're not showing all items
       // This prevents the component from jumping when resizing
       if (!showAll && !isTransitioning) {
-        const newCount = getInitialCount()
-        setInitialCount(newCount)
+        const newCount = getInitialCount();
+        setInitialCount(newCount);
       }
-    }
+    };
 
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
-  }, [showAll, isTransitioning])
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [showAll, isTransitioning]);
 
-  const visibleStreams = showAll ? streams : streams.slice(0, initialCount)
-  const hasMoreStreams = streams.length > initialCount
+  const visibleStreams = showAll ? streams : streams.slice(0, initialCount);
+  const hasMoreStreams = streams.length > initialCount;
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: {},
     visible: {
       transition: {
         staggerChildren: 0.08,
       },
     },
-  }
+  };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: {
       opacity: 0,
       y: 20,
@@ -62,7 +74,7 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
       scale: 1,
       transition: {
         duration: 0.4,
-        ease: [0.25, 0.46, 0.45, 0.94], // Custom easing for smoother animation
+        ease: customEase, // Custom easing for smoother animation
       },
     },
     exit: {
@@ -71,45 +83,52 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
       scale: 0.98,
       transition: {
         duration: 0.3,
-        ease: "easeInOut",
+        ease: easeInOut,
       },
     },
-  }
+  };
 
   const handleToggle = async () => {
-    if (isTransitioning) return // Prevent multiple clicks during transition
-    
-    setIsTransitioning(true)
+    if (isTransitioning) return; // Prevent multiple clicks during transition
+
+    setIsTransitioning(true);
 
     if (showAll) {
       // When collapsing, scroll to section first
       if (sectionRef.current) {
-        const rect = sectionRef.current.getBoundingClientRect()
-        const scrollTop = window.pageYOffset + rect.top - 80 // Reduced offset
-        
+        const rect = sectionRef.current.getBoundingClientRect();
+        const scrollTop = window.pageYOffset + rect.top - 80; // Reduced offset
+
         window.scrollTo({
           top: scrollTop,
           behavior: "smooth",
-        })
-        
+        });
+
         // Wait for scroll to complete before toggling
-        await new Promise(resolve => setTimeout(resolve, 400))
+        await new Promise((resolve) => setTimeout(resolve, 400));
       }
-      setShowAll(false)
+      setShowAll(false);
     } else {
       // When expanding, toggle immediately
-      setShowAll(true)
+      setShowAll(true);
     }
-    
+
     // Reset transition state after animation completes
     setTimeout(() => {
-      setIsTransitioning(false)
-    }, 500)
-  }
+      setIsTransitioning(false);
+    }, 500);
+  };
 
   return (
     <div ref={sectionRef} className="w-full py-6">
-      <h2 className={combineClasses("text-2xl font-bold mb-6", textClasses.primary)}>{title}</h2>
+      <h2
+        className={combineClasses(
+          "text-2xl font-bold mb-6",
+          textClasses.primary,
+        )}
+      >
+        {title}
+      </h2>
 
       <motion.div
         variants={containerVariants}
@@ -120,7 +139,7 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
         <AnimatePresence mode="wait">
           {visibleStreams.map((stream) => (
             <motion.div
-              key={`${stream.id}-${showAll ? 'expanded' : 'collapsed'}`} // Unique key for better animations
+              key={`${stream.id}-${showAll ? "expanded" : "collapsed"}`} // Unique key for better animations
               variants={itemVariants}
               initial="hidden"
               animate="visible"
@@ -136,7 +155,9 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
                   className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
                 />
 
-                <div className="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 text-sm rounded">Live</div>
+                <div className="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 text-sm rounded">
+                  Live
+                </div>
 
                 <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-0.5 text-sm rounded flex items-center">
                   <Eye className="w-3 h-3 mr-1" />
@@ -155,16 +176,29 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <p className={combineClasses("text-sm", textClasses.secondary)}>{stream.streamer.name}</p>
+                  <p
+                    className={combineClasses("text-sm", textClasses.secondary)}
+                  >
+                    {stream.streamer.name}
+                  </p>
                 </div>
 
                 <div>
-                  <h3 className={combineClasses("font-semibold text-lg line-clamp-1", textClasses.primary)}>
+                  <h3
+                    className={combineClasses(
+                      "font-semibold text-lg line-clamp-1",
+                      textClasses.primary,
+                    )}
+                  >
                     {stream.title}
                   </h3>
                   <div className="flex flex-wrap gap-2 mt-1">
                     <span
-                      className={combineClasses("text-sm px-2 py-0.5 rounded", bgClasses.selected, textClasses.primary)}
+                      className={combineClasses(
+                        "text-sm px-2 py-0.5 rounded",
+                        bgClasses.selected,
+                        textClasses.primary,
+                      )}
                     >
                       {stream.location}
                     </span>
@@ -190,9 +224,9 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
 
       {hasMoreStreams && (
         <div className="mt-6 flex justify-center">
-          <motion.div 
-            className="w-full" 
-            whileHover={{ scale: isTransitioning ? 1 : 1.01 }} 
+          <motion.div
+            className="w-full"
+            whileHover={{ scale: isTransitioning ? 1 : 1.01 }}
             whileTap={{ scale: isTransitioning ? 1 : 0.99 }}
           >
             <Button
@@ -201,20 +235,26 @@ export function LiveStreams({ title, category, streams }: LiveStreamProps) {
               className={combineClasses(
                 "flex items-center justify-center gap-2 w-full outline-none border-none focus:ring-0 transition-opacity",
                 buttonClasses.secondary,
-                isTransitioning ? "opacity-70 cursor-not-allowed" : "opacity-100"
+                isTransitioning
+                  ? "opacity-70 cursor-not-allowed"
+                  : "opacity-100",
               )}
             >
               {showAll ? "Show less" : "Show more"}
-              <motion.div 
-                animate={{ rotate: showAll ? 180 : 0 }} 
-                transition={{ duration: 0.3, ease: "easeInOut" }}
+              <motion.div
+                animate={{ rotate: showAll ? 180 : 0 }}
+                transition={{ duration: 0.3, ease: easeInOut }}
               >
-                {showAll ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {showAll ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
               </motion.div>
             </Button>
           </motion.div>
         </div>
       )}
     </div>
-  )
+  );
 }

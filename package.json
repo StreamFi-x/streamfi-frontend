@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "next lint",
     "setup-db": "node scripts/setup-db.cjs",
-    "update-schema": "node scripts/updateUserSchema.mjs"
+    "update-schema": "node scripts/updateUserSchema.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@fontsource/inter": "^5.1.1",

@@ -3,7 +3,7 @@ import { sql } from "@vercel/postgres";
 
 export async function GET(
   req: Request,
-  { params }: { params: { wallet: string } }
+  { params }: { params: { wallet: string } },
 ) {
   try {
     console.log("API: Fetching user for wallet:", params.wallet);
@@ -17,7 +17,7 @@ export async function GET(
 
     console.log("API: Query result rows:", result.rowCount);
 
-    const user = result.rows[0]; 
+    const user = result.rows[0];
 
     if (!user) {
       console.log("API: User not found for wallet:", params.wallet);
@@ -30,7 +30,7 @@ export async function GET(
     console.error("API: Fetch user error:", error);
     return NextResponse.json(
       { error: "Failed to fetch user" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

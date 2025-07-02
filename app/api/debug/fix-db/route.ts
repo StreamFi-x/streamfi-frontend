@@ -3,55 +3,53 @@ import { sql } from "@vercel/postgres";
 
 export async function GET() {
   try {
-    console.log('🔍 Checking what\'s missing in database...');
-    
+    console.log("🔍 Checking what's missing in database...");
+
     const results = [];
     const skipped = [];
-    
-    
+
     const tablesResult = await sql`
       SELECT table_name 
       FROM information_schema.tables 
       WHERE table_schema = 'public'
       ORDER BY table_name
     `;
-    const existingTables = tablesResult.rows.map(row => row.table_name);
-    console.log('📊 Existing tables:', existingTables);
-    
-    
+    const existingTables = tablesResult.rows.map((row) => row.table_name);
+    console.log("📊 Existing tables:", existingTables);
+
     let existingUserColumns: string[] = [];
-    if (existingTables.includes('users')) {
+    if (existingTables.includes("users")) {
       const columnsResult = await sql`
         SELECT column_name
         FROM information_schema.columns
         WHERE table_name = 'users'
         ORDER BY column_name
       `;
-      existingUserColumns = columnsResult.rows.map(row => row.column_name as string);
-      console.log('📊 Existing user columns:', existingUserColumns);
+      existingUserColumns = columnsResult.rows.map(
+        (row) => row.column_name as string,
+      );
+      console.log("📊 Existing user columns:", existingUserColumns);
     }
-    
-    
+
     const requiredUserColumns = [
-      'livepeer_stream_id',
-      'playback_id',
-      'is_live',
-      'current_viewers',
-      'total_views',
-      'stream_started_at',
-      'emailverified',
-      'emailnotifications',
-      'creator'
+      "livepeer_stream_id",
+      "playback_id",
+      "is_live",
+      "current_viewers",
+      "total_views",
+      "stream_started_at",
+      "emailverified",
+      "emailnotifications",
+      "creator",
     ];
-    
-    const missingUserColumns = requiredUserColumns.filter(col => 
-      !existingUserColumns.includes(col)
+
+    const missingUserColumns = requiredUserColumns.filter(
+      (col) => !existingUserColumns.includes(col),
     );
-    
+
     if (missingUserColumns.length > 0) {
-      console.log('📊 Adding missing user columns:', missingUserColumns);
-      
-      
+      console.log("📊 Adding missing user columns:", missingUserColumns);
+
       try {
         await sql`
           ALTER TABLE users 
@@ -65,20 +63,19 @@ export async function GET() {
           ADD COLUMN IF NOT EXISTS emailnotifications BOOLEAN DEFAULT TRUE,
           ADD COLUMN IF NOT EXISTS creator JSONB DEFAULT '{}'
         `;
-        results.push(`✅ Added ${missingUserColumns.length} missing columns to users table`);
+        results.push(
+          `✅ Added ${missingUserColumns.length} missing columns to users table`,
+        );
       } catch (columnError) {
-        console.error('❌ Failed to add user columns:', columnError);
-        results.push('❌ Failed to add missing user columns');
+        console.error("❌ Failed to add user columns:", columnError);
+        results.push("❌ Failed to add missing user columns");
       }
     } else {
-      skipped.push('⏭️ Users table already has all required columns');
+      skipped.push("⏭️ Users table already has all required columns");
     }
-    
-    
-    
-    
-    if (!existingTables.includes('stream_sessions')) {
-      console.log('📊 Creating missing table: stream_sessions');
+
+    if (!existingTables.includes("stream_sessions")) {
+      console.log("📊 Creating missing table: stream_sessions");
       try {
         await sql`
           CREATE TABLE stream_sessions (
@@ -100,18 +97,17 @@ export async function GET() {
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           )
         `;
-        results.push('✅ Created missing table: stream_sessions');
+        results.push("✅ Created missing table: stream_sessions");
       } catch (tableError) {
-        console.error('❌ Failed to create stream_sessions table:', tableError);
-        results.push('❌ Failed to create table: stream_sessions');
+        console.error("❌ Failed to create stream_sessions table:", tableError);
+        results.push("❌ Failed to create table: stream_sessions");
       }
     } else {
-      skipped.push('⏭️ Table \'stream_sessions\' already exists');
+      skipped.push("⏭️ Table 'stream_sessions' already exists");
     }
-    
-    
-    if (!existingTables.includes('chat_messages')) {
-      console.log('📊 Creating missing table: chat_messages');
+
+    if (!existingTables.includes("chat_messages")) {
+      console.log("📊 Creating missing table: chat_messages");
       try {
         await sql`
           CREATE TABLE chat_messages (
@@ -126,18 +122,17 @@ export async function GET() {
             is_deleted BOOLEAN DEFAULT FALSE
           )
         `;
-        results.push('✅ Created missing table: chat_messages');
+        results.push("✅ Created missing table: chat_messages");
       } catch (tableError) {
-        console.error('❌ Failed to create chat_messages table:', tableError);
-        results.push('❌ Failed to create table: chat_messages');
+        console.error("❌ Failed to create chat_messages table:", tableError);
+        results.push("❌ Failed to create table: chat_messages");
       }
     } else {
-      skipped.push('⏭️ Table \'chat_messages\' already exists');
+      skipped.push("⏭️ Table 'chat_messages' already exists");
     }
-    
-    
-    if (!existingTables.includes('stream_viewers')) {
-      console.log('📊 Creating missing table: stream_viewers');
+
+    if (!existingTables.includes("stream_viewers")) {
+      console.log("📊 Creating missing table: stream_viewers");
       try {
         await sql`
           CREATE TABLE stream_viewers (
@@ -152,26 +147,26 @@ export async function GET() {
             is_active BOOLEAN DEFAULT TRUE
           )
         `;
-        results.push('✅ Created missing table: stream_viewers');
+        results.push("✅ Created missing table: stream_viewers");
       } catch (tableError) {
-        console.error('❌ Failed to create stream_viewers table:', tableError);
-        results.push('❌ Failed to create table: stream_viewers');
+        console.error("❌ Failed to create stream_viewers table:", tableError);
+        results.push("❌ Failed to create table: stream_viewers");
       }
     } else {
-      skipped.push('⏭️ Table \'stream_viewers\' already exists');
+      skipped.push("⏭️ Table 'stream_viewers' already exists");
     }
     try {
       await sql`CREATE INDEX IF NOT EXISTS idx_users_wallet ON users(wallet)`;
-      results.push('✅ Created/verified index: idx_users_wallet');
+      results.push("✅ Created/verified index: idx_users_wallet");
     } catch {
-      skipped.push('⏭️ Index idx_users_wallet already exists or failed');
+      skipped.push("⏭️ Index idx_users_wallet already exists or failed");
     }
-    
+
     try {
       await sql`CREATE INDEX IF NOT EXISTS idx_users_livepeer ON users(livepeer_stream_id)`;
-      results.push('✅ Created/verified index: idx_users_livepeer');
+      results.push("✅ Created/verified index: idx_users_livepeer");
     } catch {
-      skipped.push('⏭️ Index idx_users_livepeer already exists or failed');
+      skipped.push("⏭️ Index idx_users_livepeer already exists or failed");
     }
     const finalTablesResult = await sql`
       SELECT table_name 
@@ -179,10 +174,12 @@ export async function GET() {
       WHERE table_schema = 'public'
       ORDER BY table_name
     `;
-    const finalTables = finalTablesResult.rows.map(row => row.table_name as string);
-    
-    console.log('✅ Database update completed successfully!');
-    
+    const finalTables = finalTablesResult.rows.map(
+      (row) => row.table_name as string,
+    );
+
+    console.log("✅ Database update completed successfully!");
+
     return NextResponse.json({
       success: true,
       message: `Database selectively updated! Completed ${results.length} actions, skipped ${skipped.length} existing items.`,
@@ -191,33 +188,36 @@ export async function GET() {
       final_status: {
         total_tables: finalTables.length,
         tables: finalTables,
-        has_stream_sessions: finalTables.includes('stream_sessions'),
-        has_chat_messages: finalTables.includes('chat_messages'),
-        has_stream_viewers: finalTables.includes('stream_viewers'),
-        ready_for_streaming: finalTables.includes('stream_sessions')
+        has_stream_sessions: finalTables.includes("stream_sessions"),
+        has_chat_messages: finalTables.includes("chat_messages"),
+        has_stream_viewers: finalTables.includes("stream_viewers"),
+        ready_for_streaming: finalTables.includes("stream_sessions"),
       },
       summary: {
         actions_completed: results.length,
         items_skipped: skipped.length,
-        critical_table_exists: finalTables.includes('stream_sessions'),
-        database_ready: finalTables.includes('stream_sessions') && finalTables.includes('users')
-      }
+        critical_table_exists: finalTables.includes("stream_sessions"),
+        database_ready:
+          finalTables.includes("stream_sessions") &&
+          finalTables.includes("users"),
+      },
     });
-    
   } catch (error) {
-    console.error('❌ Database update error:', error);
-    
+    console.error("❌ Database update error:", error);
+
     // Simple error handling
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : 'No stack trace';
-    
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    const errorDetails =
+      error instanceof Error ? error.stack : "No stack trace";
+
     return NextResponse.json(
       {
         error: "Failed to update database",
         details: errorMessage,
-        stack: errorDetails
+        stack: errorDetails,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

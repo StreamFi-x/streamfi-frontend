@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     if (!wallet) {
       return NextResponse.json(
         { error: "Wallet is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     if (userResult.rows.length === 0) {
       return NextResponse.json(
         { error: "User not found or stream not configured" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     if (user.is_live) {
       return NextResponse.json(
         { error: "Stream is already live" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -40,15 +40,13 @@ export async function POST(req: Request) {
       if (!streamHealth) {
         return NextResponse.json(
           { error: "Stream service unavailable" },
-          { status: 503 }
+          { status: 503 },
         );
       }
     } catch (healthError) {
       console.error("Stream health check failed:", healthError);
-      
     }
 
-    
     const result = await sql`
       UPDATE users SET
         is_live = true,
@@ -61,7 +59,6 @@ export async function POST(req: Request) {
 
     const updatedUser = result.rows[0];
 
-    
     try {
       await sql`
         INSERT INTO stream_sessions (user_id, livepeer_session_id, started_at)
@@ -69,11 +66,10 @@ export async function POST(req: Request) {
       `;
     } catch (sessionError) {
       console.error("Failed to create stream session record:", sessionError);
-      
     }
 
     return NextResponse.json(
-      { 
+      {
         message: "Stream started successfully",
         streamData: {
           isLive: true,
@@ -81,20 +77,18 @@ export async function POST(req: Request) {
           playbackId: updatedUser.playback_id,
           username: updatedUser.username,
           startedAt: new Date().toISOString(),
-        }
+        },
       },
-      { status: 200 }
+      { status: 200 },
     );
-
   } catch (error) {
     console.error("Stream start error:", error);
     return NextResponse.json(
       { error: "Failed to start stream" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-
 
 export async function DELETE(req: Request) {
   try {
@@ -103,11 +97,10 @@ export async function DELETE(req: Request) {
     if (!wallet) {
       return NextResponse.json(
         { error: "Wallet is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    
     const userResult = await sql`
       SELECT id, livepeer_stream_id, is_live 
       FROM users 
@@ -115,10 +108,7 @@ export async function DELETE(req: Request) {
     `;
 
     if (userResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const user = userResult.rows[0];
@@ -126,11 +116,10 @@ export async function DELETE(req: Request) {
     if (!user.is_live) {
       return NextResponse.json(
         { error: "Stream is not currently live" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
-    
     await sql`
       UPDATE users SET
         is_live = false,
@@ -140,7 +129,6 @@ export async function DELETE(req: Request) {
       WHERE id = ${user.id}
     `;
 
-    
     try {
       await sql`
         UPDATE stream_sessions SET
@@ -149,19 +137,17 @@ export async function DELETE(req: Request) {
       `;
     } catch (sessionError) {
       console.error("Failed to end stream session:", sessionError);
-      
     }
 
     return NextResponse.json(
       { message: "Stream stopped successfully" },
-      { status: 200 }
+      { status: 200 },
     );
-
   } catch (error) {
     console.error("Stream stop error:", error);
     return NextResponse.json(
       { error: "Failed to stop stream" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, Variants, Easing } from "framer-motion";
 import { tokenUtilityData } from "@/data/landing-page/streamTokenUtility";
 import Section from "@/components/layout/Section";
 
@@ -13,13 +13,16 @@ const token4 = "/Images/tokens/token4.svg";
 const token5 = "/Images/tokens/token4.svg";
 
 export default function StreamTokenUtility() {
+  // Define easing function properly
+  const easeInOut: Easing = "easeInOut";
+
   // Animation variants
-  const fadeInUp = {
+  const fadeInUp: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
   };
 
-  const staggerChildren = {
+  const staggerChildren: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -29,7 +32,7 @@ export default function StreamTokenUtility() {
     },
   };
 
-  const floatAnimation = {
+  const floatAnimation: Variants = {
     initial: { y: 0 },
     animate: {
       y: [0, -10, 0],
@@ -37,7 +40,7 @@ export default function StreamTokenUtility() {
         duration: 3,
         repeat: Number.POSITIVE_INFINITY,
         repeatType: "reverse" as const,
-        ease: "easeInOut",
+        ease: easeInOut,
       },
     },
   };
