@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchUserData = async (
-    walletAddress?: string
+    walletAddress?: string,
   ): Promise<User | null> => {
     if (!walletAddress) {
       walletAddress =
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Check cached user data
       const cachedUserData = localStorage.getItem(`user_${walletAddress}`);
       const cachedTimestamp = localStorage.getItem(
-        `user_timestamp_${walletAddress}`
+        `user_timestamp_${walletAddress}`,
       );
 
       if (cachedUserData && cachedTimestamp) {
@@ -152,11 +152,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Cache user data
         localStorage.setItem(
           `user_${walletAddress}`,
-          JSON.stringify(data.user)
+          JSON.stringify(data.user),
         );
         localStorage.setItem(
           `user_timestamp_${walletAddress}`,
-          Date.now().toString()
+          Date.now().toString(),
         );
 
         // Store in sessionStorage for immediate access
@@ -211,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleWalletChange = async () => {
       console.log(
-        `[AuthProvider] Wallet status changed - Connected: ${isConnected}, Address: ${address}, Status: ${status}`
+        `[AuthProvider] Wallet status changed - Connected: ${isConnected}, Address: ${address}, Status: ${status}`,
       );
 
       if (status === "connecting") {
@@ -264,7 +264,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const lastWalletId = localStorage.getItem(WALLET_CONNECTION_KEY);
 
         console.log(
-          `[AuthProvider] Auto-connect enabled: ${shouldAutoConnect}, Last wallet: ${lastWalletId}`
+          `[AuthProvider] Auto-connect enabled: ${shouldAutoConnect}, Last wallet: ${lastWalletId}`,
         );
 
         // If wallet is already connected (due to StarkNet auto-connect), fetch user data
@@ -277,7 +277,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             localStorage.getItem("wallet") || sessionStorage.getItem("wallet");
           if (storedWallet && shouldAutoConnect) {
             console.log(
-              `[AuthProvider] Attempting to restore session for: ${storedWallet}`
+              `[AuthProvider] Attempting to restore session for: ${storedWallet}`,
             );
             // The StarkNet provider will handle auto-connection
             // We just need to wait for the connection status to update
@@ -359,15 +359,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               // Update cached data
               localStorage.setItem(
                 `user_${user.wallet}`,
-                JSON.stringify(updatedUser)
+                JSON.stringify(updatedUser),
               );
               localStorage.setItem(
                 `user_timestamp_${user.wallet}`,
-                Date.now().toString()
+                Date.now().toString(),
               );
               sessionStorage.setItem(
                 "currentUser",
-                JSON.stringify(updatedUser)
+                JSON.stringify(updatedUser),
               );
 
               return true;

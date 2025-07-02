@@ -1,180 +1,191 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect, useRef } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import Image from "next/image"
-import { toast } from "sonner"
-import Section from "@/components/layout/Section"
+import type React from "react";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+import { toast } from "sonner";
+import Section from "@/components/layout/Section";
 
 interface WaitlistProps {
-  initialCount?: number
-  onSubmit?: (email: string) => Promise<void>
+  initialCount?: number;
+  onSubmit?: (email: string) => Promise<void>;
 }
 
-const Waitlist: React.FC<WaitlistProps> = ({ initialCount = 3000, onSubmit }) => {
-  const [email, setEmail] = useState<string>("")
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(false)
-  const [emailTouched, setEmailTouched] = useState<boolean>(false)
-  const [emailError, setEmailError] = useState<string>("")
-  const [showError, setShowError] = useState<boolean>(false)
-  const [showErrorStyling, setShowErrorStyling] = useState<boolean>(false)
-  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+const Waitlist: React.FC<WaitlistProps> = ({
+  initialCount = 3000,
+  onSubmit,
+}) => {
+  const [email, setEmail] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const [emailTouched, setEmailTouched] = useState<boolean>(false);
+  const [emailError, setEmailError] = useState<string>("");
+  const [showError, setShowError] = useState<boolean>(false);
+  const [showErrorStyling, setShowErrorStyling] = useState<boolean>(false);
+  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const avatars: string[] = [
     "/Images/waitlist1.png",
     "/Images/waitlist2.png",
     "/Images/waitlist3.png",
     "/Images/waitlist4.png",
-  ]
+  ];
 
   // Validate email whenever it changes, but only show errors if the field has been touched
   useEffect(() => {
-    if (!emailTouched) return
+    if (!emailTouched) return;
 
-    let error = ""
+    let error = "";
     if (!email) {
-      error = "Email is required"
+      error = "Email is required";
     } else if (!validateEmail(email)) {
-      error = "Please enter a valid email address"
+      error = "Please enter a valid email address";
     }
 
-    setEmailError(error)
+    setEmailError(error);
 
     // Show error if there is one
     if (error) {
-      setShowError(true)
-      setShowErrorStyling(true)
+      setShowError(true);
+      setShowErrorStyling(true);
 
       // Clear any existing timeout
       if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current)
+        clearTimeout(errorTimeoutRef.current);
       }
 
       // Set timeout to hide error after 3 seconds
       errorTimeoutRef.current = setTimeout(() => {
-        setShowError(false)
-        setShowErrorStyling(false)
-      }, 3000)
+        setShowError(false);
+        setShowErrorStyling(false);
+      }, 3000);
     }
 
     return () => {
       // Clean up timeout on unmount or when email changes
       if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current)
+        clearTimeout(errorTimeoutRef.current);
       }
-    }
-  }, [email, emailTouched])
+    };
+  }, [email, emailTouched]);
 
   // Custom email validation function
   const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
-  }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     // Mark email as touched to trigger validation
-    setEmailTouched(true)
+    setEmailTouched(true);
 
     // Validate email before submission
     if (!email || !validateEmail(email)) {
-      const error = email ? "Please enter a valid email address" : "Email is required"
-      setEmailError(error)
-      setShowError(true)
-      setShowErrorStyling(true)
+      const error = email
+        ? "Please enter a valid email address"
+        : "Email is required";
+      setEmailError(error);
+      setShowError(true);
+      setShowErrorStyling(true);
 
       // Clear any existing timeout
       if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current)
+        clearTimeout(errorTimeoutRef.current);
       }
 
       // Set timeout to hide error after 3 seconds
       errorTimeoutRef.current = setTimeout(() => {
-        setShowError(false)
-        setShowErrorStyling(false)
-      }, 3000)
+        setShowError(false);
+        setShowErrorStyling(false);
+      }, 3000);
 
-      return
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     try {
       if (onSubmit) {
         // Use the provided onSubmit handler if available
-        await onSubmit(email)
+        await onSubmit(email);
       } else {
-        console.log('Submitting to waitlist API:', email);
-        
+        console.log("Submitting to waitlist API:", email);
+
         // Call our API endpoint with better error handling
-        const response = await fetch('/api/waitlist/subscribe', {
-          method: 'POST',
+        const response = await fetch("/api/waitlist/subscribe", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({ email }),
         });
 
-        console.log('API response status:', response.status);
-        
+        console.log("API response status:", response.status);
+
         // Get response data with error handling
         let data;
-        let responseText = '';
-        
+        let responseText = "";
+
         try {
           // First try to get the response as text (to help debug HTML errors)
           responseText = await response.text();
-          
+
           // Then try to parse as JSON
           try {
             data = JSON.parse(responseText);
-            console.log('API response data:', data);
+            console.log("API response data:", data);
           } catch (jsonError) {
-            console.error('Failed to parse response as JSON:', jsonError);
-            console.log('Response text (first 200 chars):', responseText.substring(0, 200));
-            throw new Error('Server returned an invalid response format');
+            console.error("Failed to parse response as JSON:", jsonError);
+            console.log(
+              "Response text (first 200 chars):",
+              responseText.substring(0, 200),
+            );
+            throw new Error("Server returned an invalid response format");
           }
         } catch (responseError) {
-          console.error('Error getting response:', responseError);
-          throw new Error('Failed to process server response');
+          console.error("Error getting response:", responseError);
+          throw new Error("Failed to process server response");
         }
 
         if (!response.ok) {
-          let errorMessage = data?.error || 'Failed to join waitlist';
-          
+          let errorMessage = data?.error || "Failed to join waitlist";
+
           // Enhanced error handling
           if (response.status === 429) {
-            errorMessage = 'Too many attempts. Please try again later.';
+            errorMessage = "Too many attempts. Please try again later.";
           } else if (response.status === 400) {
-            errorMessage = data?.error || 'Invalid email format';
+            errorMessage = data?.error || "Invalid email format";
           } else if (response.status === 500) {
-            errorMessage = 'Server error. Our team has been notified.';
-            console.error('Server error details:', data?.details || 'No details provided');
+            errorMessage = "Server error. Our team has been notified.";
+            console.error(
+              "Server error details:",
+              data?.details || "No details provided",
+            );
           }
-          
+
           throw new Error(errorMessage);
         }
-        
+
         // Check for already subscribed
         if (data?.alreadySubscribed) {
           toast.info("You're already on our waitlist!", {
             description: "We'll notify you when StreamFi launches.",
             duration: 5000,
           });
-          
+
           setIsSubmitted(true);
           setEmail("");
           setEmailTouched(false);
           setShowError(false);
           setShowErrorStyling(false);
-          
+
           setTimeout(() => {
             setIsSubmitted(false);
           }, 3000);
-          
+
           setIsSubmitting(false);
           return;
         }
@@ -184,27 +195,28 @@ const Waitlist: React.FC<WaitlistProps> = ({ initialCount = 3000, onSubmit }) =>
       toast.success("You've been added to the waitlist!", {
         description: "We'll notify you when StreamFi launches.",
         duration: 5000,
-      })
+      });
 
-      setIsSubmitted(true)
-      setEmail("")
-      setEmailTouched(false)
-      setShowError(false)
-      setShowErrorStyling(false)
+      setIsSubmitted(true);
+      setEmail("");
+      setEmailTouched(false);
+      setShowError(false);
+      setShowErrorStyling(false);
 
       setTimeout(() => {
-        setIsSubmitted(false)
-      }, 3000)
+        setIsSubmitted(false);
+      }, 3000);
     } catch (error) {
-      console.error("Error submitting email:", error)
+      console.error("Error submitting email:", error);
       // Show error toast with specific message if available
       toast.error("Failed to join the waitlist", {
-        description: error instanceof Error ? error.message : "Please try again later.",
-      })
+        description:
+          error instanceof Error ? error.message : "Please try again later.",
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <Section
@@ -223,8 +235,9 @@ const Waitlist: React.FC<WaitlistProps> = ({ initialCount = 3000, onSubmit }) =>
         </h1>
 
         <p className="text-white/80 font-normal max-w-2xl mx-auto">
-          Sign up for early access and be among the first to explore StreamFi&apos;s decentralized streaming platform.
-          Get exclusive perks, early feature access, and shape the future of streaming!
+          Sign up for early access and be among the first to explore
+          StreamFi&apos;s decentralized streaming platform. Get exclusive perks,
+          early feature access, and shape the future of streaming!
         </p>
       </motion.div>
 
@@ -244,7 +257,9 @@ const Waitlist: React.FC<WaitlistProps> = ({ initialCount = 3000, onSubmit }) =>
               onBlur={() => setEmailTouched(true)}
               placeholder="Enter your email"
               className={`w-full py-3 px-4 bg-[#272526] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-300 ${
-                showErrorStyling ? "focus:ring-red-500 border border-red-500" : "focus:ring-purple-500"
+                showErrorStyling
+                  ? "focus:ring-red-500 border border-red-500"
+                  : "focus:ring-purple-500"
               }`}
             />
             <AnimatePresence>
@@ -270,7 +285,11 @@ const Waitlist: React.FC<WaitlistProps> = ({ initialCount = 3000, onSubmit }) =>
               isSubmitting ? "opacity-70 cursor-not-allowed" : ""
             }`}
           >
-            {isSubmitting ? "Joining..." : isSubmitted ? "Joined!" : "Join the Waitlist"}
+            {isSubmitting
+              ? "Joining..."
+              : isSubmitted
+                ? "Joined!"
+                : "Join the Waitlist"}
           </motion.button>
         </div>
       </motion.form>
@@ -320,7 +339,7 @@ const Waitlist: React.FC<WaitlistProps> = ({ initialCount = 3000, onSubmit }) =>
         style={{ bottom: "-24px" }}
       ></div>
     </Section>
-  )
-}
+  );
+};
 
-export default Waitlist
+export default Waitlist;

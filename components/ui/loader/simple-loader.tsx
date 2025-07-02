@@ -12,7 +12,7 @@ export default function SimpleLoader({ className }: SimpleLoaderProps) {
     <div
       className={cn(
         "fixed inset-0 z-50 flex items-center justify-center",
-        className
+        className,
       )}
     >
       {/* Dark overlay with blur */}

@@ -1,4 +1,3 @@
-
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 import { Pool } from "@neondatabase/serverless";
@@ -68,19 +67,17 @@ async function createCategoryTable() {
   }
 }
 
-
 async function setupDatabase() {
   try {
     await createSubscribersTable();
-    await createUsersTable()
-    await createCategoryTable()
+    await createUsersTable();
+    await createCategoryTable();
     console.log("Database setup completed");
   } catch (error) {
     console.error("Database setup failed:", error);
   } finally {
-    await pool.end(); 
+    await pool.end();
   }
 }
 
-setupDatabase(); 
-
+setupDatabase();

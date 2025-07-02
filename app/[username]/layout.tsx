@@ -140,7 +140,7 @@ export default function UsernameLayout({
         className={combineClasses(
           "flex flex-col h-screen",
           bgClasses.secondary,
-          textClasses.primary
+          textClasses.primary,
         )}
       >
         <Navbar toggleSidebar={toggleSidebar} />
@@ -165,7 +165,7 @@ export default function UsernameLayout({
       className={combineClasses(
         "flex flex-col h-screen",
         bgClasses.secondary,
-        textClasses.primary
+        textClasses.primary,
       )}
     >
       <Navbar toggleSidebar={toggleSidebar} />

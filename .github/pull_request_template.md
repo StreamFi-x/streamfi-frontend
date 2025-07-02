@@ -6,7 +6,7 @@
 
 <!-- Github Issue Example: Closes #31 -->
 
-*Closes #issue_number_here*
+_Closes #issue_number_here_
 
 # Changes proposed
 
@@ -36,7 +36,7 @@
 - [ ] My code follows the code style of this project.
 - [ ] This PR does not contain plagiarized content.
 - [ ] The title and description of the PR is clear and explains the approach.
-- [ ] I am making a pull request against the *main branch* (left side).
+- [ ] I am making a pull request against the _main branch_ (left side).
 - [ ] My commit messages styles matches our requested structure.
 - [ ] My code additions will fail neither code linting checks nor unit test.
 - [ ] I am only making changes to files I was requested to.

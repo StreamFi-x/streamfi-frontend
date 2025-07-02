@@ -27,6 +27,7 @@ All tasks must be completed by the stated deadline in the issue description. Fai
 Found a bug or have a feature suggestion? Help us improve StreamFi by submitting an issue on GitHub. Before creating an issue, please search the existing issue archive to check if it's already reported.
 
 A good issue report should be:
+
 - **Reproducible**: Include steps to reproduce the problem.
 - **Specific**: Provide as much detail as possible (version, environment, etc.).
 - **Unique**: Avoid duplicate issues.
@@ -59,4 +60,3 @@ Even better—submit a **pull request** with a fix or implementation!
 - **Changes Requested**: Maintainers have reviewed and requested modifications. Once addressed, add the **Ready for Review** label so maintainers can finalize the review and merge it. 🎉
 
 We appreciate your contributions and look forward to building an incredible decentralized streaming platform together!
-

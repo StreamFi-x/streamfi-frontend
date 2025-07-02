@@ -30,17 +30,13 @@ export default function Home() {
       className={combineClasses(
         "min-h-screen",
         bgClasses.secondary,
-        textClasses.primary
+        textClasses.primary,
       )}
     >
       <main className="container mx-auto px-4 py-8">
         <FeaturedStream stream={featuredStream} />
 
-        <LiveStreams
-          title="Live on Streamfi"
-          category="gaming"
-          streams={liveStreams}
-        />
+        <LiveStreams title="Live on Streamfi" streams={liveStreams} />
 
         <TrendingStreams title="Trending in Gaming" streams={trendingStreams} />
       </main>

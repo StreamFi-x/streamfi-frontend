@@ -5,18 +5,17 @@ import { deleteLivepeerStream } from "@/lib/livepeer/server";
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const wallet = searchParams.get('wallet');
+    const wallet = searchParams.get("wallet");
 
     if (!wallet) {
       return NextResponse.json(
         { error: "Wallet parameter required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     console.log(`🔧 Force deleting stream for wallet: ${wallet}`);
 
-    
     const userResult = await sql`
       SELECT id, username, livepeer_stream_id, is_live
       FROM users 
@@ -24,10 +23,7 @@ export async function GET(req: Request) {
     `;
 
     if (userResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const user = userResult.rows[0];
@@ -35,13 +31,12 @@ export async function GET(req: Request) {
     if (!user.livepeer_stream_id) {
       return NextResponse.json(
         { message: "No stream found to delete" },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
-    
     if (user.is_live) {
-      console.log('⏹️ Stopping live stream first...');
+      console.log("⏹️ Stopping live stream first...");
       await sql`
         UPDATE users SET
           is_live = false,
@@ -51,7 +46,6 @@ export async function GET(req: Request) {
         WHERE id = ${user.id}
       `;
 
-      
       try {
         await sql`
           UPDATE stream_sessions SET
@@ -63,17 +57,14 @@ export async function GET(req: Request) {
       }
     }
 
-    
-    console.log('🗑️ Deleting from Livepeer...');
+    console.log("🗑️ Deleting from Livepeer...");
     try {
       await deleteLivepeerStream(user.livepeer_stream_id);
     } catch (livepeerError) {
       console.error("Livepeer deletion failed:", livepeerError);
-      
     }
 
-    
-    console.log('🧹 Cleaning up database...');
+    console.log("🧹 Cleaning up database...");
     await sql`
       UPDATE users SET
         livepeer_stream_id = NULL,
@@ -86,26 +77,25 @@ export async function GET(req: Request) {
       WHERE LOWER(wallet) = LOWER(${wallet})
     `;
 
-    console.log('✅ Force delete completed!');
+    console.log("✅ Force delete completed!");
 
     return NextResponse.json(
-      { 
+      {
         message: "Stream force deleted successfully (stopped and removed)",
         actions: [
           user.is_live ? "Stopped live stream" : "Stream was already stopped",
           "Deleted from Livepeer",
-          "Cleaned database records"
+          "Cleaned database records",
         ],
-        wallet: wallet
+        wallet: wallet,
       },
-      { status: 200 }
+      { status: 200 },
     );
-
   } catch (error) {
     console.error("Force delete error:", error);
     return NextResponse.json(
       { error: "Failed to force delete stream" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

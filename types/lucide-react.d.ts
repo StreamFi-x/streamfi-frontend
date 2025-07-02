@@ -1,16 +1,16 @@
-declare module 'lucide-react';
+declare module "lucide-react";
 
-declare module 'lucide-react' {
-  import { FC, SVGProps } from 'react';
-  
+declare module "lucide-react" {
+  import { FC, SVGProps } from "react";
+
   export interface IconProps extends SVGProps<SVGSVGElement> {
     size?: number | string;
     color?: string;
     strokeWidth?: number | string;
   }
-  
+
   export type Icon = FC<IconProps>;
-  
+
   export const Edit2: Icon;
   export const Trash2: Icon;
   export const Check: Icon;
@@ -31,4 +31,4 @@ declare module 'lucide-react' {
   export const Menu: Icon;
   export const User: Icon;
   export const ArrowRight: Icon;
-} 
+}

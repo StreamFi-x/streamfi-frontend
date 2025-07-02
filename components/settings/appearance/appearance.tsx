@@ -93,7 +93,7 @@ const OptionsSection: React.FC<OptionsSectionProps> = ({
       <h2
         className={combineClasses(
           textClasses.highlight,
-          "text-xl font-medium mb-2"
+          "text-xl font-medium mb-2",
         )}
       >
         {title}
@@ -160,7 +160,7 @@ const ThemeSettingsPage: React.FC = () => {
       className={combineClasses(
         "min-h-screen",
         bgClasses.secondary,
-        textClasses.primary
+        textClasses.primary,
       )}
     >
       <div className="max-w-8xl mx-auto">
@@ -185,7 +185,7 @@ const ThemeSettingsPage: React.FC = () => {
           <button
             className={combineClasses(
               buttonClasses.secondary,
-              "w-full lg:w-[12em] px-6 py-3 rounded-lg"
+              "w-full lg:w-[12em] px-6 py-3 rounded-lg",
             )}
             onClick={saveChanges}
           >

@@ -11,13 +11,13 @@ export interface ConnectModalProps {
 }
 
 export interface NavbarProps {
-    toggleSidebar: () => void;
-    onConnect?: () => void;
-  }
-  
- export interface SearchResult {
-    id: string;
-    title: string;
-    type: "stream" | "channel" | "video";
-    image: string;
-  }
+  toggleSidebar: () => void;
+  onConnect?: () => void;
+}
+
+export interface SearchResult {
+  id: string;
+  title: string;
+  type: "stream" | "channel" | "video";
+  image: string;
+}

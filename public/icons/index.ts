@@ -14,5 +14,5 @@ export {
   Pfp1,
   Pfp2,
   Pfp3,
-  StreamfiLogoShort
+  StreamfiLogoShort,
 };

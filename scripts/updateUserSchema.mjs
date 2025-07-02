@@ -50,21 +50,21 @@ async function createNewUsersTable() {
 async function updateSchema() {
   try {
     // Start a transaction
-    await pool.query('BEGIN');
-    
+    await pool.query("BEGIN");
+
     // Drop the existing users table
     await dropUsersTable();
-    
+
     // Create the new users table with additional fields
     await createNewUsersTable();
-    
+
     // Commit the transaction
-    await pool.query('COMMIT');
-    
+    await pool.query("COMMIT");
+
     console.log("Database schema updated successfully");
   } catch (error) {
     // Rollback the transaction in case of error
-    await pool.query('ROLLBACK');
+    await pool.query("ROLLBACK");
     console.error("Database schema update failed:", error);
   } finally {
     await pool.end();
@@ -82,7 +82,7 @@ const exampleUser = {
   bio: "User bio here",
   socialLinks: [
     { socialTitle: "Twitter", socialLink: "https://twitter.com/user123" },
-    { socialTitle: "Instagram", socialLink: "https://instagram.com/user123" }
+    { socialTitle: "Instagram", socialLink: "https://instagram.com/user123" },
   ],
   emailVerified: true,
   emailNotifications: true,
@@ -90,10 +90,10 @@ const exampleUser = {
     streamTitle: "My Awesome Stream",
     tags: ["gaming", "crypto", "education"],
     category: "Technology",
-    payout: "0xabc..."
+    payout: "0xabc...",
   },
   created_at: "2025-05-13T10:00:00Z",
-  updated_at: "2025-05-13T10:00:00Z"
+  updated_at: "2025-05-13T10:00:00Z",
 };
 
 console.log("Starting database schema update...");

@@ -40,12 +40,12 @@
 //   try {
 //     // Parse form data including file uploads
 //     const { fields, files } = await parseFormData(req);
-    
+
 //     // Extract wallet from query or authorization header
-//     const wallet = req.query.wallet as string || 
-//                    req.headers.authorization?.replace('Bearer ', '') || 
+//     const wallet = req.query.wallet as string ||
+//                    req.headers.authorization?.replace('Bearer ', '') ||
 //                    fields.wallet?.[0];
-    
+
 //     if (!wallet) {
 //       return res.status(400).json({ error: 'Wallet address is required' });
 //     }
@@ -80,15 +80,15 @@
 //     // Handle avatar upload if provided
 //     if (files.avatar) {
 //       const avatarFile = Array.isArray(files.avatar) ? files.avatar[0] : files.avatar;
-      
+
 //       // Get file path from the avatar file
 //       const filePath = avatarFile.filepath;
-      
+
 //       try {
 //         // Upload to cloud storage
 //         const uploadResult = await uploadImage(filePath);
 //         userData.avatar = uploadResult.secure_url;
-        
+
 //         // Clean up temporary file
 //         fs.unlinkSync(filePath);
 //       } catch (error) {
@@ -104,13 +104,13 @@
 
 //     // Update the user in the database
 //     const updatedUser = await updateUser(wallet, userData);
-    
+
 //     // Return the updated user data
-//     return res.status(200).json({ 
+//     return res.status(200).json({
 //       message: 'User updated successfully',
-//       user: updatedUser 
+//       user: updatedUser
 //     });
-    
+
 //   } catch (error) {
 //     console.error('Update error:', error);
 //     return res.status(500).json({ error: 'Failed to update user' });
@@ -124,7 +124,7 @@
 //       keepExtensions: true,
 //       multiples: true,
 //     });
-    
+
 //     form.parse(req, (err, fields, files) => {
 //       if (err) return reject(err);
 //       resolve({ fields, files });
@@ -138,7 +138,7 @@
 //     'SELECT EXISTS(SELECT 1 FROM users WHERE wallet = $1)',
 //     [wallet]
 //   );
-  
+
 //   return result.rows[0].exists;
 // };
 
@@ -148,49 +148,49 @@
 //   let setClauses = [];
 //   let values = [wallet]; // wallet is always the first parameter
 //   let paramIndex = 2; // start from 2 because wallet is at index 1
-  
+
 //   // Build the SET clauses dynamically
 //   if (userData.username !== undefined) {
 //     setClauses.push(`username = $${paramIndex++}`);
 //     values.push(userData.username);
 //   }
-  
+
 //   if (userData.email !== undefined) {
 //     setClauses.push(`email = $${paramIndex++}`);
 //     values.push(userData.email);
 //   }
-  
+
 //   if (userData.avatar !== undefined) {
 //     setClauses.push(`avatar = $${paramIndex++}`);
 //     values.push(userData.avatar);
 //   }
-  
+
 //   if (userData.bio !== undefined) {
 //     setClauses.push(`bio = $${paramIndex++}`);
 //     values.push(userData.bio);
 //   }
-  
+
 //   if (userData.streamKey !== undefined) {
 //     setClauses.push(`streamkey = $${paramIndex++}`);
 //     values.push(userData.streamKey);
 //   }
-  
+
 //   if (userData.socialLinks !== undefined) {
 //     setClauses.push(`socialLinks = $${paramIndex++}`);
 //     values.push(JSON.stringify(userData.socialLinks));
 //   }
-  
+
 //   // Always update the updated_at timestamp
 //   setClauses.push(`updated_at = CURRENT_TIMESTAMP`);
-  
+
 //   // Execute the UPDATE query
 //   const query = `
-//     UPDATE users 
+//     UPDATE users
 //     SET ${setClauses.join(', ')}
 //     WHERE wallet = $1
 //     RETURNING id, wallet, username, email, avatar, bio, streamkey as "streamKey", socialLinks, updated_at
 //   `;
-  
+
 //   const result = await pool.query(query, values);
 //   return result.rows[0];
 // };

@@ -44,7 +44,7 @@ export function LanguageSection({
             uiState.focusedInput === "language"
               ? "border border-purple-600"
               : "border border-transparent",
-            "transition-all duration-200"
+            "transition-all duration-200",
           )}
           onClick={() =>
             updateUiState({
@@ -78,7 +78,7 @@ export function LanguageSection({
           <motion.div
             className={combineClasses(
               bgClasses.overlay,
-              "fixed inset-0 flex items-center justify-center z-50"
+              "fixed inset-0 flex items-center justify-center z-50",
             )}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -88,7 +88,7 @@ export function LanguageSection({
             <motion.div
               className={combineClasses(
                 componentClasses.modal,
-                "w-full max-w-md p-6 relative"
+                "w-full max-w-md p-6 relative",
               )}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -99,7 +99,7 @@ export function LanguageSection({
                 <h2
                   className={combineClasses(
                     textClasses.highlight,
-                    "text-xl font-medium"
+                    "text-xl font-medium",
                   )}
                 >
                   Select Language
@@ -108,7 +108,7 @@ export function LanguageSection({
                   onClick={() => updateUiState({ showLanguageModal: false })}
                   className={combineClasses(
                     textClasses.tertiary,
-                    "hover:text-white"
+                    "hover:text-white",
                   )}
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
@@ -146,7 +146,7 @@ export function LanguageSection({
                   onClick={() => updateUiState({ showLanguageModal: false })}
                   className={combineClasses(
                     buttonClasses.secondary,
-                    "px-6 py-2 rounded-md text-sm"
+                    "px-6 py-2 rounded-md text-sm",
                   )}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
