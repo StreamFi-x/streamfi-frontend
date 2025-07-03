@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Twitter, Instagram, DiscIcon as Discord, Edit3 } from "lucide-react";
-import Button from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import {
   bgClasses,
@@ -34,8 +34,12 @@ const AboutSection = ({
   const [showBioModal, setShowBioModal] = useState(false);
   const [userBio, setUserBio] = useState(bio || "");
 
-  const handleSaveBio = (data: any) => {
-    setUserBio(data.description || "");
+  const handleSaveBio = (data: unknown) => {
+    if (typeof data === "object" && data !== null && "description" in data) {
+      setUserBio((data as { description?: string }).description || "");
+    } else {
+      setUserBio("");
+    }
     setShowBioModal(false);
   };
 

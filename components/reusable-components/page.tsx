@@ -1,6 +1,6 @@
 "use client";
 
-import Button from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -20,7 +20,6 @@ import {
   DropdownMenuSeparator,
   StreamFiDropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useDropzone } from "@/components/ui/dropzone";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/passwordInput";
@@ -38,27 +37,8 @@ type Checked = DropdownMenuCheckboxItemProps["checked"];
 
 export default function ReusableComponents() {
   const [showPanel, setShowPanel] = React.useState<Checked>(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const dropzone = useDropzone({
-    onDropFile: async (file: File) => {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      return {
-        status: "success",
-        result: URL.createObjectURL(file),
-      };
-    },
-    validation: {
-      accept: {
-        "image/*": [".png", ".jpg", ".jpeg"],
-      },
-      maxSize: 10 * 1024 * 1024,
-      maxFiles: 1,
-    },
-    shiftOnMaxFiles: true,
-  });
+  const [isUploading] = useState(false);
 
-  const avatarSrc = dropzone.fileStatuses?.[0]?.result;
-  const isPending = dropzone.fileStatuses?.[0]?.status === "pending";
 
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = 10;
