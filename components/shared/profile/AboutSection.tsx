@@ -34,8 +34,12 @@ const AboutSection = ({
   const [showBioModal, setShowBioModal] = useState(false);
   const [userBio, setUserBio] = useState(bio || "");
 
-  const handleSaveBio = (data: any) => {
-    setUserBio(data.description || "");
+  const handleSaveBio = (data: unknown) => {
+    if (typeof data === "object" && data !== null && "description" in data) {
+      setUserBio((data as { description?: string }).description || "");
+    } else {
+      setUserBio("");
+    }
     setShowBioModal(false);
   };
 

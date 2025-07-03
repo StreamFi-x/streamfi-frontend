@@ -87,13 +87,13 @@ const Navbar = () => {
           </ul>
 
           {/* Get Started Button */}
-          <Button
-            isLink
-            href="/explore"
-            className="hidden lg:block bg-white hover:text-white text-[#1E1E1E] px-4 py-2 rounded-lg font-medium"
-          >
-            Get started
-          </Button>
+          <Link href="/explore" className="hidden lg:block">
+            <Button
+              className="bg-white hover:text-white text-[#1E1E1E] px-4 py-2 rounded-lg font-medium w-full"
+            >
+              Get started
+            </Button>
+          </Link>
 
           {/* Mobile Menu Button */}
           <motion.button

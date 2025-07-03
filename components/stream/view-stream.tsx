@@ -42,7 +42,7 @@ interface ViewStreamProps {
 }
 
 // Mock API function to fetch stream data
-const fetchStreamData = async (username: string) => {
+const fetchStreamData = async () => {
   // Simulate API call delay
   await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -84,7 +84,6 @@ const TippingModal = ({
   isOpen,
   onClose,
   creatorAddress,
-  username,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -191,7 +190,7 @@ const ViewStream = ({
   const [chatMessages, setChatMessages] = useState(mockChatMessages);
   const [showStreamInfoModal, setShowStreamInfoModal] = useState(false);
   const [volume, setVolume] = useState(80);
-  const [showControls, setShowControls] = useState(false);
+  const [, setShowControls] = useState(false);
   const [videoQuality, setVideoQuality] = useState("720p");
   const [showQualityOptions, setShowQualityOptions] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
@@ -204,7 +203,7 @@ const ViewStream = ({
     const getStreamData = async () => {
       try {
         setLoading(true);
-        const data = await fetchStreamData(username);
+        const data = await fetchStreamData();
         setStreamData(data);
 
         // Update live status
