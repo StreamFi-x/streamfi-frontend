@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
-import Button from "@/components/ui/button";
+import  { Button } from "@/components/ui/button";
 import type { LiveStreamProps } from "@/types/explore/home";
 import Image from "next/image";
 import {

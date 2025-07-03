@@ -1,5 +1,4 @@
 "use client";
-
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { twMerge } from "tailwind-merge";
@@ -33,15 +32,15 @@ export const Button = ({
   // Base button styles
   const baseStyles =
     "font-medium rounded-md text-base transition-all px-[20px] py-[12px] duration-300 flex items-center justify-center";
-
+  
   const variantStyles = {
     default:
-      "bg-primary text-white hover:bg-purple-700 focus:ring-2 py-3 px-5  focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black",
+      "bg-primary text-white hover:bg-purple-700 focus:ring-2 py-3 px-5 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black",
     outline:
       "bg-transparent border border-purple-600 text-purple-600 hover:bg-purple-600/10 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black",
     ghost:
       "bg-transparent text-white hover:bg-white/10 focus:ring-2 focus:ring-white/20",
-    link: "bg-transparent text-purple-600 hover:underline  h-auto",
+    link: "bg-transparent text-purple-600 hover:underline h-auto",
     destructive:
       "bg-red-600 text-white hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-black",
   };
@@ -107,5 +106,3 @@ export const Button = ({
     </button>
   );
 };
-
-export default Button;
