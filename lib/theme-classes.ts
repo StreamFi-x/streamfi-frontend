@@ -90,7 +90,7 @@ export const ringClasses = {
 // Button styles
 export const buttonClasses = {
   primary: `bg-primary hover:bg-purple-700 text-white dark:text-gray-900  ${themeTransition}`,
-  secondary: `bg-purple-600 hover:bg-purple-800 text-white dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white ${themeTransition}`,
+  secondary: `bg-purple-600 hover:bg-purple-800 text-white dark:text-white ${themeTransition}`,
   outline: `bg-transparent border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-white ${themeTransition}`,
   ghost: `bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-white ${themeTransition}`,
   reset: `bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-[#383838] dark:hover:bg-[#383838]/70 dark:text-white px-6 py-2 rounded-md ${themeTransition}`,
