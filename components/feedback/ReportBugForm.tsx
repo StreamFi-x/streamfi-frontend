@@ -89,7 +89,10 @@ export function ReportBugForm() {
       <FeedbackHeader />
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-6 bg-[#21202033] p-6"
+        >
           <FormField
             control={form.control}
             name="feedbackType"
@@ -103,11 +106,11 @@ export function ReportBugForm() {
                   defaultValue={field.value}
                 >
                   <FormControl>
-                    <SelectTrigger className="bg-muted/50 border-muted">
+                    <SelectTrigger className=" h-[60px] border border-[#D9CAE2] focus:border-[#5A189A] focus:ring-0 text-[#AF6EFF]">
                       <SelectValue placeholder="Select feedback type" />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent>
+                  <SelectContent className="bg-[#111111] border-gray-400">
                     <SelectItem value="bug-report">Bug Report</SelectItem>
                     <SelectItem value="feature-suggestion">
                       Feature Suggestion
@@ -128,7 +131,7 @@ export function ReportBugForm() {
                 <FormControl>
                   <Input
                     placeholder="Subject / Case Name"
-                    className="bg-muted/50 border-muted"
+                    className="h-[82px] text-lg border border-[#D9CAE2] focus:border-[#5A189A] focus:ring-0"
                     {...field}
                   />
                 </FormControl>
@@ -148,7 +151,7 @@ export function ReportBugForm() {
                 <FormControl>
                   <Textarea
                     placeholder="Tell us what happened or what you'd like to see improved..."
-                    className="bg-muted/50 border-muted min-h-[120px] resize-none"
+                    className=" border-[#D9CAE2] min-h-[120px] resize-none focus:border-[#5A189A] focus:ring-0"
                     {...field}
                   />
                 </FormControl>
@@ -170,7 +173,7 @@ export function ReportBugForm() {
           <div className="flex justify-end pt-4">
             <Button
               type="submit"
-              className="bg-primary hover:bg-primary/90 px-6"
+              className="bg-[#5A189A] hover:bg-[#7B2CBF] text-white px-6"
             >
               Send bug report
             </Button>

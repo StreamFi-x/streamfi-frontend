@@ -109,27 +109,29 @@ export function FileUpload({ onFileSelect, selectedFile }: FileUploadProps) {
   return (
     <div
       className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-        isDragOver ? "border-primary bg-primary/5" : "border-muted bg-muted/20"
+        isDragOver
+          ? "border-primary bg-primary/5"
+          : "border-[#D0D0D0CC] bg-[#CBCBCB0D]"
       }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4 ">
+        <div className="w-16 h-16 bg-[#5A189A] rounded-full flex items-center justify-center">
           <Upload className="w-8 h-8 text-primary" />
         </div>
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">Drag an image here</p>
+          <p className="text-sm text-[#D9D9D9]">Drag an image here</p>
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-muted"></div>
-            <span className="text-xs text-muted-foreground">or</span>
-            <div className="flex-1 h-px bg-muted"></div>
+            <div className="flex-1 h-px bg-[#D9D9D9]"></div>
+            <span className="text-xs text-[#D9D9D9]">or</span>
+            <div className="flex-1 h-px bg-[#D9D9D9]"></div>
           </div>
           <Button
             type="button"
             onClick={handleUploadClick}
-            className="bg-primary hover:bg-primary/90 w-32"
+            className="bg-[#5A189A] hover:bg-[#7B2CBF] px-16 text-white rounded-xl "
           >
             Upload a file
           </Button>
