@@ -88,9 +88,7 @@ const Navbar = () => {
 
           {/* Get Started Button */}
           <Link href="/explore" className="hidden lg:block">
-            <Button
-              className="bg-white hover:text-white text-[#1E1E1E] px-4 py-2 rounded-lg font-medium w-full"
-            >
+            <Button className="bg-white hover:text-white text-[#1E1E1E] px-4 py-2 rounded-lg font-medium w-full">
               Get started
             </Button>
           </Link>
