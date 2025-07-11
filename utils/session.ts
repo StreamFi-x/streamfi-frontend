@@ -3,25 +3,25 @@
  */
 
 // Session timeout in milliseconds (2 days)
-export const SESSION_TIMEOUT = 2 * 24 * 60 * 60 * 1000
+export const SESSION_TIMEOUT = 2 * 24 * 60 * 60 * 1000;
 
 /**
  * Check if a stored session is still valid
  */
 export function isSessionValid(): boolean {
   try {
-    const storedWallet = localStorage.getItem("wallet")
-    const timestamp = localStorage.getItem("wallet_timestamp")
+    const storedWallet = localStorage.getItem("wallet");
+    const timestamp = localStorage.getItem("wallet_timestamp");
 
     if (!storedWallet || !timestamp) {
-      return false
+      return false;
     }
 
     // Check if session is within timeout period
-    return Date.now() - Number(timestamp) < SESSION_TIMEOUT
+    return Date.now() - Number(timestamp) < SESSION_TIMEOUT;
   } catch (error) {
-    console.error("[Session] Error checking session validity:", error)
-    return false
+    console.error("[Session] Error checking session validity:", error);
+    return false;
   }
 }
 
@@ -30,18 +30,18 @@ export function isSessionValid(): boolean {
  */
 export function storeSession(wallet: string, username: string): void {
   try {
-    localStorage.setItem("wallet", wallet)
-    localStorage.setItem("username", username)
-    localStorage.setItem("wallet_timestamp", Date.now().toString())
+    localStorage.setItem("wallet", wallet);
+    localStorage.setItem("username", username);
+    localStorage.setItem("wallet_timestamp", Date.now().toString());
 
     // Also store in sessionStorage for redundancy
-    sessionStorage.setItem("wallet", wallet)
-    sessionStorage.setItem("username", username)
+    sessionStorage.setItem("wallet", wallet);
+    sessionStorage.setItem("username", username);
 
     // Set HTTP-only style cookie
-    document.cookie = `wallet=${wallet}; path=/; max-age=${SESSION_TIMEOUT / 1000}; SameSite=Lax`
+    document.cookie = `wallet=${wallet}; path=/; max-age=${SESSION_TIMEOUT / 1000}; SameSite=Lax`;
   } catch (error) {
-    console.error("[Session] Error storing session:", error)
+    console.error("[Session] Error storing session:", error);
   }
 }
 
@@ -50,16 +50,17 @@ export function storeSession(wallet: string, username: string): void {
  */
 export function clearSession(): void {
   try {
-    localStorage.removeItem("wallet")
-    localStorage.removeItem("username")
-    localStorage.removeItem("wallet_timestamp")
+    localStorage.removeItem("wallet");
+    localStorage.removeItem("username");
+    localStorage.removeItem("wallet_timestamp");
 
-    sessionStorage.removeItem("wallet")
-    sessionStorage.removeItem("username")
+    sessionStorage.removeItem("wallet");
+    sessionStorage.removeItem("username");
 
-    document.cookie = "wallet=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax"
+    document.cookie =
+      "wallet=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
   } catch (error) {
-    console.error("[Session] Error clearing session:", error)
+    console.error("[Session] Error clearing session:", error);
   }
 }
 
@@ -68,23 +69,23 @@ export function clearSession(): void {
  */
 export function getStoredWallet(): string | null {
   try {
-    const wallet = localStorage.getItem("wallet")
+    const wallet = localStorage.getItem("wallet");
 
     if (wallet && isSessionValid()) {
       // Refresh the timestamp to extend the session
-      localStorage.setItem("wallet_timestamp", Date.now().toString())
-      return wallet
+      localStorage.setItem("wallet_timestamp", Date.now().toString());
+      return wallet;
     }
 
     // If session is invalid, clear it
     if (wallet && !isSessionValid()) {
-      clearSession()
+      clearSession();
     }
 
-    return null
+    return null;
   } catch (error) {
-    console.error("[Session] Error getting stored wallet:", error)
-    return null
+    console.error("[Session] Error getting stored wallet:", error);
+    return null;
   }
 }
 
@@ -93,15 +94,15 @@ export function getStoredWallet(): string | null {
  */
 export function getStoredUsername(): string | null {
   try {
-    const username = localStorage.getItem("username")
+    const username = localStorage.getItem("username");
 
     if (username && isSessionValid()) {
-      return username
+      return username;
     }
 
-    return null
+    return null;
   } catch (error) {
-    console.error("[Session] Error getting stored username:", error)
-    return null
+    console.error("[Session] Error getting stored username:", error);
+    return null;
   }
 }

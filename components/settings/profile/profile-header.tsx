@@ -31,7 +31,7 @@ export function ProfileHeader({ avatar, onAvatarClick }: ProfileHeaderProps) {
             className={combineClasses(
               bgClasses.input,
               textClasses.primary,
-              "px-3 py-2 rounded text-sm hover:bg-[#333] transition"
+              "px-3 py-2 rounded text-sm hover:bg-[#333] transition",
             )}
           >
             Edit Avatar

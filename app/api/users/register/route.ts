@@ -1,12 +1,7 @@
-
 import { NextResponse } from "next/server";
-import {
-  checkExistingTableDetail,
-  validateEmail,
-} from "@/utils/validators";
+import { checkExistingTableDetail, validateEmail } from "@/utils/validators";
 import { sql } from "@vercel/postgres";
 import { sendWelcomeRegistrationEmail } from "@/utils/send-email";
-
 
 async function handler(req: Request) {
   try {
@@ -16,7 +11,10 @@ async function handler(req: Request) {
       WHERE table_schema = 'public'
       ORDER BY table_name;
     `;
-    console.log("Available tables:", tableCheck.rows.map(row => row.table_name));
+    console.log(
+      "Available tables:",
+      tableCheck.rows.map((row) => row.table_name),
+    );
   } catch (err) {
     console.error("Table check error:", err);
   }
@@ -51,31 +49,30 @@ async function handler(req: Request) {
     return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
   }
 
-
   const requestBody = await req.json();
-  const { 
-    email, 
-    username, 
-    wallet, 
-    socialLinks = [], 
+  const {
+    email,
+    username,
+    wallet,
+    socialLinks = [],
     emailNotifications = true,
     creator = {
       streamTitle: "",
       tags: [],
       category: "",
       payout: "",
-      thumbnail:""
-    }
+      thumbnail: "",
+    },
   } = requestBody;
 
   // Basic validation
   if (!username) {
     return NextResponse.json(
       { error: "Username is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
-  
+
   if (!wallet) {
     return NextResponse.json({ error: "Wallet is required" }, { status: 400 });
   }
@@ -87,7 +84,7 @@ async function handler(req: Request) {
   if (!validateEmail(email)) {
     return NextResponse.json(
       { error: "Invalid email format" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -96,39 +93,39 @@ async function handler(req: Request) {
     const userEmailExist = await checkExistingTableDetail(
       "users",
       "email",
-      email
+      email,
     );
 
     const usernameExist = await checkExistingTableDetail(
       "users",
       "username",
-      username
+      username,
     );
 
     const userWalletExist = await checkExistingTableDetail(
       "users",
       "wallet",
-      wallet
+      wallet,
     );
 
     if (userEmailExist) {
       return NextResponse.json(
         { error: "Email already exist" },
-        { status: 400 }
+        { status: 400 },
       );
     }
-    
+
     if (usernameExist) {
       return NextResponse.json(
         { error: "Username already exist" },
-        { status: 400 }
+        { status: 400 },
       );
     }
-    
+
     if (userWalletExist) {
       return NextResponse.json(
         { error: "Wallet address already exist" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -156,14 +153,13 @@ async function handler(req: Request) {
 
     return NextResponse.json(
       { message: "User registration success" },
-      { status: 200 }
+      { status: 200 },
     );
-    
   } catch (error) {
     console.error("Registration error:", error);
     return NextResponse.json(
       { error: "Failed to register user" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

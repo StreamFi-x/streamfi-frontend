@@ -66,11 +66,11 @@ export function SocialLinksSection({
     return combineClasses(
       "w-full",
       bgClasses.input,
-      "rounded-lg px-4 py-3 text-sm outline-none",
+      "rounded-lg px-4 py-3 text-sm font-medium outline-none",
       uiState.focusedInput === inputName
         ? "border border-purple-600"
         : "border border-transparent",
-      "transition-all duration-200"
+      "transition-all duration-200",
     );
   };
 
@@ -177,7 +177,7 @@ export function SocialLinksSection({
 
       const validatedLink = validateAndIdentifyLink(
         socialLinkUrl,
-        socialLinkTitle
+        socialLinkTitle,
       );
 
       if (validatedLink) {
@@ -268,7 +268,7 @@ export function SocialLinksSection({
       <h2
         className={combineClasses(
           textClasses.primary,
-          "text-xl font-medium mb-1"
+          "text-xl font-medium mb-1",
         )}
       >
         Social Links
@@ -337,7 +337,7 @@ export function SocialLinksSection({
                   transition={{ duration: 0.2 }}
                 >
                   {getSocialIcon(
-                    detectPlatformFromUrl(formState.socialLinkUrl) || "other"
+                    detectPlatformFromUrl(formState.socialLinkUrl) || "other",
                   )}
                 </motion.div>
               )}
@@ -365,7 +365,7 @@ export function SocialLinksSection({
             disabled={socialLinks.length >= 5 || !formState.socialLinkUrl}
             className={combineClasses(
               bgClasses.input,
-              "px-6 py-2 rounded-md hover:bg-[#444] transition text-sm disabled:opacity-50"
+              "px-6 py-2 rounded-md hover:bg-[#444] transition text-sm disabled:opacity-50",
             )}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -415,7 +415,7 @@ export function SocialLinksSection({
                         onBlur={() => updateUiState({ focusedInput: null })}
                         className={combineClasses(
                           getInputStyle("editingTitle"),
-                          "w-full rounded px-3 py-1 text-sm mb-2"
+                          "w-full rounded px-3 py-1 text-sm mb-2",
                         )}
                         style={{
                           outlineWidth: 0,
@@ -444,7 +444,7 @@ export function SocialLinksSection({
                         className={combineClasses(
                           getInputStyle("editingLink"),
                           "w-full rounded px-3 py-1 text-sm",
-                          uiState.duplicateUrlError ? "border-red-500" : ""
+                          uiState.duplicateUrlError ? "border-red-500" : "",
                         )}
                         style={{
                           outlineWidth: 0,
@@ -460,7 +460,7 @@ export function SocialLinksSection({
                           <motion.p
                             className={combineClasses(
                               textClasses.error,
-                              "text-xs mt-1"
+                              "text-xs mt-1",
                             )}
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
@@ -502,7 +502,7 @@ export function SocialLinksSection({
                         <div
                           className={combineClasses(
                             textClasses.tertiary,
-                            "text-xs mt-1 truncate"
+                            "text-xs mt-1 truncate",
                           )}
                         >
                           {link.url}
@@ -514,7 +514,7 @@ export function SocialLinksSection({
                         onClick={() => handleEditLink(index)}
                         className={combineClasses(
                           textClasses.tertiary,
-                          "p-1 hover:text-white"
+                          "p-1 hover:text-white",
                         )}
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
@@ -525,7 +525,7 @@ export function SocialLinksSection({
                         onClick={() => handleDeleteLink(index)}
                         className={combineClasses(
                           textClasses.tertiary,
-                          "p-1 hover:text-red-500 ml-1"
+                          "p-1 hover:text-red-500 ml-1",
                         )}
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}

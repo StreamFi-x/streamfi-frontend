@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import {
   HomeIcon as House,
   LinkIcon,
@@ -20,6 +20,9 @@ interface SidebarProps {
 
 export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+
+  // Define the cubic-bezier easing function properly
+  const customEase: Easing = [0.23, 1, 0.32, 1];
 
   const navItems = [
     { name: "Home", icon: <House size={24} />, path: "/dashboard/home" },
@@ -46,12 +49,12 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   ];
 
   // Enhanced animation variants matching explore sidebar
-  const sidebarVariants = {
+  const sidebarVariants: Variants = {
     expanded: {
       width: 240,
       transition: {
         duration: 0.6,
-        ease: [0.23, 1, 0.32, 1],
+        ease: customEase,
         type: "tween",
       },
     },
@@ -59,20 +62,20 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       width: 64,
       transition: {
         duration: 0.6,
-        ease: [0.23, 1, 0.32, 1],
+        ease: customEase,
         type: "tween",
       },
     },
   };
 
-  const contentVariants = {
+  const contentVariants: Variants = {
     expanded: {
       opacity: 1,
       x: 0,
       scale: 1,
       transition: {
         duration: 0.5,
-        ease: [0.23, 1, 0.32, 1],
+        ease: customEase,
         staggerChildren: 0.02,
         delayChildren: 0.1,
       },
@@ -83,14 +86,14 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       scale: 0.95,
       transition: {
         duration: 0.3,
-        ease: [0.23, 1, 0.32, 1],
+        ease: customEase,
         staggerChildren: 0.01,
         staggerDirection: -1,
       },
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     expanded: {
       opacity: 1,
       x: 0,
@@ -98,7 +101,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       scale: 1,
       transition: {
         duration: 0.4,
-        ease: [0.23, 1, 0.32, 1],
+        ease: customEase,
         type: "spring",
         stiffness: 300,
         damping: 30,
@@ -111,12 +114,12 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       scale: 0.9,
       transition: {
         duration: 0.2,
-        ease: [0.23, 1, 0.32, 1],
+        ease: customEase,
       },
     },
   };
 
-  const navItemVariants = {
+  const navItemVariants: Variants = {
     rest: {
       scale: 1,
       backgroundColor: "transparent",
@@ -172,7 +175,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         >
           <motion.div
             animate={{ rotate: isCollapsed ? 180 : 0 }}
-            transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+            transition={{ duration: 0.4, ease: customEase }}
           >
             <ArrowLeftToLine size={18} />
           </motion.div>
@@ -285,7 +288,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+      transition={{ duration: 0.3, ease: customEase }}
       className="w-full"
     >
       <div className="flex justify-center items-center w-full mb-4">
@@ -298,7 +301,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         >
           <motion.div
             animate={{ rotate: isCollapsed ? 0 : 180 }}
-            transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+            transition={{ duration: 0.4, ease: customEase }}
           >
             <ArrowLeftToLine size={18} className="rotate-180" />
           </motion.div>
@@ -322,7 +325,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               transition={{
                 delay: index * 0.1,
                 duration: 0.4,
-                ease: [0.23, 1, 0.32, 1],
+                ease: customEase,
               }}
               whileHover={{ scale: 1.1, y: -2 }}
               whileTap={{ scale: 0.95 }}
@@ -373,7 +376,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         <motion.button
           initial={{ opacity: 0, scale: 0.5, rotate: -10 }}
           animate={{ opacity: 1, scale: 1, rotate: 0 }}
-          transition={{ delay: 0.6, duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+          transition={{ delay: 0.6, duration: 0.4, ease: customEase }}
           whileHover={{ scale: 1.15, rotate: 5, y: -2 }}
           whileTap={{ scale: 0.95 }}
           className={`w-10 h-10 rounded-full ${bgClasses.selected} ${textClasses.primary} flex items-center justify-center shadow-lg`}
@@ -384,7 +387,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         <motion.button
           initial={{ opacity: 0, scale: 0.5, rotate: 10 }}
           animate={{ opacity: 1, scale: 1, rotate: 0 }}
-          transition={{ delay: 0.7, duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+          transition={{ delay: 0.7, duration: 0.4, ease: customEase }}
           whileHover={{ scale: 1.15, rotate: -5, y: -2 }}
           whileTap={{ scale: 0.95 }}
           className={`w-10 h-10 rounded-full ${bgClasses.hover} ${textClasses.secondary} flex items-center justify-center shadow-lg`}

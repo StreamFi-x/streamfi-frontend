@@ -187,5 +187,5 @@ export default function VerifyEmailCode(name: string, token: string) {
     </div>
   </div>
 </body>
-</html>`
+</html>`;
 }

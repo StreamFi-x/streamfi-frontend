@@ -5,7 +5,7 @@ import VerifyEmailCode from "@/components/templates/VerifyEmailCode";
 import { WaitlistConfirmation } from "@/components/templates/WaitlistConfirm";
 export async function sendWelcomeRegistrationEmail(
   email: string,
-  name: string
+  name: string,
 ) {
   const transporter = nodemailer.createTransport({
     service: "Gmail",

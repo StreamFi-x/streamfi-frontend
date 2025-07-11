@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { sendEmailVerificationToken } from "@/utils/send-email"; 
+import { sendEmailVerificationToken } from "@/utils/send-email";
 import { randomInt } from "crypto";
 
 // Generate 6-digit token
 function generateToken() {
-  return randomInt(100000, 999999).toString(); 
+  return randomInt(100000, 999999).toString();
 }
 
 export async function POST(req: Request) {
@@ -38,9 +38,15 @@ export async function POST(req: Request) {
     // Send token via email
     await sendEmailVerificationToken(email, token);
 
-    return NextResponse.json({ message: "Verification token sent to email" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Verification token sent to email" },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Email verification token error:", error);
-    return NextResponse.json({ error: "Failed to send verification token" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to send verification token" },
+      { status: 500 },
+    );
   }
 }

@@ -1,10 +1,10 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils"
-import { Loader2 } from "lucide-react"
-import Link from "next/link"
+import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
+import Link from "next/link";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
@@ -19,7 +19,8 @@ const buttonVariants = cva(
           "bg-transparent border border-purple-600 text-purple-600 hover:bg-purple-600/10 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black",
         secondary:
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "bg-transparent text-white hover:bg-white/10 focus:ring-2 focus:ring-white/20",
+        ghost:
+          "bg-transparent text-white hover:bg-white/10 focus:ring-2 focus:ring-white/20",
         link: "bg-transparent text-purple-600 hover:underline  h-auto",
       },
       size: {
@@ -33,55 +34,70 @@ const buttonVariants = cva(
         active: "cursor-default",
         disabled: "opacity-60 cursor-not-allowed",
         loading: "cursor-wait",
-      }
+      },
     },
     defaultVariants: {
       variant: "default",
       size: "default",
-      state: "active"
+      state: "active",
     },
-  }
-)
+  },
+);
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
-  asChild?: boolean,
-  loading?: boolean,
-  isLink?: boolean,
-  href?: string
+  asChild?: boolean;
+  loading?: boolean;
+  isLink?: boolean;
+  href?: string;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, state, asChild = false, loading, isLink, href, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
+  (
+    {
+      className,
+      variant,
+      size,
+      state,
+      asChild = false,
+      loading,
+      isLink,
+      href,
+      ...props
+    },
+    ref,
+  ) => {
+    const Comp = asChild ? Slot : "button";
 
     if (isLink && href) {
       return (
         <Link
           href={href}
-          className={state == "disabled" || loading ? "pointer-events-none" : ""}
+          className={
+            state == "disabled" || loading ? "pointer-events-none" : ""
+          }
         >
           <Comp
             className={cn(buttonVariants({ variant, size, className }))}
             ref={ref}
-            {...loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {...(loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />)}
             {...props}
           />
         </Link>
-      )
+      );
     }
 
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
-        {...loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {...(loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />)}
         {...props}
       />
-    )
-  }
-)
-Button.displayName = "Button"
+    );
+  },
+);
+Button.displayName = "Button";
 
-export { Button, buttonVariants }
+export { Button, buttonVariants };

@@ -1,7 +1,7 @@
 "use client";
 
 import { type FC, useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import Link from "next/link";
 import { Home, Compass, Gamepad2, Zap, Star, Sparkles } from "lucide-react";
 import {
@@ -21,6 +21,10 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
     Array<{ id: number; x: number; y: number; delay: number }>
   >([]);
 
+  // Define easing functions properly
+  const easeOut: Easing = "easeOut";
+  const easeInOut: Easing = "easeInOut";
+
   useEffect(() => {
     // Generate random particles
     const newParticles = Array.from({ length: 20 }, (_, i) => ({
@@ -37,13 +41,13 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
         setGlitchActive(true);
         setTimeout(() => setGlitchActive(false), 200);
       },
-      3000 + Math.random() * 2000
+      3000 + Math.random() * 2000,
     );
 
     return () => clearInterval(glitchInterval);
   }, []);
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -54,19 +58,19 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { y: 20, opacity: 0 },
     visible: {
       y: 0,
       opacity: 1,
       transition: {
         duration: 0.6,
-        ease: "easeOut",
+        ease: easeOut,
       },
     },
   };
 
-  const glitchVariants = {
+  const glitchVariants: Variants = {
     normal: {
       x: 0,
       textShadow: "0 0 0px transparent",
@@ -87,26 +91,26 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
     },
   };
 
-  const floatingVariants = {
+  const floatingVariants: Variants = {
     animate: {
       y: [-10, 10, -10],
       rotate: [0, 5, -5, 0],
       transition: {
         duration: 4,
         repeat: Number.POSITIVE_INFINITY,
-        ease: "easeInOut",
+        ease: easeInOut,
       },
     },
   };
 
-  const pulseVariants = {
+  const pulseVariants: Variants = {
     animate: {
       scale: [1, 1.05, 1],
       opacity: [0.7, 1, 0.7],
       transition: {
         duration: 2,
         repeat: Number.POSITIVE_INFINITY,
-        ease: "easeInOut",
+        ease: easeInOut,
       },
     },
   };
@@ -134,7 +138,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
               duration: 3,
               repeat: Number.POSITIVE_INFINITY,
               delay: particle.delay,
-              ease: "easeOut",
+              ease: easeOut,
             }}
           />
         ))}
@@ -234,7 +238,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
               transition={{
                 duration: 2,
                 repeat: Number.POSITIVE_INFINITY,
-                ease: "easeInOut",
+                ease: easeInOut,
               }}
             >
               GAME OVER
@@ -243,8 +247,8 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
               className={`text-lg ${textClasses.secondary} max-w-md mx-auto leading-relaxed`}
               variants={itemVariants}
             >
-              Looks like you've wandered into uncharted territory! The page
-              you're looking for has respawned elsewhere.
+              Looks like you&apos;ve wandered into uncharted territory! The page
+              you&apos;re looking for has respawned elsewhere.
             </motion.p>
           </motion.div>
 
@@ -301,7 +305,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
                 transition={{
                   duration: 1,
                   repeat: Number.POSITIVE_INFINITY,
-                  ease: "easeInOut",
+                  ease: easeInOut,
                 }}
               />
               <span className={`text-sm font-medium ${textClasses.secondary}`}>

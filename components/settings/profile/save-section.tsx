@@ -35,7 +35,7 @@ export function SaveSection({ uiState, handleSaveChanges }: SaveSectionProps) {
         disabled={uiState.isSaving}
         className={combineClasses(
           buttonClasses.secondary,
-          "px-6 py-3 rounded-md text-sm disabled:opacity-50"
+          "mr-4 px-6 py-3 rounded-md text-sm disabled:opacity-50 ",
         )}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}

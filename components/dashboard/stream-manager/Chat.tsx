@@ -105,7 +105,7 @@ export default function Chat() {
         // Filter out messages older than 3 hours
         const threeHoursAgo = Date.now() - 1000 * 60 * 60 * 3;
         const recentMessages = parsedMessages.filter(
-          (msg) => msg.timestamp > threeHoursAgo
+          (msg) => msg.timestamp > threeHoursAgo,
         );
 
         if (recentMessages.length > 0) {

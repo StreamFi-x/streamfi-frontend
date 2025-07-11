@@ -102,7 +102,7 @@ export default function ProfileModal({
 
         console.log(
           "ProfileModal: Registration response status:",
-          response.status
+          response.status,
         );
         const result = await response.json();
 

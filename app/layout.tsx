@@ -5,7 +5,7 @@ import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://streamfi.com" // Replace with your actual domain
+    process.env.NEXT_PUBLIC_APP_URL || "https://streamfi.com", // Replace with your actual domain
   ),
   title: {
     default: "Streamfi - Own Your Stream. Own Your Earnings",

@@ -4,7 +4,7 @@ import { getStreamHealth } from "@/lib/livepeer/server";
 
 export async function GET(
   req: Request,
-  { params }: { params: { wallet: string } }
+  { params }: { params: { wallet: string } },
 ) {
   try {
     const { wallet } = params;
@@ -12,10 +12,9 @@ export async function GET(
     if (!wallet) {
       return NextResponse.json(
         { error: "Wallet parameter is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
-
 
     const result = await sql`
       SELECT 
@@ -47,10 +46,7 @@ export async function GET(
     `;
 
     if (result.rows.length === 0) {
-      return NextResponse.json(
-        { error: "Stream not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Stream not found" }, { status: 404 });
     }
 
     const streamData = result.rows[0];
@@ -61,11 +57,9 @@ export async function GET(
         livepeerHealth = await getStreamHealth(streamData.livepeer_stream_id);
       } catch (healthError) {
         console.error("Failed to get Livepeer health:", healthError);
-        
       }
     }
 
-    
     const responseData = {
       user: {
         id: streamData.id,
@@ -76,51 +70,46 @@ export async function GET(
         memberSince: streamData.created_at,
       },
       stream: {
-        
         streamId: streamData.livepeer_stream_id,
         playbackId: streamData.playback_id,
         streamKey: streamData.streamkey,
-        
-        
+
         isLive: streamData.is_live,
         isConfigured: !!streamData.livepeer_stream_id,
         startedAt: streamData.stream_started_at,
-        
-        
-        title: streamData.creator?.streamTitle || '',
-        description: streamData.creator?.description || '',
-        category: streamData.creator?.category || '',
+
+        title: streamData.creator?.streamTitle || "",
+        description: streamData.creator?.description || "",
+        category: streamData.creator?.category || "",
         tags: streamData.creator?.tags || [],
-        thumbnail: streamData.creator?.thumbnail || '',
-        
-        
+        thumbnail: streamData.creator?.thumbnail || "",
+
         currentViewers: streamData.current_viewers || 0,
         totalViews: streamData.total_views || 0,
         peakViewers: streamData.peak_viewers || 0,
-        
-        
+
         avgBitrate: streamData.avg_bitrate,
         resolution: streamData.resolution,
-        
-        
+
         health: livepeerHealth,
       },
-      session: streamData.session_id ? {
-        id: streamData.session_id,
-        startedAt: streamData.session_started_at,
-        peakViewers: streamData.peak_viewers,
-        totalUniqueViewers: streamData.total_unique_viewers,
-        totalMessages: streamData.total_messages,
-      } : null,
+      session: streamData.session_id
+        ? {
+            id: streamData.session_id,
+            startedAt: streamData.session_started_at,
+            peakViewers: streamData.peak_viewers,
+            totalUniqueViewers: streamData.total_unique_viewers,
+            totalMessages: streamData.total_messages,
+          }
+        : null,
     };
 
     return NextResponse.json({ streamData: responseData }, { status: 200 });
-
   } catch (error) {
     console.error("Get stream error:", error);
     return NextResponse.json(
       { error: "Failed to get stream data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

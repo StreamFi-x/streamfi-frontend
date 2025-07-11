@@ -6,7 +6,7 @@
  */
 
 // Base transition for all theme changes
-const themeTransition = "transition-colors duration-700"
+const themeTransition = "transition-colors duration-700";
 
 // Background colors
 export const bgClasses = {
@@ -36,7 +36,7 @@ export const bgClasses = {
 
   // Overlay backgrounds
   overlay: `bg-black/50 dark:bg-black/80 ${themeTransition}`,
-}
+};
 
 // Text colors
 export const textClasses = {
@@ -59,7 +59,7 @@ export const textClasses = {
 
   // Inverted text (for colored backgrounds)
   onColor: `text-white ${themeTransition}`,
-}
+};
 
 // Border colors
 export const borderClasses = {
@@ -77,7 +77,7 @@ export const borderClasses = {
   warning: `border-amber-600 dark:border-amber-400 ${themeTransition}`,
   error: `border-red-600 dark:border-red-400 ${themeTransition}`,
   success: `border-green-600 dark:border-green-400 ${themeTransition}`,
-}
+};
 
 // Ring/focus colors
 export const ringClasses = {
@@ -85,17 +85,17 @@ export const ringClasses = {
   warning: `focus:ring-1 focus:ring-amber-600 dark:focus:ring-amber-400 focus:outline-none ${themeTransition}`,
   error: `focus:ring-1 focus:ring-red-600 dark:focus:ring-red-400 focus:outline-none ${themeTransition}`,
   success: `focus:ring-1 focus:ring-green-600 dark:focus:ring-green-400 focus:outline-none ${themeTransition}`,
-}
+};
 
 // Button styles
 export const buttonClasses = {
   primary: `bg-primary hover:bg-purple-700 text-white dark:text-gray-900  ${themeTransition}`,
-  secondary: `bg-purple-600 hover:bg-purple-800 text-white dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white ${themeTransition}`,
+  secondary: `bg-purple-600 hover:bg-purple-800 text-white dark:text-white ${themeTransition}`,
   outline: `bg-transparent border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-white ${themeTransition}`,
   ghost: `bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-white ${themeTransition}`,
   reset: `bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-[#383838] dark:hover:bg-[#383838]/70 dark:text-white px-6 py-2 rounded-md ${themeTransition}`,
   connect: `bg-purple-700 hover:bg-purple-500 text-white  ${themeTransition}`,
-}
+};
 
 // Common component classes
 export const componentClasses = {
@@ -121,9 +121,9 @@ export const componentClasses = {
 
   // Lists
   listItem: `${bgClasses.hover} ${textClasses.primary} rounded-md`,
-}
+};
 
 // Combine multiple classes
 export function combineClasses(...classArrays: string[]): string {
-  return classArrays.join(" ")
+  return classArrays.join(" ");
 }

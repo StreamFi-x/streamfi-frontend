@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, Variants, Easing } from "framer-motion";
 import { Monitor, Tablet } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -16,6 +16,9 @@ export default function DashboardScreenGuard({
 }: DashboardScreenGuardProps) {
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  // Define easing function properly
+  const easeOut: Easing = "easeOut";
 
   useEffect(() => {
     setMounted(true);
@@ -39,7 +42,7 @@ export default function DashboardScreenGuard({
     return null;
   }
 
-  const overlayVariants = {
+  const overlayVariants: Variants = {
     hidden: {
       opacity: 0,
       scale: 0.95,
@@ -52,12 +55,12 @@ export default function DashboardScreenGuard({
       scale: 1,
       transition: {
         duration: 0.3,
-        ease: "easeOut",
+        ease: easeOut,
       },
     },
   };
 
-  const contentVariants = {
+  const contentVariants: Variants = {
     hidden: {
       opacity: 0,
       y: 20,
@@ -71,7 +74,7 @@ export default function DashboardScreenGuard({
       transition: {
         duration: 0.4,
         delay: 0.1,
-        ease: "easeOut",
+        ease: easeOut,
       },
     },
   };

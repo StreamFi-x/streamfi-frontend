@@ -5,7 +5,7 @@ import { useAccount } from "@starknet-react/core";
 
 export function useProfileModal(
   onNextStep: (step: "profile" | "verify" | "success") => void,
-  refreshUser?: () => Promise<any>
+  refreshUser?: () => Promise<any>,
 ) {
   const { address } = useAccount();
 

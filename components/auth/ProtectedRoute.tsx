@@ -48,7 +48,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       ) {
         if (!isConnected || !address) {
           console.log(
-            "[ProtectedRoute] No wallet connection after initialization, showing connect modal"
+            "[ProtectedRoute] No wallet connection after initialization, showing connect modal",
           );
           setShowWalletModal(true);
         } else {
@@ -79,7 +79,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   useEffect(() => {
     if (isConnected && address && showWalletModal) {
       console.log(
-        "[ProtectedRoute] Wallet connected while modal was open, closing modal"
+        "[ProtectedRoute] Wallet connected while modal was open, closing modal",
       );
       setShowWalletModal(false);
     }

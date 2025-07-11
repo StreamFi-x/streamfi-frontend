@@ -1,11 +1,11 @@
 // /* eslint-disable @typescript-eslint/no-explicit-any */
-// import { rateLimit } from "../../../../utils/rate-limit"; 
+// import { rateLimit } from "../../../../utils/rate-limit";
 // import { validateEmail } from "../../../../utils/validators";
 // import { sql } from '@vercel/postgres';
 
 // // Rate limiter: 5 requests per minute so as not to abuse it
 // const limiter = rateLimit({
-//   interval: 60 * 1000, 
+//   interval: 60 * 1000,
 // //   uniqueTokenPerInterval: 500,
 // //   max: 5,
 // });
@@ -33,7 +33,7 @@
 
 //   try {
 //     const checkExisting = await sql`
-//       SELECT * FROM waitlist 
+//       SELECT * FROM waitlist
 //       WHERE email = ${email} AND unsubscribed_at IS NULL
 //     `;
 
@@ -42,8 +42,8 @@
 //     }
 
 //     await sql`
-//       UPDATE waitlist 
-//       SET unsubscribed_at = NOW(), updated_at = NOW() 
+//       UPDATE waitlist
+//       SET unsubscribed_at = NOW(), updated_at = NOW()
 //       WHERE email = ${email}
 //     `;
 
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
         setHeader: () => {},
       },
       5,
-      email
+      email,
     );
   } catch {
     return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
@@ -103,9 +103,12 @@ export async function POST(req: Request) {
     `;
 
     if (checkExisting.rows.length === 0) {
-      return new Response(JSON.stringify({ error: "Email not found or already unsubscribed" }), {
-        status: 404,
-      });
+      return new Response(
+        JSON.stringify({ error: "Email not found or already unsubscribed" }),
+        {
+          status: 404,
+        },
+      );
     }
 
     await sql`
@@ -114,13 +117,19 @@ export async function POST(req: Request) {
       WHERE email = ${email}
     `;
 
-    return new Response(JSON.stringify({ message: "Successfully unsubscribed" }), {
-      status: 200,
-    });
+    return new Response(
+      JSON.stringify({ message: "Successfully unsubscribed" }),
+      {
+        status: 200,
+      },
+    );
   } catch (error) {
     console.error("Unsubscribe error:", error);
-    return new Response(JSON.stringify({ error: "Failed to process unsubscription" }), {
-      status: 500,
-    });
+    return new Response(
+      JSON.stringify({ error: "Failed to process unsubscription" }),
+      {
+        status: 500,
+      },
+    );
   }
 }

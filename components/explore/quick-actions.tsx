@@ -56,7 +56,7 @@ export default function QuickActions() {
   ];
 
   const shouldShowQuickActions = allowedRoutes.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
   const quickActionItems: QuickActionItem[] = [
     { icon: Home, label: "Home", href: "/explore", type: "link" },

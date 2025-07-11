@@ -1,7 +1,7 @@
 "use client";
 
 import { type FC, useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import Link from "next/link";
 import { Home, Compass, Play, Users, Monitor, Camera } from "lucide-react";
 import {
@@ -12,14 +12,19 @@ import {
 } from "@/lib/theme-classes";
 
 interface NotFoundProps {
-  onGoBack: () => void;
+  onGoBack?: () => void; // Made optional since it's not used
 }
 
-const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
+const NotFound: FC<NotFoundProps> = () => {
+  // Removed unused onGoBack parameter
   const [isVisible, setIsVisible] = useState(false);
   const [currentIcon, setCurrentIcon] = useState(0);
 
   const streamingIcons = [Play, Users, Monitor, Camera];
+
+  // Define easing functions properly
+  const easeOut: Easing = "easeOut";
+  const easeInOut: Easing = "easeInOut";
 
   useEffect(() => {
     setIsVisible(true);
@@ -28,9 +33,9 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
     }, 2000);
 
     return () => clearInterval(iconInterval);
-  }, []);
+  }, [streamingIcons.length]); // Added missing dependency
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -41,37 +46,37 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 30 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
         duration: 0.6,
-        ease: "easeOut",
+        ease: easeOut,
       },
     },
   };
 
-  const floatingVariants = {
+  const floatingVariants: Variants = {
     animate: {
       y: [-10, 10, -10],
       transition: {
         duration: 3,
         repeat: Number.POSITIVE_INFINITY,
-        ease: "easeInOut",
+        ease: easeInOut,
       },
     },
   };
 
-  const pulseVariants = {
+  const pulseVariants: Variants = {
     animate: {
       scale: [1, 1.1, 1],
       opacity: [0.7, 1, 0.7],
       transition: {
         duration: 2,
         repeat: Number.POSITIVE_INFINITY,
-        ease: "easeInOut",
+        ease: easeInOut,
       },
     },
   };
@@ -104,7 +109,7 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
               duration: Math.random() * 10 + 10,
               repeat: Number.POSITIVE_INFINITY,
               repeatType: "reverse",
-              ease: "easeInOut",
+              ease: easeInOut,
             }}
           />
         ))}
@@ -184,8 +189,8 @@ const NotFound: FC<NotFoundProps> = ({ onGoBack }) => {
                   <p
                     className={`text-lg ${textClasses.secondary} max-w-md mx-auto leading-relaxed`}
                   >
-                    Looks like the page you're looking for doesn't exist or has
-                    been moved. Let's get you back on track!
+                    Looks like the page you&apos;re looking for doesn&apos;t
+                    exist or has been moved. Let&apos;s get you back on track!
                   </p>
                 </motion.div>
 

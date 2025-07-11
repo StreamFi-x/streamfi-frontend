@@ -48,7 +48,7 @@ export default function StreamInfoModal({
   const [tags, setTags] = useState(initialData.tags || []);
   const [newTag, setNewTag] = useState("");
   const [thumbnailPreview, setThumbnailPreview] = useState(
-    initialData.thumbnail
+    initialData.thumbnail,
   );
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

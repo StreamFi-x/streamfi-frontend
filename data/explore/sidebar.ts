@@ -1,5 +1,5 @@
 import { Home, TrendingUp, Clock, Radio, Heart } from "lucide-react";
-import { Bell, Mail, MessageSquare, UserPlus, AtSign } from 'lucide-react';
+import { Bell, Mail, MessageSquare, UserPlus, AtSign } from "lucide-react";
 
 export const sidebarVariants = {
   open: {
@@ -53,45 +53,45 @@ export const recommendedUsers = [
 
 export const notificationSettings = [
   {
-    id: 'push_notifications',
-    label: 'Push Notifications',
-    description: 'Receive notifications on your device',
+    id: "push_notifications",
+    label: "Push Notifications",
+    description: "Receive notifications on your device",
     enabled: true,
-    icon: Bell
+    icon: Bell,
   },
   {
-    id: 'email_notifications',
-    label: 'Email Notifications',
-    description: 'Receive notifications via email',
+    id: "email_notifications",
+    label: "Email Notifications",
+    description: "Receive notifications via email",
     enabled: true,
-    icon: Mail
+    icon: Mail,
   },
   {
-    id: 'new_messages',
-    label: 'New Messages',
-    description: 'Get notified when you receive new messages',
+    id: "new_messages",
+    label: "New Messages",
+    description: "Get notified when you receive new messages",
     enabled: true,
-    icon: MessageSquare
+    icon: MessageSquare,
   },
   {
-    id: 'new_likes',
-    label: 'Likes & Reactions',
-    description: 'Get notified when someone likes your content',
+    id: "new_likes",
+    label: "Likes & Reactions",
+    description: "Get notified when someone likes your content",
     enabled: true,
-    icon: Heart
+    icon: Heart,
   },
   {
-    id: 'new_followers',
-    label: 'New Followers',
-    description: 'Get notified when someone follows you',
+    id: "new_followers",
+    label: "New Followers",
+    description: "Get notified when someone follows you",
     enabled: true,
-    icon: UserPlus
+    icon: UserPlus,
   },
   {
-    id: 'mentions',
-    label: 'Mentions',
-    description: 'Get notified when someone mentions you',
+    id: "mentions",
+    label: "Mentions",
+    description: "Get notified when someone mentions you",
     enabled: true,
-    icon: AtSign
-  }
+    icon: AtSign,
+  },
 ];
