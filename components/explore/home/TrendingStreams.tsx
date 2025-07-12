@@ -263,7 +263,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
               disabled={isTransitioning}
               className={combineClasses(
                 "flex items-center justify-center gap-2 w-full outline-none border-none focus:ring-0 transition-opacity",
-                buttonClasses.secondary,
+                buttonClasses.reset,
                 isTransitioning
                   ? "opacity-70 cursor-not-allowed"
                   : "opacity-100",

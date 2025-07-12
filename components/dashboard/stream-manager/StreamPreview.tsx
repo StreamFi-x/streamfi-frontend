@@ -50,7 +50,7 @@ export default function StreamPreview() {
         </div>
       </div>
 
-      <div className="flex-1 max-w-xl bg-black relative">
+      <div className="flex-1 max-w-xl w-full bg-black relative">
         <div className="absolute inset-0 flex items-center justify-center">
           {isStreaming ? (
             <video

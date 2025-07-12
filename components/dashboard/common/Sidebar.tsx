@@ -226,7 +226,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05, duration: 0.3 }}
-                    className="font-medium"
+                    className="font-medium text-xs sm:text-sm"
                   >
                     {item.name}
                   </motion.span>
@@ -245,12 +245,12 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         })}
       </motion.nav>
 
-      <motion.hr
+      {/* <motion.hr
         variants={itemVariants}
         className={`my-4 border-t ${borderClasses.primary}`}
-      />
+      /> */}
 
-      <motion.div variants={itemVariants}>
+      {/* <motion.div variants={itemVariants}>
         <motion.h3
           className={`text-xs font-bold ${textClasses.tertiary} uppercase tracking-wider mb-3 px-1`}
           initial={{ opacity: 0, y: -5 }}
@@ -279,7 +279,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             View Analytics
           </motion.button>
         </div>
-      </motion.div>
+      </motion.div> */}
     </motion.div>
   );
 
