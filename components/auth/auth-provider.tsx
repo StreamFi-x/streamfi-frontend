@@ -166,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Clear session data
     clearSessionCookies()
-    sessionStorage.removeItem("currentUser")
+    sessionStorage.removeItem("userData")
 
     // Navigate to home
     router.push("/")
@@ -210,7 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log("[AuthProvider] Wallet disconnected")
         setUser(null)
         clearSessionCookies()
-        sessionStorage.removeItem("currentUser")
+        sessionStorage.removeItem("userData")
       }
     }
 
@@ -349,7 +349,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               // Update cached data
               localStorage.setItem(`user_${user.wallet}`, JSON.stringify(updatedUser))
               localStorage.setItem(`user_timestamp_${user.wallet}`, Date.now().toString())
-              sessionStorage.setItem("currentUser", JSON.stringify(updatedUser))
+              sessionStorage.setItem("userData", JSON.stringify(updatedUser))
 
               return true
             } else {
