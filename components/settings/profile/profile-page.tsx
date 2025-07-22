@@ -26,7 +26,7 @@ import { SaveSection } from "./save-section";
 
 export default function ProfileSettings() {
   const { user, isLoading, updateUserProfile } = useAuth();
-
+console.log("User in ProfileSettings:", user);
   const avatarOptions = [Avatar, Avatar, Avatar, Avatar, Avatar];
 
   const [avatar, setAvatar] = useState<StaticImageData | string>(profileImage);
