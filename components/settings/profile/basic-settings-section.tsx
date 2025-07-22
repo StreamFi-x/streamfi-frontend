@@ -24,7 +24,7 @@ export function BasicSettingsSection({
     return combineClasses(
       "w-full",
       bgClasses.input,
-      "rounded-lg px-4 py-3 text-sm outline-none",
+      "rounded-lg px-4 py-3 text-sm font-medium outline-none",
       uiState.focusedInput === inputName
         ? "border border-purple-600"
         : "border border-transparent",

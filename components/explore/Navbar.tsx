@@ -1,6 +1,6 @@
 "use client";
-import { useState, useRef, useEffect, useCallback } from "react";
-import { StreamfiLogoShort } from "@/public/icons";
+import { useState, useRef, useEffect, useCallback, use } from "react";
+import { StreamfiLogoLight, StreamfiLogoShort } from "@/public/icons";
 import { Search, Bell } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -69,6 +69,24 @@ export default function Navbar({}: NavbarProps) {
 
     return "Unknown User";
   }, [user?.username, address]);
+
+  const getAvatar = useCallback(() => {
+    if (user?.avatar) {
+      return user.avatar;
+    }
+    try {
+      const userData = sessionStorage.getItem("userData");
+      if (userData) {
+        const parsedUser = JSON.parse(userData);
+        if (parsedUser.avatar) {
+          return parsedUser.avatar;
+        }
+      }
+    } catch (error) {
+      console.error("Error parsing user data from sessionStorage:", error);
+    }
+    return Avatar;
+  }, [user?.avatar]);
 
   const handleCloseProfileModal = () => {
     setProfileModalOpen(false);
@@ -186,7 +204,7 @@ export default function Navbar({}: NavbarProps) {
       handleProfileDisplayModal();
     }
   }, [address, isConnected, user, handleProfileDisplayModal]);
-
+  const userAvatar = getAvatar();
   const displayName = getDisplayName();
   const truncatedDisplayName =
     displayName.length > 12 ? displayName.substring(0, 12) : displayName;
@@ -199,13 +217,19 @@ export default function Navbar({}: NavbarProps) {
         <div className="flex items-center gap-4">
           <Link href="/explore" className="flex items-center gap-2">
             <Image
+              src={StreamfiLogoLight || "/placeholder.svg"}
+              alt="Streamfi Logo"
+              className="dark:hidden"
+            />
+            <Image
               src={StreamfiLogoShort || "/placeholder.svg"}
               alt="Streamfi Logo"
+              className="hidden dark:block"
             />
           </Link>
         </div>
 
-        <div className="hidden md:block flex-1 items-center max-w-xl mx-4 relative text-white">
+        <div className="hidden md:block flex-1 items-center max-w-xl mx-4 relative">
           <div className="relative">
             <input
               type="text"
@@ -280,7 +304,7 @@ export default function Navbar({}: NavbarProps) {
                     {truncatedDisplayName}
                   </span>
                   <Image
-                    src={Avatar || "/placeholder.svg"}
+                    src={userAvatar || Avatar}
                     alt="Avatar"
                     width={40}
                     height={40}

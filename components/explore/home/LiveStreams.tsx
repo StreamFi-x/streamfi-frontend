@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
-import Button from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 import type { LiveStreamProps } from "@/types/explore/home";
 import Image from "next/image";
 import {
@@ -21,6 +22,7 @@ export function LiveStreams({
   const [initialCount, setInitialCount] = useState(4);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // Define easing functions properly
   const customEase: Easing = [0.25, 0.46, 0.45, 0.94];
@@ -88,8 +90,35 @@ export function LiveStreams({
     },
   };
 
+  const handleCardClick = (stream: any, event: React.MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("button") || target.closest("a")) {
+      return;
+    }
+
+    console.log("Stream object:", stream);
+    console.log("Stream streamer:", stream.streamer);
+
+    const username =
+      stream.streamer?.username ||
+      stream.streamer?.name ||
+      stream.username ||
+      stream.user?.username ||
+      stream.user?.name;
+
+    console.log("Extracted username:", username);
+
+    if (username) {
+      const urlUsername = username.toLowerCase().replace(/\s+/g, "");
+      console.log("Navigating to:", `/${urlUsername}`);
+      router.push(`/${urlUsername}`);
+    } else {
+      console.warn("No username found in stream data:", stream);
+    }
+  };
+
   const handleToggle = async () => {
-    if (isTransitioning) return; // Prevent multiple clicks during transition
+    if (isTransitioning) return;
 
     setIsTransitioning(true);
 
@@ -144,7 +173,10 @@ export function LiveStreams({
               initial="hidden"
               animate="visible"
               exit="exit"
-              className={`${bgClasses.card} group cursor-pointer p-2 pb-4 rounded-lg`}
+              onClick={(e) => {
+                handleCardClick(stream, e);
+              }}
+              className={`${bgClasses.card} group cursor-pointer p-2 pb-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-[1.02]`}
             >
               <div className="relative rounded-lg overflow-hidden">
                 <Image
@@ -177,7 +209,10 @@ export function LiveStreams({
                     />
                   </div>
                   <p
-                    className={combineClasses("text-sm", textClasses.secondary)}
+                    className={combineClasses(
+                      "text-sm hover:underline",
+                      textClasses.secondary,
+                    )}
                   >
                     {stream.streamer.name}
                   </p>
@@ -186,7 +221,7 @@ export function LiveStreams({
                 <div>
                   <h3
                     className={combineClasses(
-                      "font-semibold text-lg line-clamp-1",
+                      "font-semibold text-lg line-clamp-1 group-hover:text-opacity-80 transition-opacity",
                       textClasses.primary,
                     )}
                   >
@@ -234,7 +269,7 @@ export function LiveStreams({
               disabled={isTransitioning}
               className={combineClasses(
                 "flex items-center justify-center gap-2 w-full outline-none border-none focus:ring-0 transition-opacity",
-                buttonClasses.secondary,
+                buttonClasses.reset,
                 isTransitioning
                   ? "opacity-70 cursor-not-allowed"
                   : "opacity-100",

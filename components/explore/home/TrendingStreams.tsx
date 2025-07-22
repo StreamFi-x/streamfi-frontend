@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
-import Button from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 import type { TrendingStreamsProps } from "@/types/explore/home";
 import Image from "next/image";
 import {
@@ -18,6 +19,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
   const [initialCount, setInitialCount] = useState(4);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // Define easing functions properly
   const customEase: Easing = [0.25, 0.46, 0.45, 0.94];
@@ -85,8 +87,31 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
     },
   };
 
+  const handleCardClick = (stream: any, event: React.MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("button") || target.closest("a")) {
+      return;
+    }
+    const username =
+      stream.streamer?.username ||
+      stream.streamer?.name ||
+      stream.username ||
+      stream.user?.username ||
+      stream.user?.name;
+
+    console.log("Extracted username:", username);
+
+    if (username) {
+      const urlUsername = username.toLowerCase().replace(/\s+/g, "");
+      console.log("Navigating to:", `/${urlUsername}`);
+      router.push(`/${urlUsername}`);
+    } else {
+      console.warn("No username found in trending stream data:", stream);
+    }
+  };
+
   const handleToggle = async () => {
-    if (isTransitioning) return; // Prevent multiple clicks during transition
+    if (isTransitioning) return;
 
     setIsTransitioning(true);
 
@@ -136,12 +161,16 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
         <AnimatePresence mode="wait">
           {visibleStreams.map((stream) => (
             <motion.div
-              key={`${stream.id}-${showAll ? "expanded" : "collapsed"}`} // Unique key for better animations
+              key={`${stream.id}-${showAll ? "expanded" : "collapsed"}`}
               variants={itemVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
-              className={`${bgClasses.card} group cursor-pointer p-2 pb-4 rounded-lg`}
+              onClick={(e) => {
+                console.log("Trending card clicked!"); // Debug log
+                handleCardClick(stream, e);
+              }}
+              className={`${bgClasses.card} group cursor-pointer p-2 pb-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-[1.02]`}
             >
               <div className="relative rounded-lg overflow-hidden">
                 <Image
@@ -174,7 +203,10 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
                     />
                   </div>
                   <p
-                    className={combineClasses("text-sm", textClasses.secondary)}
+                    className={combineClasses(
+                      "text-sm hover:underline",
+                      textClasses.secondary,
+                    )}
                   >
                     {stream.streamer.name}
                   </p>
@@ -183,7 +215,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
                 <div>
                   <h3
                     className={combineClasses(
-                      "font-semibold text-lg line-clamp-1",
+                      "font-semibold text-lg line-clamp-1 group-hover:text-opacity-80 transition-opacity",
                       textClasses.primary,
                     )}
                   >
@@ -231,7 +263,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
               disabled={isTransitioning}
               className={combineClasses(
                 "flex items-center justify-center gap-2 w-full outline-none border-none focus:ring-0 transition-opacity",
-                buttonClasses.secondary,
+                buttonClasses.reset,
                 isTransitioning
                   ? "opacity-70 cursor-not-allowed"
                   : "opacity-100",

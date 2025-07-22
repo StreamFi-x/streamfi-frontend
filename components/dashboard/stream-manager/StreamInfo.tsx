@@ -70,7 +70,7 @@ export default function StreamInfo({ data, onEditClick }: StreamInfoProps) {
           </div>
 
           <div
-            className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.secondary} p-3`}
+            className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.primary} p-3`}
           >
             <div className="flex mb-3">
               <div className="w-16 h-16 rounded-md overflow-hidden mr-3">

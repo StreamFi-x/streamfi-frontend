@@ -347,8 +347,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateUserProfile: async (userData) => {
           try {
             if (!user?.wallet) return false;
-            const response = await fetch(`/api/users/${user.wallet}`, {
-              method: "PATCH",
+            const response = await fetch(`/api/users/updates/${user.wallet}`, {
+              method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(userData),
             });
