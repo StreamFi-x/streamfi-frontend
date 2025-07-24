@@ -39,11 +39,11 @@ export default function LivePage() {
   return (
     <div className="space-y-8">
       {/* Secondary Filters - FIRST (no tag filters here anymore) */}
-      <div className="flex flex-col sm:flex-row gap-6 items-center bg-gray-700/50 p-6 rounded-lg">
+      <div className="flex flex-col sm:flex-row gap-6 items-center p-6 rounded-lg">
         <div className="flex items-center space-x-3">
           <span className="text-sm text-gray-400 font-medium">Filter by:</span>
           <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-            <SelectTrigger className="w-48 bg-gray-800 border-gray-600 text-white">
+            <SelectTrigger className="w-48 bg-[#222222] text-white">
               <SelectValue placeholder="Language" />
             </SelectTrigger>
             <SelectContent>
@@ -63,7 +63,7 @@ export default function LivePage() {
               placeholder="Search tags"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 pr-4 py-3 bg-gray-800 border-gray-600 text-white placeholder-gray-400"
+              className="pl-12 pr-4 py-3 bg-[#181818] border-[#363636] text-white  placeholder-gray-400"
             />
           </div>
         </div>
@@ -71,7 +71,7 @@ export default function LivePage() {
         <div className="flex items-center space-x-3">
           <span className="text-sm text-gray-400 font-medium">Sort by:</span>
           <Select value={selectedSort} onValueChange={setSelectedSort}>
-            <SelectTrigger className="w-64 bg-gray-800 border-gray-600 text-white">
+            <SelectTrigger className="w-64 bg-[#333333] border-gray-600 text-white">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
