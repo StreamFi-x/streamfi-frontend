@@ -53,6 +53,7 @@ export const languageOptions: FilterOption[] = [
 ];
 
 export const sortOptions: FilterOption[] = [
+  { value: "recommended", label: "Recommended for You" },
   { value: "viewers", label: "Most Viewers" },
   { value: "recent", label: "Recently Started" },
   { value: "popular", label: "Most Popular" },
