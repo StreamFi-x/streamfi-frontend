@@ -11,31 +11,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search } from "lucide-react";
-import { cn } from "@/lib/utils";
 import StreamCard from "@/components/shared/profile/StreamCard";
 import { languageOptions, sortOptions, liveVideos } from "@/data/browse/live-content";
 
 export default function LivePage() {
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSort, setSelectedSort] = useState("recommended");
 
-  const primaryTags = [
-    "Games", "IRL", "Shooter", "FPS", "Creative", "Esports", 
-    "Arcade", "Racing", "God of war", "NBA", "Football"
-  ];
-
-  const toggleTag = (tag: string) => {
-    setSelectedTags(prev =>
-      prev.includes(tag)
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
-    );
-  };
-
   const clearAllFilters = () => {
-    setSelectedTags([]);
     setSelectedLanguage("all");
     setSearchQuery("");
     setSelectedSort("recommended");
@@ -43,59 +27,23 @@ export default function LivePage() {
 
   const filteredVideos = useMemo(() => {
     return liveVideos.filter(video => {
-      const matchesTags = selectedTags.length === 0 || 
-        selectedTags.some(tag => video.tags.includes(tag));
       const matchesLanguage = selectedLanguage === "all" || video.language === selectedLanguage;
       const matchesSearch = searchQuery === "" || 
         video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         video.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
       
-      return matchesTags && matchesLanguage && matchesSearch;
+      return matchesLanguage && matchesSearch;
     });
-  }, [selectedTags, selectedLanguage, searchQuery]);
+  }, [selectedLanguage, searchQuery]);
 
   return (
     <div className="space-y-8">
-      {/* Primary Tag Filters - FIRST (directly under Browse title) */}
-      <div className="space-y-4">
-        <div className="flex flex-wrap gap-3">
-          {primaryTags.map((tag) => (
-            <Button
-              key={tag}
-              variant={selectedTags.includes(tag) ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleTag(tag)}
-              className={cn(
-                "transition-colors px-4 py-2 rounded-md",
-                selectedTags.includes(tag)
-                  ? "bg-purple-600 hover:bg-purple-700 text-white"
-                  : "bg-gray-800 hover:bg-gray-700 text-white border-gray-700"
-              )}
-            >
-              {tag}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* Tabs Navigation - SECOND (after tag filters) */}
-      <div className="border-b border-gray-700">
-        <nav className="flex space-x-8">
-          <button className="pb-4 px-1 text-sm font-medium text-white border-b-2 border-purple-500">
-            Live channels
-          </button>
-          <button className="pb-4 px-1 text-sm font-medium text-gray-400 hover:text-white">
-            Categories
-          </button>
-        </nav>
-      </div>
-
-      {/* Secondary Filters - THIRD (after tabs) */}
-      <div className="flex flex-col sm:flex-row gap-6 items-center bg-gray-800/50 p-6 rounded-lg">
+      {/* Secondary Filters - FIRST (no tag filters here anymore) */}
+      <div className="flex flex-col sm:flex-row gap-6 items-center bg-gray-700/50 p-6 rounded-lg">
         <div className="flex items-center space-x-3">
           <span className="text-sm text-gray-400 font-medium">Filter by:</span>
           <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-            <SelectTrigger className="w-48 bg-gray-700 border-gray-600 text-white">
+            <SelectTrigger className="w-48 bg-gray-800 border-gray-600 text-white">
               <SelectValue placeholder="Language" />
             </SelectTrigger>
             <SelectContent>
@@ -115,7 +63,7 @@ export default function LivePage() {
               placeholder="Search tags"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 pr-4 py-3 bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+              className="pl-12 pr-4 py-3 bg-gray-800 border-gray-600 text-white placeholder-gray-400"
             />
           </div>
         </div>
@@ -123,7 +71,7 @@ export default function LivePage() {
         <div className="flex items-center space-x-3">
           <span className="text-sm text-gray-400 font-medium">Sort by:</span>
           <Select value={selectedSort} onValueChange={setSelectedSort}>
-            <SelectTrigger className="w-64 bg-gray-700 border-gray-600 text-white">
+            <SelectTrigger className="w-64 bg-gray-800 border-gray-600 text-white">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
