@@ -1,5 +1,6 @@
-import { Home, TrendingUp, Clock, Radio, Heart, Compass } from "lucide-react";
+import { Home, TrendingUp, Clock, Radio, Heart } from "lucide-react";
 import { Bell, Mail, MessageSquare, UserPlus, AtSign } from "lucide-react";
+import BrowseIcon from "@/components/icons/BrowseIcon";
 
 export const sidebarVariants = {
   open: {
@@ -27,7 +28,7 @@ export const overlayVariants = {
 
 export const navItems = [
   { icon: Home, label: "Home", href: "/" },
-  { icon: Compass, label: "Browse", href: "/explore/browse" },
+  { icon: BrowseIcon, label: "Browse", href: "/explore/browse" },
   { icon: TrendingUp, label: "Trending", href: "/trending" },
   { icon: Clock, label: "Watch Later", href: "/watch-later" },
   { icon: Radio, label: "Live", href: "/live" },
