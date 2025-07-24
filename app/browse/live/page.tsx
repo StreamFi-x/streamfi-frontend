@@ -68,7 +68,7 @@ export default function LivePage() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 ml-auto">
           <span className="text-sm text-gray-400 font-medium">Sort by:</span>
           <Select value={selectedSort} onValueChange={setSelectedSort}>
             <SelectTrigger className="w-64 bg-[#222222] text-white">
