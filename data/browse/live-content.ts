@@ -63,7 +63,7 @@ export const liveVideos: VideoCard[] = [
   {
     id: "1",
     title: "Clash of clans Live play",
-    thumbnailUrl: "/images/clash-of-clans-battle.jpg",
+    thumbnailUrl: "/Images/clash.png",
     username: "Flaxgames",
     category: "Games",
     tags: ["Nigerian", "Gameplay"],
@@ -74,7 +74,7 @@ export const liveVideos: VideoCard[] = [
   {
     id: "2",
     title: "FORTNITE",
-    thumbnailUrl: "/images/fortnite-characters.jpg",
+    thumbnailUrl: "/Images/fortnite.png",
     username: "ProGamer",
     category: "Games",
     tags: ["FPS", "Battle Royale"],
@@ -85,7 +85,7 @@ export const liveVideos: VideoCard[] = [
   {
     id: "3",
     title: "Clash of clans Live play",
-    thumbnailUrl: "/images/clash-of-clans-battle.jpg",
+    thumbnailUrl: "/Images/clash.png",
     username: "GameMaster",
     category: "Games",
     tags: ["Strategy", "Mobile"],
@@ -96,7 +96,7 @@ export const liveVideos: VideoCard[] = [
   {
     id: "4",
     title: "FORTNITE",
-    thumbnailUrl: "/images/fortnite-characters.jpg",
+    thumbnailUrl: "/Images/fortnite.png",
     username: "EpicPlayer",
     category: "Games",
     tags: ["Shooter", "Competitive"],
@@ -107,7 +107,7 @@ export const liveVideos: VideoCard[] = [
   {
     id: "5",
     title: "Clash of clans Live play",
-    thumbnailUrl: "/images/clash-of-clans-battle.jpg",
+    thumbnailUrl: "/Images/clash.png",
     username: "MobileGamer",
     category: "Games",
     tags: ["Mobile", "Strategy"],
@@ -118,7 +118,7 @@ export const liveVideos: VideoCard[] = [
   {
     id: "6",
     title: "FORTNITE",
-    thumbnailUrl: "/images/fortnite-characters.jpg",
+    thumbnailUrl: "/Images/fortnite.png",
     username: "BattleRoyale",
     category: "Games",
     tags: ["FPS", "Esports"],
@@ -129,7 +129,7 @@ export const liveVideos: VideoCard[] = [
   {
     id: "7",
     title: "Cooking with Chef Maria - Italian Pasta",
-    thumbnailUrl: "/images/cooking-italian-pasta.jpg",
+    thumbnailUrl: "/Images/game.png",
     username: "chefmaria",
     category: "Cooking",
     tags: ["Cooking", "Food", "Italian"],
@@ -140,7 +140,7 @@ export const liveVideos: VideoCard[] = [
   {
     id: "8",
     title: "Art Stream - Digital Painting",
-    thumbnailUrl: "/images/fantasy-landscape-dragon.jpg",
+    thumbnailUrl: "/Images/game.png",
     username: "digitalartist",
     category: "Art",
     tags: ["Art", "Digital", "Creative"],
@@ -151,7 +151,7 @@ export const liveVideos: VideoCard[] = [
   {
     id: "9",
     title: "Fitness Workout Live",
-    thumbnailUrl: "/images/fitness-workout.jpg",
+    thumbnailUrl: "/Images/game.png",
     username: "fitnesstrainer",
     category: "Fitness",
     tags: ["Fitness", "Workout", "Health"],
@@ -162,7 +162,7 @@ export const liveVideos: VideoCard[] = [
   {
     id: "10",
     title: "Tech Talk - Latest Gadgets",
-    thumbnailUrl: "/images/tech-gadgets.jpg",
+    thumbnailUrl: "/Images/game.png",
     username: "techreviewer",
     category: "Tech",
     tags: ["Tech", "Gadgets", "Review"],
@@ -173,7 +173,7 @@ export const liveVideos: VideoCard[] = [
   {
     id: "11",
     title: "Music Production Live",
-    thumbnailUrl: "/images/music-production.jpg",
+    thumbnailUrl: "/Images/game.png",
     username: "musicproducer",
     category: "Music",
     tags: ["Music", "Production", "Creative"],
@@ -184,7 +184,7 @@ export const liveVideos: VideoCard[] = [
   {
     id: "12",
     title: "Travel Vlog - Paris Streets",
-    thumbnailUrl: "/images/travel-paris.jpg",
+    thumbnailUrl: "/Images/game.png",
     username: "travelvlogger",
     category: "Travel",
     tags: ["Travel", "Vlog", "Paris"],

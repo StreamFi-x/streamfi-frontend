@@ -25,7 +25,7 @@ const StreamCard = ({
 }: StreamCardProps) => {
   return (
     <Link href={`/${username}/watch?v=${id}`}>
-      <div className="group cursor-pointer bg-gray-800 rounded-lg overflow-hidden hover:bg-gray-700 transition-colors">
+      <div className="group cursor-pointer rounded-lg overflow-hidden transition-colors">
         <div className="relative aspect-video overflow-hidden">
           <Image
             src={thumbnailUrl || "/placeholder.svg?height=180&width=320"}
@@ -35,13 +35,13 @@ const StreamCard = ({
           />
 
           {isLive && (
-            <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded-sm font-medium">
+            <div className="absolute top-3 left-3 bg-red-600 text-white text-sm px-3 py-1.5 rounded-sm font-medium">
               Live
             </div>
           )}
 
-          <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-sm flex items-center">
-            <Eye className="h-3 w-3 mr-1" />
+          <div className="absolute top-3 right-3 bg-black/70 text-white text-sm px-3 py-1.5 rounded-sm flex items-center">
+            <Eye className="h-4 w-4 mr-1.5" />
             <span>
               {viewCount >= 1000
                 ? `${(viewCount / 1000).toFixed(1)}k`
@@ -50,31 +50,31 @@ const StreamCard = ({
           </div>
         </div>
 
-        <div className="p-3">
-          <div className="flex items-center mb-2">
-            <div className="w-6 h-6 bg-gray-600 rounded-full mr-2 flex-shrink-0 overflow-hidden">
+        <div className="p-4">
+          <div className="flex items-center mb-3">
+            <div className="w-8 h-8 bg-gray-600 rounded-full mr-3 flex-shrink-0 overflow-hidden">
               <Image
                 src={thumbnailUrl || "/placeholder.svg?height=180&width=320"}
                 alt={username}
-                width={24}
-                height={24}
+                width={32}
+                height={32}
                 className="object-cover"
               />
             </div>
-            <span className="text-sm text-gray-300 font-medium">
+            <span className="text-base text-gray-300 font-medium">
               {username}
             </span>
           </div>
 
-          <h3 className="text-sm font-semibold text-white mb-2 line-clamp-2">
+          <h3 className="text-base font-semibold text-white mb-3 line-clamp-2">
             {title}
           </h3>
 
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-2">
             {tags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300"
+                className="text-sm px-3 py-1.5 rounded bg-gray-700 text-gray-300"
               >
                 {tag}
               </span>

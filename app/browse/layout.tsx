@@ -15,7 +15,6 @@ export default function BrowseLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  // Redirect /browse to /browse/live
   useEffect(() => {
     if (pathname === "/browse") {
       router.replace("/browse/live");
@@ -36,21 +35,16 @@ export default function BrowseLayout({
   ];
 
   return (
-    <main className="bg-[#111111]">
+    <main className="bg-[#1a1a1a]">
       <div className="flex flex-col h-screen">
         <Navbar />
-
         <div className="flex h-screen overflow-hidden">
           <Sidebar />
-
           <main className="flex-1 overflow-y-auto scrollbar-hide">
-            <div className="max-w-7xl mx-auto px-8 py-8">
-              {/* Page Header */}
+            <div className="max-w-full mx-auto px-4 py-8">
               <div className="mb-12">
                 <h1 className="text-4xl font-bold text-white mb-2">Browse</h1>
               </div>
-
-              {/* Tabs Navigation */}
               <div className="mb-8">
                 <nav className="flex space-x-8 border-b border-gray-700">
                   {tabs.map((tab) => (
@@ -69,8 +63,6 @@ export default function BrowseLayout({
                   ))}
                 </nav>
               </div>
-
-              {/* Page Content */}
               {children}
             </div>
           </main>

@@ -30,6 +30,8 @@ export default function Sidebar() {
 
   const isRouteActive = (href: string) => {
     if (href === "/" && pathname === "/explore") return true;
+    if (href === "/browse" && (pathname === "/browse" || pathname.startsWith("/browse/"))) return true;
+    if (href === "/explore/browse" && (pathname === "/browse" || pathname.startsWith("/browse/"))) return true;
     return (
       pathname === `/explore${href}` || pathname.startsWith(`/explore${href}/`)
     );
@@ -221,7 +223,7 @@ export default function Sidebar() {
             >
               <motion.div variants={navItemVariants}>
                 <Link
-                  href={`/explore${item.href}`}
+                  href={item.href === "/explore/browse" ? "/browse" : (item.href === "/browse" ? item.href : `/explore${item.href}`)}
                   className={`flex items-center gap-3 py-1.5 px-2.5 rounded-lg transition-all duration-300 relative overflow-hidden ${
                     isActive
                       ? `${bgClasses.selected} ${textClasses.primary} shadow-lg border-l-4 border-purple-500`
@@ -484,7 +486,7 @@ export default function Sidebar() {
               whileTap={{ scale: 0.95 }}
             >
               <Link
-                href={`/explore${item.href}`}
+                href={item.href === "/explore/browse" ? "/browse" : (item.href === "/browse" ? item.href : `/explore${item.href}`)}
                 className={`flex items-center justify-center p-3 rounded-lg transition-all duration-300 relative ${
                   isActive
                     ? `${bgClasses.selected} ${textClasses.primary} shadow-lg ring-2 ring-purple-500/30`
