@@ -18,14 +18,16 @@ import {
   Users,
   Volume2,
   VolumeX,
+  Flag,
 } from "lucide-react";
 import Image from "next/image";
-import { JSX, useEffect, useRef, useState } from "react";
+import { type JSX, useEffect, useRef, useState } from "react";
 import { FaDiscord, FaFacebook } from "react-icons/fa";
 import StreamInfoModal from "../dashboard/common/StreamInfoModal";
 import DashboardScreenGuard from "../explore/DashboardScreenGuard";
 import { Button } from "../ui/button";
 import ChatSection from "./chat-section";
+import ReportLiveStreamModal from "../modals/ReportLiveStreamModal";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,
@@ -45,7 +47,6 @@ interface ViewStreamProps {
 const fetchStreamData = async () => {
   // Simulate API call delay
   await new Promise((resolve) => setTimeout(resolve, 1000));
-
   // Mock data
   return {
     isLive: true,
@@ -66,7 +67,6 @@ const fetchStreamData = async () => {
 };
 
 // Mock chat messages
-
 // TippingModal component
 const TIPPING_CURRENCIES = [
   { label: "ETH", value: "ETH" },
@@ -155,7 +155,11 @@ const TippingModal = ({
             <button
               key={val}
               type="button"
-              className={`px-5 py-2 rounded-full border border-[#35363C] text-white text-base font-medium transition-colors ${amount === val.toString() ? "bg-[#35363C]" : "bg-transparent hover:bg-[#2D2F31]"}`}
+              className={`px-5 py-2 rounded-full border border-[#35363C] text-white text-base font-medium transition-colors ${
+                amount === val.toString()
+                  ? "bg-[#35363C]"
+                  : "bg-transparent hover:bg-[#2D2F31]"
+              }`}
               onClick={() => handleQuickSelect(val)}
             >
               {val}
@@ -194,7 +198,7 @@ const ViewStream = ({
   const [videoQuality, setVideoQuality] = useState("720p");
   const [showQualityOptions, setShowQualityOptions] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
-
+  const [showReportModal, setShowReportModal] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
 
@@ -205,7 +209,6 @@ const ViewStream = ({
         setLoading(true);
         const data = await fetchStreamData();
         setStreamData(data);
-
         // Update live status
         setIsLive(data.isLive);
         if (onStatusChange) {
@@ -262,7 +265,6 @@ const ViewStream = ({
       message: message,
       color: "#9333ea",
     };
-
     setChatMessages([...chatMessages, newMessage]);
   };
 
@@ -436,6 +438,7 @@ const ViewStream = ({
                         </div>
                       </div>
                     </div>
+
                     <span className="text-white text-xs">
                       {streamData.duration}
                     </span>
@@ -453,7 +456,6 @@ const ViewStream = ({
                           <Settings className="h-4 w-4" />
                           <span className="text-xs">{videoQuality}</span>
                         </button>
-
                         {showQualityOptions && (
                           <div className="absolute bottom-full right-0 mb-2 bg-black/90 rounded-md overflow-hidden">
                             {["1080p", "720p", "480p", "360p", "Auto"].map(
@@ -469,7 +471,7 @@ const ViewStream = ({
                                 >
                                   {quality}
                                 </button>
-                              ),
+                              )
                             )}
                           </div>
                         )}
@@ -565,7 +567,7 @@ const ViewStream = ({
                             </Button>
                             <Button
                               variant="outline"
-                              className="p-0 w-6 h-6 text-white border-none focus:ring-0 focus:ring-offset-0 hover:bg-[#2D2F31"
+                              className="p-0 w-6 h-6 text-white border-none focus:ring-0 focus:ring-offset-0 hover:bg-[#2D2F31 bg-transparent"
                             >
                               <Share2 className="w-5 h-5" />
                             </Button>
@@ -583,6 +585,22 @@ const ViewStream = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Report Live Stream Button - positioned before About section */}
+                {!isOwner && (
+                  <div className="p-4 border-b border-gray-800">
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={() => setShowReportModal(true)}
+                        variant="outline"
+                        className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-gray-600 text-xs px-3 py-2 h-8"
+                      >
+                        <Flag className="h-3 w-3 mr-2" />
+                        Report Live Stream
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {/* About section */}
                 <div className="p-4 border-b border-gray-800">
@@ -604,7 +622,7 @@ const ViewStream = ({
                             <span>{platform}</span>
                             <span>{socialIcons[platform.toLowerCase()]}</span>
                           </a>
-                        ),
+                        )
                       )}
                     </div>
                   </div>
@@ -714,6 +732,13 @@ const ViewStream = ({
           username={username}
         />
       )}
+
+      {/* Report Live Stream Modal */}
+      <ReportLiveStreamModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        username={username}
+      />
     </DashboardScreenGuard>
   );
 };
