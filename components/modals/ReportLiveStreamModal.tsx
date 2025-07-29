@@ -167,7 +167,7 @@ export default function ReportLiveStreamModal({
                   Thanks for your feedback
                 </h3>
                 <p className="text-gray-400 text-xs">
-                  for helping make streamii better for everyone
+                  for helping make streamFi better for everyone
                 </p>
               </div>
 
