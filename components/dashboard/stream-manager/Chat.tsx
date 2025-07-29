@@ -95,6 +95,7 @@ export default function Chat() {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isEmpty, setIsEmpty] = useState(true); // For empty state
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // Load messages from localStorage on mount
   useEffect(() => {
@@ -105,7 +106,7 @@ export default function Chat() {
         // Filter out messages older than 3 hours
         const threeHoursAgo = Date.now() - 1000 * 60 * 60 * 3;
         const recentMessages = parsedMessages.filter(
-          (msg) => msg.timestamp > threeHoursAgo,
+          (msg) => msg.timestamp > threeHoursAgo
         );
 
         if (recentMessages.length > 0) {
@@ -139,8 +140,20 @@ export default function Chat() {
   }, [messages]);
 
   // Scroll to bottom when messages change
+  // useEffect(() => {
+  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // }, [messages]);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    const isAtBottom =
+      container &&
+      container.scrollHeight - container.scrollTop - container.clientHeight <
+        100;
+
+    // if (isAtBottom) {
+    //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // }
   }, [messages]);
 
   const handleSendMessage = (e: React.FormEvent<HTMLFormElement>): void => {
@@ -197,13 +210,15 @@ export default function Chat() {
           </button>
         </div>
       </div>
-
       <div
-        className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.secondary} p-0 relative`}
+        ref={messagesContainerRef}
+        className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.primary} p-0 relative`}
       >
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-4">
-            <p className={`text-lg font-medium mb-2 ${textClasses.primary}`}>
+            <p
+              className={`text-base font-semibold mb-2 ${textClasses.primary}`}
+            >
               Your chat room is quiet... for now
             </p>
             <p className={`text-sm ${textClasses.tertiary}`}>
@@ -215,7 +230,6 @@ export default function Chat() {
           <div className="p-2 pt-8 pb-16">
             {messages.map((message) => (
               <div key={message.id} className="mb-2 flex">
-                {/* Colored vertical bar */}
                 <div
                   className="w-1 mr-2 rounded-full"
                   style={{ backgroundColor: message.color }}
@@ -243,7 +257,7 @@ export default function Chat() {
 
       <form
         onSubmit={handleSendMessage}
-        className={`p-2 ${bgClasses.secondary} flex items-center space-x-2`}
+        className={`p-2 ${bgClasses.primary} ${borderClasses.primary} border-t flex items-center space-x-2`}
       >
         <input
           type="text"

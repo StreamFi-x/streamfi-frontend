@@ -39,7 +39,6 @@ export default function ReusableComponents() {
   const [showPanel, setShowPanel] = React.useState<Checked>(false);
   const [isUploading] = useState(false);
 
-
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = 10;
 

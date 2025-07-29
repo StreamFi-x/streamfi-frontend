@@ -48,7 +48,7 @@ export default function StreamInfoModal({
   const [tags, setTags] = useState(initialData.tags || []);
   const [newTag, setNewTag] = useState("");
   const [thumbnailPreview, setThumbnailPreview] = useState(
-    initialData.thumbnail,
+    initialData.thumbnail
   );
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -246,19 +246,22 @@ export default function StreamInfoModal({
                   Thumbnail (1200x640, max 4MB)
                 </label>
                 <div
-                  className={`border-2 border-dashed ${borderClasses.primary} rounded-md p-4 text-center cursor-pointer hover:${borderClasses.hover} transition-colors`}
+                  className={`border-2 border-dashed ${borderClasses.primary}  ${textClasses.primary} rounded-md p-4 text-center cursor-pointer hover:${borderClasses.hover} transition-colors`}
                   onClick={() => fileInputRef.current?.click()}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
                 >
                   {thumbnailPreview ? (
-                    <div className="relative">
+                    <div className="relative flex flex-col">
                       <Image
                         src={thumbnailPreview || "/Images/banner-bg.png"}
                         alt="Thumbnail preview"
-                        className="max-h-40 mx-auto rounded-md"
+                        className="max-h-40 mx-auo rounde-md max-w-14"
                         fill
                       />
+                      <p>
+                        {thumbnailFile ? thumbnailFile.name : "Default banner"}
+                      </p>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -266,9 +269,9 @@ export default function StreamInfoModal({
                           setThumbnailPreview(null);
                           setThumbnailFile(null);
                         }}
-                        className="absolute top-2 right-2 bg-red-500 rounded-full p-1 text-white"
+                        className="absolute right-2 bg-red-500 rounded-full p-1 text-white"
                       >
-                        <XCircle size={16} />
+                        <X size={16} />
                       </button>
                     </div>
                   ) : (

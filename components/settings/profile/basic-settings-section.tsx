@@ -6,6 +6,10 @@ import {
   combineClasses,
 } from "@/lib/theme-classes";
 import type { FormState, UIState } from "@/types/settings/profile";
+import { AlertTriangle } from "lucide-react";
+import { Check } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
 interface BasicSettingsSectionProps {
   formState: FormState;
@@ -20,6 +24,7 @@ export function BasicSettingsSection({
   updateUiState,
   uiState,
 }: BasicSettingsSectionProps) {
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   const getInputStyle = (inputName: string) => {
     return combineClasses(
       "w-full",
@@ -28,10 +33,23 @@ export function BasicSettingsSection({
       uiState.focusedInput === inputName
         ? "border border-purple-600"
         : "border border-transparent",
-      "transition-all duration-200",
+      "transition-all duration-200"
     );
   };
-
+  useEffect(() => {
+    try {
+      const userData = sessionStorage.getItem("userData");
+      if (userData) {
+        const parsedUserData = JSON.parse(userData);
+        // Check if email is verified
+        if (parsedUserData.emailverified) {
+          setIsEmailVerified(true);
+        }
+      }
+    } catch (error) {
+      console.error("Error parsing user data from sessionStorage:", error);
+    }
+  }, []);
   return (
     <div className={combineClasses(componentClasses.card, "p-4 mb-6")}>
       <h2 className={combineClasses(textClasses.primary, "text-lg mb-4")}>
@@ -52,7 +70,7 @@ export function BasicSettingsSection({
         <p
           className={combineClasses(
             textClasses.tertiary,
-            "italic text-xs mt-1",
+            "italic text-xs mt-1"
           )}
         >
           You can only change your display name once in a month.
@@ -60,22 +78,37 @@ export function BasicSettingsSection({
       </div>
 
       <div className="mb-5">
-        <label className="block mb-2 text-sm">Wallet Address</label>
-        <input
-          type="text"
-          value={formState.wallet}
-          readOnly
-          className={combineClasses(getInputStyle("wallet"), "opacity-70")}
-          style={{ outlineWidth: 0, boxShadow: "none" }}
-        />
-        <p
-          className={combineClasses(
-            textClasses.tertiary,
-            "italic text-xs mt-1",
-          )}
-        >
-          Your wallet address cannot be changed.
-        </p>
+        <label className="block mb-2 text-sm">Email Address</label>
+        <div className="relative ">
+          {" "}
+          <input
+            type="text"
+            value={formState.email}
+            readOnly
+            className={combineClasses(getInputStyle("email"), "opacity-70")}
+            style={{ outlineWidth: 0, boxShadow: "none" }}
+          />
+          <div className="absolute right-2 -translate-y-1/2 top-1/2">
+            {isEmailVerified ? (
+              <Check className="w-4 h-4 text-green-500" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-yellow-500" />
+            )}
+          </div>
+        </div>
+        {!isEmailVerified && (
+          <p
+            className={combineClasses(
+              textClasses.tertiary,
+              "italic text-xs mt-1"
+            )}
+          >
+            <Link href="/settings/privacy" className="text-purple-500">
+              Click here
+            </Link>{" "}
+            to verify your email
+          </p>
+        )}
       </div>
 
       <div className="mb-5">
@@ -91,7 +124,7 @@ export function BasicSettingsSection({
         <p
           className={combineClasses(
             textClasses.tertiary,
-            "italic text-xs mt-1",
+            "italic text-xs mt-1"
           )}
         >
           Share a bit about yourself. (Max 150 words)

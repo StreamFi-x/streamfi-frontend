@@ -4,6 +4,13 @@ import type React from "react";
 
 import { useState, useRef, useEffect } from "react";
 import { ChevronRight, Send, Smile, GiftIcon } from "lucide-react";
+import {
+  bgClasses,
+  borderClasses,
+  combineClasses,
+  textClasses,
+} from "@/lib/theme-classes";
+import { text } from "stream/consumers";
 
 interface ChatMessage {
   id: number;
@@ -68,14 +75,24 @@ const ChatSection = ({
   if (!showChat) return null;
 
   return (
-    <div className={`flex flex-col ${className}`}>
+    <div
+      className={combineClasses(
+        bgClasses.primary,
+        `flex flex-col ${className}`
+      )}
+    >
       {/* Chat header */}
-      <div className="p-3 border-b border-gray-800 flex justify-between items-center">
-        <h3 className="text-white font-medium">Chat</h3>
+      <div
+        className={combineClasses(
+          borderClasses.primary,
+          "p-3 border-b flex justify-between items-center"
+        )}
+      >
+        <h3 className="text- font-medium">Chat</h3>
         {isCollapsible && onToggleChat && (
           <button
             onClick={onToggleChat}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="transition-colors"
             aria-label="Hide chat"
           >
             <ChevronRight className="h-5 w-5" />
@@ -84,11 +101,17 @@ const ChatSection = ({
       </div>
 
       {/* Chat messages */}
-      <div className="relative flex-1 overflow-hidden">
+      <div
+        className={combineClasses(
+          textClasses.primary,
+          bgClasses.primary,
+          "relative flex-1 overflow-hidden"
+        )}
+      >
         {/* Gradient overlay at top */}
         <div
-          className={`absolute top-0 left-0 right-0 h-8 bg-gradient-to-b ${
-            isFullscreen ? "from-black" : "from-[#17191A]"
+          className={`absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-white ${
+            isFullscreen ? "dark:from-black " : "dark:from-[#17191A]"
           } to-transparent z-10`}
         />
 
@@ -106,7 +129,7 @@ const ChatSection = ({
                 <span className="font-medium" style={{ color: message.color }}>
                   {message.username}:{" "}
                 </span>
-                <span className="text-white">{message.message}</span>
+                <span className="">{message.message}</span>
               </div>
             </div>
           ))}
@@ -114,32 +137,41 @@ const ChatSection = ({
 
         {/* Gradient overlay at bottom */}
         <div
-          className={`absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t ${
-            isFullscreen ? "from-black" : "from-[#17191A]"
+          className={`absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white ${
+            isFullscreen ? "dark:from-black" : "dark:from-[#17191A]"
           } to-transparent z-10`}
         />
       </div>
 
       {/* Chat input */}
-      <div className="p-3 border-t border-gray-800">
-        <div className="relative">
+      <div
+        className={combineClasses(
+          borderClasses.primary,
+          "p-3 border-t"
+        )}
+      >
+        <div className="relative flex items-center">
           <input
             type="text"
             value={chatMessage}
             onChange={(e) => setChatMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Send a message"
-            className="w-full bg-[#2D2F31] text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+            className={combineClasses(
+              bgClasses.secondary,
+              textClasses.primary,
+              "w-full bg-[#2D2F31] text- rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+            )}
           />
-          <div className="absolute right-2 top-2 flex space-x-1">
-            <button className="text-gray-400 hover:text-white">
+          <div className="absolute right-2 top-2 flex space-x-1 items-center">
+            <button className="text-gray-400 dark:hover:text-white">
               <Smile className="h-4 w-4" />
             </button>
-            <button className="text-gray-400 hover:text-white">
+            <button className="text-gray-400 dark:hover:text-white">
               <GiftIcon className="h-4 w-4" />
             </button>
             <button
-              className="text-gray-400 hover:text-white"
+              className="text-gray-400 dark:hover:text-white"
               onClick={handleSendMessage}
             >
               <Send className="h-4 w-4" />
