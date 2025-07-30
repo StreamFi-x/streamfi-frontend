@@ -18,15 +18,23 @@ import {
   Users,
   Volume2,
   VolumeX,
-  Flag,
+  Menu,
 } from "lucide-react";
 import Image from "next/image";
-import { type JSX, useEffect, useRef, useState } from "react";
+import { JSX, useEffect, useRef, useState } from "react";
 import { FaDiscord, FaFacebook } from "react-icons/fa";
 import StreamInfoModal from "../dashboard/common/StreamInfoModal";
 import DashboardScreenGuard from "../explore/DashboardScreenGuard";
 import { Button } from "../ui/button";
 import ChatSection from "./chat-section";
+import {
+  bgClasses,
+  borderClasses,
+  combineClasses,
+  textClasses,
+} from "@/lib/theme-classes";
+import { text } from "stream/consumers";
+import { Flag } from "lucide-react";
 import ReportLiveStreamModal from "../modals/ReportLiveStreamModal";
 
 const socialIcons: Record<string, JSX.Element> = {
@@ -47,6 +55,7 @@ interface ViewStreamProps {
 const fetchStreamData = async () => {
   // Simulate API call delay
   await new Promise((resolve) => setTimeout(resolve, 1000));
+
   // Mock data
   return {
     isLive: true,
@@ -67,6 +76,7 @@ const fetchStreamData = async () => {
 };
 
 // Mock chat messages
+
 // TippingModal component
 const TIPPING_CURRENCIES = [
   { label: "ETH", value: "ETH" },
@@ -155,11 +165,7 @@ const TippingModal = ({
             <button
               key={val}
               type="button"
-              className={`px-5 py-2 rounded-full border border-[#35363C] text-white text-base font-medium transition-colors ${
-                amount === val.toString()
-                  ? "bg-[#35363C]"
-                  : "bg-transparent hover:bg-[#2D2F31]"
-              }`}
+              className={`px-5 py-2 rounded-full border border-[#35363C] text-white text-base font-medium transition-colors ${amount === val.toString() ? "bg-[#35363C]" : "bg-transparent hover:bg-[#2D2F31]"}`}
               onClick={() => handleQuickSelect(val)}
             >
               {val}
@@ -199,6 +205,7 @@ const ViewStream = ({
   const [showQualityOptions, setShowQualityOptions] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
 
@@ -209,6 +216,7 @@ const ViewStream = ({
         setLoading(true);
         const data = await fetchStreamData();
         setStreamData(data);
+
         // Update live status
         setIsLive(data.isLive);
         if (onStatusChange) {
@@ -265,6 +273,7 @@ const ViewStream = ({
       message: message,
       color: "#9333ea",
     };
+
     setChatMessages([...chatMessages, newMessage]);
   };
 
@@ -320,7 +329,14 @@ const ViewStream = ({
 
   return (
     <DashboardScreenGuard>
-      <div className="flex flex-col h-full bg-[#17191A]">
+      <div
+        className={combineClasses(
+          bgClasses.primary,
+          textClasses.primary,
+          borderClasses.primary,
+          `flex flex-col h-full bg-[#17191A]`
+        )}
+      >
         <div className="flex flex-1 items-start relative overflow-hidden">
           {/* Main content */}
           <div
@@ -438,7 +454,6 @@ const ViewStream = ({
                         </div>
                       </div>
                     </div>
-
                     <span className="text-white text-xs">
                       {streamData.duration}
                     </span>
@@ -456,6 +471,7 @@ const ViewStream = ({
                           <Settings className="h-4 w-4" />
                           <span className="text-xs">{videoQuality}</span>
                         </button>
+
                         {showQualityOptions && (
                           <div className="absolute bottom-full right-0 mb-2 bg-black/90 rounded-md overflow-hidden">
                             {["1080p", "720p", "480p", "360p", "Auto"].map(
@@ -493,7 +509,12 @@ const ViewStream = ({
 
               {/* Fullscreen chat - now sits beside the video */}
               {isFullscreen && showChat && (
-                <div className="w-[350px] flex-shrink-0 bg-black border-l border-gray-800">
+                <div
+                  className={combineClasses(
+                    borderClasses.secondary,
+                    "w-[350px] flex-shrink-0 bg-black border-l border-gray-"
+                  )}
+                >
                   <ChatSection
                     messages={chatMessages}
                     onSendMessage={handleSendMessage}
@@ -510,7 +531,12 @@ const ViewStream = ({
             {/* Stream info - only show when not in fullscreen */}
             {!isFullscreen && (
               <>
-                <div className="border-b border-gray-800 p-4">
+                <div
+                  className={combineClasses(
+                    textClasses.secondary,
+                    "border-b border-gray- p-4"
+                  )}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div className="relative w-12 h-12 rounded-full overflow-hidden bg-purple-600">
@@ -522,10 +548,8 @@ const ViewStream = ({
                         />
                       </div>
                       <div>
-                        <h1 className="text-white font-medium">{username}</h1>
-                        <h2 className="text-gray-400 text-sm">
-                          {streamData.title}
-                        </h2>
+                        <h1 className="text- font-medium">{username}</h1>
+                        <h2 className="-400 text-sm">{streamData.title}</h2>
                         <div className="flex flex-wrap gap-2 mt-1">
                           {streamData.tags.map((tag: string) => (
                             <span
@@ -567,15 +591,18 @@ const ViewStream = ({
                             </Button>
                             <Button
                               variant="outline"
-                              className="p-0 w-6 h-6 text-white border-none focus:ring-0 focus:ring-offset-0 hover:bg-[#2D2F31 bg-transparent"
+                              className="p-0 w-7 h- border-none focus:ring-0 focus:ring-offset-0 "
                             >
-                              <Share2 className="w-5 h-5" />
+                              <Share2 className="w-7 h-7" />
                             </Button>
+                            <button>
+                              <Menu />
+                            </button>
                           </>
                         )}
                       </div>
                       <div className="mt-4">
-                        <div className="flex items-center text-gray-400 text-sm">
+                        <div className="flex items-center -400 text-sm">
                           <Users className="h-4 w-4 mr-1" />
                           <span>
                             {streamData.viewCount.toLocaleString()} viewers
@@ -586,7 +613,7 @@ const ViewStream = ({
                   </div>
                 </div>
 
-                {/* Report Live Stream Button - positioned before About section */}
+                {/* Report Live Stream Button */}
                 {!isOwner && (
                   <div className="p-4 border-b border-gray-800">
                     <div className="flex justify-end">
@@ -603,11 +630,9 @@ const ViewStream = ({
                 )}
 
                 {/* About section */}
-                <div className="p-4 border-b border-gray-800">
+                <div className={"p-4 border-b border-gray-"}>
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-white font-medium mb-">
-                      About {username}
-                    </h3>
+                    <h3 className="text- font-medium mb-">About {username}</h3>
                     <div className="flex space-x-4 items-center mt-2">
                       {Object.entries(streamData.socialLinks).map(
                         ([platform, url]) => (
@@ -616,7 +641,7 @@ const ViewStream = ({
                             href={String(url)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-white flex gap-2 items-center capitalize"
+                            className=" flex gap-2 items-center capitalize" //add hover effect
                             title={platform}
                           >
                             <span>{platform}</span>
@@ -626,27 +651,30 @@ const ViewStream = ({
                       )}
                     </div>
                   </div>
-                  <p className="text-gray-300 text-sm line-clamp-2">
-                    {streamData.bio}
-                  </p>
+                  <p className=" text-sm line-clamp-2">{streamData.bio}</p>
                 </div>
 
                 {/* Past streams */}
                 <div className="p-4">
-                  <h3 className="text-white font-medium mb-4">Past Streams</h3>
+                  <h3 className="font-medium mb-4">Past Streams</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {/* Past streams would be populated here */}
-                    <div className="bg-[#2D2F31] rounded-md overflow-hidden">
+                    <div
+                      className={combineClasses(
+                        bgClasses.primary,
+                        "bg-[#] rounded-md overflow-hidden"
+                      )}
+                    >
                       <div className="aspect-video relative">
                         <Image
-                          src="/Images/trending-streams/img1.png"
+                          src="/Images/explore/home/trending-streams/img1.png"
                           alt="Past stream"
                           fill
                           className="object-cover"
                         />
                       </div>
                       <div className="p-3">
-                        <h4 className="text-white text-sm font-medium truncate">
+                        <h4 className="text- text-sm font-medium truncate">
                           Previous Stream Highlight
                         </h4>
                         <p className="text-gray-400 text-xs mt-1">
@@ -670,7 +698,10 @@ const ViewStream = ({
                 onSendMessage={handleSendMessage}
                 isCollapsible={true}
                 isFullscreen={false}
-                className="h-full border-l border-gray-800"
+                className={combineClasses(
+                  borderClasses.primary,
+                  "h-full border-l "
+                )}
                 onToggleChat={toggleChat}
                 showChat={showChat}
               />
