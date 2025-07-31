@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, XCircle } from "lucide-react";
@@ -7,6 +9,13 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
+import {
+  bgClasses,
+  textClasses,
+  borderClasses,
+  buttonClasses,
+  ringClasses,
+} from "@/lib/theme-classes";
 
 // Form schema
 const streamInfoSchema = z.object({
@@ -39,7 +48,7 @@ export default function StreamInfoModal({
   const [tags, setTags] = useState(initialData.tags || []);
   const [newTag, setNewTag] = useState("");
   const [thumbnailPreview, setThumbnailPreview] = useState(
-    initialData.thumbnail
+    initialData.thumbnail,
   );
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -105,14 +114,9 @@ export default function StreamInfoModal({
     setThumbnailFile(file);
   };
 
-  // interface DragEventHandlers {
-  //   preventDefault: () => void;
-  //   stopPropagation: () => void;
-  // }
-
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   interface DropEvent extends React.DragEvent<HTMLDivElement> {
@@ -165,34 +169,42 @@ export default function StreamInfoModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+      <div
+        className={`fixed inset-0 ${bgClasses.overlay} z-50 flex items-center justify-center p-4`}
+      >
         <motion.div
-          className="bg-[#1A1A1A] rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden"
+          className={`${bgClasses.modal} rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden border ${borderClasses.primary}`}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ duration: 0.2 }}
         >
-          <div className="p-4 border-b border-gray-800 flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Edit Stream Info</h2>
+          <div
+            className={`p-4 border-b ${borderClasses.primary} flex justify-between items-center`}
+          >
+            <h2 className={`text-xl font-semibold ${textClasses.primary}`}>
+              Edit Stream Info
+            </h2>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-gray-700 rounded-md transition-colors"
+              className={`p-1 ${bgClasses.hover} rounded-md transition-colors`}
             >
-              <X size={20} />
+              <X size={20} className={textClasses.secondary} />
             </button>
           </div>
 
           <div className="p-4 overflow-y-auto max-h-[calc(90vh-60px)]">
             <form onSubmit={handleSubmit(onSubmit)}>
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">
+                <label
+                  className={`block text-sm font-medium mb-1 ${textClasses.primary}`}
+                >
                   Title <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   {...register("title")}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  className={`w-full ${bgClasses.input} border ${borderClasses.primary} rounded-md px-3 py-2 ${ringClasses.primary} ${textClasses.primary}`}
                 />
                 {errors.title && (
                   <p className="mt-1 text-sm text-red-500">
@@ -202,33 +214,39 @@ export default function StreamInfoModal({
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">
+                <label
+                  className={`block text-sm font-medium mb-1 ${textClasses.primary}`}
+                >
                   Category
                 </label>
                 <input
                   type="text"
                   {...register("category")}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  className={`w-full ${bgClasses.input} border ${borderClasses.primary} rounded-md px-3 py-2 ${ringClasses.primary} ${textClasses.primary}`}
                 />
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">
+                <label
+                  className={`block text-sm font-medium mb-1 ${textClasses.primary}`}
+                >
                   Description
                 </label>
                 <textarea
                   {...register("description")}
                   rows={3}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  className={`w-full ${bgClasses.input} border ${borderClasses.primary} rounded-md px-3 py-2 ${ringClasses.primary} ${textClasses.primary}`}
                 />
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">
+                <label
+                  className={`block text-sm font-medium mb-1 ${textClasses.primary}`}
+                >
                   Thumbnail (1200x640, max 4MB)
                 </label>
                 <div
-                  className="border-2 border-dashed border-gray-700 rounded-md p-4 text-center cursor-pointer hover:border-purple-500 transition-colors"
+                  className={`border-2 border-dashed ${borderClasses.primary} rounded-md p-4 text-center cursor-pointer hover:${borderClasses.hover} transition-colors`}
                   onClick={() => fileInputRef.current?.click()}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
@@ -236,9 +254,10 @@ export default function StreamInfoModal({
                   {thumbnailPreview ? (
                     <div className="relative">
                       <Image
-                        src={thumbnailPreview || "/placeholder.svg"}
+                        src={thumbnailPreview || "/Images/banner-bg.png"}
                         alt="Thumbnail preview"
                         className="max-h-40 mx-auto rounded-md"
+                        fill
                       />
                       <button
                         type="button"
@@ -254,9 +273,14 @@ export default function StreamInfoModal({
                     </div>
                   ) : (
                     <div className="py-4">
-                      <Upload className="mx-auto mb-2" size={24} />
-                      <p>Drag and drop an image here or click to browse</p>
-                      <p className="text-sm text-gray-400 mt-1">
+                      <Upload
+                        className={`mx-auto mb-2 ${textClasses.secondary}`}
+                        size={24}
+                      />
+                      <p className={textClasses.primary}>
+                        Drag and drop an image here or click to browse
+                      </p>
+                      <p className={`text-sm ${textClasses.tertiary} mt-1`}>
                         JPEG, PNG, or WebP (1200x640)
                       </p>
                     </div>
@@ -272,22 +296,24 @@ export default function StreamInfoModal({
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">
+                <label
+                  className={`block text-sm font-medium mb-1 ${textClasses.primary}`}
+                >
                   Tags (max 4)
                 </label>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {tags.map((tag) => (
                     <div
                       key={tag}
-                      className="px-2 py-1 bg-gray-800 rounded-md text-sm flex items-center group"
+                      className={`px-2 py-1 ${bgClasses.card} rounded-md text-sm flex items-center group border ${borderClasses.primary}`}
                     >
-                      {tag}
+                      <span className={textClasses.primary}>{tag}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveTag(tag)}
                         className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        <X size={14} />
+                        <X size={14} className={textClasses.secondary} />
                       </button>
                     </div>
                   ))}
@@ -298,14 +324,14 @@ export default function StreamInfoModal({
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
                     placeholder="Add a tag"
-                    className="flex-1 bg-gray-800 border border-gray-700 rounded-l-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    className={`flex-1 ${bgClasses.input} border ${borderClasses.primary} rounded-l-md px-3 py-2 ${ringClasses.primary} ${textClasses.primary}`}
                     disabled={tags.length >= 4}
                   />
                   <button
                     type="button"
                     onClick={handleAddTag}
                     disabled={!newTag.trim() || tags.length >= 4}
-                    className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:text-gray-500 px-4 rounded-r-md transition-colors"
+                    className={`${buttonClasses.primary} disabled:${bgClasses.tertiary} disabled:${textClasses.tertiary} px-4 rounded-r-md transition-colors`}
                   >
                     Add
                   </button>
@@ -321,14 +347,14 @@ export default function StreamInfoModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors"
+                  className={`px-4 py-2 ${buttonClasses.outline} rounded-md transition-colors`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!isValid}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:text-gray-500 rounded-md transition-colors"
+                  className={`px-4 py-2 ${buttonClasses.primary} disabled:${bgClasses.tertiary} disabled:${textClasses.tertiary} rounded-md transition-colors`}
                 >
                   Done
                 </button>

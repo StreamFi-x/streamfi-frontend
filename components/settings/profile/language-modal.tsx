@@ -29,11 +29,10 @@ export default function LanguageSelectionModal({
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
       <div className="bg-[#1a1a1a] rounded-lg w-full max-w-md p-6 relative">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-purple-500 text-xl font-medium">Select Language</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white"
-          >
+          <h2 className="text-purple-500 text-xl font-medium">
+            Select Language
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
             <X size={24} />
           </button>
         </div>

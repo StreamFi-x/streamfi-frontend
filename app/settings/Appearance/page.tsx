@@ -1,12 +1,12 @@
-import React from 'react'
-import Appearance from '@/components/settings/appearance/appearance'
+import React from "react";
+import ThemeSettingsPage from "@/components/settings/appearance/appearance";
 
 const page = () => {
   return (
     <div>
-        <Appearance />
+      <ThemeSettingsPage />
     </div>
-  )
-}
+  );
+};
 
-export default page
+export default page;

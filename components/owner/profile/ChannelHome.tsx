@@ -1,12 +1,12 @@
-import Banner from "@/components/shared/profile/Banner"
-import ProfileHeader from "@/components/shared/profile/ProfileHeader"
-import TabsNavigation from "@/components/shared/profile/TabsNavigation"
-import StreamCard from "@/components/shared/profile/StreamCard"
+import Banner from "@/components/shared/profile/Banner";
+import ProfileHeader from "@/components/shared/profile/ProfileHeader";
+import TabsNavigation from "@/components/shared/profile/TabsNavigation";
+import StreamCard from "@/components/shared/profile/StreamCard";
 
 interface ChannelHomeProps {
-  username: string
-  isLive: boolean
-  streamTitle?: string
+  username: string;
+  isLive: boolean;
+  streamTitle?: string;
 }
 
 const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
@@ -15,7 +15,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
     username,
     followers: 2000,
     avatarUrl: "/Images/user.png",
-  }
+  };
 
   const recentStreams = [
     {
@@ -58,7 +58,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
       viewCount: 14500,
       isLive: true,
     },
-  ]
+  ];
 
   const popularClips = [
     {
@@ -81,7 +81,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
       viewCount: 14500,
       isLive: true,
     },
-  ]
+  ];
 
   return (
     <div className="bg-gray-950 min-h-screen">
@@ -96,7 +96,9 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
 
       <div className="p-6">
         <section className="mb-8">
-          <h2 className="text-white text-xl font-medium mb-4">Recent Streams</h2>
+          <h2 className="text-white text-xl font-medium mb-4">
+            Recent Streams
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {recentStreams.map((stream) => (
               <StreamCard key={stream.id} {...stream} />
@@ -114,7 +116,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
         </section>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ChannelHome
+export default ChannelHome;

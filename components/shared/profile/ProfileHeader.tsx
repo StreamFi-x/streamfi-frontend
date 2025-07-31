@@ -1,7 +1,12 @@
 import Image from "next/image";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import CustomizeChannelButton from "./CustomizeChannelButton";
+import {
+  textClasses,
+  buttonClasses,
+  combineClasses,
+} from "@/lib/theme-classes";
 
 interface ProfileHeaderProps {
   username: string;
@@ -28,8 +33,12 @@ const ProfileHeader = ({
           />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white">{username}</h1>
-          <p className="text-sm text-gray-400">
+          <h1
+            className={combineClasses(textClasses.primary, "text-xl font-bold")}
+          >
+            {username}
+          </h1>
+          <p className={combineClasses(textClasses.tertiary, "text-sm")}>
             {followers.toLocaleString()} followers
           </p>
         </div>
@@ -40,13 +49,29 @@ const ProfileHeader = ({
           <CustomizeChannelButton />
         ) : (
           <>
-            <Button className="bg-purple-600 hover:bg-purple-700 text-white border-none">
+            <Button
+              className={combineClasses(
+                buttonClasses.secondary,
+                textClasses.onColor,
+                "border-none",
+              )}
+            >
               Follow
             </Button>
-            <Button className="bg-transparent hover:bg-gray-700 text-white border-gray-600">
+            <Button
+              className={combineClasses(
+                buttonClasses.outline,
+                textClasses.primary,
+              )}
+            >
               Subscribe
             </Button>
-            <Button className="bg-transparent hover:bg-gray-700 text-white border-gray-600">
+            <Button
+              className={combineClasses(
+                buttonClasses.outline,
+                textClasses.primary,
+              )}
+            >
               <ExternalLink className="h-4 w-4" />
             </Button>
           </>

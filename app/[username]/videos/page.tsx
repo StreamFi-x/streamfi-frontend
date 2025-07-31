@@ -1,11 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import { notFound } from "next/navigation";
-import Banner from "@/components/shared/profile/Banner";
-import ProfileHeader from "@/components/shared/profile/ProfileHeader";
-import TabsNavigation from "@/components/shared/profile/TabsNavigation";
 import StreamCard from "@/components/shared/profile/StreamCard";
 import EmptyState from "@/components/shared/profile/EmptyState";
+import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
 
 interface PageProps {
   params: {
@@ -33,10 +31,6 @@ const VideosPage = ({ params }: PageProps) => {
   // Mock function to check if current user is the owner of this profile
   const isOwner = username === "chidinma"; // Just for demo purposes
 
-  // Mock function to check if streamer is live
-  const isLive = false;
-  const streamTitle = isLive ? "co-working and designing" : undefined;
-
   useEffect(() => {
     const getVideos = async () => {
       try {
@@ -57,32 +51,18 @@ const VideosPage = ({ params }: PageProps) => {
     return notFound();
   }
 
-  // Mock data - would be fetched from API in a real implementation
-  const userData = {
-    username,
-    followers: 2000,
-    avatarUrl: "/placeholder.svg?height=64&width=64",
-  };
-
   return (
-    <div className="bg-[#17191A] min-h-screen">
-      <Banner username={username} isLive={isLive} streamTitle={streamTitle} />
-      <ProfileHeader
-        username={userData.username}
-        followers={userData.followers}
-        avatarUrl={userData.avatarUrl}
-        isOwner={isOwner}
-      />
-      <TabsNavigation username={username} />
-
+    <div className={combineClasses(bgClasses.secondary, "min-h-screen")}>
       <div className="p-6">
         {loading ? (
           <div className="flex justify-center py-12">
-            <p className="text-gray-400">Loading videos...</p>
+            <p className={textClasses.tertiary}>Loading videos...</p>
           </div>
         ) : videos.length > 0 ? (
           <section>
-            <h2 className="text-white text-xl font-medium mb-4">Videos</h2>
+            <h2 className={`${textClasses.primary} text-xl font-medium mb-4`}>
+              Videos
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {videos.map((video) => (
                 <StreamCard key={video.id} {...video} />

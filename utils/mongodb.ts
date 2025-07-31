@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const MONGODB_URI = process.env.MONGODB_URI!;
 if (!MONGODB_URI) {
@@ -32,23 +32,28 @@ if (!global.mongoose) {
 
 async function dbConnect(): Promise<typeof mongoose> {
   if (cached.conn) {
-    console.log('Using existing MongoDB connection');
+    console.log("Using existing MongoDB connection");
     return cached.conn;
   }
 
   if (!cached.promise) {
-    console.log('Creating new MongoDB connection to:', 
-      MONGODB_URI.substring(0, MONGODB_URI.indexOf('@') > 0 ? MONGODB_URI.indexOf('@') : 10) + '...');
-    
+    console.log(
+      "Creating new MongoDB connection to:",
+      MONGODB_URI.substring(
+        0,
+        MONGODB_URI.indexOf("@") > 0 ? MONGODB_URI.indexOf("@") : 10,
+      ) + "...",
+    );
+
     const opts = {
       bufferCommands: false,
     };
-    
+
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
       return mongoose;
     });
   } else {
-    console.log('Using existing MongoDB connection promise');
+    console.log("Using existing MongoDB connection promise");
   }
 
   try {
@@ -57,7 +62,7 @@ async function dbConnect(): Promise<typeof mongoose> {
     return mongoose;
   } catch (e) {
     cached.promise = null;
-    console.error('MongoDB connection error:', e);
+    console.error("MongoDB connection error:", e);
     throw e;
   }
 }

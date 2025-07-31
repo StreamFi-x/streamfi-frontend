@@ -1,17 +1,26 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { motion } from "framer-motion"
-import { MessageSquare, X, Send, Smile } from "lucide-react"
+import type React from "react";
+
+import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
+import { MessageSquare, X, Send, Smile } from "lucide-react";
+import {
+  bgClasses,
+  textClasses,
+  borderClasses,
+  buttonClasses,
+  ringClasses,
+} from "@/lib/theme-classes";
 
 // Message type definition
 type Message = {
-  id: string
-  username: string
-  content: string
-  timestamp: number
-  color: string
-}
+  id: string;
+  username: string;
+  content: string;
+  timestamp: number;
+  color: string;
+};
 
 // Sample initial messages
 const initialMessages: Message[] = [
@@ -78,63 +87,65 @@ const initialMessages: Message[] = [
     timestamp: Date.now() - 1000 * 5,
     color: "#FF9900",
   },
-]
+];
 
 export default function Chat() {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [newMessage, setNewMessage] = useState("")
-  const [isMinimized, setIsMinimized] = useState(false)
-  const [isEmpty, setIsEmpty] = useState(true) // For empty state
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [isEmpty, setIsEmpty] = useState(true); // For empty state
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load messages from localStorage on mount
   useEffect(() => {
-    const storedMessages = localStorage.getItem("chat-messages")
+    const storedMessages = localStorage.getItem("chat-messages");
     if (storedMessages) {
       try {
-        const parsedMessages = JSON.parse(storedMessages) as Message[]
+        const parsedMessages = JSON.parse(storedMessages) as Message[];
         // Filter out messages older than 3 hours
-        const threeHoursAgo = Date.now() - 1000 * 60 * 60 * 3
-        const recentMessages = parsedMessages.filter((msg) => msg.timestamp > threeHoursAgo)
+        const threeHoursAgo = Date.now() - 1000 * 60 * 60 * 3;
+        const recentMessages = parsedMessages.filter(
+          (msg) => msg.timestamp > threeHoursAgo,
+        );
 
         if (recentMessages.length > 0) {
-          setMessages(recentMessages)
-          setIsEmpty(false)
+          setMessages(recentMessages);
+          setIsEmpty(false);
         } else {
-          setMessages([])
-          setIsEmpty(true)
+          setMessages([]);
+          setIsEmpty(true);
         }
       } catch (e) {
-        console.error("Error parsing stored messages:", e)
+        console.error("Error parsing stored messages:", e);
         // For demo purposes, show messages
-        setMessages(initialMessages)
-        setIsEmpty(false)
+        setMessages(initialMessages);
+        setIsEmpty(false);
       }
     } else {
       // For demo purposes, show messages
-      setMessages(initialMessages)
-      setIsEmpty(false)
+      setMessages(initialMessages);
+      setIsEmpty(false);
     }
-  }, [])
+  }, []);
 
   // Save messages to localStorage when they change
   useEffect(() => {
     if (messages.length > 0) {
-      localStorage.setItem("chat-messages", JSON.stringify(messages))
-      setIsEmpty(false)
+      localStorage.setItem("chat-messages", JSON.stringify(messages));
+      setIsEmpty(false);
     } else {
-      setIsEmpty(true)
+      setIsEmpty(true);
     }
-  }, [messages])
+  }, [messages]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSendMessage = (e: React.FormEvent<HTMLFormElement>): void => {
-    e.preventDefault()
-    if (!newMessage.trim()) return
+    e.preventDefault();
+    if (!newMessage.trim()) return;
 
     const newMsg: Message = {
       id: Date.now().toString(),
@@ -142,25 +153,25 @@ export default function Chat() {
       content: newMessage,
       timestamp: Date.now(),
       color: "#00B5AD",
-    }
+    };
 
-    setMessages((prev: Message[]) => [...prev, newMsg])
-    setNewMessage("")
-    setIsEmpty(false)
-  }
+    setMessages((prev: Message[]) => [...prev, newMsg]);
+    setNewMessage("");
+    setIsEmpty(false);
+  };
 
   if (isMinimized) {
     return (
-      <div className="p-2 border-b border-gray-800">
+      <div className={`p-2 border-b ${borderClasses.primary}`}>
         <button
           onClick={() => setIsMinimized(false)}
-          className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+          className={`flex items-center space-x-2 ${textClasses.tertiary} hover:${textClasses.primary} transition-colors`}
         >
           <MessageSquare size={18} />
           <span>Show Chat</span>
         </button>
       </div>
-    )
+    );
   }
 
   return (
@@ -170,27 +181,34 @@ export default function Chat() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="bg-gray-800 p-2 flex justify-between items-center">
+      <div
+        className={`${bgClasses.card} p-2 flex justify-between items-center border-b ${borderClasses.primary}`}
+      >
         <div className="flex items-center">
-          <MessageSquare size={18} className="mr-2" />
-          <span>Chat</span>
+          <MessageSquare size={18} className={`mr-2 ${textClasses.primary}`} />
+          <span className={textClasses.primary}>Chat</span>
         </div>
         <div className="flex space-x-2">
-          <button className="p-1 hover:bg-gray-700 rounded-md transition-colors" onClick={() => setIsMinimized(true)}>
-            <X size={18} />
+          <button
+            className={`p-1 ${bgClasses.hover} rounded-md transition-colors`}
+            onClick={() => setIsMinimized(true)}
+          >
+            <X size={18} className={textClasses.secondary} />
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-hide bg-[#1A1A1A] p-0 relative">
-        {/* Gradient overlay at top */}
-        <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-[#1A1A1A] to-transparent z-10"></div>
-
+      <div
+        className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.secondary} p-0 relative`}
+      >
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-4">
-            <p className="text-lg font-medium mb-2">Your chat room is quiet... for now</p>
-            <p className="text-sm text-gray-400">
-              Start the convo! Viewers will be able to chat with you in real-time once they join.
+            <p className={`text-lg font-medium mb-2 ${textClasses.primary}`}>
+              Your chat room is quiet... for now
+            </p>
+            <p className={`text-sm ${textClasses.tertiary}`}>
+              Start the convo! Viewers will be able to chat with you in
+              real-time once they join.
             </p>
           </div>
         ) : (
@@ -198,45 +216,56 @@ export default function Chat() {
             {messages.map((message) => (
               <div key={message.id} className="mb-2 flex">
                 {/* Colored vertical bar */}
-                <div className="w-1 mr-2 rounded-full" style={{ backgroundColor: message.color }}></div>
+                <div
+                  className="w-1 mr-2 rounded-full"
+                  style={{ backgroundColor: message.color }}
+                ></div>
 
                 <div className="flex-1">
                   <div className="flex">
-                    <span className="font-medium" style={{ color: message.color }}>
+                    <span
+                      className="font-medium"
+                      style={{ color: message.color }}
+                    >
                       {message.username}
                     </span>
                   </div>
-                  <div className="text-sm">{message.content}</div>
+                  <div className={`text-sm ${textClasses.primary}`}>
+                    {message.content}
+                  </div>
                 </div>
               </div>
             ))}
             <div ref={messagesEndRef} />
           </div>
         )}
-
-        {/* Gradient overlay at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#1A1A1A] to-transparent z-10"></div>
       </div>
 
-      <form onSubmit={handleSendMessage} className="p-2 bg-[#1A1A1A] flex items-center space-x-2">
+      <form
+        onSubmit={handleSendMessage}
+        className={`p-2 ${bgClasses.secondary} flex items-center space-x-2`}
+      >
         <input
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Send a message"
-          className="flex-1 bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+          className={`flex-1 ${bgClasses.input} border ${borderClasses.primary} rounded-md px-3 py-2 text-sm ${ringClasses.primary} ${textClasses.primary}`}
         />
-        <button type="button" className="p-2 text-gray-400 hover:text-white transition-colors">
+        <button
+          type="button"
+          className={`p-2 ${textClasses.tertiary} hover:${textClasses.primary} transition-colors`}
+        >
           <Smile size={20} />
         </button>
         <button
           type="submit"
-          className="p-2 bg-purple-600 rounded-md hover:bg-purple-700 transition-colors"
+          className={`p-2 ${buttonClasses.primary} rounded-md transition-colors`}
           disabled={!newMessage.trim()}
         >
           <Send size={20} />
         </button>
       </form>
     </motion.div>
-  )
+  );
 }

@@ -9,7 +9,7 @@ export async function GET(req: Request) {
     if (!query) {
       return NextResponse.json(
         { error: "Query parameter 'q' is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -22,13 +22,13 @@ export async function GET(req: Request) {
 
     return NextResponse.json(
       { usernames: results.rows.map((row) => row.username) },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Username search error:", error);
     return NextResponse.json(
       { error: "Failed to search usernames" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

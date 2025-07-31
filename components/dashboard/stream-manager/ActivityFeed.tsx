@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Activity, X } from "lucide-react";
+import { bgClasses, textClasses, borderClasses } from "@/lib/theme-classes";
 
 // Placeholder data
 const initialActivities = [
@@ -58,7 +59,7 @@ export default function ActivityFeed() {
       <div className="p-2">
         <button
           onClick={() => setIsMinimized(false)}
-          className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+          className={`flex items-center space-x-2 ${textClasses.tertiary} hover:${textClasses.primary} transition-colors`}
         >
           <Activity size={18} />
           <span>Show Activity Feed</span>
@@ -74,27 +75,31 @@ export default function ActivityFeed() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="bg-gray-800 p-2 flex justify-between items-center">
+      <div
+        className={`${bgClasses.card} p-2 flex justify-between items-center border-b ${borderClasses.primary}`}
+      >
         <div className="flex items-center">
-          <Activity size={18} className="mr-2" />
-          <span>Activity Feed</span>
+          <Activity size={18} className={`mr-2 ${textClasses.primary}`} />
+          <span className={textClasses.primary}>Activity Feed</span>
         </div>
         <div className="flex space-x-2">
           <button
-            className="p-1 hover:bg-gray-700 rounded-md transition-colors"
+            className={`p-1 ${bgClasses.hover} rounded-md transition-colors`}
             onClick={() => setIsMinimized(true)}
           >
-            <X size={18} />
+            <X size={18} className={textClasses.secondary} />
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-hide bg-[#1A1A1A] p-2">
+      <div
+        className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.secondary} p-2`}
+      >
         <AnimatePresence>
           {activities.map((activity) => (
             <motion.div
               key={activity.id}
-              className="flex items-center p-3 border-b border-gray-800"
+              className={`flex items-center p-3 border-b ${borderClasses.secondary}`}
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, height: 0 }}
@@ -118,8 +123,12 @@ export default function ActivityFeed() {
               </div>
 
               <div className="flex-1">
-                <div className="font-medium">{activity.username}</div>
-                <div className="text-sm text-gray-400">followed you</div>
+                <div className={`font-medium ${textClasses.primary}`}>
+                  {activity.username}
+                </div>
+                <div className={`text-sm ${textClasses.tertiary}`}>
+                  followed you
+                </div>
               </div>
             </motion.div>
           ))}

@@ -1,6 +1,16 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+"use client";
 
+import type React from "react";
+import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import {
+  bgClasses,
+  textClasses,
+  borderClasses,
+  buttonClasses,
+  componentClasses,
+  combineClasses,
+} from "@/lib/theme-classes";
 
 interface NotificationOptionType {
   title: string;
@@ -22,60 +32,84 @@ interface NotificationCategoryProps {
   onOptionToggle: (index: number) => void;
 }
 
-
 const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ enabled, onChange }) => {
   return (
-    <div 
-      className={`flex-shrink-0 w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${enabled ? 'bg-purple-600' : 'bg-gray-700'}`}
+    <div
+      className={`flex-shrink-0 w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${enabled ? "bg-purple-600" : "bg-gray-700 dark:bg-gray-700"}`}
       onClick={onChange}
     >
-      <div 
-        className={`bg-white w-4 h-4 rounded-full transform transition-transform ${enabled ? 'translate-x-6' : 'translate-x-0'}`}
+      <div
+        className={`bg-white w-4 h-4 rounded-full transform transition-transform ${enabled ? "translate-x-6" : "translate-x-0"}`}
       />
     </div>
   );
 };
 
-
-const NotificationCategory: React.FC<NotificationCategoryProps> = ({ 
-  title, 
-  description, 
-  isOpen, 
-  toggleSection, 
-  options, 
-  onOptionToggle 
+const NotificationCategory: React.FC<NotificationCategoryProps> = ({
+  title,
+  description,
+  isOpen,
+  toggleSection,
+  options,
+  onOptionToggle,
 }) => {
   return (
-    <div className="mb-4 bg-[#1a1a1a] rounded-lg overflow-hidden">
-      <div 
-        className="flex justify-between items-center cursor-pointer p-6" 
+    <div
+      className={combineClasses(componentClasses.card, "mb-4 overflow-hidden")}
+    >
+      <div
+        className="flex justify-between items-center cursor-pointer p-6"
         onClick={toggleSection}
       >
         <div className="flex-1">
-          <h2 className="text-xl text-purple-400 font-medium">{title}</h2>
-          <p className="text-gray-400 text-sm">{description}</p>
+          <h2
+            className={combineClasses(
+              textClasses.highlight,
+              "text-xl font-medium",
+            )}
+          >
+            {title}
+          </h2>
+          <p className={combineClasses(textClasses.tertiary, "text-sm")}>
+            {description}
+          </p>
         </div>
-        <button className="text-white flex-shrink-0">
+        <button className={textClasses.primary}>
           {isOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
         </button>
       </div>
-      
+
       {isOpen && (
         <div>
-          <hr className="border-t border-gray-700 m-0 w-[96%] mx-auto" />
+          <hr
+            className={combineClasses(
+              borderClasses.primary,
+              "m-0 w-[96%] mx-auto",
+            )}
+          />
           <div>
             {options.map((option, index) => (
-              <div key={index} className="py-5 flex justify-between items-center px-6 pl-24 md:pl-20">
+              <div
+                key={index}
+                className="py-5 flex justify-between items-center px-6 pl-24 md:pl-20"
+              >
                 <div className="flex-1 pr-4">
-                  <h3 className="text-white text-base font-normal">{option.title}</h3>
-                  <p className="text-gray-400 text-sm italic font-light">{option.description}</p>
+                  <h3 className={textClasses.primary}>{option.title}</h3>
+                  <p
+                    className={combineClasses(
+                      textClasses.tertiary,
+                      "text-sm italic font-light",
+                    )}
+                  >
+                    {option.description}
+                  </p>
                 </div>
-                <ToggleSwitch 
-                  enabled={option.enabled} 
+                <ToggleSwitch
+                  enabled={option.enabled}
                   onChange={(e) => {
                     e.stopPropagation();
                     onOptionToggle(index);
-                  }} 
+                  }}
                 />
               </div>
             ))}
@@ -86,120 +120,123 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
   );
 };
 
-
 const NotificationSettings: React.FC = () => {
-  
   const categories = [
     {
-      id: 'email',
-      title: 'Email Notifications',
-      description: 'Manage notifications sent to your registered email address',
+      id: "email",
+      title: "Email Notifications",
+      description: "Manage notifications sent to your registered email address",
       options: [
         {
           title: "Transaction Alerts",
-          description: "Receive emails when transactions are completed or require attention",
-          enabled: true
+          description:
+            "Receive emails when transactions are completed or require attention",
+          enabled: true,
         },
         {
           title: "Security Alerts",
-          description: "Get notified about login attempts and security-related events",
-          enabled: true
+          description:
+            "Get notified about login attempts and security-related events",
+          enabled: true,
         },
         {
           title: "Platform Updates",
-          description: "Stay informed about new features and platform improvements",
-          enabled: true
+          description:
+            "Stay informed about new features and platform improvements",
+          enabled: true,
         },
         {
           title: "Creator Updates",
           description: "Get notified when creators you follow post new content",
-          enabled: true
-        }
-      ]
+          enabled: true,
+        },
+      ],
     },
     {
-      id: 'push',
-      title: 'Push Notifications',
-      description: 'Control notifications sent to your devices',
+      id: "push",
+      title: "Push Notifications",
+      description: "Control notifications sent to your devices",
       options: [
         {
           title: "Transaction Notifications",
           description: "Receive push alerts for transaction updates",
-          enabled: false
+          enabled: false,
         },
         {
           title: "Security Notifications",
           description: "Be alerted about security events on your devices",
-          enabled: true
+          enabled: true,
         },
         {
           title: "New Content Alerts",
           description: "Get notified when new content is available",
-          enabled: false
-        }
-      ]
+          enabled: false,
+        },
+      ],
     },
     {
-      id: 'inApp',
-      title: 'In-app Notifications',
-      description: 'Manage alerts that appear within the platform interface',
+      id: "inApp",
+      title: "In-app Notifications",
+      description: "Manage alerts that appear within the platform interface",
       options: [
         {
           title: "Activity Feed",
           description: "Show notifications in your activity feed",
-          enabled: true
+          enabled: true,
         },
         {
           title: "Popup Alerts",
-          description: "Display important alerts as popups within the interface",
-          enabled: false
+          description:
+            "Display important alerts as popups within the interface",
+          enabled: false,
         },
         {
           title: "Sound Notifications",
           description: "Play sounds for critical notifications",
-          enabled: false
-        }
-      ]
-    }
+          enabled: false,
+        },
+      ],
+    },
   ];
 
-  
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     email: false,
     push: false,
-    inApp: false
+    inApp: false,
   });
 
   const [notificationOptions, setNotificationOptions] = useState(categories);
 
-  
   const toggleSection = (sectionId: string) => {
-    setOpenSections(prev => ({
+    setOpenSections((prev) => ({
       ...prev,
-      [sectionId]: !prev[sectionId]
+      [sectionId]: !prev[sectionId],
     }));
   };
 
-  
   const toggleOption = (categoryIndex: number, optionIndex: number) => {
-    setNotificationOptions(prev => {
+    setNotificationOptions((prev) => {
       const newOptions = [...prev];
-      newOptions[categoryIndex].options[optionIndex].enabled = !newOptions[categoryIndex].options[optionIndex].enabled;
+      newOptions[categoryIndex].options[optionIndex].enabled =
+        !newOptions[categoryIndex].options[optionIndex].enabled;
       return newOptions;
     });
   };
 
-  
   const saveChanges = () => {
     console.log("Saving changes...");
     console.log("Notification options:", notificationOptions);
-    
-    
     alert("Settings saved successfully!");
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div
+      className={combineClasses(
+        bgClasses.secondary,
+        textClasses.primary,
+        "min-h-screen",
+      )}
+    >
       <div className="max-w-8xl mx-auto">
         {notificationOptions.map((category, categoryIndex) => (
           <NotificationCategory
@@ -209,13 +246,18 @@ const NotificationSettings: React.FC = () => {
             isOpen={openSections[category.id]}
             toggleSection={() => toggleSection(category.id)}
             options={category.options}
-            onOptionToggle={(optionIndex) => toggleOption(categoryIndex, optionIndex)}
+            onOptionToggle={(optionIndex) =>
+              toggleOption(categoryIndex, optionIndex)
+            }
           />
         ))}
-        
+
         <div className="flex justify-end">
-          <button 
-            className="bg-[#5A189A] hover:bg-opacity-90 text-white px-6 py-3 rounded-md transition"
+          <button
+            className={combineClasses(
+              buttonClasses.secondary,
+              "px-6 py-3 rounded-md",
+            )}
             onClick={saveChanges}
           >
             Save Changes

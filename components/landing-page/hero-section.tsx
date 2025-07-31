@@ -5,8 +5,8 @@ import type React from "react";
 import "@fontsource/inter";
 import { CoinbaseLogo, StripeLogo, YoutubeLogo } from "@/public/Images";
 import LogoDesktop from "@/public/Images/hero-image-streamfi.png";
-import Button from "@/components/ui/Button";
 import Section from "@/components/layout/Section";
+import Link from "next/link";
 
 const HeroSection: React.FC = () => {
   return (
@@ -37,19 +37,14 @@ const HeroSection: React.FC = () => {
                   ownership and decentralized rewards.
                 </p>
                 <div className="flex flex-col sm:flex-row justify-center lg:justify-start pt-4 space-y-4 sm:space-y-0 sm:space-x-3">
-                  <Button
-                    className="bg-primary hover:bg-primary/60 duration-300 text-white px-[20px] py-[12px] rounded-lg font-medium w-full sm:w-auto text-base"
-                    isLink
-                    href="/explore"
-                  >
-                    Explore Streams
-                  </Button>
-                  <button
-                    className="bg-white/10 hover:bg-gray-800 duration-300 text-white px-4 py-3 rounded-lg font-medium"
-                    style={{ fontFamily: "Inter" }}
-                  >
-                    Launch Your Stream
-                  </button>
+                  <Link href={"/explore"}>
+                    <button
+                      className="bg-white/10 hover:bg-gray-800 duration-300 text-white px-4 py-3 rounded-lg font-medium"
+                      style={{ fontFamily: "Inter" }}
+                    >
+                      Launch Your Stream
+                    </button>
+                  </Link>
                 </div>
               </div>
               {/* Logos */}

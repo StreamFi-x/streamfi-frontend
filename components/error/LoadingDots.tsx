@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { FC } from "react"
-import { motion } from "framer-motion"
+import { FC } from "react";
+import { motion } from "framer-motion";
 
 const LoadingDots: FC = () => {
   return (
@@ -28,7 +28,7 @@ const LoadingDots: FC = () => {
         ))}
       </div>
     </motion.div>
-  )
-}
+  );
+};
 
-export default LoadingDots
+export default LoadingDots;

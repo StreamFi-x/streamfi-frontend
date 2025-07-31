@@ -78,11 +78,11 @@ paths:
                       type: string
                       example: "url-to-image"
       responses:
-        '201':
+        "201":
           description: User registered successfully
-        '400':
+        "400":
           description: Bad request - invalid input data
-        '409':
+        "409":
           description: Conflict - user already exists
 
   /api/users/updates/{wallet}:
@@ -121,11 +121,11 @@ paths:
                   format: binary
                   description: User avatar image file
       responses:
-        '200':
+        "200":
           description: User updated successfully
-        '400':
+        "400":
           description: Bad request - invalid input data
-        '404':
+        "404":
           description: User not found
 
   /api/waitlist/subscribe:
@@ -152,11 +152,11 @@ paths:
                   format: email
                   example: "new@example.com"
       responses:
-        '200':
+        "200":
           description: Successfully subscribed to waitlist
-        '400':
+        "400":
           description: Bad request - invalid input data
-        '409':
+        "409":
           description: Email already subscribed
 
   /api/waitlist/unsubscribe:
@@ -183,11 +183,11 @@ paths:
                   format: email
                   example: "new@example.com"
       responses:
-        '200':
+        "200":
           description: Successfully unsubscribed from waitlist
-        '400':
+        "400":
           description: Bad request - invalid input data
-        '404':
+        "404":
           description: Email not found in waitlist
 
   /api/search-username:
@@ -205,7 +205,7 @@ paths:
           description: Search query for username
           example: "name"
       responses:
-        '200':
+        "200":
           description: Search results returned successfully
           content:
             application/json:
@@ -222,6 +222,16 @@ paths:
                       type: string
         '400':
           description: Bad request - missing or invalid query parameter
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Please provide a username to fetch
+      
+
 
   /get-fullusername:
     get:
@@ -303,11 +313,11 @@ paths:
                       format: uri
                       example: "https://example.com/image.jpg"
       responses:
-        '200':
+        "200":
           description: Creator information updated successfully
-        '400':
+        "400":
           description: Bad request - invalid input data
-        '404':
+        "404":
           description: User not found
 
   /api/request-email-verification:
@@ -330,11 +340,11 @@ paths:
                   format: email
                   example: "user@example.com"
       responses:
-        '200':
+        "200":
           description: Verification token sent successfully
-        '400':
+        "400":
           description: Bad request - invalid email format
-        '404':
+        "404":
           description: Email not found
 
   /api/users/verify-email:
@@ -361,13 +371,13 @@ paths:
                   type: string
                   example: "123456"
       responses:
-        '200':
+        "200":
           description: Email verified successfully
-        '400':
+        "400":
           description: Bad request - invalid token or email
-        '404':
+        "404":
           description: User not found
-        '410':
+        "410":
           description: Token expired
 
 components:
@@ -389,7 +399,7 @@ components:
         emailNotifications:
           type: boolean
         creator:
-          $ref: '#/components/schemas/Creator'
+          $ref: "#/components/schemas/Creator"
 
     Creator:
       type: object

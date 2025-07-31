@@ -255,7 +255,7 @@ const Community: React.FC = () => {
       </motion.div>
 
       <motion.div
-        className="flex justify-center items-center text-sm gap-6 sm:gap-8 pt-10 max-w-4xl w-full px-4"
+        className="flex justify-center items-center text-sm gap-6 sm:gap-8 pt-10 max-w-4xl w-full px-4 relative z-10"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
@@ -265,7 +265,7 @@ const Community: React.FC = () => {
           href="https://x.com/_streamfi"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex justify-center gap-2 border rounded-lg px-5 py-3"
+          className="flex justify-center gap-2 border rounded-lg px-5 py-3 cursor-pointer"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
@@ -282,7 +282,7 @@ const Community: React.FC = () => {
           href="https://t.me/+slCXibBFWF05NDQ0"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex justify-center gap-2 border rounded-lg px-5 py-3"
+          className="flex justify-center gap-2 border rounded-lg px-5 py-3 cursor-pointer"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
@@ -296,9 +296,10 @@ const Community: React.FC = () => {
         </motion.a>
 
         <motion.a
-          href="#"
-          onClick={(event) => event.preventDefault()}
-          className="flex justify-center gap-2 border rounded-lg px-5 py-3"
+          href="https://discord.gg/jPhndJFC"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex justify-center gap-2 border rounded-lg px-5 py-3 cursor-pointer"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >

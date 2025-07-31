@@ -1,37 +1,28 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCallback, useState } from "react";
+import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  navItems,
-  overlayVariants,
-  recommendedUsers,
-  sidebarVariants,
-} from "@/data/explore/sidebar";
+import { navItems, recommendedUsers } from "@/data/explore/sidebar";
 import Image from "next/image";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { SidebarProps } from "@/types/explore";
+import QuickActions from "./quick-actions";
+import {
+  bgClasses,
+  textClasses,
+  borderClasses,
+  buttonClasses,
+} from "@/lib/theme-classes";
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isOpen]);
-
-  const handleOverlayClick = useCallback(() => {
-    onClose();
-  }, [onClose]);
+  // Define easing functions properly
+  const customEase: Easing = [0.23, 1, 0.32, 1];
+  const easeOut: Easing = "easeOut";
+  const easeInOut: Easing = "easeInOut";
 
   const toggleCollapsed = useCallback(() => {
     setIsCollapsed((prev) => !prev);
@@ -44,389 +35,610 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     );
   };
 
+  // Enhanced animation variants
+  const sidebarVariants: Variants = {
+    expanded: {
+      width: 260,
+      transition: {
+        duration: 0.6,
+        ease: customEase,
+        type: "tween" as const,
+      },
+    },
+    collapsed: {
+      width: 70,
+      transition: {
+        duration: 0.6,
+        ease: customEase,
+        type: "tween" as const,
+      },
+    },
+  };
+
+  const contentVariants: Variants = {
+    expanded: {
+      opacity: 1,
+      x: 0,
+      scale: 1,
+      transition: {
+        duration: 0.5,
+        ease: customEase,
+        staggerChildren: 0.02,
+        delayChildren: 0.1,
+      },
+    },
+    collapsed: {
+      opacity: 0,
+      x: -30,
+      scale: 0.95,
+      transition: {
+        duration: 0.3,
+        ease: customEase,
+        staggerChildren: 0.01,
+        staggerDirection: -1,
+      },
+    },
+  };
+
+  const itemVariants: Variants = {
+    expanded: {
+      opacity: 1,
+      x: 0,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.4,
+        ease: customEase,
+        type: "spring" as const,
+        stiffness: 300,
+        damping: 30,
+      },
+    },
+    collapsed: {
+      opacity: 0,
+      x: -20,
+      y: -5,
+      scale: 0.9,
+      transition: {
+        duration: 0.2,
+        ease: customEase,
+      },
+    },
+  };
+
+  const navItemVariants: Variants = {
+    rest: {
+      scale: 1,
+      backgroundColor: "transparent",
+      transition: {
+        duration: 0.2,
+        ease: easeOut,
+      },
+    },
+    hover: {
+      scale: 1.02,
+      transition: {
+        duration: 0.2,
+        ease: easeOut,
+      },
+    },
+    tap: {
+      scale: 0.98,
+      transition: {
+        duration: 0.1,
+        ease: easeOut,
+      },
+    },
+  };
+
+  const avatarVariants: Variants = {
+    rest: {
+      scale: 1,
+      rotate: 0,
+      transition: {
+        duration: 0.2,
+        ease: easeOut,
+      },
+    },
+    hover: {
+      scale: 1.1,
+      rotate: 2,
+      transition: {
+        duration: 0.3,
+        ease: easeOut,
+      },
+    },
+  };
+
+  const liveIndicatorVariants: Variants = {
+    animate: {
+      scale: [1, 1.1, 1],
+      opacity: [1, 0.8, 1],
+      transition: {
+        duration: 2,
+        repeat: Number.POSITIVE_INFINITY,
+        ease: easeInOut,
+      },
+    },
+  };
+
   const renderExpandedContent = () => (
-    <>
-      <div className="flex justify-between items-center w-full mb-4 px-[1em]">
-        <span className="text-white/60 font-medium">MENU</span>
-        <button
-          className="text-white p-1 hover:bg-[#2D2F31]/60 rounded-full"
-          onClick={toggleCollapsed}
+    <motion.div
+      variants={contentVariants}
+      initial="collapsed"
+      animate="expanded"
+      exit="collapsed"
+      className="w-full"
+    >
+      <motion.div
+        variants={itemVariants}
+        className="flex justify-between items-center w-full mb-4 px-[1em]"
+      >
+        <motion.span
+          variants={itemVariants}
+          className={`${textClasses.secondary} font-semibold tracking-wider`}
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
         >
-          <ArrowLeft size={20} />
-        </button>
-      </div>
-
-      <nav className="flex flex-col gap-1">
-        {navItems.map((item) => {
-          const isActive = isRouteActive(item.href);
-          return (
-            <Link
-              key={item.label}
-              href={`/explore${item.href}`}
-              className={`flex items-center gap-3 p-3 rounded-md transition-colors ${
-                isActive
-                  ? "bg-[#2D2F31] text-white"
-                  : "text-white/60 hover:text-white hover:bg-[#2D2F31]/60"
-              }`}
-            >
-              <item.icon
-                size={20}
-                className={isActive ? "text-white" : "text-white/60"}
-              />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-
-      <hr className="bg-white/10 my-4 border-t border-white/10" />
-
-      <div>
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-1">
-          RECOMMENDED
-        </h3>
-        <div className="space-y-1">
-          {recommendedUsers.map((user) => (
-            <Link
-              key={user.name}
-              href="#"
-              className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-[#2D2F31]/60 transition-colors"
-            >
-              <div className="relative w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
-                <Image
-                  src={user.avatar || "/placeholder.svg"}
-                  alt={user.name}
-                  className="w-full h-full object-cover"
-                  width={32}
-                  height={32}
-                />
-                {user.status.toLowerCase().includes("watching") && (
-                  <div className="absolute bottom-0 left-0 bg-red-500 text-white text-[8px] px-1 rounded">
-                    LIVE
-                  </div>
-                )}
-              </div>
-              <div>
-                <div className="text-sm text-white font-medium">
-                  {user.name}
-                </div>
-                <div className="text-xs text-white/40">{user.status}</div>
-              </div>
-            </Link>
-          ))}
-        </div>
-        <button className="w-full mt-3 text-sm text-white bg-[#2D2F31]/60 hover:bg-[#2D2F31] rounded-md py-2.5 text-center">
-          See more
-        </button>
-      </div>
-
-      <hr className="bg-white/10 my-4 border-t border-white/10" />
-
-      <div>
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-1">
-          FOLLOWING
-        </h3>
-        <div className="space-y-1">
-          {recommendedUsers.map((user) => (
-            <Link
-              key={`following-${user.name}`}
-              href="#"
-              className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-[#2D2F31]/60 transition-colors"
-            >
-              <div className="relative w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
-                <Image
-                  src={user.avatar || "/placeholder.svg"}
-                  alt={user.name}
-                  className="w-full h-full object-cover"
-                  width={32}
-                  height={32}
-                />
-                {user.name !== "Guraissay" && (
-                  <div className="absolute bottom-0 left-0 bg-red-500 text-white text-[8px] px-1 rounded">
-                    LIVE
-                  </div>
-                )}
-              </div>
-              <div>
-                <div className="text-sm text-white font-medium">
-                  {user.name}
-                </div>
-                <div className="text-xs text-white/40">
-                  {user.name === "Zyn"
-                    ? "100K Followers"
-                    : user.name === "monki"
-                      ? "3.7K followers"
-                      : "520K followers"}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-        <button className="w-full mt-3 text-sm text-white bg-[#2D2F31]/60 hover:bg-[#2D2F31] rounded-md py-2.5 text-center">
-          See more
-        </button>
-      </div>
-    </>
-  );
-  const renderCollapsedContent = () => (
-    <>
-      <div className="flex justify-center items-center w-full mb-4">
-        <button
-          className="text-white p-1 hover:bg-[#2D2F31]/60 rounded-full"
+          MENU
+        </motion.span>
+        <motion.button
+          variants={itemVariants}
+          className={`p-2 ${bgClasses.hover} rounded-full ${textClasses.primary} relative overflow-hidden`}
           onClick={toggleCollapsed}
+          whileHover={{ scale: 1.1, rotate: 5 }}
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
         >
-          <ArrowRight size={20} />
-        </button>
-      </div>
-
-      <nav className="flex flex-col gap-3 items-center">
-        {navItems.map((item) => {
-          const isActive = isRouteActive(item.href);
-          return (
-            <Link
-              key={item.label}
-              href={`/explore${item.href}`}
-              className={`flex items-center justify-center p-3 rounded-md transition-colors ${
-                isActive
-                  ? "bg-[#2D2F31] text-white"
-                  : "text-white/60 hover:text-white hover:bg-[#2D2F31]/60"
-              }`}
-              title={item.label}
-            >
-              <item.icon
-                size={20}
-                className={isActive ? "text-white" : "text-white/60"}
-              />
-            </Link>
-          );
-        })}
-      </nav>
-
-      <hr className="bg-white/10 my-4 border-t border-white/10" />
-
-      <div className="flex flex-col items-center gap-3">
-        {recommendedUsers.map((user) => (
-          <Link key={user.name} href="#" className="relative" title={user.name}>
-            <div className="w-9 h-9 rounded-full bg-gray-700 overflow-hidden">
-              <Image
-                src={user.avatar || "/placeholder.svg"}
-                alt={user.name}
-                className="w-full h-full object-cover"
-                width={36}
-                height={36}
-              />
-            </div>
-            {user.status.toLowerCase().includes("watching") && (
-              <div className="absolute bottom-0 left-0 bg-red-500 text-white text-[8px] px-1 rounded">
-                LIVE
-              </div>
-            )}
-          </Link>
-        ))}
-      </div>
-
-      <hr className="bg-white/10 my-4 border-t border-white/10" />
-
-      <div className="flex flex-col items-center gap-3">
-        {recommendedUsers.map((user) => (
-          <Link
-            key={`following-${user.name}`}
-            href="#"
-            className="relative"
-            title={user.name}
+          <motion.div
+            animate={{ rotate: isCollapsed ? 180 : 0 }}
+            transition={{ duration: 0.4, ease: customEase }}
           >
-            <div className="w-9 h-9 rounded-full bg-gray-700 overflow-hidden">
-              <Image
-                src={user.avatar || "/placeholder.svg"}
-                alt={user.name}
-                className="w-full h-full object-cover"
-                width={36}
-                height={36}
-              />
-            </div>
-            {user.name !== "Guraissay" && (
-              <div className="absolute bottom-0 left-0 bg-red-500 text-white text-[8px] px-1 rounded">
-                LIVE
-              </div>
-            )}
-          </Link>
-        ))}
-      </div>
-    </>
-  );
+            <ArrowLeft size={18} />
+          </motion.div>
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-full"
+            initial={{ scale: 0, opacity: 0 }}
+            whileHover={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          />
+        </motion.button>
+      </motion.div>
 
-  const renderMobileSidebarContent = () => (
-    <div className="p-4 flex flex-col gap-5 h-full overflow-y-auto">
-      <div className="flex justify-between items-center w-full mb-4 px-[1em]">
-        <span className="text-white/60 font-medium">MENU</span>
-        <button
-          className="text-white p-1 hover:bg-[#2D2F31]/60 rounded-full"
-          onClick={onClose}
-        >
-          <ArrowLeft size={20} />
-        </button>
-      </div>
-
-      <nav className="flex flex-col gap-1">
-        {navItems.map((item) => {
+      <motion.nav variants={itemVariants} className="flex flex-col gap-1">
+        {navItems.map((item, index) => {
           const isActive = isRouteActive(item.href);
           return (
-            <Link
+            <motion.div
               key={item.label}
-              href={`/explore${item.href}`}
-              className={`flex items-center gap-3 p-3 rounded-md transition-colors ${
-                isActive
-                  ? "bg-[#2D2F31] text-white"
-                  : "text-white/60 hover:text-white hover:bg-[#2D2F31]/60"
-              }`}
-              onClick={onClose}
+              variants={itemVariants}
+              custom={index}
+              whileHover="hover"
+              whileTap="tap"
+              initial="rest"
+              animate="rest"
             >
-              <item.icon
-                size={20}
-                className={isActive ? "text-white" : "text-white/60"}
-              />
-              <span>{item.label}</span>
-            </Link>
+              <motion.div variants={navItemVariants}>
+                <Link
+                  href={`/explore${item.href}`}
+                  className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 relative overflow-hidden ${
+                    isActive
+                      ? `${bgClasses.selected} ${textClasses.primary} shadow-lg border-l-4 border-purple-500`
+                      : `${textClasses.secondary} hover:${textClasses.primary} ${bgClasses.hover}`
+                  }`}
+                >
+                  <motion.div
+                    animate={isActive ? { scale: [1, 1.2, 1] } : {}}
+                    transition={{ duration: 0.5, ease: easeInOut }}
+                  >
+                    <item.icon
+                      size={20}
+                      className={
+                        isActive ? textClasses.primary : textClasses.secondary
+                      }
+                    />
+                  </motion.div>
+                  <motion.span
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05, duration: 0.3 }}
+                    className="font-medium"
+                  >
+                    {item.label}
+                  </motion.span>
+                  {isActive && (
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  )}
+                </Link>
+              </motion.div>
+            </motion.div>
           );
         })}
-      </nav>
+      </motion.nav>
 
-      <hr className="bg-white/10 my-4 border-t border-white/10" />
+      <motion.hr
+        variants={itemVariants}
+        className={`my-4 border-t ${borderClasses.primary}`}
+      />
 
-      <div>
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-1">
+      <motion.div variants={itemVariants}>
+        <motion.h3
+          className={`text-xs font-bold ${textClasses.tertiary} uppercase tracking-wider mb-3 px-1`}
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.3 }}
+        >
           RECOMMENDED
-        </h3>
+        </motion.h3>
         <div className="space-y-1">
-          {recommendedUsers.map((user) => (
-            <Link
+          {recommendedUsers.map((user, index) => (
+            <motion.div
               key={user.name}
-              href="#"
-              className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-[#2D2F31]/60 transition-colors"
-              onClick={onClose}
+              variants={itemVariants}
+              custom={index}
+              whileHover="hover"
+              initial="rest"
+              animate="rest"
             >
-              <div className="relative w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
-                <Image
-                  src={user.avatar || "/placeholder.svg"}
-                  alt={user.name}
-                  className="w-full h-full object-cover"
-                  width={32}
-                  height={32}
-                />
-                {user.status.toLowerCase().includes("watching") && (
-                  <div className="absolute bottom-0 left-0 bg-red-500 text-white text-[8px] px-1 rounded">
-                    LIVE
+              <motion.div variants={navItemVariants}>
+                <Link
+                  href="#"
+                  className={`flex items-center gap-3 px-2 py-2 rounded-lg ${bgClasses.hover}`}
+                >
+                  <motion.div
+                    variants={avatarVariants}
+                    className={`relative w-8 h-8 rounded-full ${bgClasses.tertiary} overflow-hidden`}
+                  >
+                    <Image
+                      src={user.avatar || "/placeholder.svg"}
+                      alt={user.name}
+                      className="w-full h-full object-cover"
+                      width={32}
+                      height={32}
+                    />
+                    {user.status.toLowerCase().includes("watching") && (
+                      <motion.div
+                        variants={liveIndicatorVariants}
+                        animate="animate"
+                        className="absolute bottom-0 left-0 bg-red-500 text-white text-[8px] px-1 rounded shadow-lg"
+                      >
+                        LIVE
+                      </motion.div>
+                    )}
+                  </motion.div>
+                  <div>
+                    <motion.div
+                      className={`text-sm ${textClasses.primary} font-medium`}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05, duration: 0.3 }}
+                    >
+                      {user.name}
+                    </motion.div>
+                    <motion.div
+                      className={`text-xs ${textClasses.tertiary}`}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 + 0.1, duration: 0.3 }}
+                    >
+                      {user.status}
+                    </motion.div>
                   </div>
-                )}
-              </div>
-              <div>
-                <div className="text-sm text-white font-medium">
-                  {user.name}
-                </div>
-                <div className="text-xs text-white/40">{user.status}</div>
-              </div>
-            </Link>
+                </Link>
+              </motion.div>
+            </motion.div>
           ))}
         </div>
-        <button
-          className="w-full mt-3 text-sm text-white bg-[#2D2F31]/60 hover:bg-[#2D2F31] rounded-md py-2.5 text-center"
-          onClick={onClose}
+        <motion.button
+          variants={itemVariants}
+          className={`w-full mt-3 text-sm ${buttonClasses.secondary} rounded-lg py-2.5 text-center font-medium`}
+          whileHover={{ scale: 1.02, y: -1 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
         >
           See more
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
 
-      <hr className="bg-white/10 my-4 border-t border-white/10" />
+      <motion.hr
+        variants={itemVariants}
+        className={`my-4 border-t ${borderClasses.primary}`}
+      />
 
-      <div>
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-1">
+      <motion.div variants={itemVariants}>
+        <motion.h3
+          className={`text-xs font-bold ${textClasses.tertiary} uppercase tracking-wider mb-3 px-1`}
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.3 }}
+        >
           FOLLOWING
-        </h3>
+        </motion.h3>
         <div className="space-y-1">
-          {recommendedUsers.map((user) => (
-            <Link
+          {recommendedUsers.map((user, index) => (
+            <motion.div
               key={`following-${user.name}`}
-              href="#"
-              className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-[#2D2F31]/60 transition-colors"
-              onClick={onClose}
+              variants={itemVariants}
+              custom={index}
+              whileHover="hover"
+              initial="rest"
+              animate="rest"
             >
-              <div className="relative w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
+              <motion.div variants={navItemVariants}>
+                <Link
+                  href="#"
+                  className={`flex items-center gap-3 px-2 py-2 rounded-lg ${bgClasses.hover}`}
+                >
+                  <motion.div
+                    variants={avatarVariants}
+                    className={`relative w-8 h-8 rounded-full ${bgClasses.tertiary} overflow-hidden`}
+                  >
+                    <Image
+                      src={user.avatar || "/placeholder.svg"}
+                      alt={user.name}
+                      className="w-full h-full object-cover"
+                      width={32}
+                      height={32}
+                    />
+                    {user.name !== "Guraissay" && (
+                      <motion.div
+                        variants={liveIndicatorVariants}
+                        animate="animate"
+                        className="absolute bottom-0 left-0 bg-red-500 text-white text-[8px] px-1 rounded shadow-lg"
+                      >
+                        LIVE
+                      </motion.div>
+                    )}
+                  </motion.div>
+                  <div>
+                    <motion.div
+                      className={`text-sm ${textClasses.primary} font-medium`}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05, duration: 0.3 }}
+                    >
+                      {user.name}
+                    </motion.div>
+                    <motion.div
+                      className={`text-xs ${textClasses.tertiary}`}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 + 0.1, duration: 0.3 }}
+                    >
+                      {user.name === "Zyn"
+                        ? "100K Followers"
+                        : user.name === "monki"
+                          ? "3.7K followers"
+                          : "520K followers"}
+                    </motion.div>
+                  </div>
+                </Link>
+              </motion.div>
+            </motion.div>
+          ))}
+        </div>
+        <motion.button
+          variants={itemVariants}
+          className={`w-full mt-3 text-sm ${buttonClasses.secondary} rounded-lg py-2.5 text-center font-medium`}
+          whileHover={{ scale: 1.02, y: -1 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        >
+          See more
+        </motion.button>
+      </motion.div>
+    </motion.div>
+  );
+
+  const renderCollapsedContent = () => (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.3, ease: customEase }}
+      className="w-full"
+    >
+      <div className="flex justify-center items-center w-full mb-4">
+        <motion.button
+          className={`p-2 ${bgClasses.hover} rounded-full ${textClasses.primary} relative overflow-hidden`}
+          onClick={toggleCollapsed}
+          whileHover={{ scale: 1.1, rotate: -5 }}
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        >
+          <motion.div
+            animate={{ rotate: isCollapsed ? 0 : 180 }}
+            transition={{ duration: 0.4, ease: customEase }}
+          >
+            <ArrowRight size={18} />
+          </motion.div>
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-full"
+            initial={{ scale: 0, opacity: 0 }}
+            whileHover={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          />
+        </motion.button>
+      </div>
+
+      <motion.nav className="flex flex-col gap-3 items-center">
+        {navItems.map((item, index) => {
+          const isActive = isRouteActive(item.href);
+          return (
+            <motion.div
+              key={item.label}
+              initial={{ opacity: 0, y: 20, scale: 0.8 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{
+                delay: index * 0.1,
+                duration: 0.4,
+                ease: customEase,
+              }}
+              whileHover={{ scale: 1.1, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Link
+                href={`/explore${item.href}`}
+                className={`flex items-center justify-center p-3 rounded-lg transition-all duration-300 relative ${
+                  isActive
+                    ? `${bgClasses.selected} ${textClasses.primary} shadow-lg ring-2 ring-purple-500/30`
+                    : `${textClasses.secondary} hover:${textClasses.primary} ${bgClasses.hover}`
+                }`}
+                title={item.label}
+              >
+                <motion.div
+                  animate={isActive ? { scale: [1, 1.3, 1] } : {}}
+                  transition={{ duration: 0.6, ease: easeInOut }}
+                >
+                  <item.icon
+                    size={20}
+                    className={
+                      isActive ? textClasses.primary : textClasses.secondary
+                    }
+                  />
+                </motion.div>
+                {isActive && (
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-transparent rounded-lg"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                  />
+                )}
+              </Link>
+            </motion.div>
+          );
+        })}
+      </motion.nav>
+
+      <motion.hr
+        initial={{ opacity: 0, scaleX: 0 }}
+        animate={{ opacity: 1, scaleX: 1 }}
+        transition={{ delay: 0.5, duration: 0.3 }}
+        className={`my-4 border-t ${borderClasses.primary}`}
+      />
+
+      <motion.div className="flex flex-col items-center gap-3">
+        {recommendedUsers.map((user, index) => (
+          <motion.div
+            key={user.name}
+            initial={{ opacity: 0, scale: 0.5, rotate: -10 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            transition={{
+              delay: 0.6 + index * 0.1,
+              duration: 0.4,
+              ease: customEase,
+            }}
+            whileHover={{ scale: 1.15, rotate: 5, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Link href="#" className="relative" title={user.name}>
+              <div
+                className={`w-9 h-9 rounded-full ${bgClasses.tertiary} overflow-hidden shadow-lg`}
+              >
                 <Image
                   src={user.avatar || "/placeholder.svg"}
                   alt={user.name}
                   className="w-full h-full object-cover"
-                  width={32}
-                  height={32}
+                  width={36}
+                  height={36}
                 />
-                {user.name !== "Guraissay" && (
-                  <div className="absolute bottom-0 left-0 bg-red-500 text-white text-[8px] px-1 rounded">
-                    LIVE
-                  </div>
-                )}
               </div>
-              <div>
-                <div className="text-sm text-white font-medium">
-                  {user.name}
-                </div>
-                <div className="text-xs text-white/40">
-                  {user.name === "Zyn"
-                    ? "100K Followers"
-                    : user.name === "monki"
-                      ? "3.7K followers"
-                      : "520K followers"}
-                </div>
-              </div>
+              {user.status.toLowerCase().includes("watching") && (
+                <motion.div
+                  variants={liveIndicatorVariants}
+                  animate="animate"
+                  className="absolute -bottom-1 -left-1 bg-red-500 text-white text-[8px] px-1 rounded shadow-lg"
+                >
+                  LIVE
+                </motion.div>
+              )}
             </Link>
-          ))}
-        </div>
-        <button
-          className="w-full mt-3 text-sm text-white bg-[#2D2F31]/60 hover:bg-[#2D2F31] rounded-md py-2.5 text-center"
-          onClick={onClose}
-        >
-          See more
-        </button>
-      </div>
-    </div>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      <motion.hr
+        initial={{ opacity: 0, scaleX: 0 }}
+        animate={{ opacity: 1, scaleX: 1 }}
+        transition={{ delay: 0.8, duration: 0.3 }}
+        className={`my-4 border-t ${borderClasses.primary}`}
+      />
+
+      <motion.div className="flex flex-col items-center gap-3">
+        {recommendedUsers.map((user, index) => (
+          <motion.div
+            key={`following-${user.name}`}
+            initial={{ opacity: 0, scale: 0.5, rotate: 10 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            transition={{
+              delay: 0.9 + index * 0.1,
+              duration: 0.4,
+              ease: customEase,
+            }}
+            whileHover={{ scale: 1.15, rotate: -5, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Link href="#" className="relative" title={user.name}>
+              <div
+                className={`w-9 h-9 rounded-full ${bgClasses.tertiary} overflow-hidden shadow-lg`}
+              >
+                <Image
+                  src={user.avatar || "/placeholder.svg"}
+                  alt={user.name}
+                  className="w-full h-full object-cover"
+                  width={36}
+                  height={36}
+                />
+              </div>
+              {user.name !== "Guraissay" && (
+                <motion.div
+                  variants={liveIndicatorVariants}
+                  animate="animate"
+                  className="absolute -bottom-1 -left-1 bg-red-500 text-white text-[8px] px-1 rounded shadow-lg"
+                >
+                  LIVE
+                </motion.div>
+              )}
+            </Link>
+          </motion.div>
+        ))}
+      </motion.div>
+    </motion.div>
   );
 
   return (
     <>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            className="fixed inset-0 bg-black z-20 lg:hidden"
-            initial="closed"
-            animate="open"
-            exit="closed"
-            variants={overlayVariants}
-            onClick={handleOverlayClick}
-          />
-        )}
-      </AnimatePresence>
-
       <motion.div
-        className="fixed top-0 left-0 bottom-0 w-64 bg-black z-30 lg:hidden scrollbar-hide overflow-y-auto"
-        initial="closed"
-        animate={isOpen ? "open" : "closed"}
+        className={`hidden lg:block ${bgClasses.highlight} flex-shrink-0 relative overflow-hidden border-r ${borderClasses.primary} shadow-lg`}
         variants={sidebarVariants}
+        animate={isCollapsed ? "collapsed" : "expanded"}
+        style={{ willChange: "width" }}
       >
-        {renderMobileSidebarContent()}
-      </motion.div>
-
-      <motion.div
-        className="hidden lg:block bg-[#17191A] flex-shrink-0"
-        initial={{ width: "260px" }}
-        animate={{ width: isCollapsed ? "70px" : "260px" }}
-        transition={{
-          type: "spring",
-          stiffness: 300,
-          damping: 30,
-        }}
-      >
-        <div className="p-4 flex flex-col gap-5 h-full overflow-y-auto scrollbar-hide">
-          {isCollapsed ? renderCollapsedContent() : renderExpandedContent()}
+        <div className="absolute inset-0">
+          <div className="p-4 flex flex-col gap-5 h-full overflow-hidden">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={isCollapsed ? "collapsed" : "expanded"}
+                className="w-full h-full"
+                style={{ willChange: "transform, opacity" }}
+              >
+                {isCollapsed
+                  ? renderCollapsedContent()
+                  : renderExpandedContent()}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
       </motion.div>
+
+      <QuickActions />
     </>
   );
 }
