@@ -10,7 +10,6 @@
     "lint": "next lint",
     "setup-db": "node scripts/setup-db.cjs",
     "update-schema": "node scripts/updateUserSchema.mjs"
-
   },
   "dependencies": {
     "@fontsource/inter": "^5.1.1",
@@ -25,6 +24,7 @@
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.6.1",
     "clsx": "^2.1.1",
+    "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.7",
     "embla-carousel-react": "^8.5.2",
@@ -54,6 +54,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@types/cors": "^2.8.19",
     "@types/formidable": "^3.4.5",
     "@types/mongoose": "^5.11.96",
     "@types/node": "^20",
