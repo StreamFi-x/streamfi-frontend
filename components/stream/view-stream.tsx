@@ -34,6 +34,8 @@ import {
   textClasses,
 } from "@/lib/theme-classes";
 import { text } from "stream/consumers";
+import { Flag } from "lucide-react";
+import ReportLiveStreamModal from "../modals/ReportLiveStreamModal";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,
@@ -202,6 +204,7 @@ const ViewStream = ({
   const [videoQuality, setVideoQuality] = useState("720p");
   const [showQualityOptions, setShowQualityOptions] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
@@ -610,6 +613,22 @@ const ViewStream = ({
                   </div>
                 </div>
 
+                {/* Report Live Stream Button */}
+                {!isOwner && (
+                  <div className="p-4 border-b border-gray-800">
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={() => setShowReportModal(true)}
+                        variant="outline"
+                        className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-gray-600 text-xs px-3 py-2 h-8"
+                      >
+                        <Flag className="h-3 w-3 mr-2" />
+                        Report Live Stream
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* About section */}
                 <div className={"p-4 border-b border-gray-"}>
                   <div className="flex items-center justify-between mb-1">
@@ -744,6 +763,13 @@ const ViewStream = ({
           username={username}
         />
       )}
+
+      {/* Report Live Stream Modal */}
+      <ReportLiveStreamModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        username={username}
+      />
     </DashboardScreenGuard>
   );
 };
