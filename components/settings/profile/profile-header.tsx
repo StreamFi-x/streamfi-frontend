@@ -40,7 +40,7 @@ export function ProfileHeader({ avatar, onAvatarClick }: ProfileHeaderProps) {
   return (
     <div className={combineClasses(componentClasses.card, "p-4 mb-6")}>
       <div className="flex items-center gap-4">
-        <div className={combineClasses("relative w-24 h-24 rounded-full overflow-hidden border-2", borderClasses.primary)}>
+        <div className={combineClasses("relative w-24 h-24 rounded-full overflow-hidden border-2 p-2", borderClasses.primary)}>
           {typeof avatarSrc === 'string' && avatarSrc.includes('cloudinary.com') ? (
             <img
               src={avatarSrc}
