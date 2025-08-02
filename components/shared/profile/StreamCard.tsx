@@ -27,12 +27,20 @@ const StreamCard = ({
     <Link href={`/${username}/watch?v=${id}`}>
       <div className="group cursor-pointer rounded-lg overflow-hidden transition-colors">
         <div className="relative aspect-video overflow-hidden">
-          <Image
-            src={thumbnailUrl || "/placeholder.svg?height=180&width=320"}
-            alt={title}
-            fill
-            className="object-cover transition-transform group-hover:scale-105"
-          />
+          {typeof thumbnailUrl === 'string' && thumbnailUrl.includes('cloudinary.com') ? (
+            <img
+              src={thumbnailUrl}
+              alt={title}
+              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+            />
+          ) : (
+            <Image
+              src={thumbnailUrl || "/placeholder.svg?height=180&width=320"}
+              alt={title}
+              fill
+              className="object-cover transition-transform group-hover:scale-105"
+            />
+          )}
 
           {isLive && (
             <div className="absolute top-3 left-3 bg-red-600 text-white text-sm px-3 py-1.5 rounded-sm font-medium">
@@ -53,13 +61,21 @@ const StreamCard = ({
         <div className="p-4">
           <div className="flex items-center mb-3">
             <div className="w-8 h-8 bg-gray-600 rounded-full mr-3 flex-shrink-0 overflow-hidden">
-              <Image
-                src={thumbnailUrl || "/placeholder.svg?height=180&width=320"}
-                alt={username}
-                width={32}
-                height={32}
-                className="object-cover"
-              />
+              {typeof thumbnailUrl === 'string' && thumbnailUrl.includes('cloudinary.com') ? (
+                <img
+                  src={thumbnailUrl}
+                  alt={username}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Image
+                  src={thumbnailUrl || "/placeholder.svg?height=180&width=320"}
+                  alt={username}
+                  width={32}
+                  height={32}
+                  className="object-cover"
+                />
+              )}
             </div>
             <span className="text-base text-gray-300 font-medium">
               {username}

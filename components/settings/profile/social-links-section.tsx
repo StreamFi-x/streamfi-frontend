@@ -18,6 +18,8 @@ import {
   bgClasses,
   textClasses,
   componentClasses,
+  buttonClasses,
+  borderClasses,
   combineClasses,
 } from "@/lib/theme-classes";
 import type {
@@ -62,6 +64,7 @@ export function SocialLinksSection({
   isDuplicateUrl,
   validateAndIdentifyLink,
 }: SocialLinksSectionProps) {
+
   const getInputStyle = (inputName: string) => {
     return combineClasses(
       "w-full",
@@ -181,7 +184,21 @@ export function SocialLinksSection({
       );
 
       if (validatedLink) {
-        setSocialLinks([...socialLinks, validatedLink]);
+        // Check if platform already exists
+        const existingPlatformIndex = socialLinks.findIndex(
+          link => link.platform === validatedLink.platform
+        );
+
+        if (existingPlatformIndex !== -1) {
+          // Replace the existing link for this platform
+          const newLinks = [...socialLinks];
+          newLinks[existingPlatformIndex] = validatedLink;
+          setSocialLinks(newLinks);
+        } else {
+          // Add new link
+          setSocialLinks([...socialLinks, validatedLink]);
+        }
+        
         updateFormField("socialLinkUrl", "");
         updateFormField("socialLinkTitle", "");
       }
@@ -223,9 +240,24 @@ export function SocialLinksSection({
         return;
       }
 
-      const newLinks = [...socialLinks];
-      newLinks[editingIndex] = validatedLink;
-      setSocialLinks(newLinks);
+      // Check if the platform already exists in another link (not the one being edited)
+      const existingPlatformIndex = socialLinks.findIndex(
+        (link, index) => index !== editingIndex && link.platform === validatedLink.platform
+      );
+
+      if (existingPlatformIndex !== -1) {
+        // Replace the existing link for this platform
+        const newLinks = [...socialLinks];
+        newLinks[existingPlatformIndex] = validatedLink;
+        // Remove the link being edited
+        newLinks.splice(editingIndex, 1);
+        setSocialLinks(newLinks);
+      } else {
+        // Update the link normally
+        const newLinks = [...socialLinks];
+        newLinks[editingIndex] = validatedLink;
+        setSocialLinks(newLinks);
+      }
 
       // Reset edit state
       setEditState({
@@ -364,8 +396,8 @@ export function SocialLinksSection({
             onClick={handleAddSocialLink}
             disabled={socialLinks.length >= 5 || !formState.socialLinkUrl}
             className={combineClasses(
-              bgClasses.input,
-              "px-6 py-2 rounded-md hover:bg-[#444] transition text-sm disabled:opacity-50",
+              buttonClasses.primary,
+              "px-6 py-2 rounded-md transition text-sm disabled:opacity-50",
             )}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -380,17 +412,17 @@ export function SocialLinksSection({
 
       {/* Display social links */}
       <AnimatePresence>
-        {socialLinks.length > 0 && (
+                     {socialLinks.length > 0 && (
           <motion.div
             className="space-y-2 mt-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
-            {socialLinks.map((link, index) => (
+                               {socialLinks.map((link, index) => (
               <motion.div
                 key={index}
-                className="flex bg-[#1e1e1e] rounded text-sm"
+                className={combineClasses("flex rounded text-sm border-2", bgClasses.card, borderClasses.primary)}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
@@ -420,7 +452,6 @@ export function SocialLinksSection({
                         style={{
                           outlineWidth: 0,
                           boxShadow: "none",
-                          background: "#333",
                         }}
                         placeholder="Link Title"
                         autoFocus
@@ -449,7 +480,6 @@ export function SocialLinksSection({
                         style={{
                           outlineWidth: 0,
                           boxShadow: "none",
-                          background: "#333",
                         }}
                         placeholder="Link URL"
                       />

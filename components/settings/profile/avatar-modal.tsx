@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import { X } from "lucide-react";
 
 interface AvatarSelectionModalProps {
@@ -16,12 +16,23 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
   avatarOptions,
 }) => {
   const [previewAvatar, setPreviewAvatar] = useState<any>(currentAvatar);
+  const [previewSrc, setPreviewSrc] = useState<string | StaticImageData>(currentAvatar);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setPreviewAvatar(currentAvatar);
+    setUploadedFile(null);
     setUploadedFileUrl(null);
+    
+    if (currentAvatar instanceof File) {
+      const objectURL = URL.createObjectURL(currentAvatar);
+      setPreviewSrc(objectURL);
+      return () => URL.revokeObjectURL(objectURL);
+    } else {
+      setPreviewSrc(currentAvatar);
+    }
   }, [currentAvatar]);
 
   const handleFileUploadClick = () => {
@@ -47,22 +58,26 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
 
     const objectURL = URL.createObjectURL(file);
 
+    setUploadedFile(file);
     setUploadedFileUrl(objectURL);
-    setPreviewAvatar(objectURL);
+    setPreviewAvatar(file); // Set the file as previewAvatar
+    setPreviewSrc(objectURL); // Set the object URL for display
 
     event.target.value = "";
   };
 
   const handleSelectAvatar = (selectedAvatar: any) => {
     setPreviewAvatar(selectedAvatar);
-
+    setUploadedFile(null);
     setUploadedFileUrl(null);
   };
 
   const handleSaveChanges = () => {
-    if (uploadedFileUrl) {
-      onSaveAvatar(uploadedFileUrl);
+    if (uploadedFile) {
+      // Return the actual File object for upload
+      onSaveAvatar(uploadedFile);
     } else if (previewAvatar) {
+      // Return the selected avatar (could be URL or StaticImageData)
       onSaveAvatar(previewAvatar);
     }
 
@@ -81,12 +96,20 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
 
         <div className="flex justify-center mb-6">
           <div className="relative w-24 h-24 rounded-full overflow-hidden bg-purple-600">
-            <Image
-              src={previewAvatar}
-              alt="Avatar Preview"
-              fill
-              className="object-cover"
-            />
+            {typeof previewSrc === 'string' && previewSrc.includes('cloudinary.com') ? (
+              <img
+                src={previewSrc}
+                alt="Avatar Preview"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Image
+                src={previewSrc}
+                alt="Avatar Preview"
+                fill
+                className="object-cover"
+              />
+            )}
           </div>
         </div>
 
@@ -122,17 +145,25 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
               key={index}
               onClick={() => handleSelectAvatar(avatar)}
               className={`relative w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden border-2 ${
-                previewAvatar === avatar
+                previewSrc === avatar
                   ? "border-purple-500"
                   : "border-transparent hover:border-purple-500"
               } focus:border-purple-500 transition`}
             >
-              <Image
-                src={avatar}
-                alt={`Avatar option ${index + 1}`}
-                fill
-                className="object-cover"
-              />
+              {typeof avatar === 'string' && avatar.includes('cloudinary.com') ? (
+                <img
+                  src={avatar}
+                  alt={`Avatar option ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Image
+                  src={avatar}
+                  alt={`Avatar option ${index + 1}`}
+                  fill
+                  className="object-cover"
+                />
+              )}
             </button>
           ))}
         </div>
