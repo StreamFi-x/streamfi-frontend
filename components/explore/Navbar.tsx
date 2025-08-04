@@ -303,13 +303,21 @@ export default function Navbar({}: NavbarProps) {
                   <span className={`${textClasses.primary}`}>
                     {truncatedDisplayName}
                   </span>
-                  <Image
-                    src={userAvatar || Avatar}
-                    alt="Avatar"
-                    width={40}
-                    height={40}
-                    className=""
-                  />
+                  {typeof userAvatar === 'string' && userAvatar.includes('cloudinary.com') ? (
+                    <img
+                      src={userAvatar}
+                      alt="Avatar"
+                      className="w-6 h-6 rounded-full object-cover "
+                    />
+                  ) : (
+                    <Image
+                      src={userAvatar || Avatar}
+                      alt="Avatar"
+                      width={32}
+                      height={32}
+                      className=""
+                    />
+                  )}
                 </div>
 
                 {/* Render ProfileDropdown with AnimatePresence */}
