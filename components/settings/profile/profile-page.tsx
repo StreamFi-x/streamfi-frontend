@@ -23,11 +23,13 @@ import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
 import type { StaticImageData } from "next/image";
 import { SocialLinksSection } from "./social-links-section";
 import { SaveSection } from "./save-section";
+import { useToast } from "@/components/ui/toast-provider";
 
 export default function ProfileSettings() {
   const { user, isLoading, updateUserProfile } = useAuth();
-
+console.log("User in ProfileSettings:", user);
   const avatarOptions = [Avatar, Avatar, Avatar, Avatar, Avatar];
+  const { showToast } = useToast();
 
   const [avatar, setAvatar] = useState<StaticImageData | string>(profileImage);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
@@ -278,33 +280,33 @@ export default function ProfileSettings() {
 
   const handleSaveChanges = async () => {
     updateUiState({ isSaving: true, saveError: "", saveSuccess: false });
-
+  
     try {
-      // Convert social links array to object format for API
       const socialLinksObj: Record<string, string> = {};
       socialLinks.forEach((link) => {
         socialLinksObj[link.platform] = link.url;
       });
-
-      // Update user profile
+  
       const success = await updateUserProfile({
         username: formState.username,
         bio: formState.bio,
         socialLinks: socialLinksObj,
       });
-
+  
       if (success) {
-        updateUiState({ saveSuccess: true });
+        showToast("Profile updated successfully!", "success");
       } else {
-        updateUiState({ saveError: "Failed to save changes" });
+        showToast("Failed to save changes. Please try again.", "error");
       }
     } catch (error) {
       console.error("Error saving profile:", error);
-      updateUiState({ saveError: "An unexpected error occurred" });
+      showToast("An unexpected error occurred.", "error");
     } finally {
       updateUiState({ isSaving: false });
     }
   };
+  
+  
 
   return (
     <div

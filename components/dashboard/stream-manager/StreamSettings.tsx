@@ -93,14 +93,14 @@ export default function StreamSettings() {
           </div>
 
           <div
-            className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.secondary} p-3`}
+            className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.primary} p-3`}
           >
             <div className="mb-3">
               <div className={`text-sm ${textClasses.tertiary} mb-1`}>
                 STRK (Starknet) Address
               </div>
               <div
-                className={`flex items-center ${bgClasses.card} rounded-md p-2 border ${borderClasses.primary}`}
+                className={`flex items-center ${bgClasses.secondary} rounded-md p-2 border ${borderClasses.primary}`}
               >
                 <div
                   className={`flex-1 text-xs font-mono truncate ${textClasses.secondary}`}
@@ -121,7 +121,7 @@ export default function StreamSettings() {
                 USDT (Tether) Address
               </div>
               <div
-                className={`flex items-center ${bgClasses.card} rounded-md p-2 border ${borderClasses.primary}`}
+                className={`flex items-center ${bgClasses.secondary} rounded-md p-2 border ${borderClasses.primary}`}
               >
                 <div
                   className={`flex-1 text-xs font-mono truncate ${textClasses.secondary}`}

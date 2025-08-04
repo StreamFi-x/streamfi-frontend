@@ -19,8 +19,8 @@ export interface User {
   avatar?: string;
   bio?: string;
   socialLinks: SocialLink[];
-  emailVerified: boolean;
-  emailNotifications: boolean;
+  emailVerified?: boolean;
+  emailNotifications?: boolean;
   creator: Creator;
   created_at: string;
   updated_at: string;
@@ -35,14 +35,15 @@ export interface UserRegistrationInput {
   creator?: Partial<Creator>;
 }
 
-export interface UserUpdateInput {
+export type UserUpdateInput = {
   username?: string;
   email?: string;
-  streamkey?: string;
-  avatar?: string;
   bio?: string;
-  socialLinks?: SocialLink[];
+  wallet?: string;
+  avatar?: string | File;
+  streamkey?: string;
   emailVerified?: boolean;
   emailNotifications?: boolean;
-  creator?: Partial<Creator>;
-}
+  socialLinks?: Record<string, string>;
+  creator?: Creator;
+};

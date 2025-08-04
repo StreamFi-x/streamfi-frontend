@@ -187,7 +187,7 @@ const UserDropdown = ({ username }: UserDropdownProps) => {
     },
     {
       id: "footer",
-      items: [{ icon: <LogOut size={20} />, label: "Disconnect", route: "#" }],
+      items: [{ icon: <LogOut size={20} />, label: "Disconnect", route: "/explore" }],
     },
   ];
 

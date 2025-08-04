@@ -53,7 +53,7 @@ const ProfileHeader = ({
               className={combineClasses(
                 buttonClasses.secondary,
                 textClasses.onColor,
-                "border-none",
+                "border-none"
               )}
             >
               Follow
@@ -61,7 +61,7 @@ const ProfileHeader = ({
             <Button
               className={combineClasses(
                 buttonClasses.outline,
-                textClasses.primary,
+                textClasses.primary
               )}
             >
               Subscribe
@@ -69,7 +69,7 @@ const ProfileHeader = ({
             <Button
               className={combineClasses(
                 buttonClasses.outline,
-                textClasses.primary,
+                textClasses.primary
               )}
             >
               <ExternalLink className="h-4 w-4" />
