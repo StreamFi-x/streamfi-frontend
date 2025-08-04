@@ -99,9 +99,9 @@ export default function StreamManagerPage() {
       >
         {/* Stats Bar */}
         <div
-          className={`flex justify-between items-center p-4 border-b ${borderClasses.primary}`}
+          className={`flex justify-between items-center px-2 border-b ${borderClasses.primary}`}
         >
-          <div className="flex space-x-4">
+          <div className="flex space-x-4 ">
             <StatsCard title="Viewers" value={stats.viewers} />
             <StatsCard title="New followers" value={stats.followers} />
             <StatsCard title="Donations" value={stats.donations} />
@@ -117,17 +117,17 @@ export default function StreamManagerPage() {
           {/* Main Grid Layout */}
           <div className="grid grid-cols-12 gap-2 w-full p-2">
             {/* Stream Preview - Takes up 8 columns on large screens, full width on small */}
-            <div className="col-span-10 lg:col-span-6 h-full">
+            <div className="col-span-10 lg:col-span-6 h-full w-full">
               <div className="h-[calc(100vh-13rem)] lg:h-[calc(100vh-20rem)]">
                 <StreamPreview />
               </div>
-              <div className="h-48 mt-2">
+              <div className="h-44 mt-2">
                 <ActivityFeed />
               </div>
             </div>
 
             {/* Chat - Takes up 2 columns on large screens */}
-            <div className="col-span-12 lg:col-span-3 h-[calc(100vh-8rem)]">
+            <div className="col-span-12 lg:col-span-3 h-[calc(100vh-9rem)]">
               <Chat />
             </div>
 
@@ -179,12 +179,12 @@ const StatsCard: React.FC<{ title: string; value: number }> = ({
   value,
 }) => (
   <motion.div
-    className={`${bgClasses.card} px-6 py-3 rounded-md text-center border ${borderClasses.primary}`}
+    className={`${bgClasses.card} px-4 py-1.5 rounded-md text-center border ${borderClasses.primary}`}
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.3 }}
   >
-    <div className={`text-2xl font-bold ${textClasses.primary}`}>{value}</div>
-    <div className={`text-sm ${textClasses.tertiary}`}>{title}</div>
+    <div className={`text-xl font-bold ${textClasses.primary}`}>{value}</div>
+    <div className={`text-xs ${textClasses.tertiary}`}>{title}</div>
   </motion.div>
 );

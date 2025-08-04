@@ -179,13 +179,21 @@ export function LiveStreams({
               className={`${bgClasses.card} group cursor-pointer p-2 pb-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-[1.02]`}
             >
               <div className="relative rounded-lg overflow-hidden">
-                <Image
-                  width={500}
-                  height={300}
-                  src={stream.thumbnail || "/placeholder.svg"}
-                  alt={stream.title}
-                  className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
-                />
+                {typeof stream.thumbnail === 'string' && stream.thumbnail.includes('cloudinary.com') ? (
+                  <img
+                    src={stream.thumbnail}
+                    alt={stream.title}
+                    className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                ) : (
+                  <Image
+                    width={500}
+                    height={300}
+                    src={stream.thumbnail || "/placeholder.svg"}
+                    alt={stream.title}
+                    className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                )}
 
                 <div className="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 text-sm rounded">
                   Live
@@ -200,13 +208,21 @@ export function LiveStreams({
               <div className="mt-2 flex flex-col items-start gap-2">
                 <div className="flex items-center gap-x-2">
                   <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0">
-                    <Image
-                      width={300}
-                      height={300}
-                      src={stream.streamer.logo || "/placeholder.svg"}
-                      alt={stream.streamer.name}
-                      className="w-full h-full object-cover"
-                    />
+                    {typeof stream.streamer.logo === 'string' && stream.streamer.logo.includes('cloudinary.com') ? (
+                      <img
+                        src={stream.streamer.logo}
+                        alt={stream.streamer.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Image
+                        width={300}
+                        height={300}
+                        src={stream.streamer.logo || "/placeholder.svg"}
+                        alt={stream.streamer.name}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
                   </div>
                   <p
                     className={combineClasses(
@@ -269,7 +285,7 @@ export function LiveStreams({
               disabled={isTransitioning}
               className={combineClasses(
                 "flex items-center justify-center gap-2 w-full outline-none border-none focus:ring-0 transition-opacity",
-                buttonClasses.secondary,
+                buttonClasses.reset,
                 isTransitioning
                   ? "opacity-70 cursor-not-allowed"
                   : "opacity-100",

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect, useCallback, use } from "react";
-import { StreamfiLogoShort } from "@/public/icons";
+import { StreamfiLogoLight, StreamfiLogoShort } from "@/public/icons";
 import { Search, Bell } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -217,8 +217,14 @@ export default function Navbar({}: NavbarProps) {
         <div className="flex items-center gap-4">
           <Link href="/explore" className="flex items-center gap-2">
             <Image
+              src={StreamfiLogoLight || "/placeholder.svg"}
+              alt="Streamfi Logo"
+              className="dark:hidden"
+            />
+            <Image
               src={StreamfiLogoShort || "/placeholder.svg"}
               alt="Streamfi Logo"
+              className="hidden dark:block"
             />
           </Link>
         </div>
@@ -297,13 +303,21 @@ export default function Navbar({}: NavbarProps) {
                   <span className={`${textClasses.primary}`}>
                     {truncatedDisplayName}
                   </span>
-                  <Image
-                    src={userAvatar || Avatar}
-                    alt="Avatar"
-                    width={40}
-                    height={40}
-                    className=""
-                  />
+                  {typeof userAvatar === 'string' && userAvatar.includes('cloudinary.com') ? (
+                    <img
+                      src={userAvatar}
+                      alt="Avatar"
+                      className="w-6 h-6 rounded-full object-cover "
+                    />
+                  ) : (
+                    <Image
+                      src={userAvatar || Avatar}
+                      alt="Avatar"
+                      width={32}
+                      height={32}
+                      className=""
+                    />
+                  )}
                 </div>
 
                 {/* Render ProfileDropdown with AnimatePresence */}

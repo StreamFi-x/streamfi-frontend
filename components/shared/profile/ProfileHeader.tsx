@@ -25,12 +25,20 @@ const ProfileHeader = ({
     <div className="flex items-center justify-between px-6 py-4">
       <div className="flex items-center">
         <div className="relative w-16 h-16 rounded-full overflow-hidden bg-purple-600 mr-4">
-          <Image
-            src={avatarUrl || "/Images/user.png"}
-            alt={username}
-            fill
-            className="object-cover"
-          />
+          {typeof avatarUrl === 'string' && avatarUrl.includes('cloudinary.com') ? (
+            <img
+              src={avatarUrl}
+              alt={username}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Image
+              src={avatarUrl || "/Images/user.png"}
+              alt={username}
+              fill
+              className="object-cover"
+            />
+          )}
         </div>
         <div>
           <h1
@@ -53,7 +61,7 @@ const ProfileHeader = ({
               className={combineClasses(
                 buttonClasses.secondary,
                 textClasses.onColor,
-                "border-none",
+                "border-none"
               )}
             >
               Follow
@@ -61,7 +69,7 @@ const ProfileHeader = ({
             <Button
               className={combineClasses(
                 buttonClasses.outline,
-                textClasses.primary,
+                textClasses.primary
               )}
             >
               Subscribe
@@ -69,7 +77,7 @@ const ProfileHeader = ({
             <Button
               className={combineClasses(
                 buttonClasses.outline,
-                textClasses.primary,
+                textClasses.primary
               )}
             >
               <ExternalLink className="h-4 w-4" />
