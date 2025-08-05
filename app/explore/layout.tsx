@@ -33,28 +33,16 @@ export default function ClientLayout({
   return (
     <main>
       <div className="flex  flex-col h-screen">
-        <Navbar />
+        {/* <Navbar /> */}
 
         <div className="flex flel flex- h-screen overflow-hidden">
-          <Sidebar />
+          {/* <Sidebar /> */}
 
           <main className="flex-1 overflow-y-auto scrollbar-hide">{children}</main>
         </div>
       </div>
 
-      <AnimatePresence>
-        {connectModalOpen && (
-          <ConnectModal
-            isOpen={connectModalOpen}
-            currentStep={connectStep}
-            onClose={handleCloseModal}
-            onNextStep={handleNextStep}
-            setIsProfileModalOpen={function (): void {
-              throw new Error("Function not implemented.");
-            }}
-          />
-        )}
-      </AnimatePresence>
+      
     </main>
   );
 }

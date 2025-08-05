@@ -21,13 +21,9 @@ export default function Sidebar() {
 
   // Helper function to render avatar images (handles Cloudinary URLs)
   const renderAvatar = (avatarUrl: string, alt: string) => {
-    if (avatarUrl?.includes('cloudinary.com')) {
+    if (avatarUrl?.includes("cloudinary.com")) {
       return (
-        <img
-          src={avatarUrl}
-          alt={alt}
-          className="w-full h-full object-cover"
-        />
+        <img src={avatarUrl} alt={alt} className="w-full h-full object-cover" />
       );
     }
     return (
@@ -52,8 +48,16 @@ export default function Sidebar() {
 
   const isRouteActive = (href: string) => {
     if (href === "/" && pathname === "/explore") return true;
-    if (href === "/browse" && (pathname === "/browse" || pathname.startsWith("/browse/"))) return true;
-    if (href === "/explore/browse" && (pathname === "/browse" || pathname.startsWith("/browse/"))) return true;
+    if (
+      href === "/browse" &&
+      (pathname === "/browse" || pathname.startsWith("/browse/"))
+    )
+      return true;
+    if (
+      href === "/explore/browse" &&
+      (pathname === "/browse" || pathname.startsWith("/browse/"))
+    )
+      return true;
     return (
       pathname === `/explore${href}` || pathname.startsWith(`/explore${href}/`)
     );
