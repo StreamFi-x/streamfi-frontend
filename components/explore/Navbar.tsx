@@ -8,11 +8,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { SearchResult } from "@/types/explore";
 import { useAccount, useDisconnect } from "@starknet-react/core";
 import { useAuth } from "@/components/auth/auth-provider";
-import ConnectModal from "../connectWallet";
-import ProfileModal from "./ProfileModal";
+import ConnectModal from "../connect-wallet";
+import ProfileModal from "./profile-modal";
 import SimpleLoader from "../ui/loader/simple-loader";
 import Avatar from "@/public/Images/user.png";
-import ProfileDropdown from "../ui/profileDropdown";
+import ProfileDropdown from "../ui/profile-dropdown";
 import {
   bgClasses,
   textClasses,
@@ -107,19 +107,19 @@ export default function Navbar({}: NavbarProps) {
         id: "1",
         title: `${searchQuery} Live Stream`,
         type: "stream",
-        image: "/icons/Recommend pfps.svg",
+        image: "/icons/recommend-pfps.svg",
       },
       {
         id: "2",
         title: `${searchQuery} Gaming Channel`,
         type: "channel",
-        image: "/icons/Recommend pfps.svg",
+        image: "/icons/recommend-pfps.svg",
       },
       {
         id: "3",
         title: `Best ${searchQuery} Moments`,
         type: "video",
-        image: "/icons/Recommend pfps.svg",
+        image: "/icons/recommend-pfps.svg",
       },
     ];
 

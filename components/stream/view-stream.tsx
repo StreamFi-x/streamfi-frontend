@@ -23,8 +23,8 @@ import {
 import Image from "next/image";
 import { JSX, useEffect, useRef, useState } from "react";
 import { FaDiscord, FaFacebook } from "react-icons/fa";
-import StreamInfoModal from "../dashboard/common/StreamInfoModal";
-import DashboardScreenGuard from "../explore/DashboardScreenGuard";
+import StreamInfoModal from "../dashboard/common/stream-info-modal";
+import DashboardScreenGuard from "../explore/dashboard-screen-guard";
 import { Button } from "../ui/button";
 import ChatSection from "./chat-section";
 import {
@@ -35,7 +35,7 @@ import {
 } from "@/lib/theme-classes";
 import { text } from "stream/consumers";
 import { Flag } from "lucide-react";
-import ReportLiveStreamModal from "../modals/ReportLiveStreamModal";
+import ReportLiveStreamModal from "../modals/report-live-stream-modal";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,

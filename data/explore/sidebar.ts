@@ -1,6 +1,6 @@
 import { Home, TrendingUp, Clock, Radio, Heart } from "lucide-react";
 import { Bell, Mail, MessageSquare, UserPlus, AtSign } from "lucide-react";
-import BrowseIcon from "@/components/icons/BrowseIcon";
+import BrowseIcon from "@/components/icons/browse-icon";
 
 export const sidebarVariants = {
   open: {
@@ -39,17 +39,17 @@ export const recommendedUsers = [
   {
     name: "Zyn",
     status: "2.75K watching",
-    avatar: "/icons/Recommend pfps.svg",
+    avatar: "/icons/recommend-pfps.svg",
   },
   {
     name: "monki",
     status: "1.75K watching",
-    avatar: "/icons/Recommend pfps (1).svg",
+    avatar: "/icons/recommend-pfps-(1).svg",
   },
   {
     name: "Guraissay",
     status: "Offline",
-    avatar: "/icons/Recommend pfps (2).svg",
+    avatar: "/icons/recommend-pfps-(2).svg",
   },
 ];
 

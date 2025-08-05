@@ -3,10 +3,10 @@ import type React from "react";
 import { Suspense } from "react";
 import Loader from "@/components/ui/loader/loader";
 import SimpleLoader from "@/components/ui/loader/simple-loader";
-import Navbar from "@/components/explore/Navbar";
-import Sidebar from "@/components/explore/Sidebar";
-import SettingsNavigation from "@/components/settings/SettingsNavigation";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import Navbar from "@/components/explore/navbar";
+import Sidebar from "@/components/explore/sidebar";
+import SettingsNavigation from "@/components/settings/settings-navigation";
+import ProtectedRoute from "@/components/auth/protected-route";
 import { bgClasses, textClasses } from "@/lib/theme-classes";
 
 export default function SettingsLayout({

@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import { motion, Variants, Easing } from "framer-motion";
-import { tokenUtilityData } from "@/data/landing-page/streamTokenUtility";
-import Section from "@/components/layout/Section";
+import { tokenUtilityData } from "@/data/landing-page/stream-token-utility";
+import Section from "@/components/layout/section";
 
-const vpnKey = "/Images/vpn_key.svg";
+const vpnKey = "/Images/vpn-key.svg";
 const token1 = "/Images/tokens/token1.svg";
 const token2 = "/Images/tokens/token2.svg";
 const token3 = "/Images/tokens/token3.svg";

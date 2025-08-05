@@ -1,6 +1,6 @@
 "use client";
 
-import NotFound from "@/components/error/NotFound";
+import NotFound from "@/components/error/not-found";
 import { useRouter } from "next/navigation";
 
 export default function NotFoundPage() {

@@ -32,7 +32,7 @@ import type {
 import InstagramIcon from "@/public/Images/instagram.svg";
 import TwitterIcon from "@/public/Images/twitter.svg";
 import FacebookIcon from "@/public/Images/facebook.svg";
-import YoutubeIcon from "@/public/Images/youtube copy.svg";
+import YoutubeIcon from "@/public/Images/youtube-copy.svg";
 import TelegramIcon from "@/public/Images/telegram.svg";
 import DiscordIcon from "@/public/Images/discord.svg";
 import TikTokIcon from "@/public/Images/tiktok.svg";

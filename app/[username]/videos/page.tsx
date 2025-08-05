@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { notFound } from "next/navigation";
-import StreamCard from "@/components/shared/profile/StreamCard";
-import EmptyState from "@/components/shared/profile/EmptyState";
+import StreamCard from "@/components/shared/profile/stream-card";
+import EmptyState from "@/components/shared/profile/empty-state";
 import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
 
 interface PageProps {

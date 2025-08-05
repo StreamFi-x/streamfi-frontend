@@ -1,5 +1,5 @@
 "use client";
-import AboutSection from "@/components/shared/profile/AboutSection";
+import AboutSection from "@/components/shared/profile/about-section";
 
 interface PageProps {
   params: {

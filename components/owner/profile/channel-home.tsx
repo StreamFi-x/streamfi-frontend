@@ -1,7 +1,7 @@
-import Banner from "@/components/shared/profile/Banner";
-import ProfileHeader from "@/components/shared/profile/ProfileHeader";
-import TabsNavigation from "@/components/shared/profile/TabsNavigation";
-import StreamCard from "@/components/shared/profile/StreamCard";
+import Banner from "@/components/shared/profile/banner";
+import ProfileHeader from "@/components/shared/profile/profile-header";
+import TabsNavigation from "@/components/shared/profile/tabs-navigation";
+import StreamCard from "@/components/shared/profile/stream-card";
 
 interface ChannelHomeProps {
   username: string;

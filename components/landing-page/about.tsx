@@ -3,8 +3,8 @@
 import { motion } from "framer-motion";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import Image from "next/image";
-import Section from "@/components/layout/Section";
-import { AboutImage2 } from "@/public/Images";
+import Section from "@/components/layout/section";
+import { AboutImage2 } from "@/public/images";
 
 export default function About() {
   const isMobile = useMediaQuery("(max-width: 768px)");

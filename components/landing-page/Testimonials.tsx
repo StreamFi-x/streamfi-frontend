@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import Section from "@/components/layout/Section";
+import Section from "@/components/layout/section";
 import { testimonial_content } from "@/data/landing-page/testimonial";
 import {
   Carousel,

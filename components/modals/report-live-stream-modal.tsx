@@ -150,7 +150,7 @@ export default function ReportLiveStreamModal({
           </>
         ) : (
           /* Success State */
-          <div className="rounded-2xl border border-[#B8B8B8] bg-[#151515]">
+          (<div className="rounded-2xl border border-[#B8B8B8] bg-[#151515]">
             <div className="p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Bookmark className="h-4 w-4 text-white" />
@@ -178,7 +178,7 @@ export default function ReportLiveStreamModal({
                 Done
               </Button>
             </div>
-          </div>
+          </div>)
         )}
       </DialogContent>
     </Dialog>

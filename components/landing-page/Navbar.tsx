@@ -7,7 +7,7 @@ import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import Section from "@/components/layout/Section";
+import Section from "@/components/layout/section";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -58,7 +58,7 @@ const Navbar = () => {
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center space-x-2 font-bold text-xl">
             <Image
-              src={"/Images/streamFiLogo.svg"}
+              src={"/Images/stream-fi-logo.svg"}
               alt="StreamFi Logo"
               width={120}
               height={120}

@@ -3,9 +3,9 @@
 import Image from "next/image";
 import type React from "react";
 import "@fontsource/inter";
-import { CoinbaseLogo, StripeLogo, YoutubeLogo } from "@/public/Images";
+import { CoinbaseLogo, StripeLogo, YoutubeLogo } from "@/public/images";
 import LogoDesktop from "@/public/Images/hero-image-streamfi.png";
-import Section from "@/components/layout/Section";
+import Section from "@/components/layout/section";
 import Link from "next/link";
 
 const HeroSection: React.FC = () => {

@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Sidebar from "@/components/dashboard/common/Sidebar";
+import Sidebar from "@/components/dashboard/common/sidebar";
 import { motion } from "framer-motion";
-import Navbar from "@/components/explore/Navbar";
+import Navbar from "@/components/explore/navbar";
 import { ReactNode } from "react";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import ProtectedRoute from "@/components/auth/protected-route";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);

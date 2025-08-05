@@ -5,9 +5,9 @@ import { useRef, useState, useEffect } from "react";
 import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import x from "@/public/Images/x.png";
-import telegram from "@/public/Images/Telegram.png";
-import Section from "@/components/layout/Section";
-import { Discord } from "@/public/Images";
+import telegram from "@/public/Images/telegram.png";
+import Section from "@/components/layout/section";
+import { Discord } from "@/public/images";
 import { cards } from "@/data/landing-page/community";
 import { benefits } from "@/data/landing-page/benefits";
 import {

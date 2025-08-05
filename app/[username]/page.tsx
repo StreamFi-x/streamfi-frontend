@@ -1,5 +1,5 @@
 "use client";
-import StreamCard from "@/components/shared/profile/StreamCard";
+import StreamCard from "@/components/shared/profile/stream-card";
 import { textClasses } from "@/lib/theme-classes";
 
 interface PageProps {

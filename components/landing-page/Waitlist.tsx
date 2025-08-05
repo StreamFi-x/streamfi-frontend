@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { toast } from "sonner";
-import Section from "@/components/layout/Section";
+import Section from "@/components/layout/section";
 
 interface WaitlistProps {
   initialCount?: number;

@@ -1,8 +1,8 @@
 "use server";
 import nodemailer from "nodemailer";
-import WelcomeUserEmail from "@/components/templates/WelcomeUserEmail";
-import VerifyEmailCode from "@/components/templates/VerifyEmailCode";
-import { WaitlistConfirmation } from "@/components/templates/WaitlistConfirm";
+import WelcomeUserEmail from "@/components/templates/welcome-user-email";
+import VerifyEmailCode from "@/components/templates/verify-email-code";
+import { WaitlistConfirmation } from "@/components/templates/waitlist-confirm";
 export async function sendWelcomeRegistrationEmail(
   email: string,
   name: string,

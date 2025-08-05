@@ -2,11 +2,11 @@
 import { useState, useEffect } from "react";
 import type React from "react";
 import { notFound, usePathname } from "next/navigation";
-import Sidebar from "@/components/explore/Sidebar";
-import Navbar from "@/components/explore/Navbar";
-import Banner from "@/components/shared/profile/Banner";
-import ProfileHeader from "@/components/shared/profile/ProfileHeader";
-import TabsNavigation from "@/components/shared/profile/TabsNavigation";
+import Sidebar from "@/components/explore/sidebar";
+import Navbar from "@/components/explore/navbar";
+import Banner from "@/components/shared/profile/banner";
+import ProfileHeader from "@/components/shared/profile/profile-header";
+import TabsNavigation from "@/components/shared/profile/tabs-navigation";
 import ViewStream from "@/components/stream/view-stream";
 import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
 
