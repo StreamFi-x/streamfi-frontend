@@ -24,8 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { FeedbackHeader } from "./FeedbackHeader";
-import { FileUpload } from "./FileUpload";
+import { FeedbackHeader } from "./feedback-header";
+import { FileUpload } from "./file-upload";
 
 const formSchema = z.object({
   feedbackType: z.string().min(1, {

@@ -26,10 +26,10 @@ const Waitlist: React.FC<WaitlistProps> = ({
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const avatars: string[] = [
-    "/Images/waitlist1.png",
-    "/Images/waitlist2.png",
-    "/Images/waitlist3.png",
-    "/Images/waitlist4.png",
+    "/images/waitlist1.png",
+    "/images/waitlist2.png",
+    "/images/waitlist3.png",
+    "/images/waitlist4.png",
   ];
 
   // Validate email whenever it changes, but only show errors if the field has been touched
@@ -335,7 +335,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
       </div>
 
       <div
-        className="absolute bottom-0 inset-0 bg-[url('/Images/waitlist.png')] bg-cover bg-center opacity-20 pointer-events-none"
+        className="absolute bottom-0 inset-0 bg-[url('/images/waitlist.png')] bg-cover bg-center opacity-20 pointer-events-none"
         style={{ bottom: "-24px" }}
       ></div>
     </Section>

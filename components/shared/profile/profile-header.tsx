@@ -26,7 +26,7 @@ const ProfileHeader = ({
       <div className="flex items-center">
         <div className="relative w-16 h-16 rounded-full overflow-hidden bg-purple-600 mr-4">
           <Image
-            src={avatarUrl || "/Images/user.png"}
+            src={avatarUrl || "/images/user.png"}
             alt={username}
             fill
             className="object-cover"

@@ -29,13 +29,13 @@ import type {
 } from "@/types/settings/profile";
 
 // Import social media icons
-import InstagramIcon from "@/public/Images/instagram.svg";
-import TwitterIcon from "@/public/Images/twitter.svg";
-import FacebookIcon from "@/public/Images/facebook.svg";
-import YoutubeIcon from "@/public/Images/youtube-copy.svg";
-import TelegramIcon from "@/public/Images/telegram.svg";
-import DiscordIcon from "@/public/Images/discord.svg";
-import TikTokIcon from "@/public/Images/tiktok.svg";
+import InstagramIcon from "@/public/images/instagram.svg";
+import TwitterIcon from "@/public/images/twitter.svg";
+import FacebookIcon from "@/public/images/facebook.svg";
+import YoutubeIcon from "@/public/images/youtube-copy.svg";
+import TelegramIcon from "@/public/images/telegram.svg";
+import DiscordIcon from "@/public/images/discord.svg";
+import TikTokIcon from "@/public/images/tiktok.svg";
 
 interface SocialLinksSectionProps {
   socialLinks: SocialLink[];

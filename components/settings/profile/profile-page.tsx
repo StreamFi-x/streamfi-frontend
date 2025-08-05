@@ -3,7 +3,7 @@ import { useEffect, useCallback, useState } from "react";
 import type React from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { motion, AnimatePresence } from "framer-motion";
-import profileImage from "@/public/Images/profile.png";
+import profileImage from "@/public/images/profile.png";
 import Avatar from "@/public/icons/avatar.svg";
 import VerificationPopup from "./popup";
 import AvatarSelectionModal from "./avatar-modal";

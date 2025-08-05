@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     siteName: "Streamfi",
     images: [
       {
-        url: "/Images/streamFi.png",
+        url: "/images/streamFi.png",
         width: 1200,
         height: 630,
         alt: "Streamfi Preview",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     title: "Streamfi - Own Your Stream. Own Your Earnings",
     description:
       "Stream without limits, engage your community, and earn instantly with a blockchain-powered ecosystem that ensures true ownership.",
-    images: ["/Images/streamFi.png"],
+    images: ["/images/streamFi.png"],
   },
 };
 

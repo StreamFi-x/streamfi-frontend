@@ -8,7 +8,7 @@ interface BrowseIconProps {
 const BrowseIcon = ({ size = 20, className = "" }: BrowseIconProps) => {
   return (
     <Image
-      src="/Images/browse-icon.png"
+      src="/images/browse-icon.png"
       alt="Browse"
       width={size}
       height={size}

@@ -1,4 +1,4 @@
-// utils/userValidators.ts
+// utils/user-validator.ts
 import type { UserRegistrationInput, UserUpdateInput } from "../types/user" // Make sure these types are correctly defined in types/user.ts
 
 /**

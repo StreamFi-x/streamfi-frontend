@@ -11,7 +11,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import ConnectModal from "../connect-wallet";
 import ProfileModal from "./profile-modal";
 import SimpleLoader from "../ui/loader/simple-loader";
-import Avatar from "@/public/Images/user.png";
+import Avatar from "@/public/images/user.png";
 import ProfileDropdown from "../ui/profile-dropdown";
 import {
   bgClasses,

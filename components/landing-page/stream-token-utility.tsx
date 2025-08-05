@@ -5,12 +5,12 @@ import { motion, Variants, Easing } from "framer-motion";
 import { tokenUtilityData } from "@/data/landing-page/stream-token-utility";
 import Section from "@/components/layout/section";
 
-const vpnKey = "/Images/vpn-key.svg";
-const token1 = "/Images/tokens/token1.svg";
-const token2 = "/Images/tokens/token2.svg";
-const token3 = "/Images/tokens/token3.svg";
-const token4 = "/Images/tokens/token4.svg";
-const token5 = "/Images/tokens/token4.svg";
+const vpnKey = "/images/vpn-key.svg";
+const token1 = "/images/tokens/token1.svg";
+const token2 = "/images/tokens/token2.svg";
+const token3 = "/images/tokens/token3.svg";
+const token4 = "/images/tokens/token4.svg";
+const token5 = "/images/tokens/token4.svg";
 
 export default function StreamTokenUtility() {
   // Define easing function properly

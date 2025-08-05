@@ -45,7 +45,7 @@ const fetchUserData = async (username: string) => {
   return {
     username,
     followers: 2000,
-    avatarUrl: "/Images/user.png",
+    avatarUrl: "/images/user.png",
     bio: "Chidinma Cassandra is a seasoned product designer that has been designing digital products and creating seamless experiences for users interacting with blockchain and web 3 products.",
     socialLinks: {
       twitter: "https://twitter.com/kassinma",
@@ -181,7 +181,7 @@ export default function UsernameLayout({
             <ProfileHeader
               username={userData?.username || username}
               followers={userData?.followers || 0}
-              avatarUrl={userData?.avatarUrl || "/Images/user.png"}
+              avatarUrl={userData?.avatarUrl || "/images/user.png"}
               isOwner={isOwner}
             />
             <TabsNavigation username={username} />

@@ -16,7 +16,7 @@ const ProfilePage = ({ params }: PageProps) => {
     {
       id: "1",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/Images/explore/home/live-stream/img1.png",
+      thumbnailUrl: "/images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -26,7 +26,7 @@ const ProfilePage = ({ params }: PageProps) => {
     {
       id: "2",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/Images/explore/home/live-stream/img2.png",
+      thumbnailUrl: "/images/explore/home/live-stream/img2.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -36,7 +36,7 @@ const ProfilePage = ({ params }: PageProps) => {
     {
       id: "3",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/Images/explore/home/live-stream/img3.png",
+      thumbnailUrl: "/images/explore/home/live-stream/img3.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -46,7 +46,7 @@ const ProfilePage = ({ params }: PageProps) => {
     {
       id: "4",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/Images/explore/home/live-stream/img4.png",
+      thumbnailUrl: "/images/explore/home/live-stream/img4.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -59,7 +59,7 @@ const ProfilePage = ({ params }: PageProps) => {
     {
       id: "5",
       title: "Amazing headshot",
-      thumbnailUrl: "/Images/explore/home/live-stream/img4.png",
+      thumbnailUrl: "/images/explore/home/live-stream/img4.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -69,7 +69,7 @@ const ProfilePage = ({ params }: PageProps) => {
     {
       id: "6",
       title: "Epic win",
-      thumbnailUrl: "/Images/explore/home/live-stream/img3.png",
+      thumbnailUrl: "/images/explore/home/live-stream/img3.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],

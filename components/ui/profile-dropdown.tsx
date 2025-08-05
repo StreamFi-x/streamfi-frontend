@@ -9,7 +9,7 @@ import {
   MonitorPlay,
   LayoutDashboard,
 } from "lucide-react";
-import User from "@/public/Images/user.png";
+import User from "@/public/images/user.png";
 import { motion, easeInOut, easeOut } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -132,12 +132,12 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
             onError={(e) => {
               // If image fails to load, replace with placeholder
               const target = e.target as HTMLImageElement;
-              target.src = "/Images/user.png";
+              target.src = "/images/user.png";
             }}
           />
         ) : (
           <Image
-            src="/Images/user.png"
+            src="/images/user.png"
             alt="Default avatar"
             fill
             sizes="40px"

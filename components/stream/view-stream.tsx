@@ -63,8 +63,8 @@ const fetchStreamData = async () => {
     tags: ["video game", "gaming", "live"],
     viewCount: 14312,
     duration: "02:55:55",
-    thumbnailUrl: "/Images/explore/home/featured-img.png",
-    avatarUrl: "/Images/user.png",
+    thumbnailUrl: "/images/explore/home/featured-img.png",
+    avatarUrl: "/images/user.png",
     followers: 2000,
     bio: "Chidinma Cassandra is a seasoned product designer that has been designing digital products and creating seamless experiences for users interacting with blockchain and web 3 products.",
     socialLinks: {
@@ -382,7 +382,7 @@ const ViewStream = ({
                     <div className="flex items-center">
                       <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
                         <Image
-                          src={streamData.avatarUrl || "/Images/user.png"}
+                          src={streamData.avatarUrl || "/images/user.png"}
                           alt={username}
                           width={40}
                           height={40}
@@ -541,7 +541,7 @@ const ViewStream = ({
                     <div className="flex items-center space-x-4">
                       <div className="relative w-12 h-12 rounded-full overflow-hidden bg-purple-600">
                         <Image
-                          src={streamData.avatarUrl || "/Images/user.png"}
+                          src={streamData.avatarUrl || "/images/user.png"}
                           alt={username}
                           fill
                           className="object-cover"
@@ -667,7 +667,7 @@ const ViewStream = ({
                     >
                       <div className="aspect-video relative">
                         <Image
-                          src="/Images/explore/home/trending-streams/img1.png"
+                          src="/images/explore/home/trending-streams/img1.png"
                           alt="Past stream"
                           fill
                           className="object-cover"

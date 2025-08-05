@@ -100,7 +100,7 @@ export default function DashboardScreenGuard({
             >
               <div className="flex justify-center items-center space-x-3 mb-6">
                 <Image
-                  src={"/Images/stream-fi-logo.svg"}
+                  src={"/images/stream-fi-logo.svg"}
                   alt="StreamFi Logo"
                   width={120}
                   height={120}

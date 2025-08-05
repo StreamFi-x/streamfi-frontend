@@ -31,11 +31,11 @@ export const liveStreams: Stream[] = [
   {
     id: "1",
     title: "Clash of Clans Live play",
-    thumbnail: "/Images/explore/home/live-stream/img1.png?height=300&width=500",
+    thumbnail: "/images/explore/home/live-stream/img1.png?height=300&width=500",
     viewCount: getRandomViewCount(),
     streamer: {
       name: "JamesHG",
-      logo: "/Images/explore/home/live-stream/profile.png?height=50&width=50",
+      logo: "/images/explore/home/live-stream/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Strategy"],
     location: getRandomLocation(),
@@ -43,11 +43,11 @@ export const liveStreams: Stream[] = [
   {
     id: "2",
     title: "Valorant Live play",
-    thumbnail: "/Images/explore/home/live-stream/img2.png?height=300&width=500",
+    thumbnail: "/images/explore/home/live-stream/img2.png?height=300&width=500",
     viewCount: getRandomViewCount(),
     streamer: {
       name: "NwanneSan",
-      logo: "/Images/explore/home/live-stream/profile.png?height=50&width=50",
+      logo: "/images/explore/home/live-stream/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Shooter"],
     location: getRandomLocation(),
@@ -55,11 +55,11 @@ export const liveStreams: Stream[] = [
   {
     id: "3",
     title: "Fortnite Live play",
-    thumbnail: "/Images/explore/home/live-stream/img3.png?height=300&width=500",
+    thumbnail: "/images/explore/home/live-stream/img3.png?height=300&width=500",
     viewCount: getRandomViewCount(),
     streamer: {
       name: "DumtoZT",
-      logo: "/Images/explore/home/live-stream/profile.png?height=50&width=50",
+      logo: "/images/explore/home/live-stream/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Battle Royale"],
     location: getRandomLocation(),
@@ -67,11 +67,11 @@ export const liveStreams: Stream[] = [
   {
     id: "4",
     title: "EAFC 2025 Live play",
-    thumbnail: "/Images/explore/home/live-stream/img4.png?height=300&width=500",
+    thumbnail: "/images/explore/home/live-stream/img4.png?height=300&width=500",
     viewCount: getRandomViewCount(),
     streamer: {
       name: "CijeDGamer",
-      logo: "/Images/explore/home/live-stream/profile.png?height=50&width=50",
+      logo: "/images/explore/home/live-stream/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Sports"],
     location: getRandomLocation(),
@@ -79,11 +79,11 @@ export const liveStreams: Stream[] = [
   {
     id: "5",
     title: "PUBG Live play",
-    thumbnail: "/Images/explore/home/live-stream/img4.png?height=300&width=500",
+    thumbnail: "/images/explore/home/live-stream/img4.png?height=300&width=500",
     viewCount: getRandomViewCount(),
     streamer: {
       name: "RecksomGaming",
-      logo: "/Images/explore/home/live-stream/profile.png?height=50&width=50",
+      logo: "/images/explore/home/live-stream/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Survival"],
     location: getRandomLocation(),
@@ -91,11 +91,11 @@ export const liveStreams: Stream[] = [
   {
     id: "6",
     title: "Counter-Strike Live play",
-    thumbnail: "/Images/explore/home/live-stream/img3.png?height=300&width=500",
+    thumbnail: "/images/explore/home/live-stream/img3.png?height=300&width=500",
     viewCount: getRandomViewCount(),
     streamer: {
       name: "Vladdddd",
-      logo: "/Images/explore/home/live-stream/profile.png?height=50&width=50",
+      logo: "/images/explore/home/live-stream/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Tactical Shooter"],
     location: getRandomLocation(),
@@ -103,11 +103,11 @@ export const liveStreams: Stream[] = [
   {
     id: "7",
     title: "Call of Duty Live play",
-    thumbnail: "/Images/explore/home/live-stream/img2.png?height=300&width=500",
+    thumbnail: "/images/explore/home/live-stream/img2.png?height=300&width=500",
     viewCount: getRandomViewCount(),
     streamer: {
       name: "Flaxgames",
-      logo: "/Images/explore/home/live-stream/profile.png?height=50&width=50",
+      logo: "/images/explore/home/live-stream/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "FPS"],
     location: getRandomLocation(),
@@ -115,11 +115,11 @@ export const liveStreams: Stream[] = [
   {
     id: "8",
     title: "Forza Live play",
-    thumbnail: "/Images/explore/home/live-stream/img1.png?height=300&width=500",
+    thumbnail: "/images/explore/home/live-stream/img1.png?height=300&width=500",
     viewCount: getRandomViewCount(),
     streamer: {
       name: "Franklivania",
-      logo: "/Images/explore/home/live-stream/profile.png?height=50&width=50",
+      logo: "/images/explore/home/live-stream/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Racing"],
     location: getRandomLocation(),

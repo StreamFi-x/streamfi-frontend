@@ -1,8 +1,8 @@
 import { CardProps } from "@/types/landing-page";
-import key from "../../public/Images/key.png";
-import bulb from "../../public/Images/bulb.png";
-import podcast from "../../public/Images/podcast.png";
-import folder from "../../public/Images/folder.png";
+import key from "../../public/images/key.png";
+import bulb from "../../public/images/bulb.png";
+import podcast from "../../public/images/podcast.png";
+import folder from "../../public/images/folder.png";
 
 export const cards: CardProps[] = [
   {

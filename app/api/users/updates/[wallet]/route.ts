@@ -5,7 +5,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import os from "os";
 import { validateEmail } from "@/utils/validators";
-import { validateUserUpdate } from "../../../../../utils/userValidators";
+import { validateUserUpdate } from "../../../../../utils/user-validators";
 import { UserUpdateInput } from "../../../../../types/user";
 
 export async function PUT(
