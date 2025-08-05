@@ -2,7 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 
 
-// To create a category
+//TO CREATE A CATEGORY
 export async function POST(req: NextRequest) {
   try {
     const { title, description, tags, imageurl } = await req.json();
@@ -85,14 +85,14 @@ export async function POST(req: NextRequest) {
 
 
 
-// To get all categories and category by search(category name and tags)
+// TO GET CATEGORIES (ALL, BY SEARCH AND BY ID)
 export async function GET(req: Request) {
   try {
 
     // live search query
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search')?.toLowerCase();
-    const id = searchParams.get('id'); // To get category by id
+    const title = searchParams.get('id'); // To get category by id
 
     // Basic test to confirm DB works
     const testResult = await sql`SELECT * FROM stream_categories LIMIT 1`;
@@ -101,12 +101,13 @@ export async function GET(req: Request) {
     let result;
 
 
-    if (id) {
+    if (title) {
       // Get category by ID
       result = await sql`
         SELECT id, title, tags, imageurl
         FROM stream_categories
-        WHERE id = ${id}
+        WHERE LOWER(title) = ${title.toLowerCase()}
+        LIMIT 1
       `;
 
       if (result.rows.length === 0) {
@@ -158,12 +159,12 @@ export async function GET(req: Request) {
 }
 
 
-// To update a category
+// TO UPDATE A CATEGORY
 export async function PATCH(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
-    if (!id) {
+    const titleParams = searchParams.get('id');
+    if (!titleParams) {
       return NextResponse.json({ success: false, error: 'Missing category ID' }, { status: 400 });
     }
 
@@ -179,7 +180,7 @@ export async function PATCH(req: Request) {
         tags = COALESCE(${(tags)}, tags),
         imageurl = COALESCE(${imageurl}, imageurl),
         is_active = COALESCE(${is_active}, is_active)
-      WHERE id = ${id}
+       WHERE LOWER(title) = ${titleParams.toLowerCase()}
     `;
 
     return NextResponse.json({ success: true, message: 'Category updated' });
@@ -192,18 +193,18 @@ export async function PATCH(req: Request) {
 
 
 
-// To delete a category
+// TO DELETE A CATEORY
 export async function DELETE(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
-    if (!id) {
+    const title = searchParams.get('id');
+    if (!title) {
       return NextResponse.json({ success: false, error: 'Missing category ID' }, { status: 400 });
     }
 
     await sql`
       DELETE FROM stream_categories
-      WHERE id = ${id}
+      WHERE LOWER(title) = ${title.toLowerCase()}
     `;
 
     return NextResponse.json({ success: true, message: 'Category deleted' });
