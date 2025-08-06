@@ -154,11 +154,11 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     >
       <motion.div
         variants={itemVariants}
-        className="flex justify-between items-center w-full mb-4 px-4"
+        className="flex justify-between items-center w-full mb-4 px-3"
       >
         <motion.span
           variants={itemVariants}
-          className={`${textClasses.secondary} font-semibold tracking-wider`}
+          className={`${textClasses.secondary} text-sm font-semibold tracking-wider`}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.3 }}
@@ -188,7 +188,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </motion.button>
       </motion.div>
 
-      <motion.nav variants={itemVariants} className="flex flex-col gap-1">
+      <motion.nav variants={itemVariants} className="flex flex-col gap-0.5">
         {navItems.map((item, index) => {
           const isActive = pathname === item.path;
           return (
@@ -314,7 +314,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </motion.button>
       </div>
 
-      <motion.nav className="flex flex-col gap-3 items-center">
+      <motion.nav className="flex flex-col gap-2 items-center">
         {navItems.map((item, index) => {
           const isActive = pathname === item.path;
           return (
@@ -372,7 +372,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         className={`my-4 border-t ${borderClasses.primary}`}
       />
 
-      <motion.div className="flex flex-col items-center gap-3">
+      {/* <motion.div className="flex flex-col items-center gap-3">
         <motion.button
           initial={{ opacity: 0, scale: 0.5, rotate: -10 }}
           animate={{ opacity: 1, scale: 1, rotate: 0 }}
@@ -395,7 +395,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         >
           <ChartColumnDecreasing size={18} />
         </motion.button>
-      </motion.div>
+      </motion.div> */}
     </motion.div>
   );
 
@@ -407,7 +407,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       style={{ willChange: "width" }}
     >
       <div className="absolute inset-0">
-        <div className="p-4 flex flex-col gap-5 h-full overflow-hidden">
+        <div className="p-3 flex flex-col gap-4 h-full overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
               key={isCollapsed ? "collapsed" : "expanded"}
