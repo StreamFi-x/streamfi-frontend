@@ -96,7 +96,6 @@ export default function Navbar({}: NavbarProps) {
     fetchUser();
   }, [address]);
 
-
   const getAvatar = useCallback(() => {
     if (user?.avatar) {
       return user.avatar;
@@ -387,7 +386,11 @@ export default function Navbar({}: NavbarProps) {
                 <AnimatePresence>
                   {isProfileDropdownOpen && (
                     <div className="absolute top-full right-0 mt-2 profile-dropdown-container z-50">
-                      <ProfileDropdown username={truncatedDisplayName} />
+                      <ProfileDropdown
+                        username={truncatedDisplayName}
+                        avatar={`${userAvatar}`}
+                        // onLinkClick={setIsProfileDropdownOpen(false)}
+                      />
                     </div>
                   )}
                 </AnimatePresence>
