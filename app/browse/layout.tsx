@@ -52,9 +52,9 @@ export default function BrowseLayout({
   return (
     <main className="bg-[#1a1a1a]">
       <div className="flex flex-col h-screen">
-        <Navbar />
+        {/* <Navbar /> */}
         <div className="flex h-screen overflow-hidden">
-          <Sidebar />
+          {/* <Sidebar /> */}
           <main className="flex-1 overflow-y-auto scrollbar-hide">
             <div className="max-w-full mx-auto px-4 py-8 bg-[#111111]">
               <div className="mb-12">
