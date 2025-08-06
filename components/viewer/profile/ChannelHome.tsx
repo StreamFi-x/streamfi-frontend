@@ -2,6 +2,8 @@ import Banner from "@/components/shared/profile/Banner";
 import ProfileHeader from "@/components/shared/profile/ProfileHeader";
 import TabsNavigation from "@/components/shared/profile/TabsNavigation";
 import StreamCard from "@/components/shared/profile/StreamCard";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 interface ChannelHomeProps {
   username: string;
@@ -17,11 +19,11 @@ const ChannelHome = ({
   avatarUrl,
 }: ChannelHomeProps) => {
   // Mock data - would be fetched from API in a real implementation
-  const userData = {
-    username,
-    followers: 2000,
-    avatarUrl: avatarUrl || "/Images/user.png",
-  };
+  // const userData = {
+  //   username,
+  //   followers: 2000,
+  //   avatarUrl: avatarUrl || "/Images/user.png",
+  // };
 
   const recentStreams = [
     {
@@ -88,6 +90,122 @@ const ChannelHome = ({
       isLive: true,
     },
   ];
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [userExists, setUserExists] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+
+  const loggedInUsername =
+    typeof window !== "undefined" ? sessionStorage.getItem("username") : null;
+  console.log(loggedInUsername);
+  // Fetch user data
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/users/${username}`);
+        if (response.status === 404) {
+          setUserExists(false);
+          return;
+        }
+        const data = await response.json();
+        setUserData(data.user);
+        console.log("Fetched user data:", data.user);
+        console.log("User data:", data.user?.username);
+        console.log("Logged in username:", loggedInUsername);
+      } catch (error) {
+        toast.error("Failed to fetch user data");
+        setUserExists(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [username, loggedInUsername]);
+
+  // Follow handler
+  const handleFollow = async () => {
+    if (!loggedInUsername) {
+      toast.error("You must be logged in to follow users.");
+      return;
+    }
+
+    setFollowLoading(true);
+    try {
+      const res = await fetch("/api/users/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          callerUsername: loggedInUsername,
+          receiverUsername: username,
+          action: "follow",
+        }),
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        setIsFollowing(true);
+        toast.success("Followed successfully");
+
+        setUserData((prev: any) => ({
+          ...prev,
+          followers: [...(prev.followers || []), loggedInUsername],
+        }));
+      } else {
+        toast.error(result.error || "Failed to follow");
+      }
+    } catch (error) {
+      toast.error("Network error while following");
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  // Handle unfollow
+  const handleUnfollow = async () => {
+    if (!loggedInUsername) {
+      toast.error("You must be logged in to unfollow users.");
+      return;
+    }
+
+    setFollowLoading(true);
+    try {
+      const res = await fetch("/api/users/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          callerUsername: loggedInUsername,
+          receiverUsername: username,
+          action: "unfollow",
+        }),
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        setIsFollowing(false);
+        toast.success("Unfollowed successfully");
+
+        setUserData((prev: any) => ({
+          ...prev,
+          followers: (prev.followers || []).filter(
+            (f: string) => f !== loggedInUsername
+          ),
+        }));
+      } else {
+        toast.error(result.error || "Failed to unfollow");
+      }
+    } catch (error) {
+      toast.error("Network error while unfollowing");
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="bg-gray-950 min-h-screen">
@@ -96,7 +214,11 @@ const ChannelHome = ({
         username={userData.username}
         followers={userData.followers}
         avatarUrl={userData.avatarUrl}
-        isOwner={false}
+        isOwner={true}
+        isFollowing={isFollowing}
+        onFollow={handleFollow}
+        onUnfollow={handleUnfollow}
+        followLoading={followLoading}
       />
       <TabsNavigation username={username} />
 

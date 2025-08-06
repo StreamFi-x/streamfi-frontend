@@ -33,6 +33,12 @@ CREATE TABLE IF NOT EXISTS users (
     creator JSONB DEFAULT '{}'
 );
 
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS followers UUID[];
+
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS following UUID[];
+
 CREATE TABLE IF NOT EXISTS stream_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,

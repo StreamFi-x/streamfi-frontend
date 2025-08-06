@@ -176,7 +176,7 @@ export default function Navbar({}: NavbarProps) {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/users/${address}`);
+      const response = await fetch(`/api/users/wallet/${address}`);
 
       if (response.status === 404) {
         setProfileModalOpen(true);
@@ -186,6 +186,7 @@ export default function Navbar({}: NavbarProps) {
 
         // Store the entire user object in sessionStorage
         sessionStorage.setItem("userData", JSON.stringify(result.user));
+        sessionStorage.setItem("username", result.user?.username);
 
         // Refresh user in auth context if needed
         if (!user || user.wallet !== result.user.wallet) {

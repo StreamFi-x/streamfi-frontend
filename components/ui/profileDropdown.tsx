@@ -203,7 +203,7 @@ const UserDropdown = ({ username, onLinkClick }: UserDropdownProps) => {
         disconnect();
       }
       logout();
-      if (onLinkClick) onLinkClick(item.route || "");
+      if (onLinkClick) onLinkClick(item.route || "/explore");
       return;
     }
 

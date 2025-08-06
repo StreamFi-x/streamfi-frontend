@@ -1,6 +1,9 @@
 "use client";
+
 import StreamCard from "@/components/shared/profile/StreamCard";
 import { textClasses } from "@/lib/theme-classes";
+import { useState, useEffect } from "react";
+import { toast } from "sonner"; // or your preferred toast lib
 
 interface PageProps {
   params: {
@@ -10,6 +13,47 @@ interface PageProps {
 
 const ProfilePage = ({ params }: PageProps) => {
   const { username } = params;
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [userExists, setUserExists] = useState(true);
+
+  const loggedInUsername =
+    typeof window !== "undefined" ? sessionStorage.getItem("username") : null;
+  console.log(loggedInUsername);
+  // Fetch user data
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/users/${username}`);
+        if (response.status === 404) {
+          setUserExists(false);
+          return;
+        }
+        const data = await response.json();
+        setUserData(data.user);
+        console.log("Fetched user data:", data.user);
+        console.log("User data:", data.user?.username);
+        console.log("Logged in username:", loggedInUsername);
+      } catch (error) {
+        toast.error("Failed to fetch user data");
+        setUserExists(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [username, loggedInUsername]);
+
+  // Follow handler
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  if (!userExists) {
+    return <div>User not found</div>;
+  }
 
   // Mock data for streams
   const recentStreams = [
