@@ -122,14 +122,18 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
       )}
       onClick={onClick}
     >
-      <div className="relative w-10 h-10 rounded-full bg-purple-600 overflow-hidden">
+      <div className="relative w-9 h-9 rounded-full 0 overflow-hidden">
         {avatar ? (
-          <Image
-            src={avatar || "/placeholder.svg"}
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={
+              typeof avatar === "string"
+                ? avatar
+                : avatar?.src || "/placeholder.svg"
+            }
             alt="User avatar"
-            fill
-            sizes="40px"
-            className="object-cover"
+            // sizes="40px"
+            className="object-cover rounded-full"
             onError={(e) => {
               // If image fails to load, replace with placeholder
               const target = e.target as HTMLImageElement;
@@ -157,12 +161,13 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
 
 interface UserDropdownProps {
   username: string;
-  onLinkClick?: (route: string) => void;
+  avatar?: string | null;
+  onLinkClick?: (route: string) => void; // Optional callback for link clicks
 }
 
-const UserDropdown = ({ username, onLinkClick }: UserDropdownProps) => {
+const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
   const router = useRouter();
-  const userAvatar = User;
+  const userAvatar = avatar;
   const { disconnect } = useDisconnect();
   const { isConnected } = useAccount();
   const userName = username;
@@ -203,7 +208,7 @@ const UserDropdown = ({ username, onLinkClick }: UserDropdownProps) => {
         disconnect();
       }
       logout();
-      if (onLinkClick) onLinkClick(item.route || "");
+      if (onLinkClick) onLinkClick(item.route || "/explore");
       return;
     }
 
@@ -248,7 +253,7 @@ const UserDropdown = ({ username, onLinkClick }: UserDropdownProps) => {
     >
       <div className={combineClasses(bgClasses.dropdown, textClasses.primary)}>
         <UserProfile
-          avatar={userAvatar}
+          avatar={userAvatar ? userAvatar : "placeholder.svg"}
           name={userName}
           onClick={() => {}} // Empty function since toggle is handled by parent
         />

@@ -79,6 +79,23 @@ export default function Navbar({}: NavbarProps) {
     return "Unknown User";
   }, [user?.username, address]);
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch(`/api/users/${user?.username}`);
+        if (response.status === 404) {
+          // setProfileModalOpen(true);
+        } else if (response.ok) {
+          const result = await response.json();
+          console.log("User found:", result);
+        }
+      } catch (error) {
+        console.error("Error finding user:", error);
+      }
+    };
+    fetchUser();
+  }, [address]);
+
   const getAvatar = useCallback(() => {
     if (user?.avatar) {
       return user.avatar;
@@ -176,7 +193,7 @@ export default function Navbar({}: NavbarProps) {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/users/${address}`);
+      const response = await fetch(`/api/users/wallet/${address}`);
 
       if (response.status === 404) {
         setProfileModalOpen(true);
@@ -186,6 +203,7 @@ export default function Navbar({}: NavbarProps) {
 
         // Store the entire user object in sessionStorage
         sessionStorage.setItem("userData", JSON.stringify(result.user));
+        sessionStorage.setItem("username", result.user?.username);
 
         // Refresh user in auth context if needed
         if (!user || user.wallet !== result.user.wallet) {
@@ -345,13 +363,13 @@ export default function Navbar({}: NavbarProps) {
                   </span>
                   {typeof userAvatar === "string" &&
                   userAvatar.includes("cloudinary.com") ? (
-                    <Image
-                      src={userAvatar}
+                    <img
+                      src={`${userAvatar}`}
                       alt="Avatar"
                       width={24}
                       height={24}
                       className="w-6 h-6 rounded-full object-cover"
-                      unoptimized={false}
+                      // unoptimized={false}
                     />
                   ) : (
                     <Image
@@ -368,7 +386,11 @@ export default function Navbar({}: NavbarProps) {
                 <AnimatePresence>
                   {isProfileDropdownOpen && (
                     <div className="absolute top-full right-0 mt-2 profile-dropdown-container z-50">
-                      <ProfileDropdown username={truncatedDisplayName} />
+                      <ProfileDropdown
+                        username={truncatedDisplayName}
+                        avatar={`${userAvatar}`}
+                        // onLinkClick={setIsProfileDropdownOpen(false)}
+                      />
                     </div>
                   )}
                 </AnimatePresence>
