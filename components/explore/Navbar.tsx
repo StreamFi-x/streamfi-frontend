@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect, useCallback, use } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { StreamfiLogoLight, StreamfiLogoShort } from "@/public/icons";
 import { Search, Bell } from "lucide-react";
 import Image from "next/image";
@@ -13,6 +13,8 @@ import ProfileModal from "./profile-modal";
 import SimpleLoader from "../ui/loader/simple-loader";
 import Avatar from "@/public/images/user.png";
 import ProfileDropdown from "../ui/profile-dropdown";
+
+
 import {
   bgClasses,
   textClasses,
@@ -28,14 +30,22 @@ interface NavbarProps {
   onConnect?: () => void;
 }
 
+type Category = {
+  id: string;
+  title: string;
+  imageurl?: string;
+};
+
 export default function Navbar({}: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { address, isConnected } = useAccount();
   const { user, refreshUser } = useAuth();
   const { disconnect } = useDisconnect();
+  const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [connectStep, setConnectStep] = useState<
     "profile" | "verify" | "success"
@@ -97,40 +107,62 @@ export default function Navbar({}: NavbarProps) {
   };
 
   useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setSearchResults([]);
-      return;
-    }
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchInputRef.current &&
+        !searchInputRef.current.contains(event.target as Node) &&
+        searchDropdownRef.current &&
+        !searchDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsSearchDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
-    const mockResults: SearchResult[] = [
-      {
-        id: "1",
-        title: `${searchQuery} Live Stream`,
-        type: "stream",
-        image: "/icons/recommend-pfps.svg",
-      },
-      {
-        id: "2",
-        title: `${searchQuery} Gaming Channel`,
-        type: "channel",
-        image: "/icons/recommend-pfps.svg",
-      },
-      {
-        id: "3",
-        title: `Best ${searchQuery} Moments`,
-        type: "video",
-        image: "/icons/recommend-pfps.svg",
-      },
-    ];
-
-    setSearchResults(mockResults);
-  }, [searchQuery]);
-
+  // Autofocus input on mount
   useEffect(() => {
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, []);
+
+  // Fetch live search results
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setSearchResults([]);
+      return;
+    }
+
+    const fetchResults = async () => {
+      try {
+        const res = await fetch(
+          `/api/category?search=${encodeURIComponent(searchQuery)}`
+        );
+        const data = await res.json();
+
+        const normalizedResults = (data.categories ?? []).map(
+          (cat: Category) => ({
+            id: cat.id,
+            title: cat.title,
+            image: cat.imageurl || "/placeholder.svg",
+            type: "category", // static label
+          })
+        );
+
+        setSearchResults(normalizedResults);
+      } catch (error) {
+        console.error("Search fetch error:", error);
+        setSearchResults([]);
+      }
+    };
+
+    const debounce = setTimeout(fetchResults, 300);
+    return () => clearTimeout(debounce);
+  }, [searchQuery]);
 
   const handleConnectWallet = () => {
     if (isConnected) {
@@ -232,10 +264,17 @@ export default function Navbar({}: NavbarProps) {
         <div className="hidden md:block flex-1 items-center max-w-xl mx-4 relative">
           <div className="relative">
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Search"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSearchDropdownOpen(true);
+              }}
+              onFocus={() => {
+                if (searchResults.length > 0) setIsSearchDropdownOpen(true);
+              }}
               className={`w-full ${bgClasses.input} rounded-xl py-2 pl-10 pr-4 text-sm outline-none ${ringClasses.primary}`}
             />
             <Search
@@ -243,8 +282,9 @@ export default function Navbar({}: NavbarProps) {
               size={16}
             />
           </div>
+
           <AnimatePresence>
-            {searchResults.length > 0 && (
+            {isSearchDropdownOpen && searchResults.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -253,9 +293,10 @@ export default function Navbar({}: NavbarProps) {
               >
                 <div className="p-2">
                   {searchResults.map((result) => (
-                    <div
+                    <Link
                       key={result.id}
-                      className={`flex items-center gap-3 p-2 ${bgClasses.hover} rounded-md cursor-pointer`}
+                      className={`flex items-center gap-3 p-2 ${bgClasses.hover} rounded-md cursor-pointer relative z-30`}
+                      href={`/browse/${result.type}/${result.title.toLowerCase()}`}
                     >
                       <div className="w-10 h-10 rounded bg-gray-700 overflow-hidden">
                         <Image
@@ -279,7 +320,7 @@ export default function Navbar({}: NavbarProps) {
                           {result.type}
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </motion.div>
@@ -303,13 +344,25 @@ export default function Navbar({}: NavbarProps) {
                   <span className={`${textClasses.primary}`}>
                     {truncatedDisplayName}
                   </span>
-                  <Image
-                    src={userAvatar || Avatar}
-                    alt="Avatar"
-                    width={40}
-                    height={40}
-                    className=""
-                  />
+                  {typeof userAvatar === "string" &&
+                  userAvatar.includes("cloudinary.com") ? (
+                    <Image
+                      src={userAvatar}
+                      alt="Avatar"
+                      width={24}
+                      height={24}
+                      className="w-6 h-6 rounded-full object-cover"
+                      unoptimized={false}
+                    />
+                  ) : (
+                    <Image
+                      src={userAvatar || Avatar}
+                      alt="Avatar"
+                      width={32}
+                      height={32}
+                      className=""
+                    />
+                  )}
                 </div>
 
                 {/* Render ProfileDropdown with AnimatePresence */}

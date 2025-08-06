@@ -27,6 +27,7 @@ interface MenuItem {
   icon: ReactNode;
   label: string;
   route?: string; // Added route property
+  onClick?: (item: MenuItem) => void; // Optional onClick handler
 }
 
 interface MenuSection {
@@ -49,7 +50,7 @@ const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
         className={combineClasses(
           "flex items-center px-4 py-3 cursor-pointer",
           bgClasses.hover,
-          textClasses.primary,
+          textClasses.primary
         )}
         onClick={() => onClick({ icon, label, route })}
       >
@@ -69,7 +70,7 @@ const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
       className={combineClasses(
         "flex items-center px-4 py-3 cursor-pointer",
         bgClasses.hover,
-        textClasses.primary,
+        textClasses.primary
       )}
       onClick={(e) => {
         e.preventDefault();
@@ -98,7 +99,7 @@ const MenuSection = ({ items, onClick }: MenuSectionProps) => {
           icon={item.icon}
           label={item.label}
           route={item.route}
-          onClick={() => onClick(item)}
+          onClick={onClick}
         />
       ))}
     </>
@@ -108,7 +109,7 @@ const MenuSection = ({ items, onClick }: MenuSectionProps) => {
 interface UserProfileProps {
   avatar: import("next/image").StaticImageData | string; // Accepts StaticImageData or string URL
   name: string;
-  onClick: () => void;
+  onClick?: () => void;
 }
 
 const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
@@ -117,7 +118,7 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
       className={combineClasses(
         "p-4 flex items-center space-x-3 cursor-pointer border-b",
         borderClasses.divider,
-        textClasses.primary,
+        textClasses.primary
       )}
       onClick={onClick}
     >
@@ -156,9 +157,10 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
 
 interface UserDropdownProps {
   username: string;
+  onLinkClick?: (route: string) => void;
 }
 
-const UserDropdown = ({ username }: UserDropdownProps) => {
+const UserDropdown = ({ username, onLinkClick }: UserDropdownProps) => {
   const router = useRouter();
   const userAvatar = User;
   const { disconnect } = useDisconnect();
@@ -187,7 +189,9 @@ const UserDropdown = ({ username }: UserDropdownProps) => {
     },
     {
       id: "footer",
-      items: [{ icon: <LogOut size={20} />, label: "Disconnect", route: "/explore" }],
+      items: [
+        { icon: <LogOut size={20} />, label: "Disconnect", route: "/explore" },
+      ],
     },
   ];
 
@@ -199,11 +203,15 @@ const UserDropdown = ({ username }: UserDropdownProps) => {
         disconnect();
       }
       logout();
+      if (onLinkClick) onLinkClick(item.route || "");
       return;
     }
 
     if (item.route) {
       router.push(item.route);
+      if (onLinkClick) onLinkClick(item.route);
+    } else {
+      if (onLinkClick) onLinkClick("");
     }
   };
 
@@ -251,7 +259,7 @@ const UserDropdown = ({ username }: UserDropdownProps) => {
               key={section.id}
               className={combineClasses(
                 "py-2",
-                index > 0 ? `border-t ${borderClasses.divider}` : "",
+                index > 0 ? `border-t ${borderClasses.divider}` : ""
               )}
             >
               <MenuSection items={section.items} onClick={handleItemClick} />

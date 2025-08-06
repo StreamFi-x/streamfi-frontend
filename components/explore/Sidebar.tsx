@@ -19,6 +19,24 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  // Helper function to render avatar images (handles Cloudinary URLs)
+  const renderAvatar = (avatarUrl: string, alt: string) => {
+    if (avatarUrl?.includes("cloudinary.com")) {
+      return (
+        <img src={avatarUrl} alt={alt} className="w-full h-full object-cover" />
+      );
+    }
+    return (
+      <Image
+        src={avatarUrl || "/placeholder.svg"}
+        alt={alt}
+        className="w-full h-full object-cover"
+        width={32}
+        height={32}
+      />
+    );
+  };
+
   // Define easing functions properly
   const customEase: Easing = [0.23, 1, 0.32, 1];
   const easeOut: Easing = "easeOut";
@@ -30,8 +48,16 @@ export default function Sidebar() {
 
   const isRouteActive = (href: string) => {
     if (href === "/" && pathname === "/explore") return true;
-    if (href === "/browse" && (pathname === "/browse" || pathname.startsWith("/browse/"))) return true;
-    if (href === "/explore/browse" && (pathname === "/browse" || pathname.startsWith("/browse/"))) return true;
+    if (
+      href === "/browse" &&
+      (pathname === "/browse" || pathname.startsWith("/browse/"))
+    )
+      return true;
+    if (
+      href === "/explore/browse" &&
+      (pathname === "/browse" || pathname.startsWith("/browse/"))
+    )
+      return true;
     return (
       pathname === `/explore${href}` || pathname.startsWith(`/explore${href}/`)
     );
@@ -297,13 +323,7 @@ export default function Sidebar() {
                     variants={avatarVariants}
                     className={`relative w-8 h-8 rounded-full ${bgClasses.tertiary} overflow-hidden`}
                   >
-                    <Image
-                      src={user.avatar || "/placeholder.svg"}
-                      alt={user.name}
-                      className="w-full h-full object-cover"
-                      width={32}
-                      height={32}
-                    />
+                    {renderAvatar(user.avatar, user.name)}
                     {user.status.toLowerCase().includes("watching") && (
                       <motion.div
                         variants={liveIndicatorVariants}
@@ -381,13 +401,7 @@ export default function Sidebar() {
                     variants={avatarVariants}
                     className={`relative w-8 h-8 rounded-full ${bgClasses.tertiary} overflow-hidden`}
                   >
-                    <Image
-                      src={user.avatar || "/placeholder.svg"}
-                      alt={user.name}
-                      className="w-full h-full object-cover"
-                      width={32}
-                      height={32}
-                    />
+                    {renderAvatar(user.avatar, user.name)}
                     {user.name !== "Guraissay" && (
                       <motion.div
                         variants={liveIndicatorVariants}
@@ -544,13 +558,7 @@ export default function Sidebar() {
               <div
                 className={`w-9 h-9 rounded-full ${bgClasses.tertiary} overflow-hidden shadow-lg`}
               >
-                <Image
-                  src={user.avatar || "/placeholder.svg"}
-                  alt={user.name}
-                  className="w-full h-full object-cover"
-                  width={36}
-                  height={36}
-                />
+                {renderAvatar(user.avatar, user.name)}
               </div>
               {user.status.toLowerCase().includes("watching") && (
                 <motion.div
@@ -591,13 +599,7 @@ export default function Sidebar() {
               <div
                 className={`w-9 h-9 rounded-full ${bgClasses.tertiary} overflow-hidden shadow-lg`}
               >
-                <Image
-                  src={user.avatar || "/placeholder.svg"}
-                  alt={user.name}
-                  className="w-full h-full object-cover"
-                  width={36}
-                  height={36}
-                />
+                {renderAvatar(user.avatar, user.name)}
               </div>
               {user.name !== "Guraissay" && (
                 <motion.div

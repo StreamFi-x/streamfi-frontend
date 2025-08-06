@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { Providers } from "../components/providers";
 import "./globals.css";
 import { Toaster } from "sonner";
+import SidebarWrapper from "../components/SidebarWrapper";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://streamfi.com", // Replace with your actual domain
+    process.env.NEXT_PUBLIC_APP_URL || "https://streamfi.com" // Replace with your actual domain
   ),
   title: {
     default: "Streamfi - Own Your Stream. Own Your Earnings",
@@ -46,7 +47,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className="bg-transparent">
       <body className="antialiased">
         <Providers>
-          {children}
+          <SidebarWrapper>{children}</SidebarWrapper>
           <Toaster position="top-right" closeButton />
         </Providers>
       </body>

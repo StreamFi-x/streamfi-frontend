@@ -143,9 +143,9 @@ export default function UsernameLayout({
           textClasses.primary,
         )}
       >
-        <Navbar toggleSidebar={toggleSidebar} />
+        {/* <Navbar toggleSidebar={toggleSidebar} /> */}
         <div className="flex-1 flex overflow-hidden">
-          <Sidebar />
+          {/* <Sidebar /> */}
           <main className="flex-1 overflow-auto">
             <ViewStream
               username={username}
@@ -168,9 +168,9 @@ export default function UsernameLayout({
         textClasses.primary,
       )}
     >
-      <Navbar toggleSidebar={toggleSidebar} />
+      {/* <Navbar toggleSidebar={toggleSidebar} /> */}
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar />
+        {/* <Sidebar /> */}
         <main className="flex-1 overflow-auto">
           <div className={combineClasses(bgClasses.secondary, "min-h-screen")}>
             <Banner
