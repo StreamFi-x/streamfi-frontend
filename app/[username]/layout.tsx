@@ -2,11 +2,11 @@
 import { useState, useEffect } from "react";
 import type React from "react";
 import { notFound, usePathname } from "next/navigation";
-import Sidebar from "@/components/explore/Sidebar";
-import Navbar from "@/components/explore/Navbar";
-import Banner from "@/components/shared/profile/Banner";
-import ProfileHeader from "@/components/shared/profile/ProfileHeader";
-import TabsNavigation from "@/components/shared/profile/TabsNavigation";
+import Sidebar from "@/components/explore/sidebar";
+import Navbar from "@/components/explore/navbar";
+import Banner from "@/components/shared/profile/banner";
+import ProfileHeader from "@/components/shared/profile/profile-header";
+import TabsNavigation from "@/components/shared/profile/tabs-navigation";
 import ViewStream from "@/components/stream/view-stream";
 import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
 
@@ -45,7 +45,7 @@ const fetchUserData = async (username: string) => {
   return {
     username,
     followers: 2000,
-    avatarUrl: "/Images/user.png",
+    avatarUrl: "/images/user.png",
     bio: "Chidinma Cassandra is a seasoned product designer that has been designing digital products and creating seamless experiences for users interacting with blockchain and web 3 products.",
     socialLinks: {
       twitter: "https://twitter.com/kassinma",
@@ -181,7 +181,7 @@ export default function UsernameLayout({
             <ProfileHeader
               username={userData?.username || username}
               followers={userData?.followers || 0}
-              avatarUrl={userData?.avatarUrl || "/Images/user.png"}
+              avatarUrl={userData?.avatarUrl || "/images/user.png"}
               isOwner={isOwner}
             />
             <TabsNavigation username={username} />

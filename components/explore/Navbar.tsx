@@ -8,11 +8,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { SearchResult } from "@/types/explore";
 import { useAccount, useDisconnect } from "@starknet-react/core";
 import { useAuth } from "@/components/auth/auth-provider";
-import ConnectModal from "../connectWallet";
-import ProfileModal from "./ProfileModal";
+import ConnectModal from "../connect-wallet";
+import ProfileModal from "./profile-modal";
 import SimpleLoader from "../ui/loader/simple-loader";
-import Avatar from "@/public/Images/user.png";
-import ProfileDropdown from "../ui/profileDropdown";
+import Avatar from "@/public/images/user.png";
+import ProfileDropdown from "../ui/profile-dropdown";
+
 
 import {
   bgClasses,

@@ -1,9 +1,9 @@
 "use client";
 import type React from "react";
 import Image from "next/image";
-import DiscordLogo from "@/public/Images/discord.svg";
-import SteamLogo from "@/public/Images/steam.svg";
-import YoutubeLogo from "@/public/Images/youtube.svg";
+import DiscordLogo from "@/public/images/discord.svg";
+import SteamLogo from "@/public/images/steam.svg";
+import YoutubeLogo from "@/public/images/youtube.svg";
 import {
   bgClasses,
   textClasses,

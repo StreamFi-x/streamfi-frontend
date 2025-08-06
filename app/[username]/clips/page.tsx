@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { notFound } from "next/navigation";
-import EmptyState from "@/components/shared/profile/EmptyState";
+import EmptyState from "@/components/shared/profile/empty-state";
 import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
 
 interface PageProps {

@@ -1,3 +1,9 @@
+
+
 {
-  "extends": ["next/core-web-vitals", "next/typescript"]
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "plugins": ["filenames"],
+  "rules": {
+    "filenames/match-regex": ["error", "^[a-z0-9-.]+$", true]
+  }
 }

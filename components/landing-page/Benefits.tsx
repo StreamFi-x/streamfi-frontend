@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import Section from "@/components/layout/Section";
+import Section from "@/components/layout/section";
 import Image from "next/image";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { motion } from "framer-motion";

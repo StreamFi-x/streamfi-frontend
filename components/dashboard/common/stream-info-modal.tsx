@@ -254,7 +254,7 @@ export default function StreamInfoModal({
                   {thumbnailPreview ? (
                     <div className="relative flex flex-col">
                       <Image
-                        src={thumbnailPreview || "/Images/banner-bg.png"}
+                        src={thumbnailPreview || "/images/banner-bg.png"}
                         alt="Thumbnail preview"
                         className="max-h-40 mx-auo rounde-md max-w-14"
                         fill

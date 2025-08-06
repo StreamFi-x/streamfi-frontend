@@ -3,8 +3,8 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus } from "lucide-react";
 import { useState } from "react";
-import { frequentlyAskedQuestions } from "@/data/landing-page/frequentlyAskedQuestions";
-import Section from "@/components/layout/Section";
+import { frequentlyAskedQuestions } from "@/data/landing-page/frequently-asked-questions";
+import Section from "@/components/layout/section";
 
 export default function FrequentlyAskedQuestions() {
   const [activeTab, setActiveTab] = useState<number | string | null>(null);

@@ -1,10 +1,10 @@
 "use client";
 import type React from "react";
 import { useState } from "react";
-import Navbar from "@/components/explore/Navbar";
-import Sidebar from "@/components/explore/Sidebar";
+import Navbar from "@/components/explore/navbar";
+import Sidebar from "@/components/explore/sidebar";
 import { AnimatePresence } from "framer-motion";
-import ConnectModal from "@/components/explore/ProfileModal";
+import ConnectModal from "@/components/explore/profile-modal";
 import "../globals.css";
 
 export default function ClientLayout({

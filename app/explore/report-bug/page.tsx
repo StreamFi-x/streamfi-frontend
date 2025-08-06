@@ -1,4 +1,4 @@
-import { ReportBugForm } from "@/components/feedback/ReportBugForm";
+import { ReportBugForm } from "@/components/feedback/report-bug-form";
 
 export default function ReportBugPage() {
   return (

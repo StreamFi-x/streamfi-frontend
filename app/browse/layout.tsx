@@ -5,8 +5,8 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import Navbar from "@/components/explore/Navbar";
-import Sidebar from "@/components/explore/Sidebar";
+import Navbar from "@/components/explore/navbar";
+import Sidebar from "@/components/explore/sidebar";
 
 export default function BrowseLayout({
   children,

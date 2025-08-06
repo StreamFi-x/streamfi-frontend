@@ -1,33 +1,27 @@
-import Banner from "@/components/shared/profile/Banner";
-import ProfileHeader from "@/components/shared/profile/ProfileHeader";
-import TabsNavigation from "@/components/shared/profile/TabsNavigation";
-import StreamCard from "@/components/shared/profile/StreamCard";
+import Banner from "@/components/shared/profile/banner";
+import ProfileHeader from "@/components/shared/profile/profile-header";
+import TabsNavigation from "@/components/shared/profile/tabs-navigation";
+import StreamCard from "@/components/shared/profile/stream-card";
 
 interface ChannelHomeProps {
   username: string;
   isLive: boolean;
   streamTitle?: string;
-  avatarUrl?: string;
 }
 
-const ChannelHome = ({
-  username,
-  isLive,
-  streamTitle,
-  avatarUrl,
-}: ChannelHomeProps) => {
+const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
   // Mock data - would be fetched from API in a real implementation
   const userData = {
     username,
     followers: 2000,
-    avatarUrl: avatarUrl || "/Images/user.png",
+    avatarUrl: "/images/user.png",
   };
 
   const recentStreams = [
     {
       id: "1",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/Images/explore/home/live-stream/img1.png",
+      thumbnailUrl: "/images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -37,7 +31,7 @@ const ChannelHome = ({
     {
       id: "2",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/Images/explore/home/live-stream/img2.png",
+      thumbnailUrl: "/images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -47,7 +41,7 @@ const ChannelHome = ({
     {
       id: "3",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/Images/explore/home/live-stream/img3.png",
+      thumbnailUrl: "/images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -57,7 +51,7 @@ const ChannelHome = ({
     {
       id: "4",
       title: "Clash of clans Live play",
-      thumbnailUrl: "/Images/explore/home/live-stream/img4.png",
+      thumbnailUrl: "/images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -70,7 +64,7 @@ const ChannelHome = ({
     {
       id: "5",
       title: "Amazing headshot",
-      thumbnailUrl: "/Images/explore/home/live-stream/img4.png",
+      thumbnailUrl: "/images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -80,7 +74,7 @@ const ChannelHome = ({
     {
       id: "6",
       title: "Epic win",
-      thumbnailUrl: "/Images/explore/home/live-stream/img3.png",
+      thumbnailUrl: "/images/explore/home/live-stream/img1.png",
       username,
       category: "Flexgames",
       tags: ["Nigerian", "Gameplay"],
@@ -96,7 +90,7 @@ const ChannelHome = ({
         username={userData.username}
         followers={userData.followers}
         avatarUrl={userData.avatarUrl}
-        isOwner={false}
+        isOwner={true}
       />
       <TabsNavigation username={username} />
 

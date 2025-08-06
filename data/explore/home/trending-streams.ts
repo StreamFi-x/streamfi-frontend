@@ -16,11 +16,11 @@ export const trendingStreams: Stream[] = [
     id: "t1",
     title: "Clash of clans Live play",
     thumbnail:
-      "/Images/explore/home/trending-streams/img1.png?height=300&width=500",
+      "/images/explore/home/trending-streams/img1.png?height=300&width=500",
     viewCount: "14.5k",
     streamer: {
       name: "Flaxgames",
-      logo: "/Images/explore/home/trending-streams/profile.png?height=50&width=50",
+      logo: "/images/explore/home/trending-streams/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Gameplay"],
     location: "Nigerian",
@@ -29,11 +29,11 @@ export const trendingStreams: Stream[] = [
     id: "t2",
     title: "Clash of clans Live play",
     thumbnail:
-      "/Images/explore/home/trending-streams/img2.png?height=300&width=500",
+      "/images/explore/home/trending-streams/img2.png?height=300&width=500",
     viewCount: "14.5k",
     streamer: {
       name: "Flaxgames",
-      logo: "/Images/explore/home/trending-streams/profile.png?height=50&width=50",
+      logo: "/images/explore/home/trending-streams/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Gameplay"],
     location: "Nigerian",
@@ -42,11 +42,11 @@ export const trendingStreams: Stream[] = [
     id: "t3",
     title: "Clash of clans Live play",
     thumbnail:
-      "/Images/explore/home/trending-streams/img3.png?height=300&width=500",
+      "/images/explore/home/trending-streams/img3.png?height=300&width=500",
     viewCount: "14.5k",
     streamer: {
       name: "Flaxgames",
-      logo: "/Images/explore/home/trending-streams/profile.png?height=50&width=50",
+      logo: "/images/explore/home/trending-streams/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Gameplay"],
     location: "Nigerian",
@@ -55,11 +55,11 @@ export const trendingStreams: Stream[] = [
     id: "t4",
     title: "Clash of clans Live play",
     thumbnail:
-      "/Images/explore/home/trending-streams/img4.png?height=300&width=500",
+      "/images/explore/home/trending-streams/img4.png?height=300&width=500",
     viewCount: "14.5k",
     streamer: {
       name: "Flaxgames",
-      logo: "/Images/explore/home/trending-streams/profile.png?height=50&width=50",
+      logo: "/images/explore/home/trending-streams/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Gameplay"],
     location: "Nigerian",
@@ -68,11 +68,11 @@ export const trendingStreams: Stream[] = [
     id: "t5",
     title: "Clash of clans Live play",
     thumbnail:
-      "/Images/explore/home/trending-streams/img4.png?height=300&width=500",
+      "/images/explore/home/trending-streams/img4.png?height=300&width=500",
     viewCount: "14.5k",
     streamer: {
       name: "Flaxgames",
-      logo: "/Images/explore/home/trending-streams/profile.png?height=50&width=50",
+      logo: "/images/explore/home/trending-streams/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Gameplay"],
     location: "Nigerian",
@@ -81,11 +81,11 @@ export const trendingStreams: Stream[] = [
     id: "t6",
     title: "Clash of clans Live play",
     thumbnail:
-      "/Images/explore/home/trending-streams/img3.png?height=300&width=500",
+      "/images/explore/home/trending-streams/img3.png?height=300&width=500",
     viewCount: "14.5k",
     streamer: {
       name: "Flaxgames",
-      logo: "/Images/explore/home/trending-streams/profile.png?height=50&width=50",
+      logo: "/images/explore/home/trending-streams/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Gameplay"],
     location: "Nigerian",
@@ -94,11 +94,11 @@ export const trendingStreams: Stream[] = [
     id: "t7",
     title: "Clash of clans Live play",
     thumbnail:
-      "/Images/explore/home/trending-streams/img2.png?height=300&width=500",
+      "/images/explore/home/trending-streams/img2.png?height=300&width=500",
     viewCount: "14.5k",
     streamer: {
       name: "Flaxgames",
-      logo: "/Images/explore/home/trending-streams/profile.png?height=50&width=50",
+      logo: "/images/explore/home/trending-streams/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Gameplay"],
     location: "Nigerian",
@@ -107,11 +107,11 @@ export const trendingStreams: Stream[] = [
     id: "t8",
     title: "Clash of clans Live play",
     thumbnail:
-      "/Images/explore/home/trending-streams/img1.png?height=300&width=500",
+      "/images/explore/home/trending-streams/img1.png?height=300&width=500",
     viewCount: "14.5k",
     streamer: {
       name: "Flaxgames",
-      logo: "/Images/explore/home/trending-streams/profile.png?height=50&width=50",
+      logo: "/images/explore/home/trending-streams/profile.png?height=50&width=50",
     },
     tags: ["Gameplay", "Gameplay"],
     location: "Nigerian",

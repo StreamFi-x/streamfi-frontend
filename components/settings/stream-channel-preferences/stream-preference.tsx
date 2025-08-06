@@ -2,8 +2,8 @@
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
 import { Eye } from "lucide-react";
-import StreamKeyModal from "@/components/ui/streamkeyModal";
-import StreamKeyConfirmationModal from "@/components/ui/streamKeyConfirmationModal";
+import StreamKeyModal from "@/components/ui/streamkey-modal";
+import StreamKeyConfirmationModal from "@/components/ui/stream-key-confirmation-modal";
 import {
   bgClasses,
   textClasses,

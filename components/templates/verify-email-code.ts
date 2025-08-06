@@ -126,7 +126,7 @@ export default function VerifyEmailCode(name: string, token: string) {
   <div class="container">
     <!-- Logo -->
     <div class="logo">
-      <img src="https://streamfi.io/Images/STRMLogo.svg" alt="StreamFi Logo" />
+      <img src="https://streamfi.io/images/STRMLogo.svg" alt="StreamFi Logo" />
     </div>
 
     <!-- Main Heading -->

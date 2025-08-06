@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { uploadImage, deleteImage } from "@/utils/upload/Dcloudinary";
+import { uploadImage, deleteImage } from "@/utils/upload/dcloudinary";
 import { promises as fs } from "fs";
 import path from "path";
 import os from "os";
 import { validateEmail } from "@/utils/validators";
-import { validateUserUpdate } from "../../../../../utils/userValidators";
+import { validateUserUpdate } from "../../../../../utils/user-validators";
 import { UserUpdateInput } from "../../../../../types/user";
 
 export async function PUT(

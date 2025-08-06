@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Home, Search, Settings, User, Wallet } from "lucide-react";
 import { useAccount } from "@starknet-react/core";
 import { useState, useEffect, useCallback } from "react";
-import ConnectModal from "../connectWallet";
+import ConnectModal from "../connect-wallet";
 
 interface QuickActionItem {
   icon: React.ElementType;

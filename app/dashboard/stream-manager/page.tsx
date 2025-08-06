@@ -3,12 +3,12 @@
 import type React from "react";
 
 import { useState, useEffect } from "react";
-import StreamPreview from "@/components/dashboard/stream-manager/StreamPreview";
-import ActivityFeed from "@/components/dashboard/stream-manager/ActivityFeed";
-import Chat from "@/components/dashboard/stream-manager/Chat";
-import StreamInfo from "@/components/dashboard/stream-manager/StreamInfo";
-import StreamSettings from "@/components/dashboard/stream-manager/StreamSettings";
-import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
+import StreamPreview from "@/components/dashboard/stream-manager/stream-preview";
+import ActivityFeed from "@/components/dashboard/stream-manager/activity-feed";
+import Chat from "@/components/dashboard/stream-manager/chat";
+import StreamInfo from "@/components/dashboard/stream-manager/stream-info";
+import StreamSettings from "@/components/dashboard/stream-manager/stream-settings";
+import StreamInfoModal from "@/components/dashboard/common/stream-info-modal";
 import { motion } from "framer-motion";
 import { bgClasses, textClasses, borderClasses } from "@/lib/theme-classes";
 

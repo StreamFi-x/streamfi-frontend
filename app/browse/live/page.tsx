@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search } from "lucide-react";
-import StreamCard from "@/components/shared/profile/StreamCard";
+import StreamCard from "@/components/shared/profile/stream-card";
 import { languageOptions, sortOptions, liveVideos } from "@/data/browse/live-content";
 
 export default function LivePage() {

@@ -386,8 +386,8 @@ const useDropzone = <TUploadRes, TUploadError = string>(
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const DropZoneContext = createContext<UseDropzoneReturn<any, any>>({
-  getRootProps: () => ({}) as never,
-  getInputProps: () => ({}) as never,
+  getRootProps: () => (({}) as never),
+  getInputProps: () => (({}) as never),
   onRemoveFile: async () => {},
   onRetry: async () => {},
   canRetry: () => false,

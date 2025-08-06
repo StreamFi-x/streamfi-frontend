@@ -6,7 +6,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAccount } from "@starknet-react/core"
 import { useAuth } from "./auth-provider"
-import ConnectWalletModal from "@/components/connectWallet"
+import ConnectWalletModal from "@/components/connect-wallet"
 
 interface ProtectedRouteProps {
   children: React.ReactNode

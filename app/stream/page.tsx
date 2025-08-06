@@ -1,4 +1,4 @@
-import StreamTestComponent from "@/components/StreamTestComponent";
+import StreamTestComponent from "@/components/stream-test-component";
 
 export default function TestStreamPage() {
   return (

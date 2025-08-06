@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FeaturedStream } from "@/components/explore/home/FeaturedStream";
-import { LiveStreams } from "@/components/explore/home/LiveStreams";
-import { TrendingStreams } from "@/components/explore/home/TrendingStreams";
+import { FeaturedStream } from "@/components/explore/home/featured-stream";
+import { LiveStreams } from "@/components/explore/home/live-streams";
+import { TrendingStreams } from "@/components/explore/home/trending-streams";
 import { featuredStream } from "@/data/explore/home/featured-stream";
 import { liveStreams } from "@/data/explore/home/live-streams";
 import { trendingStreams } from "@/data/explore/home/trending-streams";

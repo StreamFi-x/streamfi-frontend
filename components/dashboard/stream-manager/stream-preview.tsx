@@ -65,7 +65,7 @@ export default function StreamPreview() {
           ) : (
             <>
               <img
-                src="/Images/stream-preview.png"
+                src="/images/stream-preview.png"
                 alt="Stream preview"
                 className="object-cover"
               />
