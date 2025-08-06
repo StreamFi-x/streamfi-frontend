@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const response = await fetch(`/api/users/${walletAddress}`, {
+      const response = await fetch(`/api/users/wallet/${walletAddress}`, {
         headers: {
           "x-wallet-address": walletAddress,
         },

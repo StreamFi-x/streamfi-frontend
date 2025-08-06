@@ -217,11 +217,11 @@ export default function Chat() {
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-4">
             <p
-              className={`text-base font-semibold mb-2 ${textClasses.primary}`}
+              className={`text-sm font-semibold mb-2 ${textClasses.primary}`}
             >
               Your chat room is quiet... for now
             </p>
-            <p className={`text-sm ${textClasses.tertiary}`}>
+            <p className={`text-xs ${textClasses.tertiary}`}>
               Start the convo! Viewers will be able to chat with you in
               real-time once they join.
             </p>
@@ -244,7 +244,7 @@ export default function Chat() {
                       {message.username}
                     </span>
                   </div>
-                  <div className={`text-sm ${textClasses.primary}`}>
+                  <div className={`text-xs ${textClasses.primary}`}>
                     {message.content}
                   </div>
                 </div>

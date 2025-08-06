@@ -53,7 +53,7 @@ export default function StreamInfo({ data, onEditClick }: StreamInfoProps) {
           transition={{ duration: 0.3, ease: "easeInOut" }}
         >
           <div
-            className={`${bgClasses.card} p-2 flex justify-between items-center border-b ${borderClasses.primary}`}
+            className={`${bgClasses.card} p-2 flex justify-between items-center border-b text-sm ${borderClasses.primary}`}
           >
             <div className="flex items-center">
               <Info size={18} className={`mr-2 ${textClasses.primary}`} />
@@ -73,7 +73,7 @@ export default function StreamInfo({ data, onEditClick }: StreamInfoProps) {
             className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.primary} p-3`}
           >
             <div className="flex mb-3">
-              <div className="w-16 h-16 rounded-md overflow-hidden mr-3">
+              <div className="w-12 h-12 rounded-md overflow-hidden mr-3">
                 <img
                   src={thumbnail || "/placeholder.svg"}
                   alt="Stream thumbnail"
@@ -81,29 +81,28 @@ export default function StreamInfo({ data, onEditClick }: StreamInfoProps) {
                 />
               </div>
               <div className="flex-1">
-                <h3 className={`font-medium text-lg ${textClasses.primary}`}>
+                <p className={`font-semibold text-sm ${textClasses.primary}`}>
                   {title}
-                </h3>
-                <p className={`text-sm ${textClasses.tertiary} line-clamp-1`}>
+                </p>
+                <p className={`text-xs ${textClasses.tertiary} line-clamp-1`}>
                   {description}
                 </p>
+                <div className="flex flex-wrap gap-2 mt-1.5">
+                  {tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className={`px-2 py-1 ${bgClasses.card} rounded-md text-xs ${textClasses.secondary} border ${borderClasses.secondary}`}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-3">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className={`px-2 py-1 ${bgClasses.card} rounded-md text-xs ${textClasses.secondary} border ${borderClasses.secondary}`}
-                >
-                  {tag}
-                </span>
-              ))}
             </div>
 
             <button
               onClick={onEditClick}
-              className={`w-full py-2 ${buttonClasses.primary} ${textClasses.inverseHover} rounded-md transition-colors`}
+              className={`w-full py-2 ${buttonClasses.secondary} ${textClasses.inverseHover} text-xs rounded-md transition-colors`}
             >
               Edit Stream Info
             </button>

@@ -96,14 +96,14 @@ export default function StreamSettings() {
             className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.primary} p-3`}
           >
             <div className="mb-3">
-              <div className={`text-sm ${textClasses.tertiary} mb-1`}>
+              <div className={`text-xs ${textClasses.tertiary} mb-1`}>
                 STRK (Starknet) Address
               </div>
               <div
                 className={`flex items-center ${bgClasses.secondary} rounded-md p-2 border ${borderClasses.primary}`}
               >
                 <div
-                  className={`flex-1 text-xs font-mono truncate ${textClasses.secondary}`}
+                  className={`flex-1 text-[10px] font-mono truncate ${textClasses.secondary}`}
                 >
                   {walletAddresses.strk}
                 </div>
@@ -117,14 +117,14 @@ export default function StreamSettings() {
             </div>
 
             <div className="mb-4">
-              <div className={`text-sm ${textClasses.tertiary} mb-1`}>
+              <div className={`text-xs ${textClasses.tertiary} mb-1`}>
                 USDT (Tether) Address
               </div>
               <div
                 className={`flex items-center ${bgClasses.secondary} rounded-md p-2 border ${borderClasses.primary}`}
               >
                 <div
-                  className={`flex-1 text-xs font-mono truncate ${textClasses.secondary}`}
+                  className={`flex-1 text-[10px] font-mono truncate ${textClasses.secondary}`}
                 >
                   {walletAddresses.usdt}
                 </div>
@@ -139,7 +139,7 @@ export default function StreamSettings() {
 
             <button
               onClick={handleEditSettings}
-              className={`w-full py-2 ${buttonClasses.primary} ${textClasses.inverseHover} rounded-md transition-colors`}
+              className={`w-full py-2 ${buttonClasses.secondary} ${textClasses.inverseHover} text-xs rounded-md transition-colors`}
             >
               Edit Stream Settings
             </button>

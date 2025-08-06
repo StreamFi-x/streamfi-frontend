@@ -13,6 +13,10 @@ interface ProfileHeaderProps {
   followers: number;
   avatarUrl: string;
   isOwner: boolean;
+  isFollowing: boolean;
+  onFollow: () => void;
+  onUnfollow: () => void;
+  followLoading: boolean;
 }
 
 const ProfileHeader = ({
@@ -20,12 +24,17 @@ const ProfileHeader = ({
   followers,
   avatarUrl,
   isOwner,
+  isFollowing,
+  onFollow,
+  onUnfollow,
+  followLoading,
 }: ProfileHeaderProps) => {
   return (
     <div className="flex items-center justify-between px-6 py-4">
       <div className="flex items-center">
         <div className="relative w-16 h-16 rounded-full overflow-hidden bg-purple-600 mr-4">
-          {typeof avatarUrl === 'string' && avatarUrl.includes('cloudinary.com') ? (
+          {typeof avatarUrl === "string" &&
+          avatarUrl.includes("cloudinary.com") ? (
             <img
               src={avatarUrl}
               alt={username}
@@ -63,8 +72,14 @@ const ProfileHeader = ({
                 textClasses.onColor,
                 "border-none"
               )}
+              onClick={isFollowing ? onUnfollow : onFollow}
+              disabled={followLoading}
             >
-              Follow
+              {followLoading
+                ? "Loading..."
+                : isFollowing
+                  ? "Unfollow"
+                  : "Follow"}
             </Button>
             <Button
               className={combineClasses(

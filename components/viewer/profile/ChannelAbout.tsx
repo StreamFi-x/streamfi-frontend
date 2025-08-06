@@ -2,6 +2,8 @@ import Banner from "@/components/shared/profile/Banner";
 import ProfileHeader from "@/components/shared/profile/ProfileHeader";
 import TabsNavigation from "@/components/shared/profile/TabsNavigation";
 import AboutSection from "@/components/shared/profile/AboutSection";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 interface ChannelAboutProps {
   username: string;
@@ -11,17 +13,133 @@ interface ChannelAboutProps {
 
 const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
   // Mock data - would be fetched from API in a real implementation
-  const userData = {
-    username,
-    followers: 2000,
-    avatarUrl: "/placeholder.svg?height=64&width=64",
-    bio: "Chidinma Cassandra is a seasoned product designer that has been designing didigtal products and creating seamless experiences for users intercating with blockchain and web 3 products. Chidinma Cassandra is a seasoned product designer that has been designing didigtal products and creating seamless experiences for users intercating with blockchain and web 3 products",
-    socialLinks: {
-      twitter: "https://twitter.com/kassinma",
-      instagram: "https://instagram.com/kass_dinma",
-      discord: "https://discord.gg/kassinma",
-    },
+  // const userData = {
+  //   username,
+  //   followers: 2000,
+  //   avatarUrl: "/placeholder.svg?height=64&width=64",
+  //   bio: "Chidinma Cassandra is a seasoned product designer that has been designing didigtal products and creating seamless experiences for users intercating with blockchain and web 3 products. Chidinma Cassandra is a seasoned product designer that has been designing didigtal products and creating seamless experiences for users intercating with blockchain and web 3 products",
+  //   socialLinks: {
+  //     twitter: "https://twitter.com/kassinma",
+  //     instagram: "https://instagram.com/kass_dinma",
+  //     discord: "https://discord.gg/kassinma",
+  //   },
+  // };
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [userExists, setUserExists] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+
+  const loggedInUsername =
+    typeof window !== "undefined" ? sessionStorage.getItem("username") : null;
+  console.log(loggedInUsername);
+  // Fetch user data
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/users/${username}`);
+        if (response.status === 404) {
+          setUserExists(false);
+          return;
+        }
+        const data = await response.json();
+        setUserData(data.user);
+        console.log("Fetched user data:", data.user);
+        console.log("User data:", data.user?.username);
+        console.log("Logged in username:", loggedInUsername);
+      } catch (error) {
+        toast.error("Failed to fetch user data");
+        setUserExists(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [username, loggedInUsername]);
+
+  // Follow handler
+  const handleFollow = async () => {
+    if (!loggedInUsername) {
+      toast.error("You must be logged in to follow users.");
+      return;
+    }
+
+    setFollowLoading(true);
+    try {
+      const res = await fetch("/api/users/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          callerUsername: loggedInUsername,
+          receiverUsername: username,
+          action: "follow",
+        }),
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        setIsFollowing(true);
+        toast.success("Followed successfully");
+
+        setUserData((prev: any) => ({
+          ...prev,
+          followers: [...(prev.followers || []), loggedInUsername],
+        }));
+      } else {
+        toast.error(result.error || "Failed to follow");
+      }
+    } catch (error) {
+      toast.error("Network error while following");
+    } finally {
+      setFollowLoading(false);
+    }
   };
+
+  // Handle unfollow
+  const handleUnfollow = async () => {
+    if (!loggedInUsername) {
+      toast.error("You must be logged in to unfollow users.");
+      return;
+    }
+
+    setFollowLoading(true);
+    try {
+      const res = await fetch("/api/users/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          callerUsername: loggedInUsername,
+          receiverUsername: username,
+          action: "unfollow",
+        }),
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        setIsFollowing(false);
+        toast.success("Unfollowed successfully");
+
+        setUserData((prev: any) => ({
+          ...prev,
+          followers: (prev.followers || []).filter(
+            (f: string) => f !== loggedInUsername
+          ),
+        }));
+      } else {
+        toast.error(result.error || "Failed to unfollow");
+      }
+    } catch (error) {
+      toast.error("Network error while unfollowing");
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="bg-gray-950 min-h-screen">
@@ -30,7 +148,11 @@ const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
         username={userData.username}
         followers={userData.followers}
         avatarUrl={userData.avatarUrl}
-        isOwner={false}
+        isOwner={true}
+        isFollowing={isFollowing}
+        onFollow={handleFollow}
+        onUnfollow={handleUnfollow}
+        followLoading={followLoading}
       />
       <TabsNavigation username={username} />
 

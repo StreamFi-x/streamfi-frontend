@@ -1,6 +1,7 @@
 "use client";
 import AboutSection from "@/components/shared/profile/AboutSection";
-
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 interface PageProps {
   params: {
     username: string;
@@ -9,30 +10,55 @@ interface PageProps {
 
 const AboutPage = ({ params }: PageProps) => {
   const { username } = params;
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [userExists, setUserExists] = useState(true);
 
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/users/${username}`);
+        if (response.status === 404) {
+          setUserExists(false);
+          return;
+        }
+        const data = await response.json();
+        setUserData(data.user);
+        console.log("Fetched user data:", data.user);
+        console.log("User data:", data.user?.username);
+        // console.log("Logged in username:", loggedInUsername);
+      } catch (error) {
+        toast.error("Failed to fetch user data");
+        setUserExists(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [username]);
+
+  const currentUser = sessionStorage.getItem("username");
   // Mock function to check if current user is the owner of this profile
-  const isOwner = username === "chidinma"; // Just for demo purposes
-
-  // Mock user data - in a real app, this would come from the layout or be fetched here
-  const userData = {
-    username,
-    followers: 2000,
-    bio: "Chidinma Cassandra is a seasoned product designer that has been designing digital products and creating seamless experiences for users interacting with blockchain and web 3 products.",
-    socialLinks: {
-      twitter: "https://twitter.com/kassinma",
-      instagram: "https://instagram.com/kass_dinma",
-      discord: "https://discord.gg/kassinma",
-    },
-  };
+  const isOwner = currentUser === username;
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  if (!userExists) {
+    return <div>User not found</div>;
+  }
 
   return (
-    <AboutSection
-      username={userData.username}
-      followers={userData.followers}
-      bio={userData.bio}
-      socialLinks={userData.socialLinks}
-      isOwner={isOwner}
-    />
+    <>
+      <AboutSection
+        username={userData.username}
+        followers={userData.followers}
+        bio={userData.bio}
+        socialLinks={userData.socialLinks}
+        isOwner={isOwner}
+      />
+    </>
   );
 };
 

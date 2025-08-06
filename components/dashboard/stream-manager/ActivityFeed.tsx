@@ -113,20 +113,14 @@ export default function ActivityFeed() {
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
-                  <img
-                    src="/placeholder.svg?height=40&width=40"
-                    alt="Creator"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+             
               </div>
 
-              <div className="flex-1">
+              <div className="flex-1 text-xs">
                 <div className={`font-medium ${textClasses.primary}`}>
                   {activity.username}
                 </div>
-                <div className={`text-sm ${textClasses.tertiary}`}>
+                <div className={`text- ${textClasses.tertiary}`}>
                   followed you
                 </div>
               </div>
