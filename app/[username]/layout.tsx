@@ -52,8 +52,11 @@ export default function UsernameLayout({
           typeof window !== "undefined" &&
           sessionStorage.getItem("username")
         ) {
-          const loggedInUser = sessionStorage.getItem("username");
-          setIsFollowing(data.user.followers?.includes(loggedInUser));
+          const loggedInUser = sessionStorage.getItem("userData");
+          const id = loggedInUser ? JSON.parse(loggedInUser).id : null;
+          console.log(id);
+          console.log(loggedInUser);
+          setIsFollowing(data.user.followers?.includes(id));
         }
       } catch (error) {
         toast.error("Failed to fetch user data");

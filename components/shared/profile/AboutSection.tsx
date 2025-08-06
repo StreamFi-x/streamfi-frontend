@@ -11,10 +11,11 @@ import {
   componentClasses,
   combineClasses,
 } from "@/lib/theme-classes";
+import Link from "next/link";
 
 interface AboutSectionProps {
   username: string;
-  followers: number;
+  followers: string[] | null;
   bio?: string;
   socialLinks?: {
     twitter?: string;
@@ -50,7 +51,7 @@ const AboutSection = ({
           <h2
             className={combineClasses(
               textClasses.primary,
-              "text-lg font-medium",
+              "text-lg font-medium"
             )}
           >
             About {username}
@@ -59,7 +60,7 @@ const AboutSection = ({
             className={combineClasses(textClasses.secondary, "text-sm mr-4")}
           >
             <span className={textClasses.highlight}>
-              {followers.toLocaleString()}
+              {followers ? followers?.length : "0"}
             </span>{" "}
             followers
           </span>
@@ -73,12 +74,13 @@ const AboutSection = ({
               className={combineClasses(
                 buttonClasses.outline,
                 textClasses.primary,
-                "border-none",
+                "border-none"
               )}
-              onClick={() => setShowBioModal(true)}
             >
-              <Edit3 className="h-4 w-4 mr-2" />
-              Edit Bio
+              <Link href={`/settings/profile`} className="flex items-center">
+                <Edit3 className="h-4 w-4 mr-2" />
+                Edit Bio
+              </Link>
             </Button>
           )}
         </div>
@@ -93,7 +95,7 @@ const AboutSection = ({
               rel="noopener noreferrer"
               className={combineClasses(
                 textClasses.tertiary,
-                `hover:${textClasses.primary}`,
+                `hover:${textClasses.primary}`
               )}
             >
               <Twitter className="h-5 w-5" />
@@ -106,7 +108,7 @@ const AboutSection = ({
               rel="noopener noreferrer"
               className={combineClasses(
                 textClasses.tertiary,
-                `hover:${textClasses.primary}`,
+                `hover:${textClasses.primary}`
               )}
             >
               <Instagram className="h-5 w-5" />
@@ -119,7 +121,7 @@ const AboutSection = ({
               rel="noopener noreferrer"
               className={combineClasses(
                 textClasses.tertiary,
-                `hover:${textClasses.primary}`,
+                `hover:${textClasses.primary}`
               )}
             >
               <Discord className="h-5 w-5" />
@@ -132,7 +134,7 @@ const AboutSection = ({
         <p
           className={combineClasses(
             textClasses.secondary,
-            "text-sm whitespace-pre-line",
+            "text-sm whitespace-pre-line"
           )}
         >
           {userBio}
@@ -154,7 +156,7 @@ const AboutSection = ({
                 className={combineClasses(
                   buttonClasses.secondary,
                   textClasses.onColor,
-                  "border-none mt-3",
+                  "border-none mt-3"
                 )}
                 onClick={() => setShowBioModal(true)}
               >

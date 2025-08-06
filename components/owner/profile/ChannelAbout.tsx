@@ -11,10 +11,7 @@ interface ChannelAboutProps {
   streamTitle?: string;
 }
 
-const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
-  // Mock data - would be fetched from API in a real implementation
-
-
+const OwnerAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
   // const { username } = params;
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -135,7 +132,7 @@ const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
 
   return (
     <div className="bg-gray-950 min-h-screen">
-      <Banner username={username} isLive={isLive} streamTitle={streamTitle} />
+      {/* <Banner username={username} isLive={isLive} streamTitle={streamTitle} />
       <ProfileHeader
         username={userData.username}
         followers={userData.followers}
@@ -146,7 +143,7 @@ const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
         onUnfollow={handleUnfollow}
         followLoading={followLoading}
       />
-      <TabsNavigation username={username} />
+      <TabsNavigation username={username} /> */}
 
       <div className="p-6">
         <AboutSection
@@ -161,4 +158,4 @@ const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
   );
 };
 
-export default ChannelAbout;
+export default OwnerAbout;

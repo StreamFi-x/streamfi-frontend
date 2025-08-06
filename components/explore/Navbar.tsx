@@ -79,6 +79,24 @@ export default function Navbar({}: NavbarProps) {
     return "Unknown User";
   }, [user?.username, address]);
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch(`/api/users/${user?.username}`);
+        if (response.status === 404) {
+          // setProfileModalOpen(true);
+        } else if (response.ok) {
+          const result = await response.json();
+          console.log("User found:", result);
+        }
+      } catch (error) {
+        console.error("Error finding user:", error);
+      }
+    };
+    fetchUser();
+  }, [address]);
+
+
   const getAvatar = useCallback(() => {
     if (user?.avatar) {
       return user.avatar;
@@ -346,13 +364,13 @@ export default function Navbar({}: NavbarProps) {
                   </span>
                   {typeof userAvatar === "string" &&
                   userAvatar.includes("cloudinary.com") ? (
-                    <Image
-                      src={userAvatar}
+                    <img
+                      src={`${userAvatar}`}
                       alt="Avatar"
                       width={24}
                       height={24}
                       className="w-6 h-6 rounded-full object-cover"
-                      unoptimized={false}
+                      // unoptimized={false}
                     />
                   ) : (
                     <Image

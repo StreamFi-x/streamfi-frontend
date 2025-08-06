@@ -200,7 +200,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
   return (
     <div className="bg-gray-950 min-h-screen">
       <Banner username={username} isLive={isLive} streamTitle={streamTitle} />
-      <ProfileHeader
+      {/* <ProfileHeader
         username={userData.username}
         followers={userData.followers}
         avatarUrl={userData.avatarUrl}
@@ -209,7 +209,7 @@ const ChannelHome = ({ username, isLive, streamTitle }: ChannelHomeProps) => {
         onFollow={handleFollow}
         onUnfollow={handleUnfollow}
         followLoading={followLoading}
-      />
+      /> */}
       <TabsNavigation username={username} />
 
       <div className="p-6">
