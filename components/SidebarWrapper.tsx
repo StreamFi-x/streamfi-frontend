@@ -5,6 +5,7 @@ import Navbar from "./explore/Navbar";
 import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import ConnectModal from "@/components/explore/ProfileModal";
+import QuickActions from "./explore/quick-actions";
 
 export default function SidebarWrapper({
     children,
@@ -37,10 +38,11 @@ export default function SidebarWrapper({
                 {!hideSidebar && <Navbar />}
                 <div className="flex h-screen overflow-hidden">
                     {!hideSidebar && <Sidebar />}
-                    <main className="flex-1 overflow-y-auto scrollbar-hide">
+                    <main className="flex-1 overflow-y-auto scrollbar-hide pb-20">
                         {children}
                     </main>
                 </div>
+                <QuickActions/>
             </div>
             <AnimatePresence>
                 {connectModalOpen && (

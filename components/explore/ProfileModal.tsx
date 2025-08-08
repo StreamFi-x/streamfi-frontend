@@ -23,7 +23,6 @@ export default function ProfileModal({
   isOpen,
   currentStep,
   onNextStep,
-  walletAddress = "",
   setIsProfileModalOpen,
 }: ProfileModalProps) {
   // Form state

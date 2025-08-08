@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { StreamfiLogoLight, StreamfiLogoShort } from "@/public/icons";
-import { Search, Bell } from "lucide-react";
+import { Search, Bell, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,6 +22,7 @@ import {
   buttonClasses,
   componentClasses,
 } from "@/lib/theme-classes";
+import { fa } from "zod/v4/locales";
 
 interface NavbarProps {
   onConnectWallet?: () => void;
@@ -358,7 +359,7 @@ export default function Navbar({}: NavbarProps) {
                   className={`cursor-pointer flex gap-[10px] font-medium items-center text-[14px] ${textClasses.onColor}`}
                   onClick={toggleProfileDropdown}
                 >
-                  <span className={`${textClasses.primary}`}>
+                  <span className={`${textClasses.primary} hidden sm:block`}>
                     {truncatedDisplayName}
                   </span>
                   {typeof userAvatar === "string" &&
@@ -368,7 +369,7 @@ export default function Navbar({}: NavbarProps) {
                       alt="Avatar"
                       width={24}
                       height={24}
-                      className="w-6 h-6 rounded-full object-cover"
+                      className="w-8 h-8 sm:w-6 sm:h-6 rounded-full object-cover"
                       // unoptimized={false}
                     />
                   ) : (
@@ -380,16 +381,24 @@ export default function Navbar({}: NavbarProps) {
                       className=""
                     />
                   )}
+
+                  <ChevronDown
+                    className={`${textClasses.primary} w-4 h-4 sm:hidden mt-0.5`}
+                  />
                 </div>
 
                 {/* Render ProfileDropdown with AnimatePresence */}
                 <AnimatePresence>
                   {isProfileDropdownOpen && (
-                    <div className="absolute top-full right-0 mt-2 profile-dropdown-container z-50">
+                    <div className="absolute top-full -right-2 sm:right-0 mt-2 profile-dropdown-container z-50">
                       <ProfileDropdown
                         username={truncatedDisplayName}
                         avatar={`${userAvatar}`}
-                        // onLinkClick={setIsProfileDropdownOpen(false)}
+                        onLinkClick={() => {
+                          setTimeout(() => {
+                            toggleProfileDropdown();
+                          }, 400);
+                        }}
                       />
                     </div>
                   )}
