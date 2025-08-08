@@ -77,12 +77,12 @@ const StreamCard = ({
                 />
               )}
             </div>
-            <span className="text-base text-gray-300 font-medium">
+            <span className="text-sm sm:text-base text-gray-300 font-medium">
               {username}
             </span>
           </div>
 
-          <h3 className="text-base font-semibold text-white mb-3 line-clamp-2">
+          <h3 className="text-sm sm:text-base font-semibold text-white mb-3 line-clamp-2">
             {title}
           </h3>
 
@@ -90,7 +90,7 @@ const StreamCard = ({
             {tags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="text-sm px-3 py-1.5 rounded bg-gray-700 text-gray-300"
+                className="text-xs sm:text-sm px-3 py-1.5 rounded bg-gray-700 text-gray-300"
               >
                 {tag}
               </span>

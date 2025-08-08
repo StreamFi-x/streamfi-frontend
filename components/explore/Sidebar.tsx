@@ -7,7 +7,6 @@ import { usePathname } from "next/navigation";
 import { navItems, recommendedUsers } from "@/data/explore/sidebar";
 import Image from "next/image";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import QuickActions from "./quick-actions";
 import {
   bgClasses,
   textClasses,
@@ -23,6 +22,7 @@ export default function Sidebar() {
   const renderAvatar = (avatarUrl: string, alt: string) => {
     if (avatarUrl?.includes("cloudinary.com")) {
       return (
+        // eslint-disable-next-line @next/next/no-img-element
         <img src={avatarUrl} alt={alt} className="w-full h-full object-cover" />
       );
     }
@@ -249,7 +249,13 @@ export default function Sidebar() {
             >
               <motion.div variants={navItemVariants}>
                 <Link
-                  href={item.href === "/explore/browse" ? "/browse" : (item.href === "/browse" ? item.href : `/explore${item.href}`)}
+                  href={
+                    item.href === "/explore/browse"
+                      ? "/browse"
+                      : item.href === "/browse"
+                        ? item.href
+                        : `/explore${item.href}`
+                  }
                   className={`flex items-center gap-3 py-1.5 px-2.5 rounded-lg transition-all duration-300 relative overflow-hidden ${
                     isActive
                       ? `${bgClasses.selected} ${textClasses.primary} shadow-lg border-l-4 border-purple-500`
@@ -500,7 +506,13 @@ export default function Sidebar() {
               whileTap={{ scale: 0.95 }}
             >
               <Link
-                href={item.href === "/explore/browse" ? "/browse" : (item.href === "/browse" ? item.href : `/explore${item.href}`)}
+                href={
+                  item.href === "/explore/browse"
+                    ? "/browse"
+                    : item.href === "/browse"
+                      ? item.href
+                      : `/explore${item.href}`
+                }
                 className={`flex items-center justify-center p-3 rounded-lg transition-all duration-300 relative ${
                   isActive
                     ? `${bgClasses.selected} ${textClasses.primary} shadow-lg ring-2 ring-purple-500/30`
@@ -642,7 +654,7 @@ export default function Sidebar() {
         </div>
       </motion.div>
 
-      <QuickActions />
+      {/* <QuickActions /> */}
     </>
   );
 }

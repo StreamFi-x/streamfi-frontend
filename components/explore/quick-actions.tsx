@@ -7,6 +7,7 @@ import { Home, Search, Settings, User, Wallet } from "lucide-react";
 import { useAccount } from "@starknet-react/core";
 import { useState, useEffect, useCallback } from "react";
 import ConnectModal from "../connectWallet";
+import { bgClasses, buttonClasses, textClasses } from "@/lib/theme-classes";
 
 interface QuickActionItem {
   icon: React.ElementType;
@@ -56,11 +57,11 @@ export default function QuickActions() {
   ];
 
   const shouldShowQuickActions = allowedRoutes.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
   const quickActionItems: QuickActionItem[] = [
     { icon: Home, label: "Home", href: "/explore", type: "link" },
-    { icon: Search, label: "Search", href: "/explore/search", type: "link" },
+    { icon: Search, label: "Search", href: "/explore/browse", type: "link" },
     { icon: Settings, label: "Settings", href: "/settings", type: "link" },
     isConnected && address
       ? {
@@ -81,7 +82,7 @@ export default function QuickActions() {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#17191A]/95 backdrop-blur-lg border-t border-white/10"
+        className="lg:hidden absolute bottom-0 left-0 right-0 z-[80]  backdrop-blur-lg border-t border-white/10"
       >
         <div className="flex items-center justify-around py-2 px-4 safe-area-pb">
           {quickActionItems.map((item, index) => {
@@ -93,7 +94,7 @@ export default function QuickActions() {
                 <button
                   key={`${item.label}-${index}`}
                   onClick={handleConnectWallet}
-                  className="flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 text-white/60 hover:text-white hover:bg-[#2D2F31]/40"
+                  className="flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200  hover:text-white hover:bg-[#2D2F31]/40"
                 >
                   <item.icon size={20} className="mb-1" />
                   <span className="text-xs font-medium">{item.label}</span>
@@ -105,10 +106,10 @@ export default function QuickActions() {
               <Link
                 key={`${item.label}-${index}`}
                 href={item.href}
-                className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 ${
+                className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 ${buttonClasses} ${
                   isActive
-                    ? "text-white bg-[#2D2F31]"
-                    : "text-white/60 hover:text-white hover:bg-[#2D2F31]/40"
+                    ? `${textClasses.primary} ${bgClasses.primary}`
+                    : "text-/60 hover:text-white hover:bg-[#2D2F31]/40"
                 }`}
               >
                 <item.icon size={20} className="mb-1" />

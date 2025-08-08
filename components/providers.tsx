@@ -19,7 +19,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     // Include all injected connectors
     includeRecommended: "onlyIfNoConnectors",
     // Order of connectors
-    order: "random",
+    order: "alphabetical",
   });
 
   return (
