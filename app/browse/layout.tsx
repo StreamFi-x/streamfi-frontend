@@ -31,8 +31,8 @@ export default function BrowseLayout({
     },
     {
       name: "Categories",
-      href: "/browse/categories",
-      active: pathname === "/browse/categories",
+      href: "/browse/category",
+      active: pathname === "/browse/category",
     },
   ];
 
