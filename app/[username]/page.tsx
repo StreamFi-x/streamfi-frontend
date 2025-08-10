@@ -128,7 +128,7 @@ const ProfilePage = ({ params }: PageProps) => {
         <h2 className={`${textClasses.primary} text-xl font-medium mb-4`}>
           Recent Streams
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {recentStreams.map((stream) => (
             <StreamCard key={stream.id} {...stream} />
           ))}
@@ -139,7 +139,7 @@ const ProfilePage = ({ params }: PageProps) => {
         <h2 className={`${textClasses.primary} text-xl font-medium mb-4`}>
           Popular Clips
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {popularClips.map((clip) => (
             <StreamCard key={clip.id} {...clip} />
           ))}

@@ -73,6 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem("wallet")
     localStorage.removeItem(WALLET_CONNECTION_KEY)
     localStorage.removeItem(WALLET_AUTO_CONNECT_KEY)
+     sessionStorage.removeItem("userData")
+    sessionStorage.removeItem("username")
+
   }
 
   const storeWalletConnection = (walletId: string, walletAddress: string) => {
@@ -124,11 +127,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await response.json()
 
         // Cache user data
-        localStorage.setItem(`user_${walletAddress}`, JSON.stringify(data.user))
+        // localStorage.setItem(`user_${walletAddress}`, JSON.stringify(data.user))
         localStorage.setItem(`user_timestamp_${walletAddress}`, Date.now().toString())
 
         // Store in sessionStorage for immediate access
-        sessionStorage.setItem("userData", JSON.stringify(data.user))
+        // sessionStorage.setItem("userData", JSON.stringify(data.user))
 
         setSessionCookies(walletAddress)
         return data.user
@@ -167,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear session data
     clearSessionCookies()
     sessionStorage.removeItem("userData")
+    sessionStorage.removeItem("username")
 
     // Navigate to home
     router.push("/")
@@ -349,7 +353,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               // Update cached data
               localStorage.setItem(`user_${user.wallet}`, JSON.stringify(updatedUser))
               localStorage.setItem(`user_timestamp_${user.wallet}`, Date.now().toString())
-              sessionStorage.setItem("userData", JSON.stringify(updatedUser))
+              // sessionStorage.setItem("userData", JSON.stringify(updatedUser))
 
               return true
             } else {
