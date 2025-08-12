@@ -13,7 +13,7 @@ async function handler(req: Request) {
     `;
     console.log(
       "Available tables:",
-      tableCheck.rows.map((row) => row.table_name),
+      tableCheck.rows.map(row => row.table_name)
     );
   } catch (err) {
     console.error("Table check error:", err);
@@ -69,7 +69,7 @@ async function handler(req: Request) {
   if (!username) {
     return NextResponse.json(
       { error: "Username is required" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -84,7 +84,7 @@ async function handler(req: Request) {
   if (!validateEmail(email)) {
     return NextResponse.json(
       { error: "Invalid email format" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -93,39 +93,39 @@ async function handler(req: Request) {
     const userEmailExist = await checkExistingTableDetail(
       "users",
       "email",
-      email,
+      email
     );
 
     const usernameExist = await checkExistingTableDetail(
       "users",
       "username",
-      username,
+      username
     );
 
     const userWalletExist = await checkExistingTableDetail(
       "users",
       "wallet",
-      wallet,
+      wallet
     );
 
     if (userEmailExist) {
       return NextResponse.json(
         { error: "Email already exist" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (usernameExist) {
       return NextResponse.json(
         { error: "Username already exist" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (userWalletExist) {
       return NextResponse.json(
         { error: "Wallet address already exist" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -153,13 +153,13 @@ async function handler(req: Request) {
 
     return NextResponse.json(
       { message: "User registration success" },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Registration error:", error);
     return NextResponse.json(
       { error: "Failed to register user" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

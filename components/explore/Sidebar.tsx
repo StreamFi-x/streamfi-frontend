@@ -43,7 +43,7 @@ export default function Sidebar() {
   const easeInOut: Easing = "easeInOut";
 
   const toggleCollapsed = useCallback(() => {
-    setIsCollapsed((prev) => !prev);
+    setIsCollapsed(prev => !prev);
   }, []);
 
   const isRouteActive = (href: string) => {

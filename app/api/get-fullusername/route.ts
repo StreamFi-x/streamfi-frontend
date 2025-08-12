@@ -18,10 +18,7 @@ async function handler(req: Request) {
         await sql`SELECT username FROM users WHERE username = ${username}`;
 
       if (result.rows.length === 0) {
-        return NextResponse.json(
-          { error: "User not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
 
       return NextResponse.json(

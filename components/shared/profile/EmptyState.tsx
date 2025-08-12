@@ -19,7 +19,7 @@ const EmptyState = ({ type, isOwner, username }: EmptyStateProps) => {
       <div
         className={combineClasses(
           bgClasses.tertiary,
-          "w-16 h-16 rounded-full flex items-center justify-center mb-4",
+          "w-16 h-16 rounded-full flex items-center justify-center mb-4"
         )}
       >
         {type === "videos" ? (
@@ -36,7 +36,7 @@ const EmptyState = ({ type, isOwner, username }: EmptyStateProps) => {
       <h2
         className={combineClasses(
           textClasses.primary,
-          "text-xl font-medium mb-2",
+          "text-xl font-medium mb-2"
         )}
       >
         {isOwner
@@ -58,7 +58,7 @@ const EmptyState = ({ type, isOwner, username }: EmptyStateProps) => {
         <Button
           className={combineClasses(
             buttonClasses.secondary,
-            textClasses.onColor,
+            textClasses.onColor
           )}
         >
           <Upload className="h-4 w-4 mr-2" />

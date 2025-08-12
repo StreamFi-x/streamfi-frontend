@@ -148,5 +148,7 @@
   padding: 1px;
   background: linear-gradient(90deg, #a5c6ea 0%, #81778e 100%);
   border-radius: inherit;
-  mask: conic-gradient(#000 0 0) content-box exclude, conic-gradient(#000 0 0);
+  mask:
+    conic-gradient(#000 0 0) content-box exclude,
+    conic-gradient(#000 0 0);
 }

@@ -134,7 +134,7 @@ export function LiveStreams({
         });
 
         // Wait for scroll to complete before toggling
-        await new Promise((resolve) => setTimeout(resolve, 400));
+        await new Promise(resolve => setTimeout(resolve, 400));
       }
       setShowAll(false);
     } else {
@@ -153,7 +153,7 @@ export function LiveStreams({
       <h2
         className={combineClasses(
           "text-2xl font-bold mb-6",
-          textClasses.primary,
+          textClasses.primary
         )}
       >
         {title}
@@ -166,20 +166,21 @@ export function LiveStreams({
         className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-6 md:gap-y-10"
       >
         <AnimatePresence mode="wait">
-          {visibleStreams.map((stream) => (
+          {visibleStreams.map(stream => (
             <motion.div
               key={`${stream.id}-${showAll ? "expanded" : "collapsed"}`} // Unique key for better animations
               variants={itemVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
-              onClick={(e) => {
+              onClick={e => {
                 handleCardClick(stream, e);
               }}
               className={`${bgClasses.card} group cursor-pointer p-2 pb-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-[1.02]`}
             >
               <div className="relative rounded-lg overflow-hidden">
-                {typeof stream.thumbnail === 'string' && stream.thumbnail.includes('cloudinary.com') ? (
+                {typeof stream.thumbnail === "string" &&
+                stream.thumbnail.includes("cloudinary.com") ? (
                   <img
                     src={stream.thumbnail}
                     alt={stream.title}
@@ -208,7 +209,8 @@ export function LiveStreams({
               <div className="mt-2 flex flex-col items-start gap-2">
                 <div className="flex items-center gap-x-2">
                   <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0">
-                    {typeof stream.streamer.logo === 'string' && stream.streamer.logo.includes('cloudinary.com') ? (
+                    {typeof stream.streamer.logo === "string" &&
+                    stream.streamer.logo.includes("cloudinary.com") ? (
                       <img
                         src={stream.streamer.logo}
                         alt={stream.streamer.name}
@@ -227,7 +229,7 @@ export function LiveStreams({
                   <p
                     className={combineClasses(
                       "text-sm hover:underline",
-                      textClasses.secondary,
+                      textClasses.secondary
                     )}
                   >
                     {stream.streamer.name}
@@ -238,7 +240,7 @@ export function LiveStreams({
                   <h3
                     className={combineClasses(
                       "font-semibold text-lg line-clamp-1 group-hover:text-opacity-80 transition-opacity",
-                      textClasses.primary,
+                      textClasses.primary
                     )}
                   >
                     {stream.title}
@@ -248,7 +250,7 @@ export function LiveStreams({
                       className={combineClasses(
                         "text-sm px-2 py-0.5 rounded",
                         bgClasses.selected,
-                        textClasses.primary,
+                        textClasses.primary
                       )}
                     >
                       {stream.location}
@@ -259,7 +261,7 @@ export function LiveStreams({
                         className={combineClasses(
                           "text-sm px-2 py-0.5 rounded",
                           bgClasses.selected,
-                          textClasses.primary,
+                          textClasses.primary
                         )}
                       >
                         {tag}
@@ -288,7 +290,7 @@ export function LiveStreams({
                 buttonClasses.reset,
                 isTransitioning
                   ? "opacity-70 cursor-not-allowed"
-                  : "opacity-100",
+                  : "opacity-100"
               )}
             >
               {showAll ? "Show less" : "Show more"}

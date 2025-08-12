@@ -185,7 +185,7 @@ export function SocialLinksSection({
       if (validatedLink) {
         // Check if platform already exists
         const existingPlatformIndex = socialLinks.findIndex(
-          (link) => link.platform === validatedLink.platform
+          link => link.platform === validatedLink.platform
         );
 
         if (existingPlatformIndex !== -1) {
@@ -325,7 +325,7 @@ export function SocialLinksSection({
         <motion.input
           type="text"
           value={formState.socialLinkTitle}
-          onChange={(e) => updateFormField("socialLinkTitle", e.target.value)}
+          onChange={e => updateFormField("socialLinkTitle", e.target.value)}
           onFocus={() => updateUiState({ focusedInput: "socialLinkTitle" })}
           onBlur={() => updateUiState({ focusedInput: null })}
           placeholder="e.g. Facebook, Twitter, etc."
@@ -345,7 +345,7 @@ export function SocialLinksSection({
           <motion.input
             type="text"
             value={formState.socialLinkUrl}
-            onChange={(e) => updateFormField("socialLinkUrl", e.target.value)}
+            onChange={e => updateFormField("socialLinkUrl", e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={() =>
               updateUiState({
@@ -441,8 +441,8 @@ export function SocialLinksSection({
                       <input
                         type="text"
                         value={editState.editingTitle}
-                        onChange={(e) =>
-                          setEditState((prev) => ({
+                        onChange={e =>
+                          setEditState(prev => ({
                             ...prev,
                             editingTitle: e.target.value,
                           }))
@@ -465,8 +465,8 @@ export function SocialLinksSection({
                       <input
                         type="text"
                         value={editState.editingLink}
-                        onChange={(e) =>
-                          setEditState((prev) => ({
+                        onChange={e =>
+                          setEditState(prev => ({
                             ...prev,
                             editingLink: e.target.value,
                           }))

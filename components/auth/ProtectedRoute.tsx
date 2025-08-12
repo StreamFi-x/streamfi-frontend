@@ -1,15 +1,15 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { useAccount } from "@starknet-react/core"
-import { useAuth } from "./auth-provider"
-import ConnectWalletModal from "@/components/connectWallet"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAccount } from "@starknet-react/core";
+import { useAuth } from "./auth-provider";
+import ConnectWalletModal from "@/components/connectWallet";
 
 interface ProtectedRouteProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
@@ -24,12 +24,12 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     const checkAccess = () => {
       // Don't do anything while the auth system is initializing or wallet is connecting
       if (isInitializing || isWalletConnecting) {
-        return
+        return;
       }
 
       // Mark that we've completed the initial check
       if (!hasCompletedInitialCheck) {
-        setHasCompletedInitialCheck(true)
+        setHasCompletedInitialCheck(true);
       }
 
       // Check if auto-connect is enabled and we should wait for it
@@ -53,7 +53,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
           setShowWalletModal(false) // Ensure modal is closed if wallet connects
         }
       }
-    }
+    };
 
     checkAccess()
   }, [isConnected, address, status, isInitializing, isWalletConnecting, hasCompletedInitialCheck, autoConnectAttempted])
@@ -80,7 +80,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
           </p>
         </div>
       </div>
-    )
+    );
   }
 
   // Show wallet connect modal if needed (only after initialization is complete)
@@ -90,13 +90,13 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         isModalOpen={showWalletModal}
         setIsModalOpen={setShowWalletModal}
       />
-    )
+    );
   }
 
   // Only render children if wallet is connected
   if (!isConnected || !address) {
-    return null
+    return null;
   }
 
-  return <>{children}</>
+  return <>{children}</>;
 }

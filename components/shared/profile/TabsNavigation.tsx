@@ -37,7 +37,7 @@ const TabsNavigation = ({ username }: TabsNavigationProps) => {
   return (
     <div className={combineClasses("border-b", borderClasses.divider)}>
       <nav className="flex px-4 sm:px-6">
-        {tabs.map((tab) => (
+        {tabs.map(tab => (
           <Link
             key={tab.name}
             href={tab.path}

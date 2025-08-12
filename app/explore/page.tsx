@@ -30,7 +30,7 @@ export default function Home() {
       className={combineClasses(
         "min-h-screen",
         bgClasses.secondary,
-        textClasses.primary,
+        textClasses.primary
       )}
     >
       <main className="container mx-auto px-4 py-8">

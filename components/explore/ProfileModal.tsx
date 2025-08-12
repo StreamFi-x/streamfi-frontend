@@ -101,7 +101,7 @@ export default function ProfileModal({
 
         console.log(
           "ProfileModal: Registration response status:",
-          response.status,
+          response.status
         );
         const result = await response.json();
 
@@ -136,7 +136,7 @@ export default function ProfileModal({
     e.preventDefault();
     setCodeError("");
 
-    if (verificationCode.some((digit) => !digit)) {
+    if (verificationCode.some(digit => !digit)) {
       setCodeError("Please enter the complete verification code");
       return;
     }
@@ -221,7 +221,7 @@ export default function ProfileModal({
                   <input
                     type="text"
                     value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
+                    onChange={e => setDisplayName(e.target.value)}
                     className="w-full bg-[#2D2F31] rounded-md px-3 py-4 outline-none duration-200 text-xs font-light text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                     placeholder="Enter your display name"
                   />
@@ -237,7 +237,7 @@ export default function ProfileModal({
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={e => setEmail(e.target.value)}
                     className="w-full bg-[#2D2F31] rounded-md px-3 py-4 outline-none duration-200 text-xs font-light text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                     placeholder="Enter a valid email address"
                   />
@@ -249,7 +249,7 @@ export default function ProfileModal({
                   </label>
                   <textarea
                     value={bio}
-                    onChange={(e) => setBio(e.target.value)}
+                    onChange={e => setBio(e.target.value)}
                     className="w-full bg-[#2D2F31] rounded-md px-3 py-4 outline-none duration-200 text-xs font-light text-white focus:outline-none focus:ring-1 focus:ring-purple-500 min-h-[80px]"
                     placeholder="Tell your audience a bit about yourself"
                   />
@@ -291,14 +291,14 @@ export default function ProfileModal({
 
             <form onSubmit={handleVerifySubmit}>
               <div className="flex justify-center gap-3 mb-6">
-                {[0, 1, 2, 3, 4, 5].map((index) => (
+                {[0, 1, 2, 3, 4, 5].map(index => (
                   <input
                     key={index}
                     id={`code-${index}`}
                     type="text"
                     maxLength={1}
                     value={verificationCode[index]}
-                    onChange={(e) => handleCodeChange(index, e.target.value)}
+                    onChange={e => handleCodeChange(index, e.target.value)}
                     className="w-12 h-12 text-center bg-[#2D2F31] rounded-md outline-none duration-200 text-xl font-light text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                   />
                 ))}

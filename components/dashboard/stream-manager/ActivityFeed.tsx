@@ -47,7 +47,7 @@ export default function ActivityFeed() {
           avatar: "/placeholder.svg?height=40&width=40",
         };
 
-        setActivities((prev) => [newActivity, ...prev.slice(0, 9)]); // Keep only 10 most recent
+        setActivities(prev => [newActivity, ...prev.slice(0, 9)]); // Keep only 10 most recent
       }
     }, 15000); // Check every 15 seconds
 
@@ -96,7 +96,7 @@ export default function ActivityFeed() {
         className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.secondary} p-2`}
       >
         <AnimatePresence>
-          {activities.map((activity) => (
+          {activities.map(activity => (
             <motion.div
               key={activity.id}
               className={`flex items-center p-3 border-b ${borderClasses.secondary}`}
@@ -113,7 +113,6 @@ export default function ActivityFeed() {
                     className="w-full h-full object-cover"
                   />
                 </div>
-             
               </div>
 
               <div className="flex-1 text-xs">

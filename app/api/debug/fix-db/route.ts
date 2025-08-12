@@ -14,7 +14,7 @@ export async function GET() {
       WHERE table_schema = 'public'
       ORDER BY table_name
     `;
-    const existingTables = tablesResult.rows.map((row) => row.table_name);
+    const existingTables = tablesResult.rows.map(row => row.table_name);
     console.log("📊 Existing tables:", existingTables);
 
     let existingUserColumns: string[] = [];
@@ -26,7 +26,7 @@ export async function GET() {
         ORDER BY column_name
       `;
       existingUserColumns = columnsResult.rows.map(
-        (row) => row.column_name as string,
+        row => row.column_name as string
       );
       console.log("📊 Existing user columns:", existingUserColumns);
     }
@@ -44,7 +44,7 @@ export async function GET() {
     ];
 
     const missingUserColumns = requiredUserColumns.filter(
-      (col) => !existingUserColumns.includes(col),
+      col => !existingUserColumns.includes(col)
     );
 
     if (missingUserColumns.length > 0) {
@@ -64,7 +64,7 @@ export async function GET() {
           ADD COLUMN IF NOT EXISTS creator JSONB DEFAULT '{}'
         `;
         results.push(
-          `✅ Added ${missingUserColumns.length} missing columns to users table`,
+          `✅ Added ${missingUserColumns.length} missing columns to users table`
         );
       } catch (columnError) {
         console.error("❌ Failed to add user columns:", columnError);
@@ -175,7 +175,7 @@ export async function GET() {
       ORDER BY table_name
     `;
     const finalTables = finalTablesResult.rows.map(
-      (row) => row.table_name as string,
+      row => row.table_name as string
     );
 
     console.log("✅ Database update completed successfully!");
@@ -217,7 +217,7 @@ export async function GET() {
         details: errorMessage,
         stack: errorDetails,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

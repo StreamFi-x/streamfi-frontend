@@ -54,7 +54,7 @@ interface ViewStreamProps {
 // Mock API function to fetch stream data
 const fetchStreamData = async () => {
   // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  await new Promise(resolve => setTimeout(resolve, 1000));
 
   // Mock data
   return {
@@ -150,10 +150,10 @@ const TippingModal = ({
           />
           <select
             value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
+            onChange={e => setCurrency(e.target.value)}
             className="bg-[#18191C] text-white rounded-r-lg px-4 py-3 text-base border border-[#35363C] border-l-0 focus:outline-none"
           >
-            {TIPPING_CURRENCIES.map((c) => (
+            {TIPPING_CURRENCIES.map(c => (
               <option key={c.value} value={c.value}>
                 {c.label}
               </option>
@@ -161,7 +161,7 @@ const TippingModal = ({
           </select>
         </div>
         <div className="flex gap-3 mb-6">
-          {[1, 5, 10, 50, 100].map((val) => (
+          {[1, 5, 10, 50, 100].map(val => (
             <button
               key={val}
               type="button"
@@ -238,7 +238,7 @@ const ViewStream = ({
     if (!videoContainerRef.current) return;
 
     if (!document.fullscreenElement) {
-      videoContainerRef.current.requestFullscreen().catch((err) => {
+      videoContainerRef.current.requestFullscreen().catch(err => {
         console.error(`Error attempting to enable fullscreen: ${err.message}`);
       });
       setIsFullscreen(true);
@@ -475,7 +475,7 @@ const ViewStream = ({
                         {showQualityOptions && (
                           <div className="absolute bottom-full right-0 mb-2 bg-black/90 rounded-md overflow-hidden">
                             {["1080p", "720p", "480p", "360p", "Auto"].map(
-                              (quality) => (
+                              quality => (
                                 <button
                                   key={quality}
                                   className={`block w-full text-left px-4 py-2 text-xs ${

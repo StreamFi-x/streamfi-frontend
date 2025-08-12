@@ -88,7 +88,7 @@ export async function POST(req: Request) {
         setHeader: () => {},
       },
       5,
-      email,
+      email
     );
   } catch {
     return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
         JSON.stringify({ error: "Email not found or already unsubscribed" }),
         {
           status: 404,
-        },
+        }
       );
     }
 
@@ -121,7 +121,7 @@ export async function POST(req: Request) {
       JSON.stringify({ message: "Successfully unsubscribed" }),
       {
         status: 200,
-      },
+      }
     );
   } catch (error) {
     console.error("Unsubscribe error:", error);
@@ -129,7 +129,7 @@ export async function POST(req: Request) {
       JSON.stringify({ error: "Failed to process unsubscription" }),
       {
         status: 500,
-      },
+      }
     );
   }
 }

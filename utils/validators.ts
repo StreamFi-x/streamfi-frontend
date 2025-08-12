@@ -9,7 +9,7 @@ export function validateEmail(email: any) {
 export async function checkExistingTableDetail(
   table: any,
   key: any,
-  value: any,
+  value: any
 ) {
   const query = await sql.query(`SELECT * FROM ${table} WHERE ${key} = $1`, [
     value,

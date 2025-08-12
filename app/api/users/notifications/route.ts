@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   if (!username || !title || !text) {
     return NextResponse.json(
       { error: "Missing required fields" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     console.error("Notification error:", error);
     return NextResponse.json(
       { error: "Failed to add notification" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

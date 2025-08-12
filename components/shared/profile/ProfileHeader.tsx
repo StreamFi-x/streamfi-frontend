@@ -51,7 +51,10 @@ const ProfileHeader = ({
         </div>
         <div>
           <h1
-            className={combineClasses(textClasses.primary, "text-base sm:text-xl font-bold")}
+            className={combineClasses(
+              textClasses.primary,
+              "text-base sm:text-xl font-bold"
+            )}
           >
             {username}
           </h1>

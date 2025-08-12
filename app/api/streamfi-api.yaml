@@ -20,7 +20,6 @@ servers:
   #       default: 'https://streamfi.netlify.app/'
   #       description: The base URL for the API
 
-
 paths:
   /api/users/register:
     post:
@@ -220,7 +219,7 @@ paths:
                       type: string
                     wallet:
                       type: string
-        '400':
+        "400":
           description: Bad request - missing or invalid query parameter
           content:
             application/json:
@@ -230,25 +229,23 @@ paths:
                   error:
                     type: string
                     example: Please provide a username to fetch
-      
-
 
   /get-fullusername:
     get:
       tags:
-      - Search
+        - Search
       summary: Get Full User Information
       description: Retrieve full user information by username
       parameters:
-       - in: query
-         name: username
-         required: true
-         schema:
-          type: string
-         description: Username to search
-         example: "streamfi_user"
+        - in: query
+          name: username
+          required: true
+          schema:
+            type: string
+          description: Username to search
+          example: "streamfi_user"
       responses:
-        '200':
+        "200":
           description: User found successfully
           content:
             application/json:
@@ -258,7 +255,7 @@ paths:
                   username:
                     type: string
                     example: streamfi_user
-        '400':
+        "400":
           description: Bad request - missing or invalid query parameter
           content:
             application/json:
@@ -268,8 +265,6 @@ paths:
                   error:
                     type: string
                     example: Please provide a username to fetch
-      
-
 
   /api/users/update-creator:
     patch:

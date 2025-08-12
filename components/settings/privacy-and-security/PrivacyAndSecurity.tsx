@@ -83,7 +83,7 @@ const Modal: React.FC<ModalProps> = ({
             exit={{ opacity: 0 }}
             className={combineClasses(
               bgClasses.overlay,
-              "fixed inset-0 z-50 flex items-center justify-center p-4",
+              "fixed inset-0 z-50 flex items-center justify-center p-4"
             )}
             onClick={onClose}
           >
@@ -94,9 +94,9 @@ const Modal: React.FC<ModalProps> = ({
               className={combineClasses(
                 componentClasses.modal,
                 "max-w-md w-full max-h-[90vh] overflow-y-auto",
-                className,
+                className
               )}
-              onClick={(e) => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
             >
               <div className="p-6">
                 {title && (
@@ -104,7 +104,7 @@ const Modal: React.FC<ModalProps> = ({
                     <h3
                       className={combineClasses(
                         textClasses.primary,
-                        "text-lg font-semibold",
+                        "text-lg font-semibold"
                       )}
                     >
                       {title}
@@ -113,7 +113,7 @@ const Modal: React.FC<ModalProps> = ({
                       onClick={onClose}
                       className={combineClasses(
                         textClasses.tertiary,
-                        "hover:text-white transition-colors",
+                        "hover:text-white transition-colors"
                       )}
                     >
                       <X size={20} />
@@ -166,7 +166,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
           onClick={onClose}
           className={combineClasses(
             buttonClasses.secondary,
-            "w-full mt-6 px-4 py-2 rounded-lg",
+            "w-full mt-6 px-4 py-2 rounded-lg"
           )}
         >
           Close
@@ -332,7 +332,7 @@ const VerifyEmailModal: React.FC<{
           <h3
             className={combineClasses(
               textClasses.primary,
-              "text-lg font-semibold mb-2",
+              "text-lg font-semibold mb-2"
             )}
           >
             Verify Your Email
@@ -354,13 +354,13 @@ const VerifyEmailModal: React.FC<{
                 pattern="[0-9]*"
                 maxLength={1}
                 value={digit}
-                onChange={(e) => handleCodeChange(index, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(index, e)}
+                onChange={e => handleCodeChange(index, e.target.value)}
+                onKeyDown={e => handleKeyDown(index, e)}
                 className={combineClasses(
                   bgClasses.input,
                   borderClasses.primary,
                   "w-12 h-12 text-center text-lg font-semibold rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:ring-opacity-20 outline-none transition-colors",
-                  textClasses.primary,
+                  textClasses.primary
                 )}
                 disabled={isLoading}
               />
@@ -369,10 +369,10 @@ const VerifyEmailModal: React.FC<{
 
           <button
             onClick={handleSubmit}
-            disabled={isLoading || code.some((digit) => !digit)}
+            disabled={isLoading || code.some(digit => !digit)}
             className={combineClasses(
               buttonClasses.secondary,
-              "w-full py-3 rounded-lg font-medium disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center mb-4",
+              "w-full py-3 rounded-lg font-medium disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center mb-4"
             )}
           >
             {isLoading ? (
@@ -391,7 +391,7 @@ const VerifyEmailModal: React.FC<{
               onClick={handleResendCode}
               className={combineClasses(
                 textClasses.primary,
-                "hover:text-gray-300 font-medium underline",
+                "hover:text-gray-300 font-medium underline"
               )}
               disabled={isLoading}
             >
@@ -454,7 +454,7 @@ const ToggleSection: React.FC<ToggleSectionProps> = ({
         <h2
           className={combineClasses(
             textClasses.highlight,
-            "text-xl font-medium",
+            "text-xl font-medium"
           )}
         >
           {title}
@@ -471,7 +471,7 @@ const ToggleSection: React.FC<ToggleSectionProps> = ({
           <button
             className={combineClasses(
               buttonClasses.secondary,
-              "px-4 py-2 rounded-md",
+              "px-4 py-2 rounded-md"
             )}
             onClick={actionButton.onClick}
           >
@@ -508,7 +508,7 @@ const Dropdown: React.FC<DropdownProps> = ({
           className={combineClasses(
             bgClasses.input,
             textClasses.primary,
-            "w-full px-4 py-3 rounded-lg flex justify-between items-center",
+            "w-full px-4 py-3 rounded-lg flex justify-between items-center"
           )}
           onClick={() => setIsOpen(!isOpen)}
         >
@@ -520,16 +520,16 @@ const Dropdown: React.FC<DropdownProps> = ({
           <div
             className={combineClasses(
               componentClasses.dropdown,
-              "absolute w-full mt-1 z-10",
+              "absolute w-full mt-1 z-10"
             )}
           >
-            {options.map((option) => (
+            {options.map(option => (
               <button
                 key={option}
                 className={combineClasses(
                   textClasses.primary,
                   bgClasses.hover,
-                  "w-full px-4 py-3 text-left",
+                  "w-full px-4 py-3 text-left"
                 )}
                 onClick={() => handleSelect(option)}
               >
@@ -621,9 +621,9 @@ const PrivacySecurityPage: React.FC = () => {
   // Handle all setting changes
   const updateSetting = (
     key: keyof typeof settings,
-    value: boolean | string,
+    value: boolean | string
   ) => {
-    setSettings((prev) => ({
+    setSettings(prev => ({
       ...prev,
       [key]: value,
     }));
@@ -632,7 +632,7 @@ const PrivacySecurityPage: React.FC = () => {
   const showFeedback = (
     type: "success" | "error" | "warning",
     title: string,
-    message: string,
+    message: string
   ) => {
     setFeedback({ type, title, message });
   };
@@ -657,7 +657,7 @@ const PrivacySecurityPage: React.FC = () => {
     showFeedback(
       "success",
       "2FA Management",
-      "Taking you to two-factor authentication management...",
+      "Taking you to two-factor authentication management..."
     );
   };
 
@@ -668,7 +668,7 @@ const PrivacySecurityPage: React.FC = () => {
     showFeedback(
       "success",
       "Redirecting",
-      "Taking you to the password change page...",
+      "Taking you to the password change page..."
     );
   };
 
@@ -690,7 +690,7 @@ const PrivacySecurityPage: React.FC = () => {
         showFeedback(
           "error",
           "Error",
-          "Failed to send verification email. Please try again.",
+          "Failed to send verification email. Please try again."
         );
       }
     } catch (error) {
@@ -698,7 +698,7 @@ const PrivacySecurityPage: React.FC = () => {
       showFeedback(
         "error",
         "Error",
-        "An unexpected error occurred. Please try again.",
+        "An unexpected error occurred. Please try again."
       );
     }
   };
@@ -721,7 +721,7 @@ const PrivacySecurityPage: React.FC = () => {
     showFeedback(
       "success",
       "Email Verified",
-      "Your email has been successfully verified!",
+      "Your email has been successfully verified!"
     );
   };
 
@@ -732,7 +732,7 @@ const PrivacySecurityPage: React.FC = () => {
     showFeedback(
       "success",
       "Settings Saved",
-      "Your privacy and security settings have been updated successfully!",
+      "Your privacy and security settings have been updated successfully!"
     );
   };
 
@@ -747,7 +747,7 @@ const PrivacySecurityPage: React.FC = () => {
       className={combineClasses(
         bgClasses.secondary,
         textClasses.primary,
-        "min-h-screen",
+        "min-h-screen"
       )}
     >
       <div className="max-w-8xl mx-auto">
@@ -758,7 +758,7 @@ const PrivacySecurityPage: React.FC = () => {
               <h2
                 className={combineClasses(
                   textClasses.highlight,
-                  "text-xl font-medium mb-2",
+                  "text-xl font-medium mb-2"
                 )}
               >
                 Verify Email Address
@@ -766,7 +766,7 @@ const PrivacySecurityPage: React.FC = () => {
               <p
                 className={combineClasses(
                   textClasses.tertiary,
-                  "italic text-sm mb-4",
+                  "italic text-sm mb-4"
                 )}
               >
                 Your account is protected with an additional verification step
@@ -777,7 +777,7 @@ const PrivacySecurityPage: React.FC = () => {
               <div
                 className={combineClasses(
                   bgClasses.input,
-                  "flex w-full justify-between px-3 py-4 items-center gap-2 rounded",
+                  "flex w-full justify-between px-3 py-4 items-center gap-2 rounded"
                 )}
               >
                 <span className={textClasses.secondary}>
@@ -804,7 +804,7 @@ const PrivacySecurityPage: React.FC = () => {
                 onClick={handleVerifyEmail}
                 className={combineClasses(
                   buttonClasses.secondary,
-                  "px-4 py-2 rounded-md",
+                  "px-4 py-2 rounded-md"
                 )}
               >
                 Verify Email
@@ -829,7 +829,7 @@ const PrivacySecurityPage: React.FC = () => {
           <h2
             className={combineClasses(
               textClasses.highlight,
-              "text-xl font-medium mb-2",
+              "text-xl font-medium mb-2"
             )}
           >
             Password
@@ -838,7 +838,7 @@ const PrivacySecurityPage: React.FC = () => {
             <button
               className={combineClasses(
                 textClasses.highlight,
-                "hover:underline italic",
+                "hover:underline italic"
               )}
               onClick={handleChangePassword}
             >
@@ -852,7 +852,7 @@ const PrivacySecurityPage: React.FC = () => {
           <h2
             className={combineClasses(
               textClasses.highlight,
-              "text-xl font-medium mb-4",
+              "text-xl font-medium mb-4"
             )}
           >
             Privacy Controls
@@ -881,7 +881,7 @@ const PrivacySecurityPage: React.FC = () => {
           <button
             className={combineClasses(
               buttonClasses.secondary,
-              "w-full md:w-auto px-6 py-3 rounded-md mb-[4em] lg:mb-0",
+              "w-full md:w-auto px-6 py-3 rounded-md mb-[4em] lg:mb-0"
             )}
             onClick={handleSaveChanges}
           >

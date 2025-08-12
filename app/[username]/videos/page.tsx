@@ -14,7 +14,7 @@ interface PageProps {
 // Mock function to fetch videos
 const fetchVideos = async (username: string) => {
   // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 500));
 
   // For demo purposes, return empty array to show empty state
   return [];
@@ -64,7 +64,7 @@ const VideosPage = ({ params }: PageProps) => {
               Videos
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {videos.map((video) => (
+              {videos.map(video => (
                 <StreamCard key={video.id} {...video} />
               ))}
             </div>
