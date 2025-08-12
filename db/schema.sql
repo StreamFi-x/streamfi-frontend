@@ -109,6 +109,13 @@ CREATE TABLE IF NOT EXISTS stream_categories (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS tags (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(100) UNIQUE NOT NULL,
+    visibility BOOLEAN DEFAULT true
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_wallet ON users(wallet);
 CREATE INDEX IF NOT EXISTS idx_users_wallet_lower ON users(LOWER(wallet));
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
@@ -135,6 +142,8 @@ CREATE INDEX IF NOT EXISTS idx_waitlist_email ON waitlist(email);
 CREATE INDEX IF NOT EXISTS idx_waitlist_subscribed_at ON waitlist(subscribed_at);
 CREATE INDEX IF NOT EXISTS idx_stream_categories_title ON stream_categories(title);
 CREATE INDEX IF NOT EXISTS idx_stream_categories_active ON stream_categories(is_active);
+CREATE INDEX IF NOT EXISTS idx_tags_title ON tags(title);
+CREATE INDEX IF NOT EXISTS idx_tags_title_lower ON tags(LOWER(title));
 
 INSERT INTO stream_categories (title, description, tags) VALUES
 ('Gaming', 'Video game streaming and gameplay', ARRAY['gaming', 'esports', 'gameplay']),
