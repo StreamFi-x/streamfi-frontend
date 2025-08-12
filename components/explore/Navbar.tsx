@@ -22,7 +22,7 @@ import {
   buttonClasses,
   componentClasses,
 } from "@/lib/theme-classes";
-import { fa } from "zod/v4/locales";
+
 
 interface NavbarProps {
   onConnectWallet?: () => void;
@@ -80,22 +80,22 @@ export default function Navbar({}: NavbarProps) {
     return "Unknown User";
   }, [user?.username, address]);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await fetch(`/api/users/${user?.username}`);
-        if (response.status === 404) {
-          // setProfileModalOpen(true);
-        } else if (response.ok) {
-          const result = await response.json();
-          console.log("User found:", result);
-        }
-      } catch (error) {
-        console.error("Error finding user:", error);
-      }
-    };
-    fetchUser();
-  }, [address]);
+  // useEffect(() => {
+  //   const fetchUser = async () => {
+  //     try {
+  //       const response = await fetch(`/api/users/wallet/${address}`);
+  //       if (response.status === 404) {
+  //         // setProfileModalOpen(true);
+  //       } else if (response.ok) {
+  //         const result = await response.json();
+  //         console.log("User found:", result);
+  //       }
+  //     } catch (error) {
+  //       console.error("Error finding user:", error);
+  //     }
+  //   };
+  //   fetchUser();
+  // }, [address]);
 
   const getAvatar = useCallback(() => {
     if (user?.avatar) {
