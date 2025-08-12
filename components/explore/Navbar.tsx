@@ -82,8 +82,13 @@ export default function Navbar({}: NavbarProps) {
 
   useEffect(() => {
     const fetchUser = async () => {
+      // Only fetch if we have a username and address
+      if (!user?.username || !address) {
+        return;
+      }
+      
       try {
-        const response = await fetch(`/api/users/${user?.username}`);
+        const response = await fetch(`/api/users/${user.username}`);
         if (response.status === 404) {
           // setProfileModalOpen(true);
         } else if (response.ok) {
@@ -95,7 +100,7 @@ export default function Navbar({}: NavbarProps) {
       }
     };
     fetchUser();
-  }, [address]);
+  }, [address, user?.username]);
 
   const getAvatar = useCallback(() => {
     if (user?.avatar) {

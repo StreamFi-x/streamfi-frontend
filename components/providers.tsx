@@ -17,7 +17,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     // Recommended connectors for StarkNet
     recommended: [argent(), braavos()],
     // Include all injected connectors
-    includeRecommended: "onlyIfNoConnectors",
+    includeRecommended: "always",
     // Order of connectors
     order: "alphabetical",
   });
@@ -28,7 +28,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       provider={publicProvider()}
       connectors={connectors}
       explorer={voyager}
-      autoConnect={true} // Enable auto-connect for persistence
+      autoConnect={true}
     >
       <ThemeProvider>
         <AuthProvider>{children}</AuthProvider>

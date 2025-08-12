@@ -26,7 +26,6 @@ export default function ConnectWalletModal({
   // Close modal when wallet connects successfully
   useEffect(() => {
     if (isConnected && isModalOpen) {
-      console.log("[ConnectWalletModal] Wallet connected, closing modal");
       setIsModalOpen(false);
       setIsConnecting(false);
       setConnectionError(null);
@@ -59,14 +58,13 @@ export default function ConnectWalletModal({
     if (isConnecting) return;
 
     try {
-      console.log(
-        `[ConnectWalletModal] Attempting to connect to ${wallet.name}`,
-      );
       setSelectedWallet(wallet);
       setIsConnecting(true);
       setConnectionError(null);
 
       await connect({ connector: wallet });
+      
+      // The AuthProvider will automatically detect and store the active connector
     } catch (error) {
       console.error("[ConnectWalletModal] Connection error:", error);
       setConnectionError("Failed to connect wallet. Please try again.");
