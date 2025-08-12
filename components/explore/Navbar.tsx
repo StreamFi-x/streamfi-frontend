@@ -79,22 +79,27 @@ export default function Navbar({}: NavbarProps) {
     return "Unknown User";
   }, [user?.username, address]);
 
-  // useEffect(() => {
-  //   const fetchUser = async () => {
-  //     try {
-  //       const response = await fetch(`/api/users/wallet/${address}`);
-  //       if (response.status === 404) {
-  //         // setProfileModalOpen(true);
-  //       } else if (response.ok) {
-  //         const result = await response.json();
-  //         console.log("User found:", result);
-  //       }
-  //     } catch (error) {
-  //       console.error("Error finding user:", error);
-  //     }
-  //   };
-  //   fetchUser();
-  // }, [address]);
+  useEffect(() => {
+    const fetchUser = async () => {
+      // Only fetch if we have a username and address
+      if (!user?.username || !address) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/users/${user.username}`);
+        if (response.status === 404) {
+          // setProfileModalOpen(true);
+        } else if (response.ok) {
+          const result = await response.json();
+          console.log("User found:", result);
+        }
+      } catch (error) {
+        console.error("Error finding user:", error);
+      }
+    };
+    fetchUser();
+  }, [address, user?.username]);
 
   const getAvatar = useCallback(() => {
     if (user?.avatar) {
