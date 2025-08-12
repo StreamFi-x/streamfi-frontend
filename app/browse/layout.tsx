@@ -37,15 +37,22 @@ export default function BrowseLayout({
   ];
 
   const primaryTags = [
-    "Games", "IRL", "Shooter", "FPS", "Creative", "Esports", 
-    "Arcade", "Racing", "God of war", "NBA", "Football"
+    "Games",
+    "IRL",
+    "Shooter",
+    "FPS",
+    "Creative",
+    "Esports",
+    "Arcade",
+    "Racing",
+    "God of war",
+    "NBA",
+    "Football",
   ];
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
-      prev.includes(tag)
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
   };
 
@@ -60,14 +67,16 @@ export default function BrowseLayout({
               <div className="mb-12">
                 <h1 className="text-4xl font-bold text-white mb-2">Browse</h1>
               </div>
-              
+
               {/* Primary Tag Filters - FIRST (directly under Browse title) */}
               <div className="mb-8 space-y-4">
                 <div className="flex flex-wrap gap-3">
-                  {primaryTags.map((tag) => (
+                  {primaryTags.map(tag => (
                     <Button
                       key={tag}
-                      variant={selectedTags.includes(tag) ? "default" : "outline"}
+                      variant={
+                        selectedTags.includes(tag) ? "default" : "outline"
+                      }
                       size="sm"
                       onClick={() => toggleTag(tag)}
                       className={cn(
@@ -86,7 +95,7 @@ export default function BrowseLayout({
               {/* Tabs Navigation - SECOND (after tag filters) */}
               <div className="mb-8">
                 <nav className="flex space-x-8 border-b border-gray-700">
-                  {tabs.map((tab) => (
+                  {tabs.map(tab => (
                     <Link
                       key={tab.name}
                       href={tab.href}
@@ -102,7 +111,7 @@ export default function BrowseLayout({
                   ))}
                 </nav>
               </div>
-              
+
               {children}
             </div>
           </main>
@@ -110,4 +119,4 @@ export default function BrowseLayout({
       </div>
     </main>
   );
-} 
+}

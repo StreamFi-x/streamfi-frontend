@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { withCorsResponse } from "@/lib/with-cors-response"; 
+import { withCorsResponse } from "@/lib/with-cors-response";
 import { resolve } from "path/posix";
-
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -42,7 +41,6 @@ export async function OPTIONS() {
     },
   });
 }
-
 
 // async function handler(req: Request) {
 //   const { searchParams } = new URL(req.url);

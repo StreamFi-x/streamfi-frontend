@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     if (!wallet) {
       return NextResponse.json(
         { error: "Wallet parameter required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     if (!user.livepeer_stream_id) {
       return NextResponse.json(
         { message: "No stream found to delete" },
-        { status: 200 },
+        { status: 200 }
       );
     }
 
@@ -89,13 +89,13 @@ export async function GET(req: Request) {
         ],
         wallet: wallet,
       },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Force delete error:", error);
     return NextResponse.json(
       { error: "Failed to force delete stream" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

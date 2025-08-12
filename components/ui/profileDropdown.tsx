@@ -72,7 +72,7 @@ const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
         bgClasses.hover,
         textClasses.primary
       )}
-      onClick={(e) => {
+      onClick={e => {
         e.preventDefault();
         onClick({ icon, label, route, mobile: true });
       }}
@@ -134,7 +134,7 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
             alt="User avatar"
             // sizes="40px"
             className="object-cover rounded-full"
-            onError={(e) => {
+            onError={e => {
               // If image fails to load, replace with placeholder
               const target = e.target as HTMLImageElement;
               target.src = "/Images/user.png";
@@ -294,7 +294,7 @@ const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
                 index > 0 ? `border-t ${borderClasses.divider}` : ""
               )}
             >
-              {section.items.map((item) => (
+              {section.items.map(item => (
                 <div
                   key={item.label}
                   className={item.mobile ? "block " : "hidden lg:block"}

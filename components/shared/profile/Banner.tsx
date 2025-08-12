@@ -29,7 +29,7 @@ const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
         <div
           className={combineClasses(
             bgClasses.card,
-            "p-4 sm:p-8 w-full max-w-sm xl:max-w-md rounded-md",
+            "p-4 sm:p-8 w-full max-w-sm xl:max-w-md rounded-md"
           )}
         >
           {isLive ? (
@@ -39,7 +39,7 @@ const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
                   className={combineClasses(
                     "flex items-center bg-red-600",
                     textClasses.onColor,
-                    "text-xs px-2 py-1 rounded-lg font-semibold",
+                    "text-xs px-2 py-1 rounded-lg font-semibold"
                   )}
                 >
                   <Dot size={20} className={textClasses.onColor} />
@@ -49,7 +49,7 @@ const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
               <h2
                 className={combineClasses(
                   textClasses.primary,
-                  "text-base sm:text-xl font-medium mb-6",
+                  "text-base sm:text-xl font-medium mb-6"
                 )}
               >
                 {username} is streaming
@@ -60,7 +60,7 @@ const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
                 <Button
                   className={combineClasses(
                     textClasses.highlight,
-                    "font-semibold text-xs bg-transparent p-0",
+                    "font-semibold text-xs bg-transparent p-0"
                   )}
                 >
                   Watch Now
@@ -74,7 +74,7 @@ const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
                   className={combineClasses(
                     bgClasses.tertiary,
                     textClasses.primary,
-                    "text-xs px-2 py-1 rounded-sm",
+                    "text-xs px-2 py-1 rounded-sm"
                   )}
                 >
                   OFFLINE
@@ -83,13 +83,16 @@ const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
               <h2
                 className={combineClasses(
                   textClasses.primary,
-                  "text-base sm:text-xl font-medium",
+                  "text-base sm:text-xl font-medium"
                 )}
               >
                 {username} is offline
               </h2>
               <p
-                className={combineClasses(textClasses.tertiary, "text-[10px] sm:text-xs mb-3")}
+                className={combineClasses(
+                  textClasses.tertiary,
+                  "text-[10px] sm:text-xs mb-3"
+                )}
               >
                 Follow and get notified when {username} goes live
               </p>
@@ -98,7 +101,7 @@ const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
                   "flex items-center gap-1 py-1",
                   buttonClasses.primary,
                   textClasses.onColor,
-                  "text-[8px] sm:text-[10px]",
+                  "text-[8px] sm:text-[10px]"
                 )}
               >
                 <BellDot size={12} />

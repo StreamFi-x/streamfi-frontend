@@ -166,7 +166,7 @@ export default function UsernameLayout({
           <ViewStream
             username={username}
             isLive={true}
-            onStatusChange={(status) => setIsLive(status)}
+            onStatusChange={status => setIsLive(status)}
             isOwner={isOwner}
           />
         </main>

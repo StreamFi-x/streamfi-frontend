@@ -38,7 +38,7 @@ export default function StreamSettings() {
         // Show a small tooltip or notification
         alert("Copied to clipboard!");
       })
-      .catch((err) => {
+      .catch(err => {
         console.error("Failed to copy: ", err);
       });
   };

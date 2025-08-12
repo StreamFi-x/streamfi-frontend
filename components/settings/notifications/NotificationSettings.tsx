@@ -65,7 +65,7 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
           <h2
             className={combineClasses(
               textClasses.highlight,
-              "text-xl font-medium",
+              "text-xl font-medium"
             )}
           >
             {title}
@@ -84,7 +84,7 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
           <hr
             className={combineClasses(
               borderClasses.primary,
-              "m-0 w-[96%] mx-auto",
+              "m-0 w-[96%] mx-auto"
             )}
           />
           <div>
@@ -98,7 +98,7 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
                   <p
                     className={combineClasses(
                       textClasses.tertiary,
-                      "text-sm italic font-light",
+                      "text-sm italic font-light"
                     )}
                   >
                     {option.description}
@@ -106,7 +106,7 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
                 </div>
                 <ToggleSwitch
                   enabled={option.enabled}
-                  onChange={(e) => {
+                  onChange={e => {
                     e.stopPropagation();
                     onOptionToggle(index);
                   }}
@@ -208,14 +208,14 @@ const NotificationSettings: React.FC = () => {
   const [notificationOptions, setNotificationOptions] = useState(categories);
 
   const toggleSection = (sectionId: string) => {
-    setOpenSections((prev) => ({
+    setOpenSections(prev => ({
       ...prev,
       [sectionId]: !prev[sectionId],
     }));
   };
 
   const toggleOption = (categoryIndex: number, optionIndex: number) => {
-    setNotificationOptions((prev) => {
+    setNotificationOptions(prev => {
       const newOptions = [...prev];
       newOptions[categoryIndex].options[optionIndex].enabled =
         !newOptions[categoryIndex].options[optionIndex].enabled;
@@ -234,7 +234,7 @@ const NotificationSettings: React.FC = () => {
       className={combineClasses(
         bgClasses.secondary,
         textClasses.primary,
-        "min-h-screen",
+        "min-h-screen"
       )}
     >
       <div className="max-w-8xl mx-auto">
@@ -246,7 +246,7 @@ const NotificationSettings: React.FC = () => {
             isOpen={openSections[category.id]}
             toggleSection={() => toggleSection(category.id)}
             options={category.options}
-            onOptionToggle={(optionIndex) =>
+            onOptionToggle={optionIndex =>
               toggleOption(categoryIndex, optionIndex)
             }
           />
@@ -256,7 +256,7 @@ const NotificationSettings: React.FC = () => {
           <button
             className={combineClasses(
               buttonClasses.secondary,
-              "px-6 py-3 rounded-md",
+              "px-6 py-3 rounded-md"
             )}
             onClick={saveChanges}
           >

@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     if (!wallet) {
       return NextResponse.json(
         { error: "Wallet is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     if (userResult.rows.length === 0) {
       return NextResponse.json(
         { error: "User not found or stream not configured" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     if (user.is_live) {
       return NextResponse.json(
         { error: "Stream is already live" },
-        { status: 409 },
+        { status: 409 }
       );
     }
 
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       if (!streamHealth) {
         return NextResponse.json(
           { error: "Stream service unavailable" },
-          { status: 503 },
+          { status: 503 }
         );
       }
     } catch (healthError) {
@@ -79,13 +79,13 @@ export async function POST(req: Request) {
           startedAt: new Date().toISOString(),
         },
       },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Stream start error:", error);
     return NextResponse.json(
       { error: "Failed to start stream" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -97,7 +97,7 @@ export async function DELETE(req: Request) {
     if (!wallet) {
       return NextResponse.json(
         { error: "Wallet is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -116,7 +116,7 @@ export async function DELETE(req: Request) {
     if (!user.is_live) {
       return NextResponse.json(
         { error: "Stream is not currently live" },
-        { status: 409 },
+        { status: 409 }
       );
     }
 
@@ -141,13 +141,13 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json(
       { message: "Stream stopped successfully" },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Stream stop error:", error);
     return NextResponse.json(
       { error: "Failed to stop stream" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

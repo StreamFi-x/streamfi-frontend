@@ -9,7 +9,7 @@ export async function DELETE(req: Request) {
     if (!wallet) {
       return NextResponse.json(
         { error: "Wallet is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -28,7 +28,7 @@ export async function DELETE(req: Request) {
     if (!user.livepeer_stream_id) {
       return NextResponse.json(
         { error: "No stream found to delete" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -38,7 +38,7 @@ export async function DELETE(req: Request) {
           error:
             "Cannot delete stream while live. Please stop the stream first.",
         },
-        { status: 409 },
+        { status: 409 }
       );
     }
 
@@ -72,13 +72,13 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json(
       { message: "Stream deleted successfully" },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Stream deletion error:", error);
     return NextResponse.json(
       { error: "Failed to delete stream" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

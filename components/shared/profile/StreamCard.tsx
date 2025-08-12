@@ -95,7 +95,7 @@ const StreamCard = ({
           </h3>
 
           <div className="flex flex-wrap gap-2">
-            {tags.slice(0, 3).map((tag) => (
+            {tags.slice(0, 3).map(tag => (
               <span
                 key={tag}
                 className="text-xs  px-2 py-1.5 rounded bg-gray-700 text-gray-300"

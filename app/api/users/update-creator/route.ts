@@ -9,7 +9,7 @@ export async function PATCH(req: Request) {
     if (!email || !creator) {
       return NextResponse.json(
         { error: "Email and creator data are required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -42,13 +42,13 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json(
       { message: "Creator info updated successfully" },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Error updating creator info:", error);
     return NextResponse.json(
       { error: "Failed to update creator info" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

@@ -93,7 +93,7 @@ const OptionsSection: React.FC<OptionsSectionProps> = ({
       <h2
         className={combineClasses(
           textClasses.highlight,
-          "text-xl font-medium mb-2",
+          "text-xl font-medium mb-2"
         )}
       >
         {title}
@@ -105,7 +105,7 @@ const OptionsSection: React.FC<OptionsSectionProps> = ({
       </p>
 
       <div className="space-y-4">
-        {options.map((option) => (
+        {options.map(option => (
           <RadioOption
             key={option}
             label={getDisplayLabel(option)}
@@ -127,7 +127,7 @@ const ThemeSettingsPage: React.FC = () => {
 
   // Sync with theme context
   useEffect(() => {
-    setSettings((prev) => ({
+    setSettings(prev => ({
       ...prev,
       theme: theme,
       display: theme,
@@ -136,7 +136,7 @@ const ThemeSettingsPage: React.FC = () => {
 
   // Universal handler for updating settings
   const updateSetting = (key: keyof typeof settings, value: string) => {
-    setSettings((prev) => ({
+    setSettings(prev => ({
       ...prev,
       [key]: value,
     }));
@@ -160,7 +160,7 @@ const ThemeSettingsPage: React.FC = () => {
       className={combineClasses(
         "min-h-screen",
         bgClasses.secondary,
-        textClasses.primary,
+        textClasses.primary
       )}
     >
       <div className="max-w-8xl mx-auto">
@@ -169,7 +169,7 @@ const ThemeSettingsPage: React.FC = () => {
           description="Choose between light and dark interface themes"
           value={settings.theme}
           options={commonOptions}
-          onChange={(newValue) => updateSetting("theme", newValue)}
+          onChange={newValue => updateSetting("theme", newValue)}
         />
 
         {/* Display Selection */}
@@ -178,14 +178,14 @@ const ThemeSettingsPage: React.FC = () => {
           description="Choose between light and dark interface themes"
           value={settings.display}
           options={commonOptions}
-          onChange={(newValue) => updateSetting("display", newValue)}
+          onChange={newValue => updateSetting("display", newValue)}
         />
 
         <div className="lg:flex lg:justify-end w-full">
           <button
             className={combineClasses(
               buttonClasses.secondary,
-              "w-full lg:w-[12em] px-6 py-3 rounded-lg",
+              "w-full lg:w-[12em] px-6 py-3 rounded-lg"
             )}
             onClick={saveChanges}
           >

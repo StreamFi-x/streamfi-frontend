@@ -45,7 +45,7 @@ export default function FrequentlyAskedQuestions() {
           staggerChildren: 0.1,
         }}
       >
-        {frequentlyAskedQuestions.map((faq) => (
+        {frequentlyAskedQuestions.map(faq => (
           <motion.div
             key={faq.id}
             className="rounded-xl overflow-hidden shadow-lg border border-gray-700 backdrop-blur-sm"

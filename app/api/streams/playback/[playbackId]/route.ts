@@ -4,7 +4,7 @@ import { sql } from "@vercel/postgres";
 
 export async function GET(
   req: Request,
-  { params }: { params: { playbackId: string } },
+  { params }: { params: { playbackId: string } }
 ) {
   try {
     const { playbackId } = params;
@@ -14,7 +14,7 @@ export async function GET(
     if (!playbackId) {
       return NextResponse.json(
         { error: "Playback ID is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -22,7 +22,7 @@ export async function GET(
       console.log("❌ Invalid playback ID format:", playbackId);
       return NextResponse.json(
         { error: "Invalid playback ID format" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -75,7 +75,7 @@ export async function GET(
               details: "This stream may not exist or has been deleted",
               playbackId: playbackId,
             },
-            { status: 404 },
+            { status: 404 }
           );
         }
 
@@ -88,7 +88,7 @@ export async function GET(
               error: "Unauthorized access",
               details: "Invalid API key or permissions",
             },
-            { status: 401 },
+            { status: 401 }
           );
         }
       }
@@ -158,7 +158,7 @@ export async function GET(
             details: "Cannot connect to Livepeer servers",
             retry: true,
           },
-          { status: 503 },
+          { status: 503 }
         );
       }
 
@@ -169,7 +169,7 @@ export async function GET(
             details: "Livepeer API request timed out",
             retry: true,
           },
-          { status: 504 },
+          { status: 504 }
         );
       }
     }
@@ -180,7 +180,7 @@ export async function GET(
         details: errorMessage,
         playbackId: params?.playbackId || "unknown",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

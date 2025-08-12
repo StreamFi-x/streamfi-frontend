@@ -88,7 +88,7 @@ export default function StreamInfo({ data, onEditClick }: StreamInfoProps) {
                   {description}
                 </p>
                 <div className="flex flex-wrap gap-2 mt-1.5">
-                  {tags.map((tag) => (
+                  {tags.map(tag => (
                     <span
                       key={tag}
                       className={`px-2 py-1 ${bgClasses.card} rounded-md text-xs ${textClasses.secondary} border ${borderClasses.secondary}`}

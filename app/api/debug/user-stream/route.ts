@@ -9,7 +9,7 @@ export async function GET(req: Request) {
     if (!wallet) {
       return NextResponse.json(
         { error: "Wallet parameter required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -58,7 +58,7 @@ export async function GET(req: Request) {
         error: "Failed to check user stream status",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

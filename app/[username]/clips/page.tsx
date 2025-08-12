@@ -13,7 +13,7 @@ interface PageProps {
 // Mock function to fetch clips
 const fetchClips = async (username: string) => {
   // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 500));
 
   // For demo purposes, return empty array to show empty state
   return [];

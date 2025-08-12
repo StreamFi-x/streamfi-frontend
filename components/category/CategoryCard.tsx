@@ -34,7 +34,7 @@ function CategoryCard({ category }: CategoryCardProps) {
             </p>
           )}
           <main className="flex gap-2 ">
-            {tags.slice(0, 2).map((tag) => (
+            {tags.slice(0, 2).map(tag => (
               <div key={tag} className="px-2 py-0.5 bg-white/10 rounded">
                 {tag}
               </div>

@@ -20,7 +20,7 @@ export default function SettingsNavigation() {
   return (
     <div className="w-full overflow-x-auto scrollbar-hide">
       <nav className="flex min-w-max space-x-6 md:space-x-8 px-4 sm:px-0">
-        {tabs.map((tab) => {
+        {tabs.map(tab => {
           const tabUrl = URL_MAPPING[tab.id as keyof typeof URL_MAPPING];
           const isActive = pathname === tabUrl;
 

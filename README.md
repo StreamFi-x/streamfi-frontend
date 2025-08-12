@@ -45,6 +45,81 @@ rm package-lock.json
 npm install
 ```
 
+## 🛠 Development Tools
+
+### Code Formatting & Linting
+
+This project uses several tools to maintain code quality:
+
+- **Prettier**: Code formatting
+- **ESLint**: Code linting
+- **Husky**: Git hooks
+- **lint-staged**: Pre-commit formatting
+- **commitlint**: Commit message validation
+- **commitizen**: Interactive commit messages
+
+### Available Scripts
+
+```bash
+# Development
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+
+# Code Quality
+npm run lint         # Run ESLint
+npm run lint:fix     # Fix ESLint issues
+npm run format       # Format code with Prettier
+npm run format:check # Check if code is formatted
+
+# Testing
+npm run test         # Run tests
+
+# Database
+npm run setup-db     # Setup database
+npm run update-schema # Update user schema
+
+# Committing
+npm run commit       # Interactive commit (recommended)
+```
+
+### Commit Message Format
+
+We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+
+```
+type(scope): description
+
+[optional body]
+
+[optional footer]
+```
+
+Types:
+
+- `feat`: New features
+- `fix`: Bug fixes
+- `docs`: Documentation changes
+- `style`: Code style changes
+- `refactor`: Code refactoring
+- `perf`: Performance improvements
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+
+Example:
+
+```bash
+npm run commit
+# This will open an interactive prompt to create a properly formatted commit
+```
+
+### Git Hooks
+
+The following hooks are automatically run:
+
+- **pre-commit**: Formats and lints staged files
+- **commit-msg**: Validates commit message format
+
 ## 🛠 Branch Naming Convention
 
 We follow a structured branch naming format:

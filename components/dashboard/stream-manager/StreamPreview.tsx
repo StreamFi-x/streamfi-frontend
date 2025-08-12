@@ -11,7 +11,7 @@ export default function StreamPreview() {
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch((err) => {
+      document.documentElement.requestFullscreen().catch(err => {
         console.error(`Error attempting to enable fullscreen: ${err.message}`);
       });
       setIsFullscreen(true);

@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     if (!playbackId || !sessionId) {
       return NextResponse.json(
         { error: "Playback ID and session ID are required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     if (!stream.is_live) {
       return NextResponse.json(
         { error: "Stream is not currently live" },
-        { status: 409 },
+        { status: 409 }
       );
     }
 
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     if (sessionResult.rows.length === 0) {
       return NextResponse.json(
         { error: "No active stream session found" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     if (existingViewer.rows.length > 0) {
       return NextResponse.json(
         { message: "Already tracking this viewer" },
-        { status: 200 },
+        { status: 200 }
       );
     }
 
@@ -95,13 +95,13 @@ export async function POST(req: Request) {
           isLive: stream.is_live,
         },
       },
-      { status: 201 },
+      { status: 201 }
     );
   } catch (error) {
     console.error("Viewer join error:", error);
     return NextResponse.json(
       { error: "Failed to join stream" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -113,7 +113,7 @@ export async function DELETE(req: Request) {
     if (!sessionId) {
       return NextResponse.json(
         { error: "Session ID is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
     const viewerResult = await sql`
@@ -126,7 +126,7 @@ export async function DELETE(req: Request) {
     if (viewerResult.rows.length === 0) {
       return NextResponse.json(
         { message: "Viewer session not found or already ended" },
-        { status: 200 },
+        { status: 200 }
       );
     }
 
@@ -150,13 +150,13 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json(
       { message: "Viewer left successfully" },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Viewer leave error:", error);
     return NextResponse.json(
       { error: "Failed to leave stream" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

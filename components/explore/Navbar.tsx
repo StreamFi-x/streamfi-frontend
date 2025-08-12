@@ -23,7 +23,6 @@ import {
   componentClasses,
 } from "@/lib/theme-classes";
 
-
 interface NavbarProps {
   onConnectWallet?: () => void;
   toggleSidebar?: () => void;
@@ -286,7 +285,7 @@ export default function Navbar({}: NavbarProps) {
               type="text"
               placeholder="Search"
               value={searchQuery}
-              onChange={(e) => {
+              onChange={e => {
                 setSearchQuery(e.target.value);
                 setIsSearchDropdownOpen(true);
               }}
@@ -310,7 +309,7 @@ export default function Navbar({}: NavbarProps) {
                 className={`absolute top-full left-0 right-0 mt-2 ${componentClasses.dropdown} z-20`}
               >
                 <div className="p-2">
-                  {searchResults.map((result) => (
+                  {searchResults.map(result => (
                     <Link
                       key={result.id}
                       className={`flex items-center gap-3 p-2 ${bgClasses.hover} rounded-md cursor-pointer relative z-30`}

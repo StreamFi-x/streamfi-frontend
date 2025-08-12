@@ -38,7 +38,7 @@ export default function LanguageSelectionModal({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto">
-          {languages.map((language) => (
+          {languages.map(language => (
             <div
               key={language.code}
               onClick={() => {

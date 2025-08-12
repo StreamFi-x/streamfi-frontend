@@ -41,15 +41,15 @@ async function dbConnect(): Promise<typeof mongoose> {
       "Creating new MongoDB connection to:",
       MONGODB_URI.substring(
         0,
-        MONGODB_URI.indexOf("@") > 0 ? MONGODB_URI.indexOf("@") : 10,
-      ) + "...",
+        MONGODB_URI.indexOf("@") > 0 ? MONGODB_URI.indexOf("@") : 10
+      ) + "..."
     );
 
     const opts = {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then(mongoose => {
       return mongoose;
     });
   } else {

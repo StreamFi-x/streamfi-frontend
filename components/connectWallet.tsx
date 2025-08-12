@@ -61,7 +61,7 @@ export default function ConnectWalletModal({
 
     try {
       console.log(
-        `[ConnectWalletModal] Attempting to connect to ${wallet.name}`,
+        `[ConnectWalletModal] Attempting to connect to ${wallet.name}`
       );
       setSelectedWallet(wallet);
       setIsConnecting(true);
@@ -127,7 +127,7 @@ export default function ConnectWalletModal({
 
         {/* Wallet List */}
         <div className="flex flex-row gap-[7px] rounded-[20px] bg-[#FFFFFF1A] p-[10px] justify-center mb-4">
-          {connectors.map((wallet) => (
+          {connectors.map(wallet => (
             <div key={wallet.id} onClick={() => handleWalletClick(wallet)}>
               <button
                 className={`w-[80px] h-[80px] bg-[#1D2027] rounded-[16px] flex items-center justify-center p-3 text-white transition-all duration-200 ${
