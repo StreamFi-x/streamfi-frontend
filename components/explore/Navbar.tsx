@@ -22,7 +22,7 @@ import {
   buttonClasses,
   componentClasses,
 } from "@/lib/theme-classes";
-import { fa } from "zod/v4/locales";
+
 
 interface NavbarProps {
   onConnectWallet?: () => void;

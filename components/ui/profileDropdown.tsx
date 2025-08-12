@@ -22,7 +22,6 @@ import {
 } from "@/lib/theme-classes";
 import { Flag } from "lucide-react";
 
-// Define types for menu items
 interface MenuItem {
   icon: ReactNode;
   label: string;
@@ -273,7 +272,7 @@ const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
 
   return (
     <motion.div
-      className="relative sm:w-64 w-40 z-50"
+      className="relative sm:w-52 w-40 z-50"
       initial="hidden"
       animate="visible"
       exit="hidden"
@@ -298,12 +297,12 @@ const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
               {section.items.map((item) => (
                 <div
                   key={item.label}
-                  className={
-                    item.mobile ? "block lg:hidden" : "hidden lg:block"
-                  }
+                  className={item.mobile ? "block " : "hidden lg:block"}
                   onClick={() => handleItemClick(item)}
                 >
-                  <div className="flex items-center gap-2.5 px-4 py-2 sm:text-base text-sm hover:bg-gray-100 cursor-pointer rounded">
+                  <div
+                    className={`${bgClasses.hover} flex items-center gap-2.5 px-4 py-2 sm:text-sm text-sm hover:bg-gray-100 cursor-pointer rounded`}
+                  >
                     {item.icon}
                     <span>{item.label}</span>
                   </div>

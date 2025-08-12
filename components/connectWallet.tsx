@@ -40,6 +40,7 @@ export default function ConnectWalletModal({
     } else if (status === "disconnected" && isConnecting) {
       setIsConnecting(false);
       setConnectionError("Connection failed. Please try again.");
+      console.log("[ConnectWalletModal] Disconnected, resetting state");
     }
   }, [status, isConnecting]);
 

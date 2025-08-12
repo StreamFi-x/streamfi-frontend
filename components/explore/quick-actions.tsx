@@ -28,7 +28,7 @@ export default function QuickActions() {
   const handleProfileDisplayModal = useCallback(() => {
     if (!address) return;
 
-    fetch(`/api/users/${address}`)
+    fetch(`/api/users/wallet/${address}`)
       .then(async (res) => {
         if (res.ok) {
           const result = await res.json();
@@ -49,19 +49,29 @@ export default function QuickActions() {
       handleProfileDisplayModal();
     }
   }, [address, handleProfileDisplayModal, isConnected]);
-  const allowedRoutes = [
-    "/explore",
-    "/settings",
-    "/browse",
-    username ? `/${username}` : "/profile",
-  ];
+  // const allowedRoutes = [
+  //   "/explore",
+  //   "/settings",
+  //   "/browse",
+  //   username ? `/${username}` : "/profile",
+  // ];
 
-  const shouldShowQuickActions = allowedRoutes.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
-  );
+  // const shouldShowQuickActions = allowedRoutes.some(
+  //   (route) => pathname === route || pathname.startsWith(`${route}/`)
+  // );
+
+  const excludedRoutes = ["/", "/api", "/admin", "/dashboard"];
+
+const shouldShowQuickActions = !excludedRoutes.some(
+  (route) =>
+    pathname === route ||
+    pathname.startsWith(`${route}/`)
+);
+
+if (!shouldShowQuickActions) return null;
   const quickActionItems: QuickActionItem[] = [
     { icon: Home, label: "Home", href: "/explore", type: "link" },
-    { icon: Search, label: "Search", href: "/explore/browse", type: "link" },
+    { icon: Search, label: "Search", href: "/browse", type: "link" },
     { icon: Settings, label: "Settings", href: "/settings", type: "link" },
     isConnected && address
       ? {
