@@ -86,7 +86,7 @@ function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
 
       addLog(`Video error: ${errorMessage}`, "error");
     },
-    [addLog],
+    [addLog]
   );
 
   const handleLoadStart = useCallback(() => {
@@ -113,7 +113,7 @@ function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
     addLog("Video metadata loaded", "info");
     const video = videoRef.current;
     if (video) {
-      setVideoStats((prev) => ({
+      setVideoStats(prev => ({
         ...prev,
         duration: video.duration,
       }));
@@ -158,7 +158,7 @@ function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
           default:
             addLog(
               `HLS Fatal error: ${data.type} - destroying player`,
-              "error",
+              "error"
             );
             if (hlsRef.current) {
               hlsRef.current.destroy();
@@ -179,7 +179,7 @@ function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
         }
       }
     },
-    [addLog],
+    [addLog]
   );
 
   useEffect(() => {
@@ -213,7 +213,7 @@ function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
       hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
         addLog(
           `HLS manifest loaded - ${data.levels.length} quality levels available`,
-          "success",
+          "success"
         );
         setAvailableQualities(data.levels);
       });
@@ -290,7 +290,7 @@ function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
       if (hlsRef.current) {
         hlsRef.current.stopLoad();
         hlsRef.current.loadSource(
-          `https://livepeercdn.studio/hls/${playbackId}/index.m3u8`,
+          `https://livepeercdn.studio/hls/${playbackId}/index.m3u8`
         );
         addLog(" HLS: Reloading stream...", "info");
       } else {
@@ -305,7 +305,7 @@ function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
     const video = videoRef.current;
     if (video) {
       if (video.paused) {
-        video.play().catch((err) => {
+        video.play().catch(err => {
           addLog(`Play failed: ${err.message}`, "error");
         });
       } else {
@@ -329,7 +329,7 @@ function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
         document.exitFullscreen();
         addLog("Exited fullscreen", "info");
       } else {
-        video.requestFullscreen().catch((err) => {
+        video.requestFullscreen().catch(err => {
           addLog(`Fullscreen failed: ${err.message}`, "error");
         });
         addLog("Entered fullscreen", "info");
@@ -349,7 +349,7 @@ function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
 
       addLog(
         ` HLS Stats - Quality: ${currentLevel >= 0 ? levels[currentLevel]?.height + "p" : "Auto"}, Buffer: ${bufferedSeconds.toFixed(1)}s`,
-        "info",
+        "info"
       );
     } else if (video) {
       const bufferedSeconds =
@@ -358,7 +358,7 @@ function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
           : 0;
       addLog(
         `Video Stats - Buffer: ${bufferedSeconds.toFixed(1)}s, Duration: ${video.duration.toFixed(1)}s`,
-        "info",
+        "info"
       );
     }
   }, [addLog]);
@@ -369,11 +369,11 @@ function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
         hlsRef.current.currentLevel = level;
         addLog(
           `Switched to quality level ${level === -1 ? "Auto" : level}`,
-          "info",
+          "info"
         );
       }
     },
-    [addLog],
+    [addLog]
   );
 
   const formatTime = (seconds: number) => {
@@ -476,7 +476,7 @@ function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
         <div className="absolute bottom-4 right-4">
           <select
             value={currentQuality}
-            onChange={(e) => switchQuality(parseInt(e.target.value))}
+            onChange={e => switchQuality(parseInt(e.target.value))}
             className="bg-black bg-opacity-60 text-white text-xs rounded px-2 py-1 border-0"
             title="Select video quality"
           >
@@ -502,7 +502,7 @@ function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
 
 export default function StreamTestComponent() {
   const [wallet] = useState(
-    "0x04fef7247897775ee856f4a2c52b460300b67306c14a200ce71eb1f9190a388e",
+    "0x04fef7247897775ee856f4a2c52b460300b67306c14a200ce71eb1f9190a388e"
   );
   const [streamData, setStreamData] = useState<StreamData>({});
   const [loading, setLoading] = useState(false);
@@ -547,14 +547,14 @@ export default function StreamTestComponent() {
     (message: string, type: "info" | "success" | "error" = "info") => {
       const timestamp = new Date().toLocaleTimeString();
       const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
-      setLogs((prev) => [...prev, logEntry]);
+      setLogs(prev => [...prev, logEntry]);
     },
-    [],
+    []
   );
 
   const apiCall = async (
     endpoint: string,
-    options: RequestInit = {},
+    options: RequestInit = {}
   ): Promise<ApiResponse> => {
     const startTime = Date.now();
 
@@ -583,18 +583,18 @@ export default function StreamTestComponent() {
         error: response.ok ? null : data.error,
       };
 
-      setApiCallHistory((prev) => [...prev.slice(-9), callRecord]);
+      setApiCallHistory(prev => [...prev.slice(-9), callRecord]);
 
       if (response.ok) {
         addLog(
           `API call successful (${duration}ms): ${data.message || "Success"}`,
-          "success",
+          "success"
         );
         return { success: true, ...data };
       } else {
         addLog(
           `API call failed (${duration}ms): ${data.error || "Unknown error"}`,
-          "error",
+          "error"
         );
         return { success: false, error: data.error };
       }
@@ -614,7 +614,7 @@ export default function StreamTestComponent() {
         error: errorMessage,
       };
 
-      setApiCallHistory((prev) => [...prev.slice(-9), callRecord]);
+      setApiCallHistory(prev => [...prev.slice(-9), callRecord]);
       addLog(`API call error (${duration}ms): ${errorMessage}`, "error");
       return { success: false, error: errorMessage };
     }
@@ -646,7 +646,7 @@ export default function StreamTestComponent() {
     });
 
     if (result.success) {
-      setStreamData((prev) => ({ ...prev, isLive: true }));
+      setStreamData(prev => ({ ...prev, isLive: true }));
       addLog("Stream started!", "success");
     }
     setLoading(false);
@@ -660,7 +660,7 @@ export default function StreamTestComponent() {
     });
 
     if (result.success) {
-      setStreamData((prev) => ({ ...prev, isLive: false }));
+      setStreamData(prev => ({ ...prev, isLive: false }));
       addLog("Stream stopped!", "success");
     }
     setLoading(false);
@@ -685,7 +685,7 @@ export default function StreamTestComponent() {
 
     setLoading(true);
     const result = await apiCall(
-      `/api/streams/playback/${streamData.playbackId}`,
+      `/api/streams/playback/${streamData.playbackId}`
     );
 
     if (result.success) {
@@ -739,7 +739,7 @@ export default function StreamTestComponent() {
     if (result.success && result.metrics) {
       addLog(
         `Metrics retrieved! Current viewers: ${result.metrics.stream?.currentViewers || 0}`,
-        "success",
+        "success"
       );
     }
     setLoading(false);
@@ -759,7 +759,7 @@ export default function StreamTestComponent() {
 
     if (result.success && result.chatMessage) {
       const newMessage = result.chatMessage;
-      setChatMessages((prev) => [...prev, newMessage]);
+      setChatMessages(prev => [...prev, newMessage]);
       setChatMessage("");
       addLog("Chat message sent!", "success");
     }
@@ -769,7 +769,7 @@ export default function StreamTestComponent() {
     if (!streamData.playbackId) return;
 
     const result = await apiCall(
-      `/api/streams/chat?playbackId=${streamData.playbackId}`,
+      `/api/streams/chat?playbackId=${streamData.playbackId}`
     );
 
     if (result.success && result.messages) {
@@ -901,12 +901,12 @@ export default function StreamTestComponent() {
             { id: "view", label: " Playback Test", color: "purple" },
             { id: "chat", label: "Chat Test", color: "pink" },
             { id: "debug", label: "Debug & Analytics", color: "orange" },
-          ].map((tab) => (
+          ].map(tab => (
             <button
               key={tab.id}
               onClick={() =>
                 setActiveTab(
-                  tab.id as "create" | "manage" | "view" | "chat" | "debug",
+                  tab.id as "create" | "manage" | "view" | "chat" | "debug"
                 )
               }
               className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
@@ -938,8 +938,8 @@ export default function StreamTestComponent() {
                     <input
                       type="text"
                       value={streamForm.title}
-                      onChange={(e) =>
-                        setStreamForm((prev) => ({
+                      onChange={e =>
+                        setStreamForm(prev => ({
                           ...prev,
                           title: e.target.value,
                         }))
@@ -955,8 +955,8 @@ export default function StreamTestComponent() {
                     </label>
                     <select
                       value={streamForm.category}
-                      onChange={(e) =>
-                        setStreamForm((prev) => ({
+                      onChange={e =>
+                        setStreamForm(prev => ({
                           ...prev,
                           category: e.target.value,
                         }))
@@ -980,8 +980,8 @@ export default function StreamTestComponent() {
                   </label>
                   <textarea
                     value={streamForm.description}
-                    onChange={(e) =>
-                      setStreamForm((prev) => ({
+                    onChange={e =>
+                      setStreamForm(prev => ({
                         ...prev,
                         description: e.target.value,
                       }))
@@ -999,12 +999,12 @@ export default function StreamTestComponent() {
                   <input
                     type="text"
                     value={streamForm.tags.join(", ")}
-                    onChange={(e) =>
-                      setStreamForm((prev) => ({
+                    onChange={e =>
+                      setStreamForm(prev => ({
                         ...prev,
                         tags: e.target.value
                           .split(",")
-                          .map((tag) => tag.trim())
+                          .map(tag => tag.trim())
                           .filter(Boolean),
                       }))
                     }
@@ -1023,8 +1023,8 @@ export default function StreamTestComponent() {
                           <input
                             type="checkbox"
                             checked={advancedSettings.recordStream}
-                            onChange={(e) =>
-                              setAdvancedSettings((prev) => ({
+                            onChange={e =>
+                              setAdvancedSettings(prev => ({
                                 ...prev,
                                 recordStream: e.target.checked,
                               }))
@@ -1039,8 +1039,8 @@ export default function StreamTestComponent() {
                           <input
                             type="checkbox"
                             checked={advancedSettings.enableChat}
-                            onChange={(e) =>
-                              setAdvancedSettings((prev) => ({
+                            onChange={e =>
+                              setAdvancedSettings(prev => ({
                                 ...prev,
                                 enableChat: e.target.checked,
                               }))
@@ -1055,8 +1055,8 @@ export default function StreamTestComponent() {
                           <input
                             type="checkbox"
                             checked={advancedSettings.lowLatency}
-                            onChange={(e) =>
-                              setAdvancedSettings((prev) => ({
+                            onChange={e =>
+                              setAdvancedSettings(prev => ({
                                 ...prev,
                                 lowLatency: e.target.checked,
                               }))
@@ -1071,8 +1071,8 @@ export default function StreamTestComponent() {
                           <input
                             type="checkbox"
                             checked={advancedSettings.enableHls}
-                            onChange={(e) =>
-                              setAdvancedSettings((prev) => ({
+                            onChange={e =>
+                              setAdvancedSettings(prev => ({
                                 ...prev,
                                 enableHls: e.target.checked,
                               }))
@@ -1092,8 +1092,8 @@ export default function StreamTestComponent() {
                         </label>
                         <select
                           value={advancedSettings.maxBitrate}
-                          onChange={(e) =>
-                            setAdvancedSettings((prev) => ({
+                          onChange={e =>
+                            setAdvancedSettings(prev => ({
                               ...prev,
                               maxBitrate: parseInt(e.target.value),
                             }))
@@ -1112,8 +1112,8 @@ export default function StreamTestComponent() {
                         </label>
                         <select
                           value={advancedSettings.resolution}
-                          onChange={(e) =>
-                            setAdvancedSettings((prev) => ({
+                          onChange={e =>
+                            setAdvancedSettings(prev => ({
                               ...prev,
                               resolution: e.target.value,
                             }))
@@ -1417,7 +1417,7 @@ export default function StreamTestComponent() {
                           onClick={() =>
                             copyToClipboard(
                               `https://livepeercdn.studio/hls/${streamData.playbackId}/index.m3u8`,
-                              "HLS URL",
+                              "HLS URL"
                             )
                           }
                           className="bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600 transition-colors"
@@ -1592,8 +1592,8 @@ export default function StreamTestComponent() {
                   <input
                     type="text"
                     value={chatMessage}
-                    onChange={(e) => setChatMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && sendChatMessage()}
+                    onChange={e => setChatMessage(e.target.value)}
+                    onKeyPress={e => e.key === "Enter" && sendChatMessage()}
                     className="flex-1 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                     placeholder="Type a chat message..."
                     disabled={!streamData.playbackId}
@@ -1826,7 +1826,7 @@ export default function StreamTestComponent() {
                       };
                       copyToClipboard(
                         JSON.stringify(config, null, 2),
-                        "Debug Config",
+                        "Debug Config"
                       );
                     }}
                     className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
@@ -1898,19 +1898,19 @@ export default function StreamTestComponent() {
               <div>
                 <strong>Successes:</strong>
                 <span className="text-green-600 ml-1">
-                  {logs.filter((log) => log.includes("SUCCESS")).length}
+                  {logs.filter(log => log.includes("SUCCESS")).length}
                 </span>
               </div>
               <div>
                 <strong>Errors:</strong>
                 <span className="text-red-600 ml-1">
-                  {logs.filter((log) => log.includes("ERROR")).length}
+                  {logs.filter(log => log.includes("ERROR")).length}
                 </span>
               </div>
               <div>
                 <strong>HLS Events:</strong>
                 <span className="text-purple-600 ml-1">
-                  {logs.filter((log) => log.includes("HLS")).length}
+                  {logs.filter(log => log.includes("HLS")).length}
                 </span>
               </div>
             </div>
@@ -1938,7 +1938,7 @@ export default function StreamTestComponent() {
             </p>
             <p>
               <strong>Status:</strong>{" "}
-              {logs.filter((log) => log.includes("SUCCESS")).length} successful
+              {logs.filter(log => log.includes("SUCCESS")).length} successful
               calls
             </p>
           </div>

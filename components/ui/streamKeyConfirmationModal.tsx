@@ -84,7 +84,7 @@ const StreamKeyConfirmationModal: React.FC<StreamKeyConfirmationModalProps> = ({
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-center gap-6 mb-4">
               <motion.div

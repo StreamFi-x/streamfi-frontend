@@ -27,7 +27,7 @@ export function ProfileHeader({ avatar, onAvatarClick }: ProfileHeaderProps) {
       // Create object URL for File objects
       const objectURL = URL.createObjectURL(avatar);
       setAvatarSrc(objectURL);
-      
+
       // Cleanup object URL when component unmounts or avatar changes
       return () => {
         URL.revokeObjectURL(objectURL);
@@ -40,8 +40,14 @@ export function ProfileHeader({ avatar, onAvatarClick }: ProfileHeaderProps) {
   return (
     <div className={combineClasses(componentClasses.card, "p-4 mb-6")}>
       <div className="flex items-center gap-4">
-        <div className={combineClasses("relative w-24 h-24 rounded-full overflow-hidden border-2 p-2", borderClasses.primary)}>
-          {typeof avatarSrc === 'string' && avatarSrc.includes('cloudinary.com') ? (
+        <div
+          className={combineClasses(
+            "relative sm:w-24 w-24 h-20 sm:h-24 rounded-full overflow-hidden border-2 p-2",
+            borderClasses.primary
+          )}
+        >
+          {typeof avatarSrc === "string" &&
+          avatarSrc.includes("cloudinary.com") ? (
             <img
               src={avatarSrc}
               alt="Profile Avatar"
@@ -63,7 +69,7 @@ export function ProfileHeader({ avatar, onAvatarClick }: ProfileHeaderProps) {
             className={combineClasses(
               bgClasses.input,
               textClasses.primary,
-              "px-3 py-2 rounded text-sm hover:bg-[#333] transition",
+              "px-3 py-2 rounded text-sm hover:bg-[#333] transition"
             )}
           >
             Edit Avatar

@@ -33,7 +33,7 @@ export default function StreamManagerPage() {
   // Update stream timer
   useEffect(() => {
     const timer = setInterval(() => {
-      setStreamSession((prev) => {
+      setStreamSession(prev => {
         try {
           const [hours, minutes, seconds] = prev.split(":").map(Number);
           if (isNaN(hours) || isNaN(minutes) || isNaN(seconds))

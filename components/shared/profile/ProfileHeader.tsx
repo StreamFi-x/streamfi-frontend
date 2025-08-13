@@ -30,7 +30,7 @@ const ProfileHeader = ({
   followLoading,
 }: ProfileHeaderProps) => {
   return (
-    <div className="flex items-center justify-between px-6 py-4">
+    <div className="flex items-center justify-between px-4 py-2.5 sm:px-6 sm:py-4">
       <div className="flex items-center">
         <div className="relative w-16 h-16 rounded-full overflow-hidden bg-purple-600 mr-4">
           {typeof avatarUrl === "string" &&
@@ -51,7 +51,10 @@ const ProfileHeader = ({
         </div>
         <div>
           <h1
-            className={combineClasses(textClasses.primary, "text-xl font-bold")}
+            className={combineClasses(
+              textClasses.primary,
+              "text-base sm:text-xl font-bold"
+            )}
           >
             {username}
           </h1>
@@ -61,7 +64,7 @@ const ProfileHeader = ({
         </div>
       </div>
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center sm:space-x-2">
         {isOwner ? (
           <CustomizeChannelButton />
         ) : (

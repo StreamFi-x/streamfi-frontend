@@ -76,7 +76,7 @@ const SecretField: React.FC<SecretFieldProps> = ({
       <h2
         className={combineClasses(
           textClasses.highlight,
-          "text-xl font-medium mb-4",
+          "text-xl font-medium mb-4"
         )}
       >
         {label}
@@ -92,9 +92,9 @@ const SecretField: React.FC<SecretFieldProps> = ({
           <button
             className={combineClasses(
               textClasses.tertiary,
-              "absolute right-3 top-1/2 transform -translate-y-1/2 hover:text-white",
+              "absolute right-3 top-1/2 transform -translate-y-1/2 hover:text-white"
             )}
-            onClick={(e) => {
+            onClick={e => {
               e.preventDefault();
               e.stopPropagation();
               onToggleVisibility();
@@ -121,7 +121,7 @@ const ToggleSection: React.FC<ToggleSectionProps> = ({
         <h2
           className={combineClasses(
             textClasses.highlight,
-            "text-xl font-medium",
+            "text-xl font-medium"
           )}
         >
           {title}
@@ -196,7 +196,7 @@ const StreamPreferencesPage: React.FC = () => {
   }, []);
 
   const updateState = (key: keyof typeof state, value: boolean) => {
-    setState((prev) => ({
+    setState(prev => ({
       ...prev,
       [key]: value,
     }));
@@ -224,7 +224,7 @@ const StreamPreferencesPage: React.FC = () => {
       () => {
         updateState("keyVisible", false);
       },
-      10 * 60 * 1000,
+      10 * 60 * 1000
     ); // 10 minutes
   };
 
@@ -242,7 +242,7 @@ const StreamPreferencesPage: React.FC = () => {
   };
 
   const toggleSetting = (
-    key: "disconnectedProtection" | "copyrightWarning",
+    key: "disconnectedProtection" | "copyrightWarning"
   ) => {
     updateState(key, !state[key]);
   };
@@ -273,7 +273,7 @@ const StreamPreferencesPage: React.FC = () => {
       <button
         className={combineClasses(
           buttonClasses.secondary,
-          "px-4 py-2 rounded-md whitespace-nowrap",
+          "px-4 py-2 rounded-md whitespace-nowrap"
         )}
         onClick={copyKey}
       >
@@ -290,7 +290,7 @@ const StreamPreferencesPage: React.FC = () => {
       className={combineClasses(
         "min-h-screen",
         bgClasses.secondary,
-        textClasses.primary,
+        textClasses.primary
       )}
     >
       <div className="max-w-8xl mx-auto px-4 pt-12 pb-16">

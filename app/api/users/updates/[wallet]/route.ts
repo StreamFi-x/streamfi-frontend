@@ -10,7 +10,7 @@ import { UserUpdateInput } from "../../../../../types/user";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { wallet: string } },
+  { params }: { params: { wallet: string } }
 ) {
   try {
     const wallet = params.wallet.toLowerCase();
@@ -53,7 +53,7 @@ export async function PUT(
         console.error("Invalid socialLinks JSON:", err);
         return NextResponse.json(
           { error: "Invalid socialLinks format" },
-          { status: 400 },
+          { status: 400 }
         );
       }
     }
@@ -74,7 +74,7 @@ export async function PUT(
         console.error("Invalid creator JSON:", err);
         return NextResponse.json(
           { error: "Invalid creator format" },
-          { status: 400 },
+          { status: 400 }
         );
       }
     }
@@ -104,7 +104,7 @@ export async function PUT(
     if (email && email !== user.email && !validateEmail(email)) {
       return NextResponse.json(
         { error: "Invalid email format" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -115,7 +115,7 @@ export async function PUT(
       if (emailExists.rows.length > 0) {
         return NextResponse.json(
           { error: "Email already in use" },
-          { status: 400 },
+          { status: 400 }
         );
       }
     }
@@ -128,7 +128,7 @@ export async function PUT(
       if (usernameExists.rows.length > 0) {
         return NextResponse.json(
           { error: "Username already in use" },
-          { status: 400 },
+          { status: 400 }
         );
       }
     }
@@ -178,7 +178,7 @@ export async function PUT(
     console.error("Update error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

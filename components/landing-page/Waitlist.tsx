@@ -141,7 +141,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
             console.error("Failed to parse response as JSON:", jsonError);
             console.log(
               "Response text (first 200 chars):",
-              responseText.substring(0, 200),
+              responseText.substring(0, 200)
             );
             throw new Error("Server returned an invalid response format");
           }
@@ -162,7 +162,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
             errorMessage = "Server error. Our team has been notified.";
             console.error(
               "Server error details:",
-              data?.details || "No details provided",
+              data?.details || "No details provided"
             );
           }
 
@@ -253,7 +253,7 @@ const Waitlist: React.FC<WaitlistProps> = ({
             <input
               type="text"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={e => setEmail(e.target.value)}
               onBlur={() => setEmailTouched(true)}
               placeholder="Enter your email"
               className={`w-full py-3 px-4 bg-[#272526] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-300 ${

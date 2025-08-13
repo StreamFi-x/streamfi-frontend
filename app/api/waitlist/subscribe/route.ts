@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
         {
           status: 400,
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -243,7 +243,7 @@ export async function POST(req: NextRequest) {
 
       const { rows } = await pool.query(
         "SELECT * FROM subscribers WHERE email = $1",
-        [body.email],
+        [body.email]
       );
 
       const existingEntry = rows[0];
@@ -258,7 +258,7 @@ export async function POST(req: NextRequest) {
           {
             status: 200,
             headers: { "Content-Type": "application/json" },
-          },
+          }
         );
       }
 
@@ -272,7 +272,7 @@ export async function POST(req: NextRequest) {
                unsubscribed_at = NULL,
                updated_at = CURRENT_TIMESTAMP
            WHERE email = $2`,
-          [body.name || null, body.email],
+          [body.name || null, body.email]
         );
 
         console.log("User resubscribed successfully");
@@ -283,7 +283,7 @@ export async function POST(req: NextRequest) {
         await pool.query(
           `INSERT INTO subscribers (email, name)
            VALUES ($1, $2)`,
-          [body.email, body.name || null],
+          [body.email, body.name || null]
         );
 
         console.log("New subscriber added successfully");
@@ -309,7 +309,7 @@ export async function POST(req: NextRequest) {
         {
           status: 201,
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
     } catch (dbErr) {
       const message = dbErr instanceof Error ? dbErr.message : String(dbErr);
@@ -322,7 +322,7 @@ export async function POST(req: NextRequest) {
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
     }
   } catch (err) {
@@ -336,7 +336,7 @@ export async function POST(req: NextRequest) {
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
-      },
+      }
     );
   }
 }

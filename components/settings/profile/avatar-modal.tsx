@@ -16,7 +16,9 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
   avatarOptions,
 }) => {
   const [previewAvatar, setPreviewAvatar] = useState<any>(currentAvatar);
-  const [previewSrc, setPreviewSrc] = useState<string | StaticImageData>(currentAvatar);
+  const [previewSrc, setPreviewSrc] = useState<string | StaticImageData>(
+    currentAvatar
+  );
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -25,7 +27,7 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
     setPreviewAvatar(currentAvatar);
     setUploadedFile(null);
     setUploadedFileUrl(null);
-    
+
     if (currentAvatar instanceof File) {
       const objectURL = URL.createObjectURL(currentAvatar);
       setPreviewSrc(objectURL);
@@ -96,7 +98,8 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
 
         <div className="flex justify-center mb-6">
           <div className="relative w-24 h-24 rounded-full overflow-hidden bg-purple-600">
-            {typeof previewSrc === 'string' && previewSrc.includes('cloudinary.com') ? (
+            {typeof previewSrc === "string" &&
+            previewSrc.includes("cloudinary.com") ? (
               <img
                 src={previewSrc}
                 alt="Avatar Preview"
@@ -150,7 +153,8 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
                   : "border-transparent hover:border-purple-500"
               } focus:border-purple-500 transition`}
             >
-              {typeof avatar === 'string' && avatar.includes('cloudinary.com') ? (
+              {typeof avatar === "string" &&
+              avatar.includes("cloudinary.com") ? (
                 <img
                   src={avatar}
                   alt={`Avatar option ${index + 1}`}

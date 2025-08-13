@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Eye } from "lucide-react";
-
+import { useRouter } from "next/navigation";
 interface StreamCardProps {
   id: string;
   title: string;
@@ -23,11 +23,13 @@ const StreamCard = ({
   viewCount,
   isLive,
 }: StreamCardProps) => {
+  const route = useRouter();
   return (
     <Link href={`/${username}/watch?v=${id}`}>
       <div className="group cursor-pointer rounded-lg overflow-hidden transition-colors">
         <div className="relative aspect-video overflow-hidden">
-          {typeof thumbnailUrl === 'string' && thumbnailUrl.includes('cloudinary.com') ? (
+          {typeof thumbnailUrl === "string" &&
+          thumbnailUrl.includes("cloudinary.com") ? (
             <img
               src={thumbnailUrl}
               alt={title}
@@ -43,7 +45,7 @@ const StreamCard = ({
           )}
 
           {isLive && (
-            <div className="absolute top-3 left-3 bg-red-600 text-white text-sm px-3 py-1.5 rounded-sm font-medium">
+            <div className="absolute top-1 left-1 bg-red-600 text-white text-xs px-3 py-1.5 rounded-sm font-medium">
               Live
             </div>
           )}
@@ -58,10 +60,11 @@ const StreamCard = ({
           </div>
         </div>
 
-        <div className="p-4">
-          <div className="flex items-center mb-3">
-            <div className="w-8 h-8 bg-gray-600 rounded-full mr-3 flex-shrink-0 overflow-hidden">
-              {typeof thumbnailUrl === 'string' && thumbnailUrl.includes('cloudinary.com') ? (
+        <div className="p-2 truncate">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-8 h-8 bg-gray-600 rounded-full  flex-shrink-0 overflow-hidden">
+              {typeof thumbnailUrl === "string" &&
+              thumbnailUrl.includes("cloudinary.com") ? (
                 <img
                   src={thumbnailUrl}
                   alt={username}
@@ -77,20 +80,25 @@ const StreamCard = ({
                 />
               )}
             </div>
-            <span className="text-base text-gray-300 font-medium">
-              {username}
-            </span>
+            <div className="flex flex-col truncate">
+              {" "}
+              <a
+                href={`/${username}`}
+                className="text-xs hover:underline text-gray-400 font-medium"
+              >
+                {username}
+              </a>
+            </div>
           </div>
-
-          <h3 className="text-base font-semibold text-white mb-3 line-clamp-2">
-            {title}
+          <h3 className="text-sm font-semibold text-white mb-1 truncate w-full line-clamp-2">
+            {title} What does this mean?
           </h3>
 
           <div className="flex flex-wrap gap-2">
-            {tags.slice(0, 3).map((tag) => (
+            {tags.slice(0, 3).map(tag => (
               <span
                 key={tag}
-                className="text-sm px-3 py-1.5 rounded bg-gray-700 text-gray-300"
+                className="text-xs  px-2 py-1.5 rounded bg-gray-700 text-gray-300"
               >
                 {tag}
               </span>

@@ -36,7 +36,7 @@ export const liveTags = [
   "Science",
   "Health",
   "Fitness",
-  "Gaming"
+  "Gaming",
 ];
 
 export const languageOptions: FilterOption[] = [
@@ -49,7 +49,7 @@ export const languageOptions: FilterOption[] = [
   { value: "ru", label: "Russian" },
   { value: "ja", label: "Japanese" },
   { value: "ko", label: "Korean" },
-  { value: "zh", label: "Chinese" }
+  { value: "zh", label: "Chinese" },
 ];
 
 export const sortOptions: FilterOption[] = [
@@ -57,7 +57,7 @@ export const sortOptions: FilterOption[] = [
   { value: "viewers", label: "Most Viewers" },
   { value: "recent", label: "Recently Started" },
   { value: "popular", label: "Most Popular" },
-  { value: "trending", label: "Trending" }
+  { value: "trending", label: "Trending" },
 ];
 
 export const liveVideos: VideoCard[] = [
@@ -70,7 +70,7 @@ export const liveVideos: VideoCard[] = [
     tags: ["Nigerian", "Gameplay"],
     viewCount: 14500,
     isLive: true,
-    language: "en"
+    language: "en",
   },
   {
     id: "2",
@@ -81,7 +81,7 @@ export const liveVideos: VideoCard[] = [
     tags: ["FPS", "Battle Royale"],
     viewCount: 8920,
     isLive: true,
-    language: "en"
+    language: "en",
   },
   {
     id: "3",
@@ -92,7 +92,7 @@ export const liveVideos: VideoCard[] = [
     tags: ["Strategy", "Mobile"],
     viewCount: 5670,
     isLive: true,
-    language: "en"
+    language: "en",
   },
   {
     id: "4",
@@ -103,7 +103,7 @@ export const liveVideos: VideoCard[] = [
     tags: ["Shooter", "Competitive"],
     viewCount: 12340,
     isLive: true,
-    language: "en"
+    language: "en",
   },
   {
     id: "5",
@@ -114,7 +114,7 @@ export const liveVideos: VideoCard[] = [
     tags: ["Mobile", "Strategy"],
     viewCount: 7890,
     isLive: true,
-    language: "en"
+    language: "en",
   },
   {
     id: "6",
@@ -125,7 +125,7 @@ export const liveVideos: VideoCard[] = [
     tags: ["FPS", "Esports"],
     viewCount: 15670,
     isLive: true,
-    language: "en"
+    language: "en",
   },
   {
     id: "7",
@@ -136,7 +136,7 @@ export const liveVideos: VideoCard[] = [
     tags: ["Cooking", "Food", "Italian"],
     viewCount: 8230,
     isLive: true,
-    language: "en"
+    language: "en",
   },
   {
     id: "8",
@@ -147,7 +147,7 @@ export const liveVideos: VideoCard[] = [
     tags: ["Art", "Digital", "Creative"],
     viewCount: 3420,
     isLive: true,
-    language: "en"
+    language: "en",
   },
   {
     id: "9",
@@ -158,7 +158,7 @@ export const liveVideos: VideoCard[] = [
     tags: ["Fitness", "Workout", "Health"],
     viewCount: 2890,
     isLive: true,
-    language: "en"
+    language: "en",
   },
   {
     id: "10",
@@ -169,7 +169,7 @@ export const liveVideos: VideoCard[] = [
     tags: ["Tech", "Gadgets", "Review"],
     viewCount: 4560,
     isLive: true,
-    language: "en"
+    language: "en",
   },
   {
     id: "11",
@@ -180,7 +180,7 @@ export const liveVideos: VideoCard[] = [
     tags: ["Music", "Production", "Creative"],
     viewCount: 3780,
     isLive: true,
-    language: "en"
+    language: "en",
   },
   {
     id: "12",
@@ -191,6 +191,6 @@ export const liveVideos: VideoCard[] = [
     tags: ["Travel", "Vlog", "Paris"],
     viewCount: 6120,
     isLive: true,
-    language: "en"
-  }
-]; 
+    language: "en",
+  },
+];

@@ -29,7 +29,7 @@ const NotFound: FC<NotFoundProps> = () => {
   useEffect(() => {
     setIsVisible(true);
     const iconInterval = setInterval(() => {
-      setCurrentIcon((prev) => (prev + 1) % streamingIcons.length);
+      setCurrentIcon(prev => (prev + 1) % streamingIcons.length);
     }, 2000);
 
     return () => clearInterval(iconInterval);

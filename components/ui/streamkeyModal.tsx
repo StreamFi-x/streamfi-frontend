@@ -53,7 +53,7 @@ const StreamKeyModal: React.FC<StreamKeyModalProps> = ({ isOpen, onClose }) => {
 
       localStorage.setItem(
         STREAM_KEY_CONFIRMATION_KEY,
-        JSON.stringify({ timestamp, sessionId }),
+        JSON.stringify({ timestamp, sessionId })
       );
 
       setHasConfirmed(true);
@@ -85,7 +85,7 @@ const StreamKeyModal: React.FC<StreamKeyModalProps> = ({ isOpen, onClose }) => {
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-center mb-4">
               <motion.div

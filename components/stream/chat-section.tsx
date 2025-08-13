@@ -119,7 +119,7 @@ const ChatSection = ({
           ref={chatContainerRef}
           className={`${isFullscreen ? "h-full" : "h-[calc(100vh-200px)]"} overflow-y-auto scrollbar-hide p-3 space-y-4 pt-8 pb-16`}
         >
-          {messages.map((message) => (
+          {messages.map(message => (
             <div key={message.id} className="text-xs xl:text-sm flex">
               <div
                 className="w-1 mr-2 rounded-full"
@@ -144,17 +144,12 @@ const ChatSection = ({
       </div>
 
       {/* Chat input */}
-      <div
-        className={combineClasses(
-          borderClasses.primary,
-          "p-3 border-t"
-        )}
-      >
+      <div className={combineClasses(borderClasses.primary, "p-3 border-t")}>
         <div className="relative flex items-center">
           <input
             type="text"
             value={chatMessage}
-            onChange={(e) => setChatMessage(e.target.value)}
+            onChange={e => setChatMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Send a message"
             className={combineClasses(

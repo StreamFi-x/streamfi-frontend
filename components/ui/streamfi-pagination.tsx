@@ -68,7 +68,7 @@ const Pagination = ({
           <PaginationItem>
             <PaginationPrevious
               href="#"
-              onClick={(e) => {
+              onClick={e => {
                 e.preventDefault();
                 if (currentPage > 1) onPageChange(currentPage - 1);
               }}
@@ -86,7 +86,7 @@ const Pagination = ({
               {typeof page === "number" ? (
                 <PaginationLink
                   href="#"
-                  onClick={(e) => {
+                  onClick={e => {
                     e.preventDefault();
                     onPageChange(page);
                   }}
@@ -106,7 +106,7 @@ const Pagination = ({
           <PaginationItem>
             <PaginationNext
               href="#"
-              onClick={(e) => {
+              onClick={e => {
                 e.preventDefault();
                 if (currentPage < totalPages) onPageChange(currentPage + 1);
               }}

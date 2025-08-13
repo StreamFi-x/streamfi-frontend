@@ -9,6 +9,7 @@ import ProfileHeader from "@/components/shared/profile/ProfileHeader";
 import TabsNavigation from "@/components/shared/profile/TabsNavigation";
 import ViewStream from "@/components/stream/view-stream";
 import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
+import ConnectWalletModal from "@/components/connectWallet";
 
 export default function UsernameLayout({
   children,
@@ -24,7 +25,7 @@ export default function UsernameLayout({
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userExists, setUserExists] = useState(true);
-
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
 
@@ -73,6 +74,9 @@ export default function UsernameLayout({
   const handleFollow = async () => {
     if (!loggedInUsername) {
       toast.error("You must be logged in to follow users.");
+      setTimeout(() => {
+        setShowWalletModal(true);
+      }, 100);
       return;
     }
 
@@ -162,7 +166,7 @@ export default function UsernameLayout({
           <ViewStream
             username={username}
             isLive={true}
-            onStatusChange={(status) => setIsLive(status)}
+            onStatusChange={status => setIsLive(status)}
             isOwner={isOwner}
           />
         </main>
@@ -196,9 +200,15 @@ export default function UsernameLayout({
             followLoading={followLoading}
           />
           <TabsNavigation username={username} />
-          <div className="p-6">{children}</div>
+          <div className="p-4">{children}</div>
         </div>
       </main>
+      {showWalletModal && (
+        <ConnectWalletModal
+          isModalOpen={showWalletModal}
+          setIsModalOpen={setShowWalletModal}
+        />
+      )}
     </div>
   );
 }

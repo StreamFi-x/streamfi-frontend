@@ -106,7 +106,7 @@ export default function Chat() {
         // Filter out messages older than 3 hours
         const threeHoursAgo = Date.now() - 1000 * 60 * 60 * 3;
         const recentMessages = parsedMessages.filter(
-          (msg) => msg.timestamp > threeHoursAgo
+          msg => msg.timestamp > threeHoursAgo
         );
 
         if (recentMessages.length > 0) {
@@ -216,9 +216,7 @@ export default function Chat() {
       >
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-4">
-            <p
-              className={`text-sm font-semibold mb-2 ${textClasses.primary}`}
-            >
+            <p className={`text-sm font-semibold mb-2 ${textClasses.primary}`}>
               Your chat room is quiet... for now
             </p>
             <p className={`text-xs ${textClasses.tertiary}`}>
@@ -228,7 +226,7 @@ export default function Chat() {
           </div>
         ) : (
           <div className="p-2 pt-8 pb-16">
-            {messages.map((message) => (
+            {messages.map(message => (
               <div key={message.id} className="mb-2 flex">
                 <div
                   className="w-1 mr-2 rounded-full"
@@ -262,7 +260,7 @@ export default function Chat() {
         <input
           type="text"
           value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
+          onChange={e => setNewMessage(e.target.value)}
           placeholder="Send a message"
           className={`flex-1 ${bgClasses.input} border ${borderClasses.primary} rounded-md px-3 py-2 text-sm ${ringClasses.primary} ${textClasses.primary}`}
         />

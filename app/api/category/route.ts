@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Insert into stream_categories
-    console.log(":memo: Inserting new category...");
+    console.log("📝 Inserting new category...");
     const { rows: insertedRows } = await sql`
       INSERT INTO stream_categories (title, description, tags, "imageurl", created_at)
       VALUES (
@@ -82,26 +82,26 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// TO GET CATEGORIES (ALL, BY SEARCH AND BY ID)
+// TO GET CATEGORIES (ALL, BY SEARCH AND SINGLE BY ID)
 export async function GET(req: Request) {
   try {
-    // live search query
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search")?.toLowerCase();
-    const title = searchParams.get("id"); // To get category by id
+    const title = searchParams.get("title"); // for category title search
+    const tag = searchParams.get("tag"); // for tag search
+    const id = searchParams.get("id"); // to get single category by ID/title
+
+    let result;
 
     // Basic test to confirm DB works
     const testResult = await sql`SELECT * FROM stream_categories LIMIT 1`;
     console.log("Test result:", testResult.rows);
 
-    let result;
-
-    if (title) {
-      // Get category by ID
+    // Get specific category by title
+    if (id) {
       result = await sql`
         SELECT id, title, tags, imageurl
         FROM stream_categories
-        WHERE LOWER(title) = ${title.toLowerCase()}
+        WHERE LOWER(title) = ${id.toLowerCase()}
         LIMIT 1
       `;
 
@@ -112,49 +112,44 @@ export async function GET(req: Request) {
         );
       }
 
-      return NextResponse.json({
-        success: true,
-        category: result.rows[0],
-      });
+      return NextResponse.json({ success: true, category: result.rows[0] });
     }
 
-    // Search by category tags
-    const tag = searchParams.get("tag")?.toLowerCase();
+    // Search by title (live match)
+    if (title) {
+      result = await sql`
+        SELECT id, title, tags, imageurl
+        FROM stream_categories
+        WHERE LOWER(title) LIKE ${"%" + title.toLowerCase() + "%"}
+        ORDER BY created_at DESC
+      `;
 
+      return NextResponse.json({ success: true, categories: result.rows });
+    }
+
+    // Search by tag (live match in tags array)
     if (tag) {
       result = await sql`
-    SELECT id, title, tags, imageurl
-    FROM stream_categories
-    WHERE EXISTS (
-      SELECT 1 FROM UNNEST(tags) AS t
-      WHERE LOWER(t) LIKE ${"%" + tag + "%"}
-    )
-    ORDER BY created_at DESC
-  `;
-    }
-
-    if (search) {
-      // Filter by title or tags (case-insensitive)
-      result = await sql`
         SELECT id, title, tags, imageurl
         FROM stream_categories
-        WHERE LOWER(title) LIKE ${"%" + search + "%"}
+        WHERE EXISTS (
+          SELECT 1 FROM UNNEST(tags) AS t
+          WHERE LOWER(t) LIKE ${"%" + tag.toLowerCase() + "%"}
+        )
+        ORDER BY created_at DESC
+      `;
 
-        ORDER BY created_at DESC
-      `;
-    } else {
-      // Get all categories
-      result = await sql`
-        SELECT id, title, tags, imageurl
-        FROM stream_categories
-        ORDER BY created_at DESC
-      `;
+      return NextResponse.json({ success: true, categories: result.rows });
     }
 
-    return NextResponse.json({
-      success: true,
-      categories: result.rows,
-    });
+    // Get all categories (default)
+    result = await sql`
+      SELECT id, title, tags, imageurl
+      FROM stream_categories
+      ORDER BY created_at DESC
+    `;
+
+    return NextResponse.json({ success: true, categories: result.rows });
   } catch (error) {
     console.error("Error fetching categories:", error);
     return NextResponse.json(

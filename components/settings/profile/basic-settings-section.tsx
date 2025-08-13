@@ -61,7 +61,7 @@ export function BasicSettingsSection({
         <input
           type="text"
           value={formState.username}
-          onChange={(e) => updateFormField("username", e.target.value)}
+          onChange={e => updateFormField("username", e.target.value)}
           onFocus={() => updateUiState({ focusedInput: "username" })}
           onBlur={() => updateUiState({ focusedInput: null })}
           className={getInputStyle("username")}
@@ -115,7 +115,7 @@ export function BasicSettingsSection({
         <label className="block mb-2 text-sm">Edit Bio</label>
         <textarea
           value={formState.bio}
-          onChange={(e) => updateFormField("bio", e.target.value)}
+          onChange={e => updateFormField("bio", e.target.value)}
           onFocus={() => updateUiState({ focusedInput: "bio" })}
           onBlur={() => updateUiState({ focusedInput: null })}
           className={combineClasses(getInputStyle("bio"), "min-h-[7em]")}

@@ -26,7 +26,6 @@ export default function ConnectWalletModal({
   // Close modal when wallet connects successfully
   useEffect(() => {
     if (isConnected && isModalOpen) {
-      console.log("[ConnectWalletModal] Wallet connected, closing modal");
       setIsModalOpen(false);
       setIsConnecting(false);
       setConnectionError(null);
@@ -41,6 +40,7 @@ export default function ConnectWalletModal({
     } else if (status === "disconnected" && isConnecting) {
       setIsConnecting(false);
       setConnectionError("Connection failed. Please try again.");
+      console.log("[ConnectWalletModal] Disconnected, resetting state");
     }
   }, [status, isConnecting]);
 
@@ -59,14 +59,13 @@ export default function ConnectWalletModal({
     if (isConnecting) return;
 
     try {
-      console.log(
-        `[ConnectWalletModal] Attempting to connect to ${wallet.name}`,
-      );
       setSelectedWallet(wallet);
       setIsConnecting(true);
       setConnectionError(null);
 
       await connect({ connector: wallet });
+      
+      // The AuthProvider will automatically detect and store the active connector
     } catch (error) {
       console.error("[ConnectWalletModal] Connection error:", error);
       setConnectionError("Failed to connect wallet. Please try again.");
@@ -126,7 +125,7 @@ export default function ConnectWalletModal({
 
         {/* Wallet List */}
         <div className="flex flex-row gap-[7px] rounded-[20px] bg-[#FFFFFF1A] p-[10px] justify-center mb-4">
-          {connectors.map((wallet) => (
+          {connectors.map(wallet => (
             <div key={wallet.id} onClick={() => handleWalletClick(wallet)}>
               <button
                 className={`w-[80px] h-[80px] bg-[#1D2027] rounded-[16px] flex items-center justify-center p-3 text-white transition-all duration-200 ${

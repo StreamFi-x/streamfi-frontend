@@ -30,9 +30,10 @@ export default function ProfileSettings() {
   const avatarOptions = [Avatar, Avatar, Avatar, Avatar, Avatar];
   const { showToast } = useToast();
 
-  const [avatar, setAvatar] = useState<StaticImageData | string | File>(profileImage);
+  const [avatar, setAvatar] = useState<StaticImageData | string | File>(
+    profileImage
+  );
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
-
 
   const [usedPlatforms, setUsedPlatforms] = useState<Platform[]>([]);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
@@ -73,63 +74,76 @@ export default function ProfileSettings() {
 
     const domain = url.toLowerCase();
     if (domain.includes("instagram")) return "instagram";
-    if (domain.includes("twitter") || domain.includes("x.com")) return "twitter";
-    if (domain.includes("facebook") || domain.includes("fb.com")) return "facebook";
-    if (domain.includes("youtube") || domain.includes("youtu.be")) return "youtube";
-    if (domain.includes("telegram") || domain.includes("t.me")) return "telegram";
+    if (domain.includes("twitter") || domain.includes("x.com"))
+      return "twitter";
+    if (domain.includes("facebook") || domain.includes("fb.com"))
+      return "facebook";
+    if (domain.includes("youtube") || domain.includes("youtu.be"))
+      return "youtube";
+    if (domain.includes("telegram") || domain.includes("t.me"))
+      return "telegram";
     if (domain.includes("discord")) return "discord";
     if (domain.includes("tiktok")) return "tiktok";
     return "other";
   }, []);
 
   // Convert backend social links format to frontend format
-  const convertBackendSocialLinks = useCallback((backendLinks: any): SocialLink[] => {
-    if (!backendLinks) {
-      return [];
-    }
-    
-    try {
-      // Handle both string and object formats
-      const linksData = typeof backendLinks === 'string' 
-        ? JSON.parse(backendLinks) 
-        : backendLinks;
-      
-      if (Array.isArray(linksData)) {
-        // Handle array format (from types/user.ts SocialLink[])
-        return linksData.map(link => ({
-          url: link.socialLink || '',
-          title: link.socialTitle || 'Social Link',
-          platform: detectPlatformFromUrl(link.socialLink || '') || 'other' as Platform,
-        }));
-      } else if (typeof linksData === 'object') {
-        // Handle Record<string, string> format
-        return Object.entries(linksData).map(([platform, url]) => ({
-          url: url as string,
-          title: platform.charAt(0).toUpperCase() + platform.slice(1),
-          platform: platform as Platform,
-        }));
+  const convertBackendSocialLinks = useCallback(
+    (backendLinks: any): SocialLink[] => {
+      if (!backendLinks) {
+        return [];
       }
-    } catch (error) {
-      console.error('Error parsing social links:', error);
-    }
-    
-    return [];
-  }, [detectPlatformFromUrl]);
+
+      try {
+        // Handle both string and object formats
+        const linksData =
+          typeof backendLinks === "string"
+            ? JSON.parse(backendLinks)
+            : backendLinks;
+
+        if (Array.isArray(linksData)) {
+          // Handle array format (from types/user.ts SocialLink[])
+          return linksData.map(link => ({
+            url: link.socialLink || "",
+            title: link.socialTitle || "Social Link",
+            platform:
+              detectPlatformFromUrl(link.socialLink || "") ||
+              ("other" as Platform),
+          }));
+        } else if (typeof linksData === "object") {
+          // Handle Record<string, string> format
+          return Object.entries(linksData).map(([platform, url]) => ({
+            url: url as string,
+            title: platform.charAt(0).toUpperCase() + platform.slice(1),
+            platform: platform as Platform,
+          }));
+        }
+      } catch (error) {
+        console.error("Error parsing social links:", error);
+      }
+
+      return [];
+    },
+    [detectPlatformFromUrl]
+  );
 
   // Convert frontend social links format to backend format
-  const convertToBackendFormat = useCallback((frontendLinks: SocialLink[]): Record<string, string> => {
-    // Convert to the format expected by the backend
-    const backendFormat: Record<string, string> = {};
-    frontendLinks.forEach((link) => {
-      // Use the platform as key and URL as value
-      // If multiple links have same platform, the last one will overwrite the previous
-      backendFormat[link.platform] = link.url;
-    });
-    return backendFormat;
-  }, []);
+  const convertToBackendFormat = useCallback(
+    (frontendLinks: SocialLink[]): Record<string, string> => {
+      // Convert to the format expected by the backend
+      const backendFormat: Record<string, string> = {};
+      frontendLinks.forEach(link => {
+        // Use the platform as key and URL as value
+        // If multiple links have same platform, the last one will overwrite the previous
+        backendFormat[link.platform] = link.url;
+      });
+      return backendFormat;
+    },
+    []
+  );
 
   useEffect(() => {
-    const platforms = socialLinks.map((link) => link.platform);
+    const platforms = socialLinks.map(link => link.platform);
     setUsedPlatforms(platforms);
   }, [socialLinks]);
 
@@ -137,8 +151,8 @@ export default function ProfileSettings() {
   useEffect(() => {
     if (user && !isInitialized) {
       console.log("Initializing profile with user data:", user);
-      
-      setFormState((prev) => ({
+
+      setFormState(prev => ({
         ...prev,
         username: user.username || "",
         email: user.email || "",
@@ -150,14 +164,16 @@ export default function ProfileSettings() {
         setAvatar(user.avatar);
       }
 
-                     // Handle social links
-               if (user.socialLinks) {
-                 const convertedLinks = convertBackendSocialLinks(user.socialLinks);
-                 setSocialLinks(convertedLinks);
-               } else if ((user as any).sociallinks) {
-                 const convertedLinks = convertBackendSocialLinks((user as any).sociallinks);
-                 setSocialLinks(convertedLinks);
-               }
+      // Handle social links
+      if (user.socialLinks) {
+        const convertedLinks = convertBackendSocialLinks(user.socialLinks);
+        setSocialLinks(convertedLinks);
+      } else if ((user as any).sociallinks) {
+        const convertedLinks = convertBackendSocialLinks(
+          (user as any).sociallinks
+        );
+        setSocialLinks(convertedLinks);
+      }
 
       // Check email verification
       setIsEmailVerified(user.emailVerified || false);
@@ -170,7 +186,7 @@ export default function ProfileSettings() {
           const parsedUserData = JSON.parse(userData);
           console.log("Using sessionStorage data:", parsedUserData);
 
-          setFormState((prev) => ({
+          setFormState(prev => ({
             ...prev,
             username: parsedUserData.username || prev.username,
             email: parsedUserData.email || prev.email,
@@ -182,14 +198,18 @@ export default function ProfileSettings() {
             setAvatar(parsedUserData.avatar);
           }
 
-                             // Handle social links from sessionStorage
-                   if (parsedUserData.sociallinks) {
-                     const convertedLinks = convertBackendSocialLinks(parsedUserData.sociallinks);
-                     setSocialLinks(convertedLinks);
-                   } else if (parsedUserData.socialLinks) {
-                     const convertedLinks = convertBackendSocialLinks(parsedUserData.socialLinks);
-                     setSocialLinks(convertedLinks);
-                   }
+          // Handle social links from sessionStorage
+          if (parsedUserData.sociallinks) {
+            const convertedLinks = convertBackendSocialLinks(
+              parsedUserData.sociallinks
+            );
+            setSocialLinks(convertedLinks);
+          } else if (parsedUserData.socialLinks) {
+            const convertedLinks = convertBackendSocialLinks(
+              parsedUserData.socialLinks
+            );
+            setSocialLinks(convertedLinks);
+          }
 
           setIsEmailVerified(parsedUserData.emailverified || false);
           setIsInitialized(true);
@@ -204,7 +224,7 @@ export default function ProfileSettings() {
   const generateDefaultTitle = useCallback(
     (platform: Platform): string => {
       const existingCount = socialLinks.filter(
-        (link) => link.platform === platform,
+        link => link.platform === platform
       ).length;
 
       const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
@@ -213,7 +233,7 @@ export default function ProfileSettings() {
         ? `${platformName} ${existingCount + 1}`
         : platformName;
     },
-    [socialLinks],
+    [socialLinks]
   );
 
   const validateAndIdentifyLink = useCallback(
@@ -226,7 +246,7 @@ export default function ProfileSettings() {
       }
 
       const domainMatch = url.match(
-        /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z0-9-]+)/,
+        /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z0-9-]+)/
       );
       const domain = domainMatch ? domainMatch[1].toLowerCase() : "";
 
@@ -283,7 +303,7 @@ export default function ProfileSettings() {
         return { url, title: title || "Other", platform: "other" };
       }
     },
-    [generateDefaultTitle],
+    [generateDefaultTitle]
   );
 
   const languages = [
@@ -304,7 +324,7 @@ export default function ProfileSettings() {
           "min-h-screen",
           bgClasses.secondary,
           textClasses.primary,
-          "flex items-center justify-center",
+          "flex items-center justify-center"
         )}
       >
         <div className="text-center">
@@ -318,22 +338,22 @@ export default function ProfileSettings() {
   }
 
   const updateFormField = (field: keyof FormState, value: string) => {
-    setFormState((prev) => ({ ...prev, [field]: value }));
+    setFormState(prev => ({ ...prev, [field]: value }));
 
     if (field === "socialLinkUrl") {
-      setUiState((prev) => ({ ...prev, duplicateUrlError: false }));
+      setUiState(prev => ({ ...prev, duplicateUrlError: false }));
     }
   };
 
   const updateUiState = (updates: Partial<UIState>) => {
-    setUiState((prev) => ({ ...prev, ...updates }));
+    setUiState(prev => ({ ...prev, ...updates }));
   };
 
   const isDuplicateUrl = (url: string, excludeIndex?: number): boolean => {
     return socialLinks.some(
       (link, index) =>
         (excludeIndex === undefined || index !== excludeIndex) &&
-        link.url.toLowerCase() === url.toLowerCase(),
+        link.url.toLowerCase() === url.toLowerCase()
     );
   };
 
@@ -351,9 +371,7 @@ export default function ProfileSettings() {
     updateUiState({ showAvatarModal: true });
   };
 
-  const handleSaveAvatar = (
-    newAvatar: string | StaticImageData | File,
-  ) => {
+  const handleSaveAvatar = (newAvatar: string | StaticImageData | File) => {
     setAvatar(newAvatar);
   };
 
@@ -364,30 +382,30 @@ export default function ProfileSettings() {
 
   const handleSaveChanges = async () => {
     updateUiState({ isSaving: true, saveError: "", saveSuccess: false });
-  
+
     try {
       // Convert social links to backend format
       const socialLinksObj = convertToBackendFormat(socialLinks);
-  
+
       // Prepare avatar data if it's a File/Blob
       let avatarData: string | File | undefined;
-      if (typeof avatar === 'string' && avatar !== profileImage.src) {
+      if (typeof avatar === "string" && avatar !== profileImage.src) {
         avatarData = avatar;
       } else if (avatar instanceof File) {
         avatarData = avatar;
       }
-  
+
       const success = await updateUserProfile({
         username: formState.username,
         bio: formState.bio,
         socialLinks: socialLinksObj,
         avatar: avatarData,
       });
-  
+
       if (success) {
         showToast("Profile updated successfully!", "success");
         updateUiState({ saveSuccess: true });
-        
+
         // Update local state to reflect changes
         if (user) {
           const updatedUser = {
@@ -395,9 +413,9 @@ export default function ProfileSettings() {
             username: formState.username,
             bio: formState.bio,
             socialLinks: socialLinksObj,
-            avatar: typeof avatar === 'string' ? avatar : user.avatar,
+            avatar: typeof avatar === "string" ? avatar : user.avatar,
           };
-          
+
           // Update sessionStorage
           sessionStorage.setItem("userData", JSON.stringify(updatedUser));
         }
@@ -420,7 +438,7 @@ export default function ProfileSettings() {
         "min-h-screen",
         bgClasses.secondary,
         textClasses.primary,
-        "pb-8",
+        "pb-8"
       )}
     >
       <div className="mx-auto max-w-8xl">

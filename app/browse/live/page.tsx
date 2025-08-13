@@ -12,7 +12,11 @@ import {
 } from "@/components/ui/select";
 import { Search } from "lucide-react";
 import StreamCard from "@/components/shared/profile/StreamCard";
-import { languageOptions, sortOptions, liveVideos } from "@/data/browse/live-content";
+import {
+  languageOptions,
+  sortOptions,
+  liveVideos,
+} from "@/data/browse/live-content";
 
 export default function LivePage() {
   const [selectedLanguage, setSelectedLanguage] = useState("all");
@@ -27,11 +31,15 @@ export default function LivePage() {
 
   const filteredVideos = useMemo(() => {
     return liveVideos.filter(video => {
-      const matchesLanguage = selectedLanguage === "all" || video.language === selectedLanguage;
-      const matchesSearch = searchQuery === "" || 
+      const matchesLanguage =
+        selectedLanguage === "all" || video.language === selectedLanguage;
+      const matchesSearch =
+        searchQuery === "" ||
         video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        video.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-      
+        video.tags.some(tag =>
+          tag.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+
       return matchesLanguage && matchesSearch;
     });
   }, [selectedLanguage, searchQuery]);
@@ -47,7 +55,7 @@ export default function LivePage() {
               <SelectValue placeholder="Language" />
             </SelectTrigger>
             <SelectContent>
-              {languageOptions.map((option) => (
+              {languageOptions.map(option => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -62,7 +70,7 @@ export default function LivePage() {
             <Input
               placeholder="Search tags"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={e => setSearchQuery(e.target.value)}
               className="pl-12 pr-4 py-3 bg-[#181818] border-[#363636] text-white  placeholder-gray-400"
             />
           </div>
@@ -75,7 +83,7 @@ export default function LivePage() {
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
-              {sortOptions.map((option) => (
+              {sortOptions.map(option => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -88,7 +96,7 @@ export default function LivePage() {
       {/* Video Grid */}
       {filteredVideos.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredVideos.map((video) => (
+          {filteredVideos.map(video => (
             <StreamCard key={video.id} {...video} />
           ))}
         </div>
@@ -103,11 +111,15 @@ export default function LivePage() {
           <p className="text-gray-400 mb-6">
             Try adjusting your filters or search terms
           </p>
-          <Button onClick={clearAllFilters} variant="outline" className="border-gray-600 text-gray-300">
+          <Button
+            onClick={clearAllFilters}
+            variant="outline"
+            className="border-gray-600 text-gray-300"
+          >
             Clear all filters
           </Button>
         </div>
       )}
     </div>
   );
-} 
+}

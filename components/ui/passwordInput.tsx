@@ -15,7 +15,7 @@ export const PasswordInput = React.forwardRef<
     <div
       className={cn(
         "border border-input disabled:cursor-not-allowed rounded-md flex items-center pr-2 justify-normal gap-2",
-        className,
+        className
       )}
     >
       <Input
@@ -24,10 +24,10 @@ export const PasswordInput = React.forwardRef<
       />
       {showPassword ? (
         <EyeOff
-          onClick={() => setShowPassword((showPassword) => !showPassword)}
+          onClick={() => setShowPassword(showPassword => !showPassword)}
         />
       ) : (
-        <Eye onClick={() => setShowPassword((showPassword) => !showPassword)} />
+        <Eye onClick={() => setShowPassword(showPassword => !showPassword)} />
       )}
     </div>
   );

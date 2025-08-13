@@ -13,21 +13,21 @@ export async function POST(req: Request) {
     if (!wallet || !playbackId || !content) {
       return NextResponse.json(
         { error: "Wallet, playback ID, and content are required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (content.length > 500) {
       return NextResponse.json(
         { error: "Message must be 500 characters or less" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (!["message", "emote", "system"].includes(messageType)) {
       return NextResponse.json(
         { error: "Invalid message type" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -58,14 +58,14 @@ export async function POST(req: Request) {
     if (!stream.is_live) {
       return NextResponse.json(
         { error: "Cannot send message to offline stream" },
-        { status: 409 },
+        { status: 409 }
       );
     }
 
     if (!stream.session_id) {
       return NextResponse.json(
         { error: "No active stream session" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -103,13 +103,13 @@ export async function POST(req: Request) {
           createdAt: newMessage.created_at,
         },
       },
-      { status: 201 },
+      { status: 201 }
     );
   } catch (error) {
     console.error("Chat message error:", error);
     return NextResponse.json(
       { error: "Failed to send message" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -124,7 +124,7 @@ export async function GET(req: Request) {
     if (!playbackId) {
       return NextResponse.json(
         { error: "Playback ID is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -183,7 +183,7 @@ export async function GET(req: Request) {
 
     const messagesResult = await query;
 
-    const messages = messagesResult.rows.map((msg) => ({
+    const messages = messagesResult.rows.map(msg => ({
       id: msg.id,
       content: msg.content,
       messageType: msg.message_type,
@@ -200,7 +200,7 @@ export async function GET(req: Request) {
     console.error("Get chat messages error:", error);
     return NextResponse.json(
       { error: "Failed to get messages" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -212,7 +212,7 @@ export async function DELETE(req: Request) {
     if (!messageId || !moderatorWallet) {
       return NextResponse.json(
         { error: "Message ID and moderator wallet are required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -223,7 +223,7 @@ export async function DELETE(req: Request) {
     if (moderatorResult.rows.length === 0) {
       return NextResponse.json(
         { error: "Moderator not found" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -251,7 +251,7 @@ export async function DELETE(req: Request) {
     ) {
       return NextResponse.json(
         { error: "Insufficient permissions to delete this message" },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -265,13 +265,13 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json(
       { message: "Message deleted successfully" },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Delete chat message error:", error);
     return NextResponse.json(
       { error: "Failed to delete message" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

@@ -4,7 +4,7 @@ import { getStreamHealth } from "@/lib/livepeer/server";
 
 export async function GET(
   req: Request,
-  { params }: { params: { wallet: string } },
+  { params }: { params: { wallet: string } }
 ) {
   try {
     const { wallet } = params;
@@ -12,7 +12,7 @@ export async function GET(
     if (!wallet) {
       return NextResponse.json(
         { error: "Wallet parameter is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -109,7 +109,7 @@ export async function GET(
     console.error("Get stream error:", error);
     return NextResponse.json(
       { error: "Failed to get stream data" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

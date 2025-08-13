@@ -17,4 +17,4 @@ const BrowseIcon = ({ size = 20, className = "" }: BrowseIconProps) => {
   );
 };
 
-export default BrowseIcon; 
+export default BrowseIcon;

@@ -78,7 +78,7 @@ export default function StreamInfoModal({
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter((tag) => tag !== tagToRemove));
+    setTags(tags.filter(tag => tag !== tagToRemove));
   };
 
   interface ThumbnailChangeEvent extends React.ChangeEvent<HTMLInputElement> {
@@ -264,7 +264,7 @@ export default function StreamInfoModal({
                       </p>
                       <button
                         type="button"
-                        onClick={(e) => {
+                        onClick={e => {
                           e.stopPropagation();
                           setThumbnailPreview(null);
                           setThumbnailFile(null);
@@ -305,7 +305,7 @@ export default function StreamInfoModal({
                   Tags (max 4)
                 </label>
                 <div className="flex flex-wrap gap-2 mb-2">
-                  {tags.map((tag) => (
+                  {tags.map(tag => (
                     <div
                       key={tag}
                       className={`px-2 py-1 ${bgClasses.card} rounded-md text-sm flex items-center group border ${borderClasses.primary}`}
@@ -325,7 +325,7 @@ export default function StreamInfoModal({
                   <input
                     type="text"
                     value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
+                    onChange={e => setNewTag(e.target.value)}
                     placeholder="Add a tag"
                     className={`flex-1 ${bgClasses.input} border ${borderClasses.primary} rounded-l-md px-3 py-2 ${ringClasses.primary} ${textClasses.primary}`}
                     disabled={tags.length >= 4}

@@ -41,7 +41,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
         setGlitchActive(true);
         setTimeout(() => setGlitchActive(false), 200);
       },
-      3000 + Math.random() * 2000,
+      3000 + Math.random() * 2000
     );
 
     return () => clearInterval(glitchInterval);
@@ -121,7 +121,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
     >
       {/* Animated Background Particles */}
       <div className="absolute inset-0 overflow-hidden">
-        {particles.map((particle) => (
+        {particles.map(particle => (
           <motion.div
             key={particle.id}
             className="absolute w-1 h-1 bg-purple-500 rounded-full opacity-30"

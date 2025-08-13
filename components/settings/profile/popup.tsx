@@ -12,7 +12,7 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
   onVerify,
 }) => {
   const [verificationCode, setVerificationCode] = useState<string[]>(
-    Array(6).fill(""),
+    Array(6).fill("")
   );
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -37,7 +37,7 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
 
   const handleKeyDown = (
     index: number,
-    e: React.KeyboardEvent<HTMLInputElement>,
+    e: React.KeyboardEvent<HTMLInputElement>
   ) => {
     if (e.key === "Backspace" && !verificationCode[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
@@ -88,11 +88,11 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
               type="text"
               maxLength={1}
               value={digit}
-              ref={(el) => {
+              ref={el => {
                 inputRefs.current[index] = el;
               }}
-              onChange={(e) => handleInputChange(index, e.target.value)}
-              onKeyDown={(e) => handleKeyDown(index, e)}
+              onChange={e => handleInputChange(index, e.target.value)}
+              onKeyDown={e => handleKeyDown(index, e)}
               onFocus={() => handleFocus(index)}
               onBlur={handleBlur}
               className={`

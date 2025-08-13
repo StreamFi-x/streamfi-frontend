@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   if (!email || !token) {
     return NextResponse.json(
       { error: "Email and token are required" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     if (result.rowCount === 0) {
       return NextResponse.json(
         { error: "Invalid or expired verification token" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -38,13 +38,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       { message: "Email successfully verified" },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Email verification error:", error);
     return NextResponse.json(
       { error: "Failed to verify email" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

@@ -40,13 +40,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       { message: "Verification token sent to email" },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Email verification token error:", error);
     return NextResponse.json(
       { error: "Failed to send verification token" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

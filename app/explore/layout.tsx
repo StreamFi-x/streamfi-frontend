@@ -38,11 +38,11 @@ export default function ClientLayout({
         <div className="flex flel flex- h-screen overflow-hidden">
           {/* <Sidebar /> */}
 
-          <main className="flex-1 overflow-y-auto scrollbar-hide">{children}</main>
+          <main className="flex-1 overflow-y-auto scrollbar-hide">
+            {children}
+          </main>
         </div>
       </div>
-
-      
     </main>
   );
 }

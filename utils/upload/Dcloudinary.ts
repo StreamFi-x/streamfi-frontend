@@ -186,7 +186,7 @@ async function createTempFileFromBase64(base64String: string): Promise<string> {
 export async function uploadImage(source: string, folder: string = "avatars") {
   try {
     console.log(
-      `Uploading image to Cloudinary. Source type: ${isUrl(source) ? "URL" : isBase64Image(source) ? "Base64" : "Local file"}`,
+      `Uploading image to Cloudinary. Source type: ${isUrl(source) ? "URL" : isBase64Image(source) ? "Base64" : "Local file"}`
     );
 
     let uploadResult;
@@ -213,7 +213,7 @@ export async function uploadImage(source: string, folder: string = "avatars") {
         // Clean up the temp file even if upload fails
         await fsPromises
           .unlink(tempFilePath)
-          .catch((err) => console.error("Error deleting temp file:", err));
+          .catch(err => console.error("Error deleting temp file:", err));
         throw error;
       }
     } else {

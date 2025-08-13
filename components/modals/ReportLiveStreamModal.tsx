@@ -97,7 +97,7 @@ export default function ReportLiveStreamModal({
               </div>
 
               <div className="space-y-4">
-                {reportReasons.map((reason) => (
+                {reportReasons.map(reason => (
                   <div
                     key={reason.id}
                     className="flex items-start justify-between gap-3"

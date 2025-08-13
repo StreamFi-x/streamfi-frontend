@@ -5,7 +5,7 @@ import { useAccount } from "@starknet-react/core";
 
 export function useProfileModal(
   onNextStep: (step: "profile" | "verify" | "success") => void,
-  refreshUser?: () => Promise<any>,
+  refreshUser?: () => Promise<any>
 ) {
   const { address } = useAccount();
 
@@ -95,7 +95,7 @@ export function useProfileModal(
     e.preventDefault();
     setCodeError("");
 
-    if (verificationCode.some((digit) => !digit)) {
+    if (verificationCode.some(digit => !digit)) {
       setCodeError("Please enter the complete verification code");
       return;
     }

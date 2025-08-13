@@ -10,21 +10,21 @@ export async function PATCH(req: Request) {
     if (!wallet) {
       return NextResponse.json(
         { error: "Wallet is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (title && title.length > 100) {
       return NextResponse.json(
         { error: "Title must be 100 characters or less" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (description && description.length > 500) {
       return NextResponse.json(
         { error: "Description must be 500 characters or less" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -43,7 +43,7 @@ export async function PATCH(req: Request) {
     if (!user.livepeer_stream_id) {
       return NextResponse.json(
         { error: "No stream configured for this user" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -87,13 +87,13 @@ export async function PATCH(req: Request) {
           thumbnail: updatedCreator.thumbnail,
         },
       },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Stream update error:", error);
     return NextResponse.json(
       { error: "Failed to update stream" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
