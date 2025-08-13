@@ -22,6 +22,7 @@ export const bgClasses = {
   modal: `bg-white dark:bg-background ${themeTransition}`,
   dropdown: `bg-white dark:bg-[#161616] shadow-lg rounded-md ${themeTransition}`,
   input: `bg-gray-100 dark:bg-[#2a2a2a] ${themeTransition}`,
+  tag: `dark:bg-[#222222] bg-gray-700 active:bg-purple-600 hover:bg-purple-700 text-white ${themeTransition}`,
 
   // Interactive backgrounds
   hover: `hover:bg-gray-100 dark:hover:bg-[#282828] ${themeTransition}`,

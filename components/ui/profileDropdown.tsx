@@ -220,7 +220,7 @@ const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
         {
           icon: <Flag size={20} />,
           label: "Report a Bug",
-          route: "/report-bug",
+          route: "/explore/report-bug",
           mobile: true,
         },
       ],
