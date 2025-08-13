@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { StreamfiLogoLight, StreamfiLogoShort } from "@/public/icons";
@@ -10,7 +11,6 @@ import { useAccount, useDisconnect } from "@starknet-react/core";
 import { useAuth } from "@/components/auth/auth-provider";
 import ConnectModal from "../connectWallet";
 import ProfileModal from "./ProfileModal";
-import SimpleLoader from "../ui/loader/simple-loader";
 import Avatar from "@/public/Images/user.png";
 import ProfileDropdown from "../ui/profileDropdown";
 
@@ -58,20 +58,21 @@ export default function Navbar({}: NavbarProps) {
       return user.username;
     }
 
-    // Fallback to sessionStorage if user context doesn't have username yet
-    try {
-      const userData = sessionStorage.getItem("userData");
-      if (userData) {
-        const parsedUser = JSON.parse(userData);
-        if (parsedUser.username) {
-          return parsedUser.username;
+    if (typeof window !== "undefined") {
+      // ✅ prevents SSR error
+      try {
+        const userData = sessionStorage.getItem("userData");
+        if (userData) {
+          const parsedUser = JSON.parse(userData);
+          if (parsedUser.username) {
+            return parsedUser.username;
+          }
         }
+      } catch (error) {
+        console.error("Error parsing user data from sessionStorage:", error);
       }
-    } catch (error) {
-      console.error("Error parsing user data from sessionStorage:", error);
     }
 
-    // Final fallback to shortened address
     if (address) {
       return `${address.substring(0, 6)}...${address.slice(-4)}`;
     }
@@ -79,13 +80,52 @@ export default function Navbar({}: NavbarProps) {
     return "Unknown User";
   }, [user?.username, address]);
 
+  // Returns either the placeholder, username, or sliced address
+  const renderDisplayName = () => {
+    // Show loading pulse while fetching user info
+    if (isLoading) {
+      return (
+        <>
+          <div className="w-24 h-6 animate-pulse bg-gray-400 rounded hidden sm:block" />
+          <div className="w-5 h-5 rounded-full bg-gray-400 ml-3 animate-pulse inline-flex" />
+        </>
+      );
+    }
+
+    // Try to get username from auth context
+    if (user?.username) {
+      return user.username;
+    }
+
+    // Try to get username from sessionStorage
+    try {
+      const storedData = sessionStorage.getItem("userData");
+      if (storedData) {
+        const parsedUser = JSON.parse(storedData);
+        if (parsedUser.username) {
+          return parsedUser.username;
+        }
+      }
+    } catch (err) {
+      console.error("Error reading userData from sessionStorage:", err);
+    }
+
+    // Fallback to sliced address
+    if (address) {
+      return `${address.substring(0, 6)}...${address.slice(-4)}`;
+    }
+
+    // If all else fails
+    return "Unknown User";
+  };
+
   useEffect(() => {
     const fetchUser = async () => {
       // Only fetch if we have a username and address
       if (!user?.username || !address) {
         return;
       }
-      
+
       try {
         const response = await fetch(`/api/users/${user.username}`);
         if (response.status === 404) {
@@ -105,17 +145,21 @@ export default function Navbar({}: NavbarProps) {
     if (user?.avatar) {
       return user.avatar;
     }
-    try {
-      const userData = sessionStorage.getItem("userData");
-      if (userData) {
-        const parsedUser = JSON.parse(userData);
-        if (parsedUser.avatar) {
-          return parsedUser.avatar;
+
+    if (typeof window !== "undefined") {
+      try {
+        const userData = sessionStorage.getItem("userData");
+        if (userData) {
+          const parsedUser = JSON.parse(userData);
+          if (parsedUser.avatar) {
+            return parsedUser.avatar;
+          }
         }
+      } catch (error) {
+        console.error("Error parsing user data from sessionStorage:", error);
       }
-    } catch (error) {
-      console.error("Error parsing user data from sessionStorage:", error);
     }
+
     return Avatar;
   }, [user?.avatar]);
 
@@ -161,7 +205,7 @@ export default function Navbar({}: NavbarProps) {
     const fetchResults = async () => {
       try {
         const res = await fetch(
-          `/api/category?search=${encodeURIComponent(searchQuery)}`
+          `/api/category?title=${encodeURIComponent(searchQuery)}`
         );
         const data = await res.json();
 
@@ -363,27 +407,37 @@ export default function Navbar({}: NavbarProps) {
                   className={`cursor-pointer flex gap-[10px] font-medium items-center text-[14px] ${textClasses.onColor}`}
                   onClick={toggleProfileDropdown}
                 >
-                  <span className={`${textClasses.primary} hidden sm:block`}>
-                    {truncatedDisplayName}
-                  </span>
-                  {typeof userAvatar === "string" &&
-                  userAvatar.includes("cloudinary.com") ? (
-                    <img
-                      src={`${userAvatar}`}
-                      alt="Avatar"
-                      width={24}
-                      height={24}
-                      className="w-8 h-8 sm:w-6 sm:h-6 rounded-full object-cover"
-                      // unoptimized={false}
-                    />
+                  {isLoading ? (
+                    // Skeletons while loading
+                    <>
+                      <div className="w-24 h-6 animate-pulse bg-gray-400 rounded hidden sm:block" />
+                      <div className="w-6 h-6 rounded-full bg-gray-400 ml-1 animate-pulse inline-flex" />
+                    </>
                   ) : (
-                    <Image
-                      src={userAvatar || Avatar}
-                      alt="Avatar"
-                      width={32}
-                      height={32}
-                      className=""
-                    />
+                    <>
+                      {/* Display name */}
+                      <span className={`${textClasses.primary} hidden sm:flex`}>
+                        {renderDisplayName()}
+                      </span>
+
+                      {/* Avatar */}
+                      {typeof userAvatar === "string" &&
+                      userAvatar.includes("cloudinary.com") ? (
+                        <img
+                          src={userAvatar}
+                          alt="Avatar"
+                          className="w-8 h-8 sm:w-6 sm:h-6 rounded-full object-cover"
+                        />
+                      ) : (
+                        <Image
+                          src={Avatar}
+                          alt="Avatar"
+                          width={32}
+                          height={32}
+                          className="rounded-full"
+                        />
+                      )}
+                    </>
                   )}
 
                   <ChevronDown
@@ -450,7 +504,7 @@ export default function Navbar({}: NavbarProps) {
         )}
       </AnimatePresence>
 
-      {isLoading && <SimpleLoader />}
+      {/* {isLoading && <SimpleLoader />} */}
     </>
   );
 }
