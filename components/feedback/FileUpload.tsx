@@ -119,14 +119,18 @@ export function FileUpload({ onFileSelect, selectedFile }: FileUploadProps) {
     >
       <div className="flex flex-col items-center gap-4 ">
         <div className="w-16 h-16 bg-[#5A189A] rounded-full flex items-center justify-center">
-          <Upload className="w-8 h-8 text-primary" />
+          <Upload className="w-8 h-8 text-white" />
         </div>
         <div className="space-y-4">
-          <p className="text-sm text-[#D9D9D9]">Drag an image here</p>
+          <p className="text-sm text-gray-600 dark:text-[#D9D9D9]">
+            Drag an image here
+          </p>
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-[#D9D9D9]"></div>
-            <span className="text-xs text-[#D9D9D9]">or</span>
-            <div className="flex-1 h-px bg-[#D9D9D9]"></div>
+            <div className="flex-1 h-px bg-gray-600 dark:bg-[#D9D9D9]"></div>
+            <span className="text-xs text-gray-600 dark:text-[#D9D9D9]">
+              or
+            </span>
+            <div className="flex-1 h-px bg-gray-600 dark:bg-[#D9D9D9]"></div>
           </div>
           <Button
             type="button"
