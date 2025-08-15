@@ -26,6 +26,15 @@ import {
 
 import { FeedbackHeader } from "./FeedbackHeader";
 import { FileUpload } from "./FileUpload";
+import {
+  bgClasses,
+  borderClasses,
+  combineClasses,
+  componentClasses,
+  ringClasses,
+  textClasses,
+} from "@/lib/theme-classes";
+import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   feedbackType: z.string().min(1, {
@@ -91,14 +100,16 @@ export function ReportBugForm() {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-6 bg-[#21202033] p-6"
+          className={`space-y-6 ${bgClasses.tertiary} p-6`}
         >
           <FormField
             control={form.control}
             name="feedbackType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-base font-medium">
+                <FormLabel
+                  className={`text-base font-medium ${textClasses.primary}`}
+                >
                   Select type of feedback:
                 </FormLabel>
                 <Select
@@ -106,11 +117,15 @@ export function ReportBugForm() {
                   defaultValue={field.value}
                 >
                   <FormControl>
-                    <SelectTrigger className=" h-[60px] border border-[#D9CAE2] focus:border-[#5A189A] focus:ring-0 text-[#AF6EFF]">
+                    <SelectTrigger
+                      className={`h-[60px] ${borderClasses.primary} ${ringClasses.primary} ${textClasses.primary}`}
+                    >
                       <SelectValue placeholder="Select feedback type" />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent className="bg-[#111111] border-gray-400">
+                  <SelectContent
+                    className={`${bgClasses.dropdown} ${borderClasses.primary} ${textClasses.primary}`}
+                  >
                     <SelectItem value="bug-report">Bug Report</SelectItem>
                     <SelectItem value="feature-suggestion">
                       Feature Suggestion
@@ -127,11 +142,21 @@ export function ReportBugForm() {
             name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-base font-medium">Title</FormLabel>
+                <FormLabel
+                  className={`text-base font-medium ${textClasses.primary}`}
+                >
+                  Title
+                </FormLabel>
                 <FormControl>
                   <Input
                     placeholder="Subject / Case Name"
-                    className="h-[82px] text-lg border border-[#D9CAE2] focus:border-[#5A189A] focus:ring-0"
+                    className={cn(
+                      combineClasses(
+                        componentClasses.input,
+                        bgClasses.tertiary
+                      ),
+                      "h-[82px] text-lg"
+                    )}
                     {...field}
                   />
                 </FormControl>
@@ -145,13 +170,21 @@ export function ReportBugForm() {
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-base font-medium">
+                <FormLabel
+                  className={`text-base font-medium ${textClasses.primary}`}
+                >
                   Description
                 </FormLabel>
                 <FormControl>
                   <Textarea
                     placeholder="Tell us what happened or what you'd like to see improved..."
-                    className=" border-[#D9CAE2] min-h-[120px] resize-none focus:border-[#5A189A] focus:ring-0"
+                    className={cn(
+                      combineClasses(
+                        componentClasses.input,
+                        bgClasses.tertiary
+                      ),
+                      "min-h-[120px] resize-none"
+                    )}
                     {...field}
                   />
                 </FormControl>
@@ -161,7 +194,7 @@ export function ReportBugForm() {
           />
 
           <div className="space-y-2">
-            <label className="text-base font-medium">
+            <label className={`text-base font-medium ${textClasses.primary}`}>
               Screenshot (optional)
             </label>
             <FileUpload
@@ -173,7 +206,7 @@ export function ReportBugForm() {
           <div className="flex justify-end pt-4">
             <Button
               type="submit"
-              className="bg-[#5A189A] hover:bg-[#7B2CBF] text-white px-6"
+              className=" bg-[#5A189A] hover:bg-[#7B2CBF] text-white px-6"
             >
               Send bug report
             </Button>
