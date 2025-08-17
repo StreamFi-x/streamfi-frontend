@@ -38,7 +38,7 @@ export default function SidebarWrapper({
         {!hideSidebar && <Navbar />}
         <div className="flex h-screen overflow-hidden">
           {!hideSidebar && <Sidebar />}
-          <main className="flex-1 overflow-y-auto scrollbar-hide pb-20">
+          <main className="flex-1 overflow-y-auto scrollbar-hide pb-10 xl:pb-0">
             {children}
           </main>
         </div>
