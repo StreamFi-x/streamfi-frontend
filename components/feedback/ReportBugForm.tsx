@@ -100,7 +100,7 @@ export function ReportBugForm() {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className={`space-y-6 ${bgClasses.tertiary} p-6`}
+          className={`space-y-6 ${bgClasses.primary}`}
         >
           <FormField
             control={form.control}
@@ -153,9 +153,9 @@ export function ReportBugForm() {
                     className={cn(
                       combineClasses(
                         componentClasses.input,
-                        bgClasses.tertiary
+                        bgClasses.primary
                       ),
-                      "h-[82px] text-lg"
+                      "h-[82px] text-sm sm:text-lg"
                     )}
                     {...field}
                   />
@@ -181,7 +181,7 @@ export function ReportBugForm() {
                     className={cn(
                       combineClasses(
                         componentClasses.input,
-                        bgClasses.tertiary
+                        bgClasses.primary
                       ),
                       "min-h-[120px] resize-none"
                     )}
