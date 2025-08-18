@@ -202,8 +202,8 @@ export default function CategoryDetailPage() {
     { id: "videos" as const, name: "Videos", count: 0 },
   ];
 
-  // Filter videos by category and tab type
-  const filteredVideos = useMemo(() => {
+  // Calculate counts for each tab type (before applying tab filter)
+  const categoryFilteredVideos = useMemo(() => {
     return liveVideos.filter(video => {
       // Category matching
       const matchesCategory =
@@ -226,22 +226,36 @@ export default function CategoryDetailPage() {
           tag.toLowerCase().includes(searchQuery.toLowerCase())
         );
 
-      // Tab type filtering (for now, treat all as live channels)
-      const matchesTab = activeTab === "live" ? video.isLive : true;
-
-      return matchesCategory && matchesLanguage && matchesSearch && matchesTab;
+      return matchesCategory && matchesLanguage && matchesSearch;
     });
-  }, [categoryData, activeTab, selectedLanguage, searchQuery]);
+  }, [categoryData, selectedLanguage, searchQuery]);
 
-  // Update tab counts
+  // Apply tab filter to category filtered videos
+  const filteredVideos = useMemo(() => {
+    return categoryFilteredVideos.filter(video => {
+      // Tab type filtering
+      const matchesTab =
+        activeTab === "live"
+          ? video.isLive
+          : activeTab === "shorts"
+            ? false // No shorts data for now
+            : activeTab === "videos"
+              ? true // All videos for videos tab
+              : true;
+
+      return matchesTab;
+    });
+  }, [categoryFilteredVideos, activeTab]);
+
+  // Update tab counts based on category filtered videos
   const tabsWithCounts = tabs.map(tab => ({
     ...tab,
     count:
       tab.id === "live"
-        ? filteredVideos.filter(v => v.isLive).length
+        ? categoryFilteredVideos.filter(v => v.isLive).length
         : tab.id === "shorts"
           ? 0 // No shorts data yet
-          : filteredVideos.length,
+          : categoryFilteredVideos.length,
   }));
 
   const clearAllFilters = () => {
@@ -298,7 +312,7 @@ export default function CategoryDetailPage() {
   return (
     <div className="space-y-6">
       {/* Category Hero Section */}
-      <div className="flex flex-col sm:flex-row gap-6 p-6 rounded-lg">
+      <div className="flex flex-col sm:flex-row gap-6 rounded-lg">
         <div className="relative w-full sm:w-48 h-48 sm:h-52 rounded-lg overflow-hidden flex-shrink-0">
           <Image
             src={categoryData.thumbnailUrl}
