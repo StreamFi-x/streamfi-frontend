@@ -80,7 +80,7 @@ export default function BrowseCategoryPage() {
         <div className="flex items-center space-x-3 ml-auto">
           <span className="text-sm text-gray-400 font-medium">Sort by:</span>
           <Select value={selectedSort} onValueChange={setSelectedSort}>
-            <SelectTrigger className="w-64 bg-[#222222] text-white border h-full border-gray-600">
+            <SelectTrigger className="w-64 bg-[#222222] text-white border border-gray-600">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -93,6 +93,7 @@ export default function BrowseCategoryPage() {
           </Select>
         </div>
       </div>
+
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 py-4 gap-6">
         {categories.map(category => (
           <CategoryCard key={category.id} category={category} />
