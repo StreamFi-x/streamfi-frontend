@@ -4,14 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import { Eye } from "lucide-react";
 import StreamKeyModal from "@/components/ui/streamkeyModal";
 import StreamKeyConfirmationModal from "@/components/ui/streamKeyConfirmationModal";
-import {
-  bgClasses,
-  textClasses,
-  borderClasses,
-  buttonClasses,
-  componentClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -57,7 +49,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
 }) => {
   return (
     <div
-      className={combineClasses(componentClasses.card, "p-6 mb-6", className)}
+      className={`bg-card border border-border shadow-sm rounded-lg p-6 mb-6 ${className}`}
     >
       {children}
     </div>
@@ -73,27 +65,17 @@ const SecretField: React.FC<SecretFieldProps> = ({
 }) => {
   return (
     <div className="mb-8">
-      <h2
-        className={combineClasses(
-          textClasses.highlight,
-          "text-xl font-medium mb-4"
-        )}
-      >
-        {label}
-      </h2>
+      <h2 className="text-highlight text-xl font-medium mb-4">{label}</h2>
       <div className="w-full flex flex-col md:flex-row gap-4">
         <div className="relative w-full">
           <input
             type={isVisible ? "text" : "password"}
             value={value}
             readOnly
-            className={componentClasses.secretInput}
+            className="w-full bg-input text-foreground rounded-lg p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
           <button
-            className={combineClasses(
-              textClasses.tertiary,
-              "absolute right-3 top-1/2 transform -translate-y-1/2 hover:text-white"
-            )}
+            className="text-muted-foreground absolute right-3 top-1/2 transform -translate-y-1/2 hover:text-white"
             onClick={e => {
               e.preventDefault();
               e.stopPropagation();
@@ -118,19 +100,10 @@ const ToggleSection: React.FC<ToggleSectionProps> = ({
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2
-          className={combineClasses(
-            textClasses.highlight,
-            "text-xl font-medium"
-          )}
-        >
-          {title}
-        </h2>
+        <h2 className="text-highlight text-xl font-medium">{title}</h2>
         <ToggleSwitch enabled={enabled} onChange={onToggle} />
       </div>
-      <p className={combineClasses(textClasses.tertiary, "text-sm italic")}>
-        {description}
-      </p>
+      <p className="text-muted-foreground text-sm italic">{description}</p>
     </div>
   );
 };
@@ -271,28 +244,22 @@ const StreamPreferencesPage: React.FC = () => {
   const streamKeyActions = (
     <div className="flex flex-col items-end gap-4 md:flex-row md:justify-start">
       <button
-        className={combineClasses(
-          buttonClasses.secondary,
-          "px-4 py-2 rounded-md whitespace-nowrap"
-        )}
+        className="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-4 py-2 rounded-md whitespace-nowrap"
         onClick={copyKey}
       >
         Copy Key
       </button>
-      <button onClick={handleReset} className={buttonClasses.reset}>
+      <button
+        onClick={handleReset}
+        className="bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-2 rounded-md"
+      >
         Reset
       </button>
     </div>
   );
 
   return (
-    <div
-      className={combineClasses(
-        "min-h-screen",
-        bgClasses.secondary,
-        textClasses.primary
-      )}
-    >
+    <div className="min-h-screen bg-secondary text-foreground">
       <div className="max-w-8xl mx-auto px-4 pt-12 pb-16">
         <SectionCard>
           {/* Stream URL */}
@@ -323,7 +290,7 @@ const StreamPreferencesPage: React.FC = () => {
             />
           </SectionCard>
 
-          <hr className={combineClasses(borderClasses.divider, "my-4")} />
+          <hr className="border border-border my-4" />
 
           <SectionCard className="bg-transparent py-2 px-4 mb-0">
             <ToggleSection

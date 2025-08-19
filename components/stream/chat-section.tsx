@@ -4,12 +4,7 @@ import type React from "react";
 
 import { useState, useRef, useEffect } from "react";
 import { ChevronRight, Send, Smile, GiftIcon } from "lucide-react";
-import {
-  bgClasses,
-  borderClasses,
-  combineClasses,
-  textClasses,
-} from "@/lib/theme-classes";
+
 import { text } from "stream/consumers";
 
 interface ChatMessage {
@@ -75,19 +70,9 @@ const ChatSection = ({
   if (!showChat) return null;
 
   return (
-    <div
-      className={combineClasses(
-        bgClasses.primary,
-        `flex flex-col ${className}`
-      )}
-    >
+    <div className={`bg-background flex flex-col ${className}`}>
       {/* Chat header */}
-      <div
-        className={combineClasses(
-          borderClasses.primary,
-          "p-3 border-b flex justify-between items-center"
-        )}
-      >
+      <div className="border border-border p-3 border-b flex justify-between items-center">
         <h3 className="text- font-medium">Chat</h3>
         {isCollapsible && onToggleChat && (
           <button
@@ -101,13 +86,7 @@ const ChatSection = ({
       </div>
 
       {/* Chat messages */}
-      <div
-        className={combineClasses(
-          textClasses.primary,
-          bgClasses.primary,
-          "relative flex-1 overflow-hidden"
-        )}
-      >
+      <div className="text-foreground bg-background relative flex-1 overflow-hidden">
         {/* Gradient overlay at top */}
         <div
           className={`absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-white ${
@@ -144,7 +123,7 @@ const ChatSection = ({
       </div>
 
       {/* Chat input */}
-      <div className={combineClasses(borderClasses.primary, "p-3 border-t")}>
+      <div className="border border-border p-3 border-t">
         <div className="relative flex items-center">
           <input
             type="text"
@@ -152,11 +131,7 @@ const ChatSection = ({
             onChange={e => setChatMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Send a message"
-            className={combineClasses(
-              bgClasses.secondary,
-              textClasses.primary,
-              "w-full bg-[#2D2F31] text- rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
-            )}
+            className="w-full bg-secondary text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
           />
           <div className="absolute right-2 top-2 flex space-x-1 items-center">
             <button className="text-gray-400 dark:hover:text-white">

@@ -5,7 +5,6 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { bgClasses, textClasses } from "@/lib/theme-classes";
 
 export default function BrowseLayout({
   children,
@@ -56,7 +55,7 @@ export default function BrowseLayout({
   };
 
   return (
-    <main className={` ${bgClasses.primary} ${textClasses.primary}`}>
+    <main className="bg-background text-foreground">
       <div className="flex flex-col h-screen">
         {/* <Navbar /> */}
         <div className="flex h-screen overflow-hidden">
@@ -64,9 +63,7 @@ export default function BrowseLayout({
           <main className="flex-1 overflow-y-auto scrollbar-hide">
             <div className="max-w-full mx-auto px-4 py-5 sm:py-8">
               <div className="mb-4">
-                <h1
-                  className={`${textClasses.primary} text-3xl sm:text-4xl font-bold text- mb-2"`}
-                >
+                <h1 className="text-foreground text-3xl sm:text-4xl font-bold text- mb-2">
                   Browse
                 </h1>
               </div>
@@ -86,7 +83,7 @@ export default function BrowseLayout({
                         "transition-colors text-[10px] sm:text-sm px-2 !border-none sm:px-4 py-0.5  sm:py-2 rounded-md",
                         selectedTags.includes(tag)
                           ? "bg-purple-600 hover:bg-purple-700 "
-                          : `${bgClasses.tag} hover:text-white`
+                          : "bg-tag hover:text-white"
                       )}
                     >
                       {tag}
@@ -105,8 +102,8 @@ export default function BrowseLayout({
                       className={cn(
                         "pb-2 px-1 text-xs sm:text-sm font-medium transition-colors",
                         tab.active
-                          ? ` ${textClasses.primary} !border-b-2 border-purple-500`
-                          : `${textClasses.secondary} `
+                          ? "text-foreground !border-b-2 border-purple-500"
+                          : "text-muted-foreground"
                       )}
                     >
                       {tab.name}
