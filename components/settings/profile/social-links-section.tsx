@@ -424,10 +424,7 @@ export function SocialLinksSection({
                           updateUiState({ focusedInput: "editingTitle" })
                         }
                         onBlur={() => updateUiState({ focusedInput: null })}
-                        className={combineClasses(
-                          getInputStyle("editingTitle"),
-                          "w-full rounded px-3 py-1 text-sm mb-2"
-                        )}
+                        className={`${getInputStyle("editingTitle")} w-full rounded px-3 py-1 text-sm mb-2`}
                         style={{
                           outlineWidth: 0,
                           boxShadow: "none",
@@ -451,11 +448,9 @@ export function SocialLinksSection({
                           })
                         }
                         onBlur={() => updateUiState({ focusedInput: null })}
-                        className={combineClasses(
-                          getInputStyle("editingLink"),
-                          "w-full rounded px-3 py-1 text-sm",
+                        className={`${getInputStyle("editingLink")} w-full rounded px-3 py-1 text-sm ${
                           uiState.duplicateUrlError ? "border-red-500" : ""
-                        )}
+                        }`}
                         style={{
                           outlineWidth: 0,
                           boxShadow: "none",
@@ -467,10 +462,7 @@ export function SocialLinksSection({
                       <AnimatePresence>
                         {uiState.duplicateUrlError && (
                           <motion.p
-                            className={combineClasses(
-                              textClasses.error,
-                              "text-xs mt-1"
-                            )}
+                            className="text-red-600 dark:text-red-400 text-xs mt-1"
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
@@ -508,12 +500,7 @@ export function SocialLinksSection({
                     <div className="flex-1 p-3 border-l border-[#2a2a2a] truncate w-full">
                       <div className="flex flex-col justify-start">
                         <span className="font-medium">{link.title}</span>
-                        <div
-                          className={combineClasses(
-                            textClasses.tertiary,
-                            "text-xs mt-1 truncate max-w-sm"
-                          )}
-                        >
+                        <div className="text-muted-foreground text-xs mt-1 truncate max-w-sm">
                           {link.url}
                         </div>
                       </div>
@@ -521,10 +508,7 @@ export function SocialLinksSection({
                     <div className="flex items-center justify-end px-3">
                       <motion.button
                         onClick={() => handleEditLink(index)}
-                        className={combineClasses(
-                          textClasses.tertiary,
-                          "p-1 hover:text-white"
-                        )}
+                        className="text-muted-foreground p-1 hover:text-white"
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                       >
@@ -532,10 +516,7 @@ export function SocialLinksSection({
                       </motion.button>
                       <motion.button
                         onClick={() => handleDeleteLink(index)}
-                        className={combineClasses(
-                          textClasses.tertiary,
-                          "p-1 hover:text-red-500 ml-1"
-                        )}
+                        className="text-muted-foreground p-1 hover:text-red-500 ml-1"
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                       >

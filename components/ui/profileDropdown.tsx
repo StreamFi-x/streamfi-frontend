@@ -14,12 +14,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useAccount, useDisconnect } from "@starknet-react/core";
-import {
-  bgClasses,
-  textClasses,
-  borderClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
+
 import { Flag } from "lucide-react";
 
 interface MenuItem {
@@ -47,19 +42,11 @@ const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
   if (label === "Disconnect") {
     return (
       <div
-        className={combineClasses(
-          "flex items-center px-4 py-3 cursor-pointer",
-          bgClasses.hover,
-          textClasses.primary
-        )}
+        className="flex items-center px-4 py-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#282828] text-foreground"
         onClick={() => onClick({ icon, label, route, mobile: true })}
       >
-        <div className={combineClasses(textClasses.primary, "mr-3")}>
-          {icon}
-        </div>
-        <span className={combineClasses(textClasses.primary, "text-base")}>
-          {label}
-        </span>
+        <div className="text-foreground mr-3">{icon}</div>
+        <span className="text-foreground text-base">{label}</span>
       </div>
     );
   }
@@ -67,20 +54,14 @@ const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
   return (
     <Link
       href={route || "#"}
-      className={combineClasses(
-        "flex items-center px-4 py-3 cursor-pointer",
-        bgClasses.hover,
-        textClasses.primary
-      )}
+      className="flex items-center px-4 py-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#282828] text-foreground"
       onClick={e => {
         e.preventDefault();
         onClick({ icon, label, route, mobile: true });
       }}
     >
-      <div className={combineClasses(textClasses.primary, "mr-3")}>{icon}</div>
-      <span className={combineClasses(textClasses.primary, "text-base")}>
-        {label}
-      </span>
+      <div className="text-foreground mr-3">{icon}</div>
+      <span className="text-foreground text-base">{label}</span>
     </Link>
   );
 };
@@ -115,11 +96,7 @@ interface UserProfileProps {
 const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
   return (
     <div
-      className={combineClasses(
-        "px-3 py-2 sm:p-4 flex items-center space-x-3 sm:space-x-3 cursor-pointer border-b",
-        borderClasses.divider,
-        textClasses.primary
-      )}
+      className="px-3 py-2 sm:p-4 flex items-center space-x-3 sm:space-x-3 cursor-pointer border-b border-gray-200 dark:border-gray-700 text-foreground"
       onClick={onClick}
     >
       <div className="relative w-9 h-9 rounded-full 0 overflow-hidden">
@@ -150,14 +127,7 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
           />
         )}
       </div>
-      <span
-        className={combineClasses(
-          textClasses.primary,
-          "font-medium sm:text-lg"
-        )}
-      >
-        {name}
-      </span>
+      <span className="text-foreground font-medium sm:text-lg">{name}</span>
     </div>
   );
 };
@@ -278,7 +248,7 @@ const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
       exit="hidden"
       variants={dropdownVariants}
     >
-      <div className={combineClasses(bgClasses.dropdown, textClasses.primary)}>
+      <div className="bg-card border border-border shadow-sm rounded-lg text-foreground">
         <UserProfile
           avatar={userAvatar ? userAvatar : "placeholder.svg"}
           name={userName}
@@ -289,10 +259,7 @@ const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
           {menuItems.map((section, index) => (
             <div
               key={section.id}
-              className={combineClasses(
-                "py-2",
-                index > 0 ? `border-t ${borderClasses.divider}` : ""
-              )}
+              className={`py-2 ${index > 0 ? "border-t border-gray-200 dark:border-gray-700" : ""}`}
             >
               {section.items.map(item => (
                 <div
@@ -300,9 +267,7 @@ const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
                   className={item.mobile ? "block " : "hidden lg:block"}
                   onClick={() => handleItemClick(item)}
                 >
-                  <div
-                    className={`${bgClasses.hover} flex items-center gap-2.5 px-4 py-2 sm:text-sm text-sm hover:bg-gray-100 cursor-pointer rounded`}
-                  >
+                  <div className="hover:bg-gray-100 dark:hover:bg-[#282828] flex items-center gap-2.5 px-4 py-2 sm:text-sm text-sm hover:bg-gray-100 cursor-pointer rounded">
                     {item.icon}
                     <span>{item.label}</span>
                   </div>

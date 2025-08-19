@@ -4,12 +4,6 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, X, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {
-  bgClasses,
-  textClasses,
-  borderClasses,
-  buttonClasses,
-} from "@/lib/theme-classes";
 
 export default function StreamSettings() {
   const router = useRouter();
@@ -60,7 +54,7 @@ export default function StreamSettings() {
         >
           <button
             onClick={() => setIsMinimized(false)}
-            className={`flex items-center space-x-2 ${textClasses.tertiary} hover:${textClasses.primary} transition-colors`}
+            className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors"
           >
             <Settings size={18} />
             <span>Show Stream Settings</span>
@@ -75,71 +69,59 @@ export default function StreamSettings() {
           exit={{ opacity: 0, height: 0 }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
         >
-          <div
-            className={`${bgClasses.card} p-2 flex justify-between items-center border-b ${borderClasses.primary}`}
-          >
+          <div className="bg-card p-2 flex justify-between items-center border-b border-border">
             <div className="flex items-center">
-              <Settings size={18} className={`mr-2 ${textClasses.primary}`} />
-              <span className={textClasses.primary}>Stream Settings</span>
+              <Settings size={18} className="mr-2 text-foreground" />
+              <span className="text-foreground">Stream Settings</span>
             </div>
             <div className="flex space-x-2">
               <button
-                className={`p-1 ${bgClasses.hover} rounded-md transition-colors`}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md transition-colors"
                 onClick={() => setIsMinimized(true)}
               >
-                <X size={18} className={textClasses.secondary} />
+                <X size={18} className="text-muted-foreground" />
               </button>
             </div>
           </div>
 
-          <div
-            className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.primary} p-3`}
-          >
+          <div className="flex-1 overflow-y-auto scrollbar-hide bg-background p-3">
             <div className="mb-3">
-              <div className={`text-xs ${textClasses.tertiary} mb-1`}>
+              <div className="text-xs text-muted-foreground mb-1">
                 STRK (Starknet) Address
               </div>
-              <div
-                className={`flex items-center ${bgClasses.secondary} rounded-md p-2 border ${borderClasses.primary}`}
-              >
-                <div
-                  className={`flex-1 text-[10px] font-mono truncate ${textClasses.secondary}`}
-                >
+              <div className="flex items-center bg-secondary rounded-md p-2 border border-border">
+                <div className="flex-1 text-[10px] font-mono truncate text-muted-foreground">
                   {walletAddresses.strk}
                 </div>
                 <button
                   onClick={() => copyToClipboard(walletAddresses.strk)}
-                  className={`p-1 ${bgClasses.hover} rounded-md transition-colors ml-2`}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md transition-colors ml-2"
                 >
-                  <Copy size={16} className={textClasses.secondary} />
+                  <Copy size={16} className="text-muted-foreground" />
                 </button>
               </div>
             </div>
 
             <div className="mb-4">
-              <div className={`text-xs ${textClasses.tertiary} mb-1`}>
+              <div className="text-xs text-muted-foreground mb-1">
                 USDT (Tether) Address
               </div>
-              <div
-                className={`flex items-center ${bgClasses.secondary} rounded-md p-2 border ${borderClasses.primary}`}
-              >
-                <div
-                  className={`flex-1 text-[10px] font-mono truncate ${textClasses.secondary}`}
-                >
+              <div className="flex items-center bg-secondary rounded-md p-2 border border-border">
+                <div className="flex-1 text-[10px] font-mono truncate text-muted-foreground">
                   {walletAddresses.usdt}
                 </div>
                 <button
                   onClick={() => copyToClipboard(walletAddresses.usdt)}
-                  className={`p-1 ${bgClasses.hover} rounded-md transition-colors ml-2`}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md transition-colors ml-2"
                 >
-                  <Copy size={16} className={textClasses.secondary} />
+                  <Copy size={16} className="text-muted-foreground" />
                 </button>
               </div>
             </div>
 
             <button
               onClick={handleEditSettings}
-              className={`w-full py-2 ${buttonClasses.secondary} ${textClasses.inverseHover} text-xs rounded-md transition-colors`}
+              className="w-full py-2 bg-purple-600 hover:bg-purple-800 text-white dark:text-white text-xs rounded-md transition-colors"
             >
               Edit Stream Settings
             </button>

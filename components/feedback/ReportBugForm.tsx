@@ -26,14 +26,7 @@ import {
 
 import { FeedbackHeader } from "./FeedbackHeader";
 import { FileUpload } from "./FileUpload";
-import {
-  bgClasses,
-  borderClasses,
-  combineClasses,
-  componentClasses,
-  ringClasses,
-  textClasses,
-} from "@/lib/theme-classes";
+
 import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
@@ -100,7 +93,7 @@ export function ReportBugForm() {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className={`space-y-6 ${bgClasses.primary}`}
+          className="space-y-6 bg-background"
         >
           <FormField
             control={form.control}
@@ -151,10 +144,7 @@ export function ReportBugForm() {
                   <Input
                     placeholder="Subject / Case Name"
                     className={cn(
-                      combineClasses(
-                        componentClasses.input,
-                        bgClasses.primary
-                      ),
+                      combineClasses(componentClasses.input, bgClasses.primary),
                       "h-[82px] text-sm sm:text-lg"
                     )}
                     {...field}
@@ -179,10 +169,7 @@ export function ReportBugForm() {
                   <Textarea
                     placeholder="Tell us what happened or what you'd like to see improved..."
                     className={cn(
-                      combineClasses(
-                        componentClasses.input,
-                        bgClasses.primary
-                      ),
+                      combineClasses(componentClasses.input, bgClasses.primary),
                       "min-h-[120px] resize-none"
                     )}
                     {...field}

@@ -213,32 +213,17 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
                 </div>
 
                 <div>
-                  <h3
-                    className={combineClasses(
-                      "font-semibold text-lg line-clamp-1 group-hover:text-opacity-80 transition-opacity",
-                      textClasses.primary
-                    )}
-                  >
+                  <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-opacity-80 transition-opacity text-foreground">
                     {stream.title}
                   </h3>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    <span
-                      className={combineClasses(
-                        "text-sm px-2 py-0.5 rounded",
-                        bgClasses.selected,
-                        textClasses.primary
-                      )}
-                    >
+                    <span className="text-sm px-2 py-0.5 rounded bg-highlight text-foreground">
                       {stream.location}
                     </span>
                     {stream.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className={combineClasses(
-                          "text-sm px-2 py-0.5 rounded",
-                          bgClasses.selected,
-                          textClasses.primary
-                        )}
+                        className="text-sm px-2 py-0.5 rounded bg-highlight text-foreground"
                       >
                         {tag}
                       </span>
@@ -261,13 +246,11 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
             <Button
               onClick={handleToggle}
               disabled={isTransitioning}
-              className={combineClasses(
-                "flex items-center justify-center gap-2 w-full outline-none border-none focus:ring-0 transition-opacity",
-                buttonClasses.reset,
+              className={`flex items-center justify-center gap-2 w-full outline-none border-none focus:ring-0 transition-opacity bg-transparent hover:bg-gray-100 dark:hover:bg-[#282828] ${
                 isTransitioning
                   ? "opacity-70 cursor-not-allowed"
                   : "opacity-100"
-              )}
+              }`}
             >
               {showAll ? "Show less" : "Show more"}
               <motion.div
