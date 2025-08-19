@@ -4,14 +4,6 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import { Check, ChevronDown, X, AlertTriangle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  bgClasses,
-  textClasses,
-  borderClasses,
-  buttonClasses,
-  componentClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -81,21 +73,14 @@ const Modal: React.FC<ModalProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className={combineClasses(
-              bgClasses.overlay,
-              "fixed inset-0 z-50 flex items-center justify-center p-4"
-            )}
+            className="bg-black/50 dark:bg-black/80 fixed inset-0 z-50 flex items-center justify-center p-4"
             onClick={onClose}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className={combineClasses(
-                componentClasses.modal,
-                "max-w-md w-full max-h-[90vh] overflow-y-auto",
-                className
-              )}
+              className="bg-modal border border-border shadow-xl rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
               <div className="p-6">

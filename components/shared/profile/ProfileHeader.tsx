@@ -2,11 +2,6 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import CustomizeChannelButton from "./CustomizeChannelButton";
-import {
-  textClasses,
-  buttonClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
 
 interface ProfileHeaderProps {
   username: string;
@@ -50,15 +45,10 @@ const ProfileHeader = ({
           )}
         </div>
         <div>
-          <h1
-            className={combineClasses(
-              textClasses.primary,
-              "text-base sm:text-xl font-bold"
-            )}
-          >
+          <h1 className="text-foreground text-base sm:text-xl font-bold">
             {username}
           </h1>
-          <p className={combineClasses(textClasses.tertiary, "text-sm")}>
+          <p className="text-muted-foreground text-sm">
             {followers.toLocaleString()} followers
           </p>
         </div>
@@ -70,11 +60,7 @@ const ProfileHeader = ({
         ) : (
           <>
             <Button
-              className={combineClasses(
-                buttonClasses.secondary,
-                textClasses.onColor,
-                "border-none"
-              )}
+              className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white border-none"
               onClick={isFollowing ? onUnfollow : onFollow}
               disabled={followLoading}
             >
@@ -84,20 +70,10 @@ const ProfileHeader = ({
                   ? "Unfollow"
                   : "Follow"}
             </Button>
-            <Button
-              className={combineClasses(
-                buttonClasses.outline,
-                textClasses.primary
-              )}
-            >
+            <Button className="bg-transparent border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-foreground">
               Subscribe
             </Button>
-            <Button
-              className={combineClasses(
-                buttonClasses.outline,
-                textClasses.primary
-              )}
-            >
+            <Button className="bg-transparent border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-foreground">
               <ExternalLink className="h-4 w-4" />
             </Button>
           </>

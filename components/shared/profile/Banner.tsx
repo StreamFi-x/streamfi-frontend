@@ -1,12 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { BellDot, Dot } from "lucide-react";
-import {
-  textClasses,
-  buttonClasses,
-  bgClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
 
 interface BannerProps {
   username: string;
@@ -26,43 +20,22 @@ const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
       <div className="absolute top-0 right-0 w-1/4 h-full bg-gradient-to-l from-[#17191A]/90 to-transparent z-10" />
 
       <div className="absolute inset-0 flex items-center px-10 justify-start z-20">
-        <div
-          className={combineClasses(
-            bgClasses.card,
-            "p-4 sm:p-8 w-full max-w-sm xl:max-w-md rounded-md"
-          )}
-        >
+        <div className="bg-card p-4 sm:p-8 w-full max-w-sm xl:max-w-md rounded-md">
           {isLive ? (
             <>
               <div className="flex items-center justify-start mb-2">
-                <span
-                  className={combineClasses(
-                    "flex items-center bg-red-600",
-                    textClasses.onColor,
-                    "text-xs px-2 py-1 rounded-lg font-semibold"
-                  )}
-                >
-                  <Dot size={20} className={textClasses.onColor} />
+                <span className="flex items-center bg-red-600 text-white text-xs px-2 py-1 rounded-lg font-semibold">
+                  <Dot size={20} className="text-white" />
                   Live
                 </span>
               </div>
-              <h2
-                className={combineClasses(
-                  textClasses.primary,
-                  "text-base sm:text-xl font-medium mb-6"
-                )}
-              >
+              <h2 className="text-foreground text-base sm:text-xl font-medium mb-6">
                 {username} is streaming
                 <br />
                 {streamTitle}
               </h2>
               <Link href={`/${username}/watch`}>
-                <Button
-                  className={combineClasses(
-                    textClasses.highlight,
-                    "font-semibold text-xs bg-transparent p-0"
-                  )}
-                >
+                <Button className="text-highlight font-semibold text-xs bg-transparent p-0">
                   Watch Now
                 </Button>
               </Link>
@@ -70,40 +43,17 @@ const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
           ) : (
             <>
               <div className="flex items-center justify-start">
-                <span
-                  className={combineClasses(
-                    bgClasses.tertiary,
-                    textClasses.primary,
-                    "text-xs px-2 py-1 rounded-sm"
-                  )}
-                >
+                <span className="bg-tertiary text-foreground text-xs px-2 py-1 rounded-sm">
                   OFFLINE
                 </span>
               </div>
-              <h2
-                className={combineClasses(
-                  textClasses.primary,
-                  "text-base sm:text-xl font-medium"
-                )}
-              >
+              <h2 className="text-foreground text-base sm:text-xl font-medium">
                 {username} is offline
               </h2>
-              <p
-                className={combineClasses(
-                  textClasses.tertiary,
-                  "text-[10px] sm:text-xs mb-3"
-                )}
-              >
+              <p className="text-muted-foreground text-[10px] sm:text-xs mb-3">
                 Follow and get notified when {username} goes live
               </p>
-              <Button
-                className={combineClasses(
-                  "flex items-center gap-1 py-1",
-                  buttonClasses.primary,
-                  textClasses.onColor,
-                  "text-[8px] sm:text-[10px]"
-                )}
-              >
+              <Button className="flex items-center gap-1 py-1 bg-purple-600 hover:bg-purple-700 text-white dark:text-gray-900 text-[8px] sm:text-[10px]">
                 <BellDot size={12} />
                 <span className="hidden sm:block">Turn on Notifications</span>
               </Button>

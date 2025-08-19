@@ -1,12 +1,6 @@
 "use client";
 import Image, { type StaticImageData } from "next/image";
-import {
-  bgClasses,
-  textClasses,
-  componentClasses,
-  borderClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
+
 import { useState, useEffect } from "react";
 
 interface ProfileHeaderProps {
@@ -38,14 +32,9 @@ export function ProfileHeader({ avatar, onAvatarClick }: ProfileHeaderProps) {
   }, [avatar]);
 
   return (
-    <div className={combineClasses(componentClasses.card, "p-4 mb-6")}>
+    <div className="bg-card border border-border shadow-sm rounded-lg p-4 mb-6">
       <div className="flex items-center gap-4">
-        <div
-          className={combineClasses(
-            "relative sm:w-24 w-24 h-20 sm:h-24 rounded-full overflow-hidden border-2 p-2",
-            borderClasses.primary
-          )}
-        >
+        <div className="relative sm:w-24 w-24 h-20 sm:h-24 rounded-full overflow-hidden border-2 p-2 border-border">
           {typeof avatarSrc === "string" &&
           avatarSrc.includes("cloudinary.com") ? (
             <img
@@ -66,15 +55,11 @@ export function ProfileHeader({ avatar, onAvatarClick }: ProfileHeaderProps) {
         <div>
           <button
             onClick={onAvatarClick}
-            className={combineClasses(
-              bgClasses.input,
-              textClasses.primary,
-              "px-3 py-2 rounded text-sm hover:bg-[#333] transition"
-            )}
+            className="bg-input text-foreground px-3 py-2 rounded text-sm hover:bg-[#333] transition"
           >
             Edit Avatar
           </button>
-          <p className={combineClasses(textClasses.tertiary, "mt-2 text-xs")}>
+          <p className="text-muted-foreground mt-2 text-xs">
             Must be JPEG, PNG, or GIF and cannot exceed 10MB
           </p>
         </div>
