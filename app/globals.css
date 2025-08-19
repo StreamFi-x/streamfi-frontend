@@ -29,6 +29,21 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+    
+    /* Additional theme variables for StreamFi */
+    --sidebar: 0 0% 100%;
+    --tertiary: 210 40% 96%;
+    --wallet: 0 0% 9%;
+    --modal: 0 0% 100%;
+    --dropdown: 0 0% 100%;
+    --tag: 262 83% 58%;
+    --tag-hover: 262 83% 48%;
+    --highlight: 262 83% 58%;
+    --warning: 45 93% 47%;
+    --error: 0 84% 60%;
+    --success: 142 76% 36%;
+    --overlay: 0 0% 0%;
+    --overlay-opacity: 0.5;
   }
 
   .dark {
@@ -56,6 +71,21 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    
+    /* Additional theme variables for StreamFi - Dark mode */
+    --sidebar: 220 13% 18%;
+    --tertiary: 0 0% 8%;
+    --wallet: 220 9% 11%;
+    --modal: 222.2 84% 4.9%;
+    --dropdown: 0 0% 9%;
+    --tag: 262 83% 58%;
+    --tag-hover: 262 83% 68%;
+    --highlight: 262 83% 58%;
+    --warning: 45 93% 47%;
+    --error: 0 84% 60%;
+    --success: 142 76% 36%;
+    --overlay: 0 0% 0%;
+    --overlay-opacity: 0.8;
   }
 }
 

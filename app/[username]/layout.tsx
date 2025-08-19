@@ -8,7 +8,7 @@ import Banner from "@/components/shared/profile/Banner";
 import ProfileHeader from "@/components/shared/profile/ProfileHeader";
 import TabsNavigation from "@/components/shared/profile/TabsNavigation";
 import ViewStream from "@/components/stream/view-stream";
-import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
+
 import ConnectWalletModal from "@/components/connectWallet";
 
 export default function UsernameLayout({
@@ -155,13 +155,7 @@ export default function UsernameLayout({
 
   if (isDefaultRoute && isLive) {
     return (
-      <div
-        className={combineClasses(
-          "flex flex-col h-screen",
-          bgClasses.secondary,
-          textClasses.primary
-        )}
-      >
+      <div className="flex flex-col h-screen bg-secondary text-foreground">
         <main className="flex-1 overflow-auto">
           <ViewStream
             username={username}
@@ -175,15 +169,9 @@ export default function UsernameLayout({
   }
 
   return (
-    <div
-      className={combineClasses(
-        "flex flex-col h-screen",
-        bgClasses.secondary,
-        textClasses.primary
-      )}
-    >
+    <div className="flex flex-col h-screen bg-secondary text-foreground">
       <main className="flex-1 overflow-auto">
-        <div className={combineClasses(bgClasses.secondary, "min-h-screen")}>
+        <div className="bg-secondary min-h-screen">
           <Banner
             username={username}
             isLive={isDefaultRoute && !!isLive}

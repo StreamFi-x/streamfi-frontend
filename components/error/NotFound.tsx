@@ -4,12 +4,6 @@ import { type FC, useEffect, useState } from "react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import Link from "next/link";
 import { Home, Compass, Play, Users, Monitor, Camera } from "lucide-react";
-import {
-  bgClasses,
-  textClasses,
-  buttonClasses,
-  borderClasses,
-} from "@/lib/theme-classes";
 
 interface NotFoundProps {
   onGoBack?: () => void; // Made optional since it's not used
@@ -85,7 +79,7 @@ const NotFound: FC<NotFoundProps> = () => {
 
   return (
     <div
-      className={`min-h-screen flex items-center justify-center p-4 ${bgClasses.primary} relative overflow-hidden`}
+      className={`min-h-screen flex items-center justify-center p-4 bg-background relative overflow-hidden`}
     >
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
@@ -127,7 +121,7 @@ const NotFound: FC<NotFoundProps> = () => {
             <motion.div variants={itemVariants} className="relative mb-8">
               {/* Background 404 */}
               <motion.div
-                className={`absolute inset-0 flex items-center justify-center ${textClasses.highlight} opacity-10`}
+                className={`absolute inset-0 flex items-center justify-center text-highlight opacity-10`}
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 0.1 }}
                 transition={{ duration: 1, delay: 0.3 }}
@@ -152,7 +146,7 @@ const NotFound: FC<NotFoundProps> = () => {
                       className="absolute inset-0 bg-purple-500/20 rounded-full blur-xl"
                     />
                     <div
-                      className={`relative ${bgClasses.card} p-6 rounded-full shadow-2xl ${borderClasses.primary} border-2`}
+                      className={`relative bg-card p-6 rounded-full shadow-2xl border border-border border-2`}
                     >
                       <AnimatePresence mode="wait">
                         <motion.div
@@ -162,9 +156,7 @@ const NotFound: FC<NotFoundProps> = () => {
                           exit={{ opacity: 0, rotate: 180, scale: 0.5 }}
                           transition={{ duration: 0.5 }}
                         >
-                          <CurrentIcon
-                            className={`w-16 h-16 ${textClasses.highlight}`}
-                          />
+                          <CurrentIcon className={`w-16 h-16 text-highlight`} />
                         </motion.div>
                       </AnimatePresence>
                     </div>
@@ -174,7 +166,7 @@ const NotFound: FC<NotFoundProps> = () => {
                 {/* 404 Text */}
                 <motion.h1
                   variants={itemVariants}
-                  className={`text-8xl md:text-9xl font-black ${textClasses.primary} mb-4 tracking-tight`}
+                  className={`text-8xl md:text-9xl font-black text-foreground mb-4 tracking-tight`}
                 >
                   404
                 </motion.h1>
@@ -182,12 +174,12 @@ const NotFound: FC<NotFoundProps> = () => {
                 {/* Stream Offline Message */}
                 <motion.div variants={itemVariants} className="mb-6">
                   <h2
-                    className={`text-3xl md:text-4xl font-bold ${textClasses.primary} mb-2`}
+                    className={`text-3xl md:text-4xl font-bold text-foreground mb-2`}
                   >
                     Page Not Found
                   </h2>
                   <p
-                    className={`text-lg ${textClasses.secondary} max-w-md mx-auto leading-relaxed`}
+                    className={`text-lg text-muted-foreground max-w-md mx-auto leading-relaxed`}
                   >
                     Looks like the page you&apos;re looking for doesn&apos;t
                     exist or has been moved. Let&apos;s get you back on track!
@@ -205,7 +197,7 @@ const NotFound: FC<NotFoundProps> = () => {
                   >
                     <Link
                       href="/"
-                      className={`inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg shadow-lg ${buttonClasses.primary} ${borderClasses.primary} ${textClasses.inverse} ${textClasses.inverseHover} border-2 w-64`}
+                      className={`inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg shadow-lg bg-primary text-primary-foreground border border-border hover:text-primary-foreground border-2 w-64`}
                     >
                       <Home className="w-5 h-5 duration-700" />
                       Go Home
@@ -218,7 +210,7 @@ const NotFound: FC<NotFoundProps> = () => {
                   >
                     <Link
                       href="/explore"
-                      className={`inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg shadow-lg ${buttonClasses.outline} w-64`}
+                      className={`inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg shadow-lg bg-transparent border border-border text-foreground w-64`}
                     >
                       <Compass className="w-5 h-5" />
                       Explore Streams
@@ -241,7 +233,7 @@ const NotFound: FC<NotFoundProps> = () => {
                       className="w-3 h-3 bg-red-500 rounded-full"
                     />
                     <span
-                      className={`text-sm font-medium ${textClasses.secondary}`}
+                      className={`text-sm font-medium text-muted-foreground`}
                     >
                       Live streams are still running
                     </span>
@@ -268,7 +260,7 @@ const NotFound: FC<NotFoundProps> = () => {
                         className="flex items-center gap-2"
                       >
                         <item.icon className={`w-4 h-4 ${item.color}`} />
-                        <span className={`text-sm ${textClasses.tertiary}`}>
+                        <span className={`text-sm text-muted-foreground`}>
                           {item.label}
                         </span>
                       </motion.div>

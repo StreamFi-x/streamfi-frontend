@@ -7,12 +7,6 @@ import { usePathname } from "next/navigation";
 import { navItems, recommendedUsers } from "@/data/explore/sidebar";
 import Image from "next/image";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import {
-  bgClasses,
-  textClasses,
-  borderClasses,
-  buttonClasses,
-} from "@/lib/theme-classes";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -204,7 +198,7 @@ export default function Sidebar() {
       >
         <motion.span
           variants={itemVariants}
-          className={`${textClasses.secondary} font-semibold tracking-wider`}
+          className={`text-muted-foreground font-semibold tracking-wider`}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.3 }}
@@ -213,7 +207,7 @@ export default function Sidebar() {
         </motion.span>
         <motion.button
           variants={itemVariants}
-          className={`p-2 ${bgClasses.hover} rounded-full ${textClasses.primary} relative overflow-hidden`}
+          className={`p-2 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-full text-foreground relative overflow-hidden`}
           onClick={toggleCollapsed}
           whileHover={{ scale: 1.1, rotate: 5 }}
           whileTap={{ scale: 0.9 }}
@@ -258,8 +252,8 @@ export default function Sidebar() {
                   }
                   className={`flex items-center gap-3 py-1.5 px-2.5 rounded-lg transition-all duration-300 relative overflow-hidden ${
                     isActive
-                      ? `${bgClasses.selected} ${textClasses.primary} shadow-lg border-l-4 border-purple-500`
-                      : `${textClasses.secondary} hover:${textClasses.primary} ${bgClasses.hover}`
+                      ? `bg-purple-50 dark:bg-purple-900/20 text-foreground shadow-lg border-l-4 border-purple-500`
+                      : `text-muted-foreground hover:text-foreground hover:bg-gray-100 dark:hover:bg-[#282828]`
                   }`}
                 >
                   <motion.div
@@ -269,7 +263,7 @@ export default function Sidebar() {
                     <item.icon
                       size={20}
                       className={
-                        isActive ? textClasses.primary : textClasses.secondary
+                        isActive ? "text-foreground" : "text-muted-foreground"
                       }
                     />
                   </motion.div>
@@ -298,12 +292,12 @@ export default function Sidebar() {
 
       <motion.hr
         variants={itemVariants}
-        className={`my-4 border-t ${borderClasses.primary}`}
+        className={`my-4 border-t border-border`}
       />
 
       <motion.div variants={itemVariants}>
         <motion.h3
-          className={`text-xs font-bold ${textClasses.tertiary} uppercase tracking- mb-3 px-1`}
+          className={`text-xs font-bold text-muted-foreground uppercase tracking- mb-3 px-1`}
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.3 }}
@@ -401,7 +395,7 @@ export default function Sidebar() {
               <motion.div variants={navItemVariants}>
                 <Link
                   href="#"
-                  className={`flex items-center gap-3 px-2 py-2 rounded-lg ${bgClasses.hover}`}
+                  className={`flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#282828]`}
                 >
                   <motion.div
                     variants={avatarVariants}

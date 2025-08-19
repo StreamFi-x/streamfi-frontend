@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { tabs } from "@/data/settings";
-import { textClasses } from "@/lib/theme-classes";
 
 // URL mapping for settings tabs
 const URL_MAPPING = {
@@ -30,8 +29,8 @@ export default function SettingsNavigation() {
               href={tabUrl}
               className={`group pb-4 px-1 whitespace-nowrap relative transition-colors ${
                 isActive
-                  ? `${textClasses.highlight} font-medium`
-                  : `${textClasses.primary} hover:text-purple-500 dark:hover:text-purple-400`
+                  ? `text-highlight font-medium`
+                  : `text-foreground hover:text-purple-500 dark:hover:text-purple-400`
               }`}
             >
               {tab.id}
