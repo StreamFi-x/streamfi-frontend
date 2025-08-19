@@ -3,12 +3,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Info, X } from "lucide-react";
-import {
-  bgClasses,
-  textClasses,
-  borderClasses,
-  buttonClasses,
-} from "@/lib/theme-classes";
 
 interface StreamInfoProps {
   data: {
@@ -37,7 +31,7 @@ export default function StreamInfo({ data, onEditClick }: StreamInfoProps) {
         >
           <button
             onClick={() => setIsMinimized(false)}
-            className={`flex items-center space-x-2 ${textClasses.tertiary} hover:${textClasses.primary} transition-colors`}
+            className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors"
           >
             <Info size={18} />
             <span>Show Stream Info</span>
@@ -52,26 +46,22 @@ export default function StreamInfo({ data, onEditClick }: StreamInfoProps) {
           exit={{ opacity: 0, height: 0 }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
         >
-          <div
-            className={`${bgClasses.card} p-2 flex justify-between items-center border-b text-sm ${borderClasses.primary}`}
-          >
+          <div className="bg-card p-2 flex justify-between items-center border-b text-sm border-border">
             <div className="flex items-center">
-              <Info size={18} className={`mr-2 ${textClasses.primary}`} />
-              <span className={textClasses.primary}>Stream Info</span>
+              <Info size={18} className="mr-2 text-foreground" />
+              <span className="text-foreground">Stream Info</span>
             </div>
             <div className="flex space-x-2">
               <button
-                className={`p-1 ${bgClasses.hover} rounded-md transition-colors`}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md transition-colors"
                 onClick={() => setIsMinimized(true)}
               >
-                <X size={18} className={textClasses.secondary} />
+                <X size={18} className="text-muted-foreground" />
               </button>
             </div>
           </div>
 
-          <div
-            className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.primary} p-3`}
-          >
+          <div className="flex-1 overflow-y-auto scrollbar-hide bg-background p-3">
             <div className="flex mb-3">
               <div className="w-12 h-12 rounded-md overflow-hidden mr-3">
                 <img
@@ -81,17 +71,15 @@ export default function StreamInfo({ data, onEditClick }: StreamInfoProps) {
                 />
               </div>
               <div className="flex-1">
-                <p className={`font-semibold text-sm ${textClasses.primary}`}>
-                  {title}
-                </p>
-                <p className={`text-xs ${textClasses.tertiary} line-clamp-1`}>
+                <p className="font-semibold text-sm text-foreground">{title}</p>
+                <p className="text-xs text-muted-foreground line-clamp-1">
                   {description}
                 </p>
                 <div className="flex flex-wrap gap-2 mt-1.5">
                   {tags.map(tag => (
                     <span
                       key={tag}
-                      className={`px-2 py-1 ${bgClasses.card} rounded-md text-xs ${textClasses.secondary} border ${borderClasses.secondary}`}
+                      className="px-2 py-1 bg-card rounded-md text-xs text-muted-foreground border border-border"
                     >
                       {tag}
                     </span>
@@ -102,7 +90,7 @@ export default function StreamInfo({ data, onEditClick }: StreamInfoProps) {
 
             <button
               onClick={onEditClick}
-              className={`w-full py-2 ${buttonClasses.secondary} ${textClasses.inverseHover} text-xs rounded-md transition-colors`}
+              className="w-full py-2 bg-purple-600 hover:bg-purple-800 text-white dark:text-white text-xs rounded-md transition-colors"
             >
               Edit Stream Info
             </button>

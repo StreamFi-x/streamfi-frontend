@@ -301,7 +301,7 @@ export default function Navbar({}: NavbarProps) {
   return (
     <>
       <header
-        className={`h-20 flex items-center justify-between px-4 border-b-[0.5px] border-border bg-highlight z-50`}
+        className={`h-20 flex items-center justify-between px-4 border-b-[0.5px] border-border bg-sidebar z-50`}
       >
         <div className="flex items-center gap-4">
           <Link href="/explore" className="flex items-center gap-2">

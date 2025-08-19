@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Activity, X } from "lucide-react";
-import { bgClasses, textClasses, borderClasses } from "@/lib/theme-classes";
 
 // Placeholder data
 const initialActivities = [
@@ -59,7 +58,7 @@ export default function ActivityFeed() {
       <div className="p-2">
         <button
           onClick={() => setIsMinimized(false)}
-          className={`flex items-center space-x-2 ${textClasses.tertiary} hover:${textClasses.primary} transition-colors`}
+          className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors"
         >
           <Activity size={18} />
           <span>Show Activity Feed</span>
@@ -75,31 +74,27 @@ export default function ActivityFeed() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div
-        className={`${bgClasses.card} p-2 flex justify-between items-center border-b ${borderClasses.primary}`}
-      >
+      <div className="bg-card p-2 flex justify-between items-center border-b border-border">
         <div className="flex items-center">
-          <Activity size={18} className={`mr-2 ${textClasses.primary}`} />
-          <span className={textClasses.primary}>Activity Feed</span>
+          <Activity size={18} className="mr-2 text-foreground" />
+          <span className="text-foreground">Activity Feed</span>
         </div>
         <div className="flex space-x-2">
           <button
-            className={`p-1 ${bgClasses.hover} rounded-md transition-colors`}
+            className="p-1 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md transition-colors"
             onClick={() => setIsMinimized(true)}
           >
-            <X size={18} className={textClasses.secondary} />
+            <X size={18} className="text-muted-foreground" />
           </button>
         </div>
       </div>
 
-      <div
-        className={`flex-1 overflow-y-auto scrollbar-hide ${bgClasses.secondary} p-2`}
-      >
+      <div className="flex-1 overflow-y-auto scrollbar-hide bg-secondary p-2">
         <AnimatePresence>
           {activities.map(activity => (
             <motion.div
               key={activity.id}
-              className={`flex items-center p-3 border-b ${borderClasses.secondary}`}
+              className="flex items-center p-3 border-b border-border"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, height: 0 }}
@@ -116,12 +111,10 @@ export default function ActivityFeed() {
               </div>
 
               <div className="flex-1 text-xs">
-                <div className={`font-medium ${textClasses.primary}`}>
+                <div className="font-medium text-foreground">
                   {activity.username}
                 </div>
-                <div className={`text- ${textClasses.tertiary}`}>
-                  followed you
-                </div>
+                <div className="text-muted-foreground">followed you</div>
               </div>
             </motion.div>
           ))}

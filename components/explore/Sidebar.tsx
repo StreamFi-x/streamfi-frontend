@@ -622,7 +622,7 @@ export default function Sidebar() {
   return (
     <>
       <motion.div
-        className="hidden lg:block bg-highlight flex-shrink-0 relative overflow- overflow-y-auto border-r border-border shadow-lg"
+        className="hidden lg:block bg-sidebar flex-shrink-0 relative overflow- overflow-y-auto border-r border-border shadow-lg"
         variants={sidebarVariants}
         animate={isCollapsed ? "collapsed" : "expanded"}
         style={{ willChange: "width" }}

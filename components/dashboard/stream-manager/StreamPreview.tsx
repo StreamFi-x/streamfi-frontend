@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Settings, Maximize } from "lucide-react";
-import { bgClasses, textClasses, borderClasses } from "@/lib/theme-classes";
 
 export default function StreamPreview() {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -28,24 +27,20 @@ export default function StreamPreview() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <div
-        className={`${bgClasses.card} p-2 flex justify-between items-center border-b ${borderClasses.primary}`}
-      >
+      <div className="bg-card p-2 flex justify-between items-center border-b border-border">
         <div className="flex items-center">
-          <MonitorIcon size={18} className={`mr-2 ${textClasses.primary}`} />
-          <span className={textClasses.primary}>Stream Preview</span>
+          <MonitorIcon size={18} className="mr-2 text-foreground" />
+          <span className="text-foreground">Stream Preview</span>
         </div>
         <div className="flex space-x-2">
-          <button
-            className={`p-1 ${bgClasses.hover} rounded-md transition-colors`}
-          >
-            <Settings size={18} className={textClasses.secondary} />
+          <button className="p-1 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md transition-colors">
+            <Settings size={18} className="text-muted-foreground" />
           </button>
           <button
-            className={`p-1 ${bgClasses.hover} rounded-md transition-colors`}
+            className="p-1 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md transition-colors"
             onClick={toggleFullscreen}
           >
-            <Maximize size={18} className={textClasses.secondary} />
+            <Maximize size={18} className="text-muted-foreground" />
           </button>
         </div>
       </div>
@@ -76,10 +71,8 @@ export default function StreamPreview() {
           )}
         </div>
         <div className="absolute bottom-4 right-4 flex space-x-2">
-          <button
-            className={`${bgClasses.card} bg-opacity-70 p-2 rounded-md hover:bg-opacity-100 transition-colors border ${borderClasses.primary}`}
-          >
-            <Settings size={18} className={textClasses.primary} />
+          <button className="bg-card bg-opacity-70 p-2 rounded-md hover:bg-opacity-100 transition-colors border border-border">
+            <Settings size={18} className="text-foreground" />
           </button>
         </div>
       </div>

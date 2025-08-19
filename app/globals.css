@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 0 0% 100%; /* white */
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -12,7 +12,7 @@
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 222.2 47.4% 11.2%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
+    --secondary: 240 5% 96%; /* gray-100 */
     --secondary-foreground: 222.2 84% 4.9%;
     --muted: 210 40% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
@@ -55,7 +55,7 @@
     --popover-foreground: 210 40% 98%;
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 0 0% 0%; /* black */
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
@@ -73,11 +73,11 @@
     --chart-5: 340 75% 55%;
     
     /* Additional theme variables for StreamFi - Dark mode */
-    --sidebar: 220 13% 18%;
-    --tertiary: 0 0% 8%;
-    --wallet: 220 9% 11%;
+    --sidebar: 200 6% 10%; /* hsl(200, 6%, 10%) */
+    --tertiary: 0 0% 8%; /* #151515 */
+    --wallet: 220 9% 11%; /* #1A1B1D */
     --modal: 222.2 84% 4.9%;
-    --dropdown: 0 0% 9%;
+    --dropdown: 0 0% 9%; /* #161616 */
     --tag: 262 83% 58%;
     --tag-hover: 262 83% 68%;
     --highlight: 262 83% 58%;
