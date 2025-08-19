@@ -7,12 +7,6 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import type { LiveStreamProps } from "@/types/explore/home";
 import Image from "next/image";
-import {
-  textClasses,
-  bgClasses,
-  buttonClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
 
 export function LiveStreams({
   title,
@@ -150,14 +144,7 @@ export function LiveStreams({
 
   return (
     <div ref={sectionRef} className="w-full py-6">
-      <h2
-        className={combineClasses(
-          "text-2xl font-bold mb-6",
-          textClasses.primary
-        )}
-      >
-        {title}
-      </h2>
+      <h2 className="text-2xl font-bold mb-6 text-foreground">{title}</h2>
 
       <motion.div
         variants={containerVariants}
@@ -176,7 +163,7 @@ export function LiveStreams({
               onClick={e => {
                 handleCardClick(stream, e);
               }}
-              className={`${bgClasses.card} group cursor-pointer p-2 pb-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-[1.02]`}
+              className="bg-card group cursor-pointer p-2 pb-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
             >
               <div className="relative rounded-lg overflow-hidden">
                 {typeof stream.thumbnail === "string" &&
@@ -226,23 +213,13 @@ export function LiveStreams({
                       />
                     )}
                   </div>
-                  <p
-                    className={combineClasses(
-                      "text-sm hover:underline",
-                      textClasses.secondary
-                    )}
-                  >
+                  <p className="text-sm hover:underline text-muted-foreground">
                     {stream.streamer.name}
                   </p>
                 </div>
 
                 <div>
-                  <h3
-                    className={combineClasses(
-                      "font-semibold text-lg line-clamp-1 group-hover:text-opacity-80 transition-opacity",
-                      textClasses.primary
-                    )}
-                  >
+                  <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-opacity-80 transition-opacity text-foreground">
                     {stream.title}
                   </h3>
                   <div className="flex flex-wrap gap-2 mt-1">

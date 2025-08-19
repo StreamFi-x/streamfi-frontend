@@ -7,12 +7,6 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import type { TrendingStreamsProps } from "@/types/explore/home";
 import Image from "next/image";
-import {
-  textClasses,
-  bgClasses,
-  buttonClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
 
 export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
   const [showAll, setShowAll] = useState(false);
@@ -143,14 +137,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
 
   return (
     <div ref={sectionRef} className="w-full py-6">
-      <h2
-        className={combineClasses(
-          "text-2xl font-bold mb-6",
-          textClasses.primary
-        )}
-      >
-        {title}
-      </h2>
+      <h2 className="text-2xl font-bold mb-6 text-foreground">{title}</h2>
 
       <motion.div
         variants={containerVariants}
@@ -170,7 +157,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
                 console.log("Trending card clicked!"); // Debug log
                 handleCardClick(stream, e);
               }}
-              className={`${bgClasses.card} group cursor-pointer p-2 pb-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-[1.02]`}
+              className="bg-card group cursor-pointer p-2 pb-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
             >
               <div className="relative rounded-lg overflow-hidden">
                 {typeof stream.thumbnail === "string" &&
@@ -220,12 +207,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
                       />
                     )}
                   </div>
-                  <p
-                    className={combineClasses(
-                      "text-sm hover:underline",
-                      textClasses.secondary
-                    )}
-                  >
+                  <p className="text-sm hover:underline text-muted-foreground">
                     {stream.streamer.name}
                   </p>
                 </div>
