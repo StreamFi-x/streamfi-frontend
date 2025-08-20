@@ -42,7 +42,7 @@ const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
   if (label === "Disconnect") {
     return (
       <div
-        className="flex items-center px-4 py-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#282828] text-foreground"
+        className="flex items-center px-4 py-3 cursor-pointer hover:bg-surface-hover text-foreground"
         onClick={() => onClick({ icon, label, route, mobile: true })}
       >
         <div className="text-foreground mr-3">{icon}</div>
@@ -54,7 +54,7 @@ const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
   return (
     <Link
       href={route || "#"}
-      className="flex items-center px-4 py-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#282828] text-foreground"
+      className="flex items-center px-4 py-3 cursor-pointer hover:bg-surface-hover text-foreground"
       onClick={e => {
         e.preventDefault();
         onClick({ icon, label, route, mobile: true });
@@ -267,7 +267,7 @@ const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
                   className={item.mobile ? "block " : "hidden lg:block"}
                   onClick={() => handleItemClick(item)}
                 >
-                  <div className="hover:bg-gray-100 dark:hover:bg-[#282828] flex items-center gap-2.5 px-4 py-2 sm:text-sm text-sm hover:bg-gray-100 cursor-pointer rounded">
+                  <div className="hover:bg-surface-hover flex items-center gap-2.5 px-4 py-2 sm:text-sm text-sm cursor-pointer rounded">
                     {item.icon}
                     <span>{item.label}</span>
                   </div>

@@ -53,7 +53,7 @@ export default function StreamInfo({ data, onEditClick }: StreamInfoProps) {
             </div>
             <div className="flex space-x-2">
               <button
-                className="p-1 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md transition-colors"
+                className="p-1 hover:bg-surface-hover rounded-md transition-colors"
                 onClick={() => setIsMinimized(true)}
               >
                 <X size={18} className="text-muted-foreground" />

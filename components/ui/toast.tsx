@@ -67,7 +67,7 @@ const Toast: React.FC<ToastProps> = ({
       </span>
       <button
         onClick={onClose} // Directly call onClose
-        className="ml-auto p-1 rounded-md text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        className="ml-auto p-1 rounded-md text-muted-foreground hover:bg-surface-hover transition-colors"
         aria-label="Close toast"
       >
         <X className="h-4 w-4" />

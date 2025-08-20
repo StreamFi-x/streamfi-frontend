@@ -455,7 +455,7 @@ const Dropdown: React.FC<DropdownProps> = ({
             {options.map(option => (
               <button
                 key={option}
-                className="text-foreground hover:bg-gray-100 dark:hover:bg-[#282828] w-full px-4 py-3 text-left"
+                className="text-foreground hover:bg-surface-hover w-full px-4 py-3 text-left"
                 onClick={() => handleSelect(option)}
               >
                 {option}

@@ -206,7 +206,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 relative overflow-hidden ${
                     isActive
                       ? `bg-purple-50 dark:bg-purple-900/20 text-foreground shadow-lg border-l-4 border-purple-500`
-                      : `text-muted-foreground hover:text-foreground hover:bg-gray-100 dark:hover:bg-[#282828]`
+                      : `text-muted-foreground hover:text-foreground hover:bg-surface-hover`
                   }`}
                 >
                   <motion.div
@@ -292,7 +292,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     >
       <div className="flex justify-center items-center w-full mb-4">
         <motion.button
-          className={`p-2 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-full text-foreground relative overflow-hidden`}
+          className={`p-2 hover:bg-surface-hover rounded-full text-foreground relative overflow-hidden`}
           onClick={onToggle}
           whileHover={{ scale: 1.1, rotate: -5 }}
           whileTap={{ scale: 0.9 }}
@@ -334,7 +334,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                 className={`flex items-center justify-center p-3 rounded-lg transition-all duration-300 relative ${
                   isActive
                     ? `bg-purple-50 dark:bg-purple-900/20 text-foreground shadow-lg ring-2 ring-purple-500/30`
-                    : `text-muted-foreground hover:text-foreground hover:bg-gray-100 dark:hover:bg-[#282828]`
+                    : `text-muted-foreground hover:text-foreground hover:bg-surface-hover`
                 }`}
                 title={item.name}
               >

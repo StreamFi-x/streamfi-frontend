@@ -33,11 +33,11 @@ export default function StreamPreview() {
           <span className="text-foreground">Stream Preview</span>
         </div>
         <div className="flex space-x-2">
-          <button className="p-1 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md transition-colors">
+          <button className="p-1 hover:bg-surface-hover rounded-md transition-colors">
             <Settings size={18} className="text-muted-foreground" />
           </button>
           <button
-            className="p-1 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md transition-colors"
+            className="p-1 hover:bg-surface-hover rounded-md transition-colors"
             onClick={toggleFullscreen}
           >
             <Maximize size={18} className="text-muted-foreground" />

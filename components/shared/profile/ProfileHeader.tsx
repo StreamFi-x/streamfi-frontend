@@ -70,10 +70,10 @@ const ProfileHeader = ({
                   ? "Unfollow"
                   : "Follow"}
             </Button>
-            <Button className="bg-transparent border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-foreground">
+            <Button className="bg-transparent border border-border hover:bg-surface-hover text-foreground">
               Subscribe
             </Button>
-            <Button className="bg-transparent border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-foreground">
+            <Button className="bg-transparent border border-border hover:bg-surface-hover text-foreground">
               <ExternalLink className="h-4 w-4" />
             </Button>
           </>

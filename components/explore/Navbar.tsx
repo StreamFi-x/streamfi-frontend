@@ -352,7 +352,7 @@ export default function Navbar({}: NavbarProps) {
                   {searchResults.map(result => (
                     <Link
                       key={result.id}
-                      className={`flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md cursor-pointer relative z-30`}
+                      className={`flex items-center gap-3 p-2 hover:bg-surface-hover rounded-md cursor-pointer relative z-30`}
                       href={`/browse/${result.type}/${result.title.toLowerCase()}`}
                     >
                       <div className="w-10 h-10 rounded bg-gray-700 overflow-hidden">

@@ -58,7 +58,7 @@ const AboutSection = ({
             <Button
               variant="outline"
               size="sm"
-              className="bg-transparent border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-foreground border-none"
+              className="bg-transparent border border-border hover:bg-surface-hover text-foreground border-none"
             >
               <Link href={`/settings/profile`} className="flex items-center">
                 <Edit3 className="h-4 w-4 mr-2" />

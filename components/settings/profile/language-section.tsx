@@ -99,7 +99,7 @@ export function LanguageSection({
                     className={`flex items-center gap-3 p-3 rounded-md cursor-pointer ${
                       formState.language === lang
                         ? "bg-purple-900 bg-opacity-50"
-                        : "bg-input hover:bg-gray-100 dark:hover:bg-[#282828]"
+                        : "bg-input hover:bg-surface-hover"
                     }`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}

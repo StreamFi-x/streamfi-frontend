@@ -76,7 +76,7 @@ export default function StreamSettings() {
             </div>
             <div className="flex space-x-2">
               <button
-                className="p-1 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md transition-colors"
+                className="p-1 hover:bg-surface-hover rounded-md transition-colors"
                 onClick={() => setIsMinimized(true)}
               >
                 <X size={18} className="text-muted-foreground" />
@@ -95,7 +95,7 @@ export default function StreamSettings() {
                 </div>
                 <button
                   onClick={() => copyToClipboard(walletAddresses.strk)}
-                  className="p-1 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md transition-colors ml-2"
+                  className="p-1 hover:bg-surface-hover rounded-md transition-colors ml-2"
                 >
                   <Copy size={16} className="text-muted-foreground" />
                 </button>
@@ -112,7 +112,7 @@ export default function StreamSettings() {
                 </div>
                 <button
                   onClick={() => copyToClipboard(walletAddresses.usdt)}
-                  className="p-1 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-md transition-colors ml-2"
+                  className="p-1 hover:bg-surface-hover rounded-md transition-colors ml-2"
                 >
                   <Copy size={16} className="text-muted-foreground" />
                 </button>
