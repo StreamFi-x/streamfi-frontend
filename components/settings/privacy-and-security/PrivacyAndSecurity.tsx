@@ -86,20 +86,12 @@ const Modal: React.FC<ModalProps> = ({
               <div className="p-6">
                 {title && (
                   <div className="flex justify-between items-center mb-4">
-                    <h3
-                      className={combineClasses(
-                        textClasses.primary,
-                        "text-lg font-semibold"
-                      )}
-                    >
+                    <h3 className="text-foreground text-lg font-semibold">
                       {title}
                     </h3>
                     <button
                       onClick={onClose}
-                      className={combineClasses(
-                        textClasses.tertiary,
-                        "hover:text-white transition-colors"
-                      )}
+                      className="text-muted-foreground hover:text-white transition-colors"
                     >
                       <X size={20} />
                     </button>
@@ -130,29 +122,22 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
   };
 
   const colors = {
-    success: textClasses.success,
-    error: textClasses.error,
-    warning: textClasses.warning,
+    success: "text-green-600 dark:text-green-400",
+    error: "text-red-600 dark:text-red-400",
+    warning: "text-yellow-600 dark:text-yellow-400",
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <div className="text-center">
         {icons[type]}
-        <h3
-          className={combineClasses("text-lg font-semibold mt-4", colors[type])}
-        >
+        <h3 className={`text-lg font-semibold mt-4 ${colors[type]}`}>
           {title}
         </h3>
-        <p className={combineClasses(textClasses.tertiary, "mt-2")}>
-          {message}
-        </p>
+        <p className="text-muted-foreground mt-2">{message}</p>
         <button
           onClick={onClose}
-          className={combineClasses(
-            buttonClasses.secondary,
-            "w-full mt-6 px-4 py-2 rounded-lg"
-          )}
+          className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white w-full mt-6 px-4 py-2 rounded-lg"
         >
           Close
         </button>
@@ -314,18 +299,13 @@ const VerifyEmailModal: React.FC<{
     <>
       <Modal isOpen={isOpen} onClose={onClose}>
         <div className="text-center">
-          <h3
-            className={combineClasses(
-              textClasses.primary,
-              "text-lg font-semibold mb-2"
-            )}
-          >
+          <h3 className="text-foreground text-lg font-semibold mb-2">
             Verify Your Email
           </h3>
 
-          <p className={combineClasses(textClasses.tertiary, "mb-6 text-sm")}>
+          <p className="text-muted-foreground mb-6 text-sm">
             Enter the 6-digit code sent to{" "}
-            <strong className={textClasses.primary}>{email}</strong>.<br />
+            <strong className="text-foreground">{email}</strong>.<br />
             This code is valid for 5 minutes.
           </p>
 
@@ -341,12 +321,7 @@ const VerifyEmailModal: React.FC<{
                 value={digit}
                 onChange={e => handleCodeChange(index, e.target.value)}
                 onKeyDown={e => handleKeyDown(index, e)}
-                className={combineClasses(
-                  bgClasses.input,
-                  borderClasses.primary,
-                  "w-12 h-12 text-center text-lg font-semibold rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:ring-opacity-20 outline-none transition-colors",
-                  textClasses.primary
-                )}
+                className="bg-input border border-border w-12 h-12 text-center text-lg font-semibold rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:ring-opacity-20 outline-none transition-colors text-foreground"
                 disabled={isLoading}
               />
             ))}
@@ -355,10 +330,7 @@ const VerifyEmailModal: React.FC<{
           <button
             onClick={handleSubmit}
             disabled={isLoading || code.some(digit => !digit)}
-            className={combineClasses(
-              buttonClasses.secondary,
-              "w-full py-3 rounded-lg font-medium disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center mb-4"
-            )}
+            className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white w-full py-3 rounded-lg font-medium disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center mb-4"
           >
             {isLoading ? (
               <>
@@ -370,14 +342,11 @@ const VerifyEmailModal: React.FC<{
             )}
           </button>
 
-          <div className={combineClasses(textClasses.tertiary, "text-sm")}>
+          <div className="text-muted-foreground text-sm">
             Didn't receive a code?{" "}
             <button
               onClick={handleResendCode}
-              className={combineClasses(
-                textClasses.primary,
-                "hover:text-gray-300 font-medium underline"
-              )}
+              className="text-foreground hover:text-gray-300 font-medium underline"
               disabled={isLoading}
             >
               Resend
@@ -419,7 +388,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className={combineClasses(componentClasses.card, "mb-6 p-6", className)}
+      className={`bg-card border border-border shadow-sm rounded-lg mb-6 p-6 ${className}`}
     >
       {children}
     </motion.div>
@@ -436,28 +405,14 @@ const ToggleSection: React.FC<ToggleSectionProps> = ({
   return (
     <SectionCard>
       <div className="flex justify-between items-center">
-        <h2
-          className={combineClasses(
-            textClasses.highlight,
-            "text-xl font-medium"
-          )}
-        >
-          {title}
-        </h2>
+        <h2 className="text-highlight text-xl font-medium">{title}</h2>
         <ToggleSwitch enabled={enabled} onChange={onToggle} />
       </div>
-      <p
-        className={combineClasses(textClasses.tertiary, "italic text-sm mt-2")}
-      >
-        {description}
-      </p>
+      <p className="text-muted-foreground italic text-sm mt-2">{description}</p>
       {actionButton && (
         <div className="flex justify-end mt-4">
           <button
-            className={combineClasses(
-              buttonClasses.secondary,
-              "px-4 py-2 rounded-md"
-            )}
+            className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white px-4 py-2 rounded-md"
             onClick={actionButton.onClick}
           >
             {actionButton.text}
@@ -484,17 +439,11 @@ const Dropdown: React.FC<DropdownProps> = ({
 
   return (
     <div className="mb-6">
-      <h3 className={combineClasses(textClasses.primary, "text-base mb-3")}>
-        {label}
-      </h3>
+      <h3 className="text-foreground text-base mb-3">{label}</h3>
 
       <div className="relative">
         <button
-          className={combineClasses(
-            bgClasses.input,
-            textClasses.primary,
-            "w-full px-4 py-3 rounded-lg flex justify-between items-center"
-          )}
+          className="bg-input text-foreground w-full px-4 py-3 rounded-lg flex justify-between items-center"
           onClick={() => setIsOpen(!isOpen)}
         >
           <span>{selected}</span>
@@ -502,20 +451,11 @@ const Dropdown: React.FC<DropdownProps> = ({
         </button>
 
         {isOpen && (
-          <div
-            className={combineClasses(
-              componentClasses.dropdown,
-              "absolute w-full mt-1 z-10"
-            )}
-          >
+          <div className="bg-card border border-border shadow-sm rounded-lg absolute w-full mt-1 z-10">
             {options.map(option => (
               <button
                 key={option}
-                className={combineClasses(
-                  textClasses.primary,
-                  bgClasses.hover,
-                  "w-full px-4 py-3 text-left"
-                )}
+                className="text-foreground hover:bg-gray-100 dark:hover:bg-[#282828] w-full px-4 py-3 text-left"
                 onClick={() => handleSelect(option)}
               >
                 {option}
@@ -525,11 +465,7 @@ const Dropdown: React.FC<DropdownProps> = ({
         )}
       </div>
 
-      <p
-        className={combineClasses(textClasses.tertiary, "text-sm mt-2 italic")}
-      >
-        {description}
-      </p>
+      <p className="text-muted-foreground text-sm mt-2 italic">{description}</p>
     </div>
   );
 };
@@ -542,23 +478,19 @@ const Checkbox: React.FC<CheckboxProps> = ({
 }) => {
   return (
     <div>
-      <h3 className={combineClasses(textClasses.primary, "text-base mb-3")}>
-        {label}
-      </h3>
+      <h3 className="text-foreground text-base mb-3">{label}</h3>
 
       <div className="flex items-start gap-3 mb-2">
         <div
-          className={`flex items-center justify-center w-5 h-5 rounded border ${checked ? "bg-purple-600 border-purple-400" : `bg-transparent ${borderClasses.primary}`} cursor-pointer mt-1`}
+          className={`flex items-center justify-center w-5 h-5 rounded border ${checked ? "bg-purple-600 border-purple-400" : "bg-transparent border-border"} cursor-pointer mt-1`}
           onClick={onChange}
         >
           {checked && <Check size={16} className="text-white" />}
         </div>
-        <span className={textClasses.primary}>{label}</span>
+        <span className="text-foreground">{label}</span>
       </div>
 
-      <p className={combineClasses(textClasses.tertiary, "text-sm italic")}>
-        {description}
-      </p>
+      <p className="text-muted-foreground text-sm italic">{description}</p>
     </div>
   );
 };
@@ -728,44 +660,23 @@ const PrivacySecurityPage: React.FC = () => {
   ];
 
   return (
-    <div
-      className={combineClasses(
-        bgClasses.secondary,
-        textClasses.primary,
-        "min-h-screen"
-      )}
-    >
+    <div className="bg-secondary text-foreground min-h-screen">
       <div className="max-w-8xl mx-auto">
         {/* Email Verification Section */}
         <SectionCard>
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <h2
-                className={combineClasses(
-                  textClasses.highlight,
-                  "text-xl font-medium mb-2"
-                )}
-              >
+              <h2 className="text-highlight text-xl font-medium mb-2">
                 Verify Email Address
               </h2>
-              <p
-                className={combineClasses(
-                  textClasses.tertiary,
-                  "italic text-sm mb-4"
-                )}
-              >
+              <p className="text-muted-foreground italic text-sm mb-4">
                 Your account is protected with an additional verification step
                 using your Authenticator App. You'll need to provide a
                 verification code along with your password when signing in from
                 new devices.
               </p>
-              <div
-                className={combineClasses(
-                  bgClasses.input,
-                  "flex w-full justify-between px-3 py-4 items-center gap-2 rounded"
-                )}
-              >
-                <span className={textClasses.secondary}>
+              <div className="bg-input flex w-full justify-between px-3 py-4 items-center gap-2 rounded">
+                <span className="text-muted-foreground">
                   {userEmail || "No email found"}
                 </span>
                 {settings.emailVerified ? (
@@ -787,10 +698,7 @@ const PrivacySecurityPage: React.FC = () => {
             ) : (
               <button
                 onClick={handleVerifyEmail}
-                className={combineClasses(
-                  buttonClasses.secondary,
-                  "px-4 py-2 rounded-md"
-                )}
+                className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white px-4 py-2 rounded-md"
               >
                 Verify Email
               </button>
@@ -811,20 +719,10 @@ const PrivacySecurityPage: React.FC = () => {
 
         {/* Password */}
         <SectionCard>
-          <h2
-            className={combineClasses(
-              textClasses.highlight,
-              "text-xl font-medium mb-2"
-            )}
-          >
-            Password
-          </h2>
-          <p className={textClasses.tertiary}>
+          <h2 className="text-highlight text-xl font-medium mb-2">Password</h2>
+          <p className="text-muted-foreground">
             <button
-              className={combineClasses(
-                textClasses.highlight,
-                "hover:underline italic"
-              )}
+              className="text-highlight hover:underline italic"
               onClick={handleChangePassword}
             >
               Change password
@@ -834,12 +732,7 @@ const PrivacySecurityPage: React.FC = () => {
         </SectionCard>
 
         <SectionCard>
-          <h2
-            className={combineClasses(
-              textClasses.highlight,
-              "text-xl font-medium mb-4"
-            )}
-          >
+          <h2 className="text-highlight text-xl font-medium mb-4">
             Privacy Controls
           </h2>
 
@@ -851,7 +744,7 @@ const PrivacySecurityPage: React.FC = () => {
             onSelect={selectVisibilityOption}
           />
 
-          <hr className={combineClasses(borderClasses.primary, "my-4")} />
+          <hr className="border border-border my-4" />
 
           <Checkbox
             label="Show Activity Status"
@@ -864,10 +757,7 @@ const PrivacySecurityPage: React.FC = () => {
         {/* Save Changes Button */}
         <div className="flex justify-end mb-8">
           <button
-            className={combineClasses(
-              buttonClasses.secondary,
-              "w-full md:w-auto px-6 py-3 rounded-md mb-[4em] lg:mb-0"
-            )}
+            className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white w-full md:w-auto px-6 py-3 rounded-md mb-[4em] lg:mb-0"
             onClick={handleSaveChanges}
           >
             Save Changes

@@ -100,9 +100,7 @@ export function ReportBugForm() {
             name="feedbackType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel
-                  className={`text-base font-medium ${textClasses.primary}`}
-                >
+                <FormLabel className="text-base font-medium text-foreground">
                   Select type of feedback:
                 </FormLabel>
                 <Select
@@ -110,15 +108,11 @@ export function ReportBugForm() {
                   defaultValue={field.value}
                 >
                   <FormControl>
-                    <SelectTrigger
-                      className={`h-[60px] ${borderClasses.primary} ${ringClasses.primary} ${textClasses.primary}`}
-                    >
+                    <SelectTrigger className="h-[60px] border border-border focus:ring-1 focus:ring-purple-600 dark:focus:ring-purple-400 focus:outline-none text-foreground">
                       <SelectValue placeholder="Select feedback type" />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent
-                    className={`${bgClasses.dropdown} ${borderClasses.primary} ${textClasses.primary}`}
-                  >
+                  <SelectContent className="bg-dropdown border border-border text-foreground">
                     <SelectItem value="bug-report">Bug Report</SelectItem>
                     <SelectItem value="feature-suggestion">
                       Feature Suggestion
@@ -135,18 +129,13 @@ export function ReportBugForm() {
             name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel
-                  className={`text-base font-medium ${textClasses.primary}`}
-                >
+                <FormLabel className="text-base font-medium text-foreground">
                   Title
                 </FormLabel>
                 <FormControl>
                   <Input
                     placeholder="Subject / Case Name"
-                    className={cn(
-                      combineClasses(componentClasses.input, bgClasses.primary),
-                      "h-[82px] text-sm sm:text-lg"
-                    )}
+                    className="w-full bg-input text-foreground rounded-lg p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-purple-500 h-[82px] text-sm sm:text-lg"
                     {...field}
                   />
                 </FormControl>
@@ -160,18 +149,13 @@ export function ReportBugForm() {
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel
-                  className={`text-base font-medium ${textClasses.primary}`}
-                >
+                <FormLabel className="text-base font-medium text-foreground">
                   Description
                 </FormLabel>
                 <FormControl>
                   <Textarea
                     placeholder="Tell us what happened or what you'd like to see improved..."
-                    className={cn(
-                      combineClasses(componentClasses.input, bgClasses.primary),
-                      "min-h-[120px] resize-none"
-                    )}
+                    className="w-full bg-input text-foreground rounded-lg p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[120px] resize-none"
                     {...field}
                   />
                 </FormControl>
@@ -181,7 +165,7 @@ export function ReportBugForm() {
           />
 
           <div className="space-y-2">
-            <label className={`text-base font-medium ${textClasses.primary}`}>
+            <label className="text-base font-medium text-foreground">
               Screenshot (optional)
             </label>
             <FileUpload
