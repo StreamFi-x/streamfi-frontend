@@ -118,7 +118,7 @@ export function LanguageSection({
               <div className="mt-6 flex justify-end">
                 <motion.button
                   onClick={() => updateUiState({ showLanguageModal: false })}
-                  className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white px-6 py-2 rounded-md text-sm"
+                  className="bg-highlight hover:bg-highlight/80 text-primary-foreground px-6 py-2 rounded-md text-sm"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >

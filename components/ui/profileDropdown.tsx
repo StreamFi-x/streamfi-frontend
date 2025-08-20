@@ -96,7 +96,7 @@ interface UserProfileProps {
 const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
   return (
     <div
-      className="px-3 py-2 sm:p-4 flex items-center space-x-3 sm:space-x-3 cursor-pointer border-b border-gray-200 dark:border-gray-700 text-foreground"
+      className="px-3 py-2 sm:p-4 flex items-center space-x-3 sm:space-x-3 cursor-pointer border-b border-border text-foreground"
       onClick={onClick}
     >
       <div className="relative w-9 h-9 rounded-full 0 overflow-hidden">

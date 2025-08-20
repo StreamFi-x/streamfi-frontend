@@ -30,7 +30,7 @@ const TabsNavigation = ({ username }: TabsNavigationProps) => {
   };
 
   return (
-    <div className="border-b border-gray-200 dark:border-gray-700">
+    <div className="border-b border-border">
       <nav className="flex px-4 sm:px-6">
         {tabs.map(tab => (
           <Link

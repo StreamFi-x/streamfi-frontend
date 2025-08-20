@@ -137,7 +137,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
         <p className="text-muted-foreground mt-2">{message}</p>
         <button
           onClick={onClose}
-          className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white w-full mt-6 px-4 py-2 rounded-lg"
+          className="bg-highlight hover:bg-highlight/80 text-white w-full mt-6 px-4 py-2 rounded-lg"
         >
           Close
         </button>
@@ -321,7 +321,7 @@ const VerifyEmailModal: React.FC<{
                 value={digit}
                 onChange={e => handleCodeChange(index, e.target.value)}
                 onKeyDown={e => handleKeyDown(index, e)}
-                className="bg-input border border-border w-12 h-12 text-center text-lg font-semibold rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:ring-opacity-20 outline-none transition-colors text-foreground"
+                className="bg-input border border-border w-12 h-12 text-center text-lg font-semibold rounded-lg focus:border-highlight focus:ring-2 focus:ring-highlight focus:ring-opacity-20 outline-none transition-colors text-foreground"
                 disabled={isLoading}
               />
             ))}
@@ -330,7 +330,7 @@ const VerifyEmailModal: React.FC<{
           <button
             onClick={handleSubmit}
             disabled={isLoading || code.some(digit => !digit)}
-            className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white w-full py-3 rounded-lg font-medium disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center mb-4"
+            className="bg-highlight hover:bg-highlight/80 text-white w-full py-3 rounded-lg font-medium disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center mb-4"
           >
             {isLoading ? (
               <>
@@ -369,7 +369,7 @@ const VerifyEmailModal: React.FC<{
 const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ enabled, onChange }) => {
   return (
     <div
-      className={`w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${enabled ? "bg-purple-600" : "bg-gray-700 dark:bg-gray-700"}`}
+      className={`w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${enabled ? "bg-highlight" : "bg-gray-700 dark:bg-gray-700"}`}
       onClick={onChange}
     >
       <div
@@ -412,7 +412,7 @@ const ToggleSection: React.FC<ToggleSectionProps> = ({
       {actionButton && (
         <div className="flex justify-end mt-4">
           <button
-            className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white px-4 py-2 rounded-md"
+            className="bg-highlight hover:bg-highlight/80 text-white px-4 py-2 rounded-md"
             onClick={actionButton.onClick}
           >
             {actionButton.text}
@@ -482,7 +482,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
 
       <div className="flex items-start gap-3 mb-2">
         <div
-          className={`flex items-center justify-center w-5 h-5 rounded border ${checked ? "bg-purple-600 border-purple-400" : "bg-transparent border-border"} cursor-pointer mt-1`}
+          className={`flex items-center justify-center w-5 h-5 rounded border ${checked ? "bg-highlight border-highlight" : "bg-transparent border-border"} cursor-pointer mt-1`}
           onClick={onChange}
         >
           {checked && <Check size={16} className="text-white" />}
@@ -698,7 +698,7 @@ const PrivacySecurityPage: React.FC = () => {
             ) : (
               <button
                 onClick={handleVerifyEmail}
-                className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white px-4 py-2 rounded-md"
+                className="bg-highlight hover:bg-highlight/80 text-white px-4 py-2 rounded-md"
               >
                 Verify Email
               </button>
@@ -757,7 +757,7 @@ const PrivacySecurityPage: React.FC = () => {
         {/* Save Changes Button */}
         <div className="flex justify-end mb-8">
           <button
-            className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white w-full md:w-auto px-6 py-3 rounded-md mb-[4em] lg:mb-0"
+            className="bg-highlight hover:bg-highlight/80 text-white w-full md:w-auto px-6 py-3 rounded-md mb-[4em] lg:mb-0"
             onClick={handleSaveChanges}
           >
             Save Changes

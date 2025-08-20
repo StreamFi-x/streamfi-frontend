@@ -377,7 +377,7 @@ export function SocialLinksSection({
           <motion.button
             onClick={handleAddSocialLink}
             disabled={socialLinks.length >= 5 || !formState.socialLinkUrl}
-            className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white px-6 py-2 rounded-md transition text-sm disabled:opacity-50"
+            className="bg-highlight hover:bg-highlight/80 text-primary-foreground px-6 py-2 rounded-md transition text-sm disabled:opacity-50"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             initial={{ opacity: 0 }}

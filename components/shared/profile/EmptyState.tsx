@@ -35,7 +35,7 @@ const EmptyState = ({ type, isOwner, username }: EmptyStateProps) => {
       </p>
 
       {isOwner && (
-        <Button className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white">
+        <Button className="bg-highlight hover:bg-highlight/80 text-primary-foreground">
           <Upload className="h-4 w-4 mr-2" />
           {type === "videos" ? "Upload a Video" : "Create a Clip"}
         </Button>

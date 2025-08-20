@@ -219,7 +219,7 @@ const NotificationSettings: React.FC = () => {
 
         <div className="flex justify-end">
           <button
-            className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white px-6 py-3 rounded-md"
+            className="bg-highlight hover:bg-highlight/80 text-primary-foreground px-6 py-3 rounded-md"
             onClick={saveChanges}
           >
             Save Changes

@@ -191,7 +191,7 @@ export default function StreamInfoModal({
                 <input
                   type="text"
                   {...register("title")}
-                  className="w-full bg-input border border-border rounded-md px-3 py-2 focus:ring-1 focus:ring-purple-600 dark:focus:ring-purple-400 focus:outline-none text-foreground"
+                  className="w-full bg-input border border-border rounded-md px-3 py-2 focus:ring-1 focus:ring-highlight focus:outline-none text-foreground"
                 />
                 {errors.title && (
                   <p className="mt-1 text-sm text-red-500">
@@ -207,7 +207,7 @@ export default function StreamInfoModal({
                 <input
                   type="text"
                   {...register("category")}
-                  className="w-full bg-input border border-border rounded-md px-3 py-2 focus:ring-1 focus:ring-purple-600 dark:focus:ring-purple-400 focus:outline-none text-foreground"
+                  className="w-full bg-input border border-border rounded-md px-3 py-2 focus:ring-1 focus:ring-highlight focus:outline-none text-foreground"
                 />
               </div>
 
@@ -218,7 +218,7 @@ export default function StreamInfoModal({
                 <textarea
                   {...register("description")}
                   rows={3}
-                  className="w-full bg-input border border-border rounded-md px-3 py-2 focus:ring-1 focus:ring-purple-600 dark:focus:ring-purple-400 focus:outline-none text-foreground"
+                  className="w-full bg-input border border-border rounded-md px-3 py-2 focus:ring-1 focus:ring-highlight focus:outline-none text-foreground"
                 />
               </div>
 
@@ -227,7 +227,7 @@ export default function StreamInfoModal({
                   Thumbnail (1200x640, max 4MB)
                 </label>
                 <div
-                  className="border-2 border-dashed border-border text-foreground rounded-md p-4 text-center cursor-pointer hover:border-purple-600 dark:hover:border-purple-400 transition-colors"
+                  className="border-2 border-dashed border-border text-foreground rounded-md p-4 text-center cursor-pointer hover:border-highlight transition-colors"
                   onClick={() => fileInputRef.current?.click()}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
@@ -306,7 +306,7 @@ export default function StreamInfoModal({
                     value={newTag}
                     onChange={e => setNewTag(e.target.value)}
                     placeholder="Add a tag"
-                    className="flex-1 bg-input border border-border rounded-l-md px-3 py-2 focus:ring-1 focus:ring-purple-600 dark:focus:ring-purple-400 focus:outline-none text-foreground"
+                    className="flex-1 bg-input border border-border rounded-l-md px-3 py-2 focus:ring-1 focus:ring-highlight focus:outline-none text-foreground"
                     disabled={tags.length >= 4}
                   />
                   <button

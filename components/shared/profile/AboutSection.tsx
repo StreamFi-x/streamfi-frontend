@@ -120,7 +120,7 @@ const AboutSection = ({
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white border-none mt-3"
+                className="bg-highlight hover:bg-highlight/80 text-primary-foreground border-none mt-3"
                 onClick={() => setShowBioModal(true)}
               >
                 Add Bio

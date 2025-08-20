@@ -157,7 +157,7 @@ const ThemeSettingsPage: React.FC = () => {
 
         <div className="lg:flex lg:justify-end w-full">
           <button
-            className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white w-full lg:w-[12em] px-6 py-3 rounded-lg"
+            className="bg-highlight hover:bg-highlight/80 text-primary-foreground w-full lg:w-[12em] px-6 py-3 rounded-lg"
             onClick={saveChanges}
           >
             Save Changes

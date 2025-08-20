@@ -90,7 +90,7 @@ export default function StreamInfo({ data, onEditClick }: StreamInfoProps) {
 
             <button
               onClick={onEditClick}
-              className="w-full py-2 bg-purple-600 hover:bg-purple-800 text-white dark:text-white text-xs rounded-md transition-colors"
+              className="w-full py-2 bg-highlight hover:bg-highlight/80 text-primary-foreground text-xs rounded-md transition-colors"
             >
               Edit Stream Info
             </button>

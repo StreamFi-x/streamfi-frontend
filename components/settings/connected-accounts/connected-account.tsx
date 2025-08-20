@@ -38,7 +38,7 @@ const ConnectionItem: React.FC<ConnectionItemProps> = ({
 }) => {
   return (
     <div
-      className={`flex items-center justify-between py-5 ${!isLast ? "border-b border-gray-200 dark:border-gray-700" : ""}`}
+      className={`flex items-center justify-between py-5 ${!isLast ? "border-b border-border" : ""}`}
     >
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 relative">
@@ -64,7 +64,7 @@ const ConnectionItem: React.FC<ConnectionItemProps> = ({
         </button>
       ) : (
         <button
-          className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white px-6 py-2 rounded-lg"
+          className="bg-highlight hover:bg-highlight/80 text-primary-foreground px-6 py-2 rounded-lg"
           onClick={onConnect}
         >
           Connect

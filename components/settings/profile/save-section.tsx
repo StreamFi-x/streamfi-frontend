@@ -27,7 +27,7 @@ export function SaveSection({ uiState, handleSaveChanges }: SaveSectionProps) {
       <motion.button
         onClick={handleSaveChanges}
         disabled={uiState.isSaving}
-        className="bg-purple-600 hover:bg-purple-800 text-white dark:text-white mr-4 px-6 py-3 rounded-md text-sm disabled:opacity-50"
+        className="bg-highlight hover:bg-highlight/80 text-primary-foreground mr-4 px-6 py-3 rounded-md text-sm disabled:opacity-50"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
