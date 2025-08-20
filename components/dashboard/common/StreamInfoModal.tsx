@@ -4,7 +4,7 @@ import type React from "react";
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Upload, XCircle } from "lucide-react";
+import { X, Upload } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -62,7 +62,9 @@ export default function StreamInfoModal({
   });
 
   const handleAddTag = () => {
-    if (!newTag.trim() || tags.length >= 4) return;
+    if (!newTag.trim() || tags.length >= 4) {
+      return;
+    }
 
     if (!tags.includes(newTag)) {
       setTags([...tags, newTag]);
@@ -80,7 +82,9 @@ export default function StreamInfoModal({
 
   const handleThumbnailChange = (e: ThumbnailChangeEvent): void => {
     const file: File | null = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     // Validate file type
     const validTypes: string[] = ["image/jpeg", "image/png", "image/webp"];
