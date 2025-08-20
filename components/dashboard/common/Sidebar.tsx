@@ -166,7 +166,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </motion.span>
         <motion.button
           variants={itemVariants}
-          className={`p-2 hover:bg-gray-100 dark:hover:bg-[#282828] rounded-full text-foreground relative overflow-hidden`}
+          className={`p-2 hover:bg-surface rounded-full text-foreground relative overflow-hidden`}
           onClick={onToggle}
           whileHover={{ scale: 1.1, rotate: 5 }}
           whileTap={{ scale: 0.9 }}

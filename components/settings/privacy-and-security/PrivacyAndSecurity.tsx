@@ -122,8 +122,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
   };
 
   const colors = {
-    success: "text-green-600 dark:text-green-400",
-    error: "text-red-600 dark:text-red-400",
+    success: "text-success",
+    error: "text-error",
     warning: "text-yellow-600 dark:text-yellow-400",
   };
 

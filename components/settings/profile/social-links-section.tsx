@@ -363,7 +363,7 @@ export function SocialLinksSection({
         <AnimatePresence>
           {uiState.duplicateUrlError && (
             <motion.p
-              className="text-red-600 dark:text-red-400 text-xs mt-1 mb-2"
+              className="text-error text-xs mt-1 mb-2"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
@@ -462,7 +462,7 @@ export function SocialLinksSection({
                       <AnimatePresence>
                         {uiState.duplicateUrlError && (
                           <motion.p
-                            className="text-red-600 dark:text-red-400 text-xs mt-1"
+                            className="text-error text-xs mt-1"
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}

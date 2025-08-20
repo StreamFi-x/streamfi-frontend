@@ -17,12 +17,10 @@ export function SaveSection({ uiState, handleSaveChanges }: SaveSectionProps) {
       transition={{ duration: 0.3, delay: 0.2 }}
     >
       {uiState.saveError && (
-        <p className="text-red-600 dark:text-red-400 mr-4 self-center">
-          {uiState.saveError}
-        </p>
+        <p className="text-error mr-4 self-center">{uiState.saveError}</p>
       )}
       {uiState.saveSuccess && (
-        <p className="text-green-600 dark:text-green-400 mr-4 self-center">
+        <p className="text-success mr-4 self-center">
           Changes saved successfully!
         </p>
       )}
