@@ -30,12 +30,12 @@ export default function SettingsNavigation() {
               className={`group pb-4 px-1 whitespace-nowrap relative transition-colors ${
                 isActive
                   ? `text-highlight font-medium`
-                  : `text-foreground hover:text-purple-500 dark:hover:text-purple-400`
+                  : `text-foreground hover:text-highlight`
               }`}
             >
               {tab.id}
               <span
-                className={`absolute bottom-0 left-0 w-full h-0.5 bg-purple-500 dark:bg-purple-400 transition-transform duration-300 ${
+                className={`absolute bottom-0 left-0 w-full h-0.5 bg-highlight  transition-transform duration-300 ${
                   isActive ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
                 }`}
               ></span>
