@@ -28,29 +28,73 @@ const config: Config = {
   collectCoverage: true,
 
   // An array of glob patterns indicating a set of files for which coverage information should be collected
-  // collectCoverageFrom: undefined,
+  collectCoverageFrom: [
+    "components/**/*.{js,jsx,ts,tsx}",
+    "app/**/*.{js,jsx,ts,tsx}",
+    "lib/**/*.{js,jsx,ts,tsx}",
+    "hooks/**/*.{js,jsx,ts,tsx}",
+    "utils/**/*.{js,jsx,ts,tsx}",
+    "!**/*.d.ts",
+    "!**/node_modules/**",
+    "!**/.next/**",
+    "!**/coverage/**",
+    "!**/*.config.{js,ts}",
+    "!**/jest.setup.ts",
+  ],
 
   // The directory where Jest should output its coverage files
   coverageDirectory: "coverage",
 
   // An array of regexp pattern strings used to skip coverage collection
-  // coveragePathIgnorePatterns: [
-  //   "\\\\node_modules\\\\"
-  // ],
+  coveragePathIgnorePatterns: [
+    "/node_modules/",
+    "/.next/",
+    "/coverage/",
+    "jest.config.ts",
+    "next.config.cjs",
+  ],
 
   // Indicates which provider should be used to instrument code for coverage
   coverageProvider: "v8",
 
   // A list of reporter names that Jest uses when writing coverage reports
-  // coverageReporters: [
-  //   "json",
-  //   "text",
-  //   "lcov",
-  //   "clover"
-  // ],
+  coverageReporters: ["json", "text", "lcov", "clover", "html"],
 
   // An object that configures minimum threshold enforcement for coverage results
-  // coverageThreshold: undefined,
+  coverageThreshold: {
+    global: {
+      branches: 70,
+      functions: 70,
+      lines: 70,
+      statements: 70,
+    },
+  },
+
+  // Test file patterns
+  testMatch: [
+    "**/__tests__/**/*.{js,jsx,ts,tsx}",
+    "**/*.{test,spec}.{js,jsx,ts,tsx}",
+  ],
+
+  // Setup files
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
+
+  // Test environment
+  testEnvironment: "jsdom",
+
+  // Transform files
+  transform: {
+    "^.+\\.(js|jsx|ts|tsx)$": ["babel-jest", { presets: ["next/babel"] }],
+  },
+
+  // Module name mapping
+  moduleNameMapper: {
+    "^@/(.*)$": "<rootDir>/$1",
+    "^@/components/(.*)$": "<rootDir>/components/$1",
+    "^@/lib/(.*)$": "<rootDir>/lib/$1",
+    "^@/utils/(.*)$": "<rootDir>/utils/$1",
+    "^@/hooks/(.*)$": "<rootDir>/hooks/$1",
+  },
 
   // A path to a custom dependency extractor
   // dependencyExtractor: undefined,
@@ -146,7 +190,6 @@ const config: Config = {
 
   // A list of paths to modules that run some code to configure or set up the testing framework before each test
   // setupFilesAfterEnv: [],
-  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
 
   // The number of seconds after which a test is considered as slow and reported as such in the results.
   // slowTestThreshold: 5,
@@ -155,7 +198,7 @@ const config: Config = {
   // snapshotSerializers: [],
 
   // The test environment that will be used for testing
-  testEnvironment: "jsdom",
+  // testEnvironment: "jsdom",
 
   // Options that will be passed to the testEnvironment
   // testEnvironmentOptions: {},
