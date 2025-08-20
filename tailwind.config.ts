@@ -59,6 +59,13 @@ const config: Config = {
         error: "hsl(var(--error))",
         success: "hsl(var(--success))",
         overlay: "hsl(var(--overlay) / var(--overlay-opacity))",
+        surface: "hsl(var(--surface))",
+        "surface-hover": "hsl(var(--surface-hover))",
+        // Additional utility colors
+        "bg-surface": "hsl(var(--surface))",
+        "bg-surface-hover": "hsl(var(--surface-hover))",
+        "text-surface": "hsl(var(--surface))",
+        "border-surface": "hsl(var(--surface))",
         // Your custom colors
         "background-2": "var(--background-2)",
         "background-3": "var(--background-3)",
