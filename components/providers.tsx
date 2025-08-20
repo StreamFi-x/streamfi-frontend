@@ -10,15 +10,18 @@ import {
   voyager,
 } from "@starknet-react/core";
 import { AuthProvider } from "./auth/auth-provider";
+
 import { ThemeProvider } from "@/contexts/theme-context";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const { connectors } = useInjectedConnectors({
     // Recommended connectors for StarkNet
+
     recommended: [argent(), braavos()],
     // Include all injected connectors
     includeRecommended: "always",
     // Order of connectors
+
     order: "alphabetical",
   });
 
