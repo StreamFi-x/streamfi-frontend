@@ -87,7 +87,7 @@ const NotFound: FC<NotFoundProps> = () => {
         {[...Array(6)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute rounded-full bg-purple-500/10 dark:bg-purple-400/10"
+            className="absolute rounded-full bg-highlight/10"
             style={{
               width: Math.random() * 100 + 50,
               height: Math.random() * 100 + 50,
@@ -143,7 +143,7 @@ const NotFound: FC<NotFoundProps> = () => {
                     <motion.div
                       variants={pulseVariants}
                       animate="animate"
-                      className="absolute inset-0 bg-purple-500/20 rounded-full blur-xl"
+                      className="absolute inset-0 bg-highlight/20 rounded-full blur-xl"
                     />
                     <div
                       className={`relative bg-card p-6 rounded-full shadow-2xl border border-border border-2`}
@@ -221,7 +221,7 @@ const NotFound: FC<NotFoundProps> = () => {
                 {/* Live Streams Indicator */}
                 <motion.div
                   variants={itemVariants}
-                  className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700"
+                  className="mt-12 pt-8 border-t border-border"
                 >
                   <div className="flex items-center justify-center gap-2 mb-4">
                     <motion.div
@@ -249,7 +249,7 @@ const NotFound: FC<NotFoundProps> = () => {
                       {
                         icon: Monitor,
                         label: "Active now",
-                        color: "text-purple-500",
+                        color: "text-highlight",
                       },
                     ].map((item, index) => (
                       <motion.div

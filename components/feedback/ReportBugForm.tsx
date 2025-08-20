@@ -108,7 +108,7 @@ export function ReportBugForm() {
                   defaultValue={field.value}
                 >
                   <FormControl>
-                    <SelectTrigger className="h-[60px] border border-border focus:ring-1 focus:ring-purple-600 dark:focus:ring-purple-400 focus:outline-none text-foreground">
+                    <SelectTrigger className="h-[60px] border border-border focus:ring-1 focus:ring-highlight focus:outline-none text-foreground">
                       <SelectValue placeholder="Select feedback type" />
                     </SelectTrigger>
                   </FormControl>

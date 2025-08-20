@@ -369,7 +369,7 @@ const VerifyEmailModal: React.FC<{
 const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ enabled, onChange }) => {
   return (
     <div
-      className={`w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${enabled ? "bg-highlight" : "bg-gray-700 dark:bg-gray-700"}`}
+      className={`w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${enabled ? "bg-highlight" : "bg-muted"}`}
       onClick={onChange}
     >
       <div

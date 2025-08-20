@@ -29,7 +29,7 @@ const RadioOption: React.FC<RadioOptionProps> = ({
   return (
     <div className="flex items-center">
       <button
-        className={`w-8 h-8 rounded-full ${isSelected ? "bg-purple-600" : "bg-gray-300 dark:bg-gray-600"}  flex items-center justify-center mr-3 transition-colors`}
+        className={`w-8 h-8 rounded-full ${isSelected ? "bg-highlight" : "bg-muted"} flex items-center justify-center mr-3 transition-colors`}
         onClick={onSelect}
       >
         {isSelected && (

@@ -259,7 +259,7 @@ const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
           {menuItems.map((section, index) => (
             <div
               key={section.id}
-              className={`py-2 ${index > 0 ? "border-t border-gray-200 dark:border-gray-700" : ""}`}
+              className={`py-2 ${index > 0 ? "border-t border-border" : ""}`}
             >
               {section.items.map(item => (
                 <div

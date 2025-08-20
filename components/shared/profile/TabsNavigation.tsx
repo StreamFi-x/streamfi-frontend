@@ -38,7 +38,7 @@ const TabsNavigation = ({ username }: TabsNavigationProps) => {
             href={tab.path}
             className={`flex items-center px-4 py-3 text-xs sm:text-sm font-medium transition-colors duration-300 relative ${
               isActive(tab.path)
-                ? "text-foreground after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-purple-600"
+                ? "text-foreground after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-highlight"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >

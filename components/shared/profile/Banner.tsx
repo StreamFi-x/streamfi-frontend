@@ -53,7 +53,7 @@ const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
               <p className="text-muted-foreground text-[10px] sm:text-xs mb-3">
                 Follow and get notified when {username} goes live
               </p>
-              <Button className="flex items-center gap-1 py-1 bg-purple-600 hover:bg-purple-700 text-white dark:text-gray-900 text-[8px] sm:text-[10px]">
+              <Button className="flex items-center gap-1 py-1 bg-highlight hover:bg-highlight/80 text-primary-foreground text-[8px] sm:text-[10px]">
                 <BellDot size={12} />
                 <span className="hidden sm:block">Turn on Notifications</span>
               </Button>

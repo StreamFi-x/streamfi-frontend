@@ -253,7 +253,7 @@ export default function Chat() {
           value={newMessage}
           onChange={e => setNewMessage(e.target.value)}
           placeholder="Send a message"
-          className="flex-1 bg-input border border-border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-purple-600 dark:focus:ring-purple-400 focus:outline-none text-foreground"
+          className="flex-1 bg-input border border-border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-highlight focus:outline-none text-foreground"
         />
         <button
           type="button"
@@ -263,7 +263,7 @@ export default function Chat() {
         </button>
         <button
           type="submit"
-          className="p-2 bg-purple-600 hover:bg-purple-700 text-white dark:text-gray-900 rounded-md transition-colors"
+          className="p-2 bg-highlight hover:bg-highlight/80 text-primary-foreground rounded-md transition-colors"
           disabled={!newMessage.trim()}
         >
           <Send size={20} />

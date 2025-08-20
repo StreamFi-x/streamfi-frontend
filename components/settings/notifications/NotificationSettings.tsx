@@ -27,7 +27,7 @@ interface NotificationCategoryProps {
 const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ enabled, onChange }) => {
   return (
     <div
-      className={`flex-shrink-0 w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${enabled ? "bg-purple-600" : "bg-gray-700 dark:bg-gray-700"}`}
+      className={`flex-shrink-0 w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${enabled ? "bg-highlight" : "bg-muted"}`}
       onClick={onChange}
     >
       <div

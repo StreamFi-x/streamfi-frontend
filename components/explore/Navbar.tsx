@@ -332,7 +332,7 @@ export default function Navbar({}: NavbarProps) {
               onFocus={() => {
                 if (searchResults.length > 0) setIsSearchDropdownOpen(true);
               }}
-              className={`w-full bg-input rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:ring-1 focus:ring-purple-600 dark:focus:ring-purple-400 focus:outline-none`}
+              className={`w-full bg-input rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:ring-1 focus:ring-highlight focus:outline-none`}
             />
             <Search
               className="absolute left-3 top-[47%] transform -translate-y-1/2 text-gray-400"
@@ -456,7 +456,7 @@ export default function Navbar({}: NavbarProps) {
           {!isConnected && (
             <button
               onClick={handleConnectWallet}
-              className={`bg-purple-700 hover:bg-purple-500 text-white px-4 py-3 rounded-md text-sm font-medium`}
+              className={`bg-highlight hover:bg-highlight/80 text-primary-foreground px-4 py-3 rounded-md text-sm font-medium`}
             >
               Connect Wallet
             </button>

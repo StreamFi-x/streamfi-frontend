@@ -313,7 +313,7 @@ export default function StreamInfoModal({
                     type="button"
                     onClick={handleAddTag}
                     disabled={!newTag.trim() || tags.length >= 4}
-                    className="bg-purple-600 hover:bg-purple-700 text-white dark:text-gray-900 disabled:bg-tertiary disabled:text-muted-foreground px-4 rounded-r-md transition-colors"
+                    className="bg-highlight hover:bg-highlight/80 text-primary-foreground disabled:bg-tertiary disabled:text-muted-foreground px-4 rounded-r-md transition-colors"
                   >
                     Add
                   </button>
@@ -336,7 +336,7 @@ export default function StreamInfoModal({
                 <button
                   type="submit"
                   disabled={!isValid}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white dark:text-gray-900 disabled:bg-tertiary disabled:text-muted-foreground rounded-md transition-colors"
+                  className="px-4 py-2 bg-highlight hover:bg-highlight/80 text-primary-foreground disabled:bg-tertiary disabled:text-muted-foreground rounded-md transition-colors"
                 >
                   Done
                 </button>

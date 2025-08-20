@@ -90,7 +90,7 @@ const ChatSection = ({
         {/* Gradient overlay at top */}
         <div
           className={`absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-white ${
-            isFullscreen ? "dark:from-black " : "dark:from-[#17191A]"
+            isFullscreen ? "dark:from-secondary " : "dark:from-background"
           } to-transparent z-10`}
         />
 
@@ -117,7 +117,7 @@ const ChatSection = ({
         {/* Gradient overlay at bottom */}
         <div
           className={`absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white ${
-            isFullscreen ? "dark:from-black" : "dark:from-[#17191A]"
+            isFullscreen ? "dark:from-secondary" : "dark:from-background"
           } to-transparent z-10`}
         />
       </div>
@@ -131,17 +131,17 @@ const ChatSection = ({
             onChange={e => setChatMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Send a message"
-            className="w-full bg-secondary text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+            className="w-full bg-secondary text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-highlight"
           />
           <div className="absolute right-2 top-2 flex space-x-1 items-center">
-            <button className="text-gray-400 dark:hover:text-white">
+            <button className="text-muted-foreground hover:text-foreground">
               <Smile className="h-4 w-4" />
             </button>
-            <button className="text-gray-400 dark:hover:text-white">
+            <button className="text-muted-foreground hover:text-foreground">
               <GiftIcon className="h-4 w-4" />
             </button>
             <button
-              className="text-gray-400 dark:hover:text-white"
+              className="text-muted-foreground hover:text-foreground"
               onClick={handleSendMessage}
             >
               <Send className="h-4 w-4" />

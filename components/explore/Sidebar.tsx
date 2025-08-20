@@ -252,7 +252,7 @@ export default function Sidebar() {
                   }
                   className={`flex items-center gap-3 py-1.5 px-2.5 rounded-lg transition-all duration-300 relative overflow-hidden ${
                     isActive
-                      ? `bg-purple-50 dark:bg-purple-900/20 text-foreground shadow-lg border-l-4 border-purple-500`
+                      ? `bg-accent text-foreground shadow-lg border-l-4 border-highlight`
                       : `text-muted-foreground hover:text-foreground hover:bg-surface-hover`
                   }`}
                 >
@@ -509,7 +509,7 @@ export default function Sidebar() {
                 }
                 className={`flex items-center justify-center p-3 rounded-lg transition-all duration-300 relative ${
                   isActive
-                    ? "bg-purple-50 dark:bg-purple-900/20 text-foreground shadow-lg ring-2 ring-purple-500/30"
+                    ? "bg-accent text-foreground shadow-lg ring-2 ring-highlight/30"
                     : "text-muted-foreground hover:text-foreground hover:bg-surface-hover"
                 }`}
                 title={item.label}
