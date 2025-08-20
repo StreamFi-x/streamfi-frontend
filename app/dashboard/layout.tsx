@@ -14,7 +14,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <ProtectedRoute>
       <main className="flex h-screen flex-col">
         <Navbar />
-        <div className="flex flel flex- h-screen overflow-hidden ">
+        <div className="flex flel flex- h-screen overflow-hidden  bg-secondary">
           <Sidebar
             isCollapsed={isSidebarCollapsed}
             onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}

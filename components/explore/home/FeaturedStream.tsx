@@ -4,7 +4,6 @@ import { Play, Pause, Volume2, Settings, Maximize } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import type { FeaturedStreamProps } from "@/types/explore/home";
-import { borderClasses, textClasses } from "@/lib/theme-classes";
 
 export function FeaturedStream({ stream }: FeaturedStreamProps) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -12,7 +11,7 @@ export function FeaturedStream({ stream }: FeaturedStreamProps) {
 
   return (
     <div
-      className={`relative w-full aspect-video xl:aspect-[20/8.5] rounded-lg overflow-hidden border ${borderClasses.highlight}`}
+      className="relative w-full aspect-video xl:aspect-[20/8.5] rounded-lg overflow-hidden border border-highlight"
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
@@ -49,15 +48,11 @@ export function FeaturedStream({ stream }: FeaturedStreamProps) {
         </div>
       )}
 
-      <div
-        className={`absolute bottom-16 left-4 right-4 ${textClasses.onColor}`}
-      >
+      <div className="absolute bottom-16 left-4 right-4 text-white">
         <h1 className="text-base md:text-3xl font-bold mb-2">{stream.title}</h1>
       </div>
 
-      <div
-        className={`absolute bottom-4 left-4 right-4 flex items-center justify-between ${textClasses.onColor}`}
-      >
+      <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white">
         <div className="flex items-center gap-4">
           <button
             onClick={() => setIsPlaying(!isPlaying)}

@@ -8,7 +8,6 @@ import { featuredStream } from "@/data/explore/home/featured-stream";
 import { liveStreams } from "@/data/explore/home/live-streams";
 import { trendingStreams } from "@/data/explore/home/trending-streams";
 import SimpleLoader from "@/components/ui/loader/simple-loader";
-import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
@@ -26,13 +25,7 @@ export default function Home() {
   }
 
   return (
-    <div
-      className={combineClasses(
-        "min-h-screen",
-        bgClasses.secondary,
-        textClasses.primary
-      )}
-    >
+    <div className="min-h-screen bg-secondary text-foreground">
       <main className="container mx-auto px-4 py-8">
         <FeaturedStream stream={featuredStream} />
 

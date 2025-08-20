@@ -4,14 +4,6 @@ import Image from "next/image";
 import DiscordLogo from "@/public/Images/discord.svg";
 import SteamLogo from "@/public/Images/steam.svg";
 import YoutubeLogo from "@/public/Images/youtube.svg";
-import {
-  bgClasses,
-  textClasses,
-  borderClasses,
-  buttonClasses,
-  componentClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
 
 interface ConnectionItemProps {
   icon: string;
@@ -29,7 +21,7 @@ interface SectionCardProps {
 
 const SectionCard: React.FC<SectionCardProps> = ({ children }) => {
   return (
-    <div className={combineClasses(componentClasses.card, "py-6 px-3 lg:px-6")}>
+    <div className="bg-card border border-border shadow-sm rounded-lg py-6 px-3 lg:px-6">
       {children}
     </div>
   );
@@ -46,7 +38,7 @@ const ConnectionItem: React.FC<ConnectionItemProps> = ({
 }) => {
   return (
     <div
-      className={`flex items-center justify-between py-5 ${!isLast ? `border-b ${borderClasses.divider}` : ""}`}
+      className={`flex items-center justify-between py-5 ${!isLast ? "border-b border-border" : ""}`}
     >
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 relative">
@@ -59,15 +51,8 @@ const ConnectionItem: React.FC<ConnectionItemProps> = ({
           />
         </div>
         <div>
-          <h3
-            className={combineClasses(
-              textClasses.primary,
-              "text-lg font-medium"
-            )}
-          >
-            {name}
-          </h3>
-          <p className={textClasses.tertiary}>{description}</p>
+          <h3 className="text-foreground text-lg font-medium">{name}</h3>
+          <p className="text-muted-foreground">{description}</p>
         </div>
       </div>
       {isConnected ? (
@@ -79,10 +64,7 @@ const ConnectionItem: React.FC<ConnectionItemProps> = ({
         </button>
       ) : (
         <button
-          className={combineClasses(
-            buttonClasses.secondary,
-            "px-6 py-2 rounded-lg"
-          )}
+          className="bg-highlight hover:bg-highlight/80 text-primary-foreground px-6 py-2 rounded-lg"
           onClick={onConnect}
         >
           Connect
@@ -129,29 +111,13 @@ const ConnectionsPage: React.FC = () => {
   };
 
   return (
-    <div
-      className={combineClasses(
-        "min-h-screen",
-        bgClasses.secondary,
-        textClasses.primary
-      )}
-    >
+    <div className="min-h-screen bg-secondary text-foreground">
       <div className="max-w-8xl mx-auto">
         <SectionCard>
-          <h2
-            className={combineClasses(
-              textClasses.highlight,
-              "text-xl font-medium mb-2"
-            )}
-          >
+          <h2 className="text-highlight text-xl font-medium mb-2">
             Recommended Connections
           </h2>
-          <p
-            className={combineClasses(
-              textClasses.tertiary,
-              "text-sm italic mb-8"
-            )}
-          >
+          <p className="text-muted-foreground text-sm italic mb-8">
             Link your external accounts to enhance your experience across
             platforms. When you connect an account, we may share limited profile
             information and activity data based on your privacy settings. You

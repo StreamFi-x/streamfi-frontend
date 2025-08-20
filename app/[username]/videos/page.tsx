@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { notFound } from "next/navigation";
 import StreamCard from "@/components/shared/profile/StreamCard";
 import EmptyState from "@/components/shared/profile/EmptyState";
-import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
 
 interface PageProps {
   params: {
@@ -52,15 +51,15 @@ const VideosPage = ({ params }: PageProps) => {
   }
 
   return (
-    <div className={combineClasses(bgClasses.secondary, "min-h-screen")}>
+    <div className="bg-secondary min-h-screen">
       <div className="p-6">
         {loading ? (
           <div className="flex justify-center py-12">
-            <p className={textClasses.tertiary}>Loading videos...</p>
+            <p className="text-muted-foreground">Loading videos...</p>
           </div>
         ) : videos.length > 0 ? (
           <section>
-            <h2 className={`${textClasses.primary} text-xl font-medium mb-4`}>
+            <h2 className={`text-foreground text-xl font-medium mb-4`}>
               Videos
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

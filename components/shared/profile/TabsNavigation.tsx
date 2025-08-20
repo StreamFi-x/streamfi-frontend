@@ -2,11 +2,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
-import {
-  borderClasses,
-  textClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
 
 interface TabsNavigationProps {
   username: string;
@@ -35,18 +30,17 @@ const TabsNavigation = ({ username }: TabsNavigationProps) => {
   };
 
   return (
-    <div className={combineClasses("border-b", borderClasses.divider)}>
+    <div className="border-b border-border">
       <nav className="flex px-4 sm:px-6">
         {tabs.map(tab => (
           <Link
             key={tab.name}
             href={tab.path}
-            className={combineClasses(
-              "flex items-center px-4 py-3 text-xs sm:text-sm font-medium transition-colors duration-300 relative",
+            className={`flex items-center px-4 py-3 text-xs sm:text-sm font-medium transition-colors duration-300 relative ${
               isActive(tab.path)
-                ? `${textClasses.primary} after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-purple-600`
-                : `${textClasses.tertiary} hover:${textClasses.primary}`
-            )}
+                ? "text-foreground after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-highlight"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
           >
             {tab.name}
             {tab.icon}

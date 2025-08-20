@@ -5,7 +5,6 @@ import Loader from "@/components/ui/loader/loader";
 import SimpleLoader from "@/components/ui/loader/simple-loader";
 import SettingsNavigation from "@/components/settings/SettingsNavigation";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { bgClasses, textClasses } from "@/lib/theme-classes";
 
 export default function SettingsLayout({
   children,
@@ -15,9 +14,7 @@ export default function SettingsLayout({
   return (
     <ProtectedRoute>
       <main>
-        <div
-          className={`${bgClasses.secondary} ${textClasses.secondary} pt-[2em] px-[1em] lg:px-[2em] w-full flex flex-col items-start min-h-screen`}
-        >
+        <div className="bg-secondary text-muted-foreground pt-[2em] px-[1em] lg:px-[2em] w-full flex flex-col items-start min-h-screen">
           <div className="flex-none w-full">
             <h1 className="text-4xl font-bold mb-8">Settings</h1>
             <SettingsNavigation />
