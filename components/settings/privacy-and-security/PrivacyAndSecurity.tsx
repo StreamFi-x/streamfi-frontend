@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Check, ChevronDown, X, AlertTriangle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -46,7 +46,6 @@ interface ModalProps {
   onClose: () => void;
   children: React.ReactNode;
   title?: string;
-  className?: string;
 }
 
 interface FeedbackModalProps {
@@ -58,13 +57,7 @@ interface FeedbackModalProps {
 }
 
 // Reusable Modal Component
-const Modal: React.FC<ModalProps> = ({
-  isOpen,
-  onClose,
-  children,
-  title,
-  className = "",
-}) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }) => {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -80,7 +73,7 @@ const Modal: React.FC<ModalProps> = ({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-modal border border-border shadow-xl rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto"
+              className="bg-[#1C1C1C] border-none shadow-xl rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
               <div className="p-6">
@@ -155,6 +148,7 @@ const VerifyEmailModal: React.FC<{
 }> = ({ isOpen, onClose, email, onSuccess }) => {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error" | "warning";
     title: string;
@@ -170,7 +164,9 @@ const VerifyEmailModal: React.FC<{
       // Auto-focus next input
       if (value && index < 5) {
         const nextInput = document.getElementById(`code-${index + 1}`);
-        if (nextInput) nextInput.focus();
+        if (nextInput) {
+          nextInput.focus();
+        }
       }
     }
   };
@@ -178,7 +174,9 @@ const VerifyEmailModal: React.FC<{
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
     if (e.key === "Backspace" && !code[index] && index > 0) {
       const prevInput = document.getElementById(`code-${index - 1}`);
-      if (prevInput) prevInput.focus();
+      if (prevInput) {
+        prevInput.focus();
+      }
     }
   };
 
@@ -246,8 +244,8 @@ const VerifyEmailModal: React.FC<{
         });
         setCode(["", "", "", "", "", ""]);
       }
-    } catch (error) {
-      console.error("Error verifying email:", error);
+    } catch {
+      // Error handling for email verification
       setFeedback({
         type: "error",
         title: "Error",
@@ -285,8 +283,8 @@ const VerifyEmailModal: React.FC<{
             "Failed to send verification code. Please try again.",
         });
       }
-    } catch (error) {
-      console.error("Error requesting verification code:", error);
+    } catch {
+      // Error handling for requesting verification code
       setFeedback({
         type: "error",
         title: "Error",
@@ -299,17 +297,20 @@ const VerifyEmailModal: React.FC<{
     <>
       <Modal isOpen={isOpen} onClose={onClose}>
         <div className="text-center">
-          <h3 className="text-foreground text-lg font-semibold mb-2">
+          <h3 className="text-foreground text-left text-2xl font-semibold mb-5">
             Verify Your Email
           </h3>
 
-          <p className="text-muted-foreground mb-6 text-sm">
+          <p className="text-[#FFFFFF80] mb-7 text-sm">
             Enter the 6-digit code sent to{" "}
-            <strong className="text-foreground">{email}</strong>.<br />
+            <strong className="text-foreground">
+              {email || "cassandra@gmail.com."}
+            </strong>
+            .<br />
             This code is valid for 5 minutes.
           </p>
 
-          <div className="flex justify-center space-x-3 mb-6">
+          <div className="flex justify-center space-x-3 mb-8">
             {code.map((digit, index) => (
               <input
                 key={index}
@@ -319,9 +320,12 @@ const VerifyEmailModal: React.FC<{
                 pattern="[0-9]*"
                 maxLength={1}
                 value={digit}
+                placeholder={focusedIndex === index ? "-" : ""}
                 onChange={e => handleCodeChange(index, e.target.value)}
                 onKeyDown={e => handleKeyDown(index, e)}
-                className="bg-input border border-border w-12 h-12 text-center text-lg font-semibold rounded-lg focus:border-highlight focus:ring-2 focus:ring-highlight focus:ring-opacity-20 outline-none transition-colors text-foreground"
+                onFocus={() => setFocusedIndex(index)}
+                onBlur={() => setFocusedIndex(null)}
+                className="bg-[#151515] border-none w-12 h-12 text-center text-lg font-semibold rounded-lg focus:border-highlight focus:ring-1 focus:ring-highlight focus:ring-opacity-20 outline-none transition-colors text-foreground"
                 disabled={isLoading}
               />
             ))}
@@ -342,8 +346,8 @@ const VerifyEmailModal: React.FC<{
             )}
           </button>
 
-          <div className="text-muted-foreground text-sm">
-            Didn't receive a code?{" "}
+          <div className="text-[#FFFFFF80] mt-5 text-sm">
+            Didn&apos;t receive a code?{" "}
             <button
               onClick={handleResendCode}
               className="text-foreground hover:text-gray-300 font-medium underline"
@@ -515,6 +519,17 @@ const PrivacySecurityPage: React.FC = () => {
   // Replace the user object with one that gets email from localStorage
   const [userEmail, setUserEmail] = useState("");
 
+  // Handle all setting changes
+  const updateSetting = useCallback(
+    (key: keyof typeof settings, value: boolean | string) => {
+      setSettings(prev => ({
+        ...prev,
+        [key]: value,
+      }));
+    },
+    []
+  );
+
   // Add useEffect to get user data from sessionStorage
   useEffect(() => {
     try {
@@ -530,21 +545,10 @@ const PrivacySecurityPage: React.FC = () => {
           updateSetting("emailVerified", true);
         }
       }
-    } catch (error) {
-      console.error("Error parsing user data from sessionStorage:", error);
+    } catch {
+      // Error handling for parsing user data
     }
-  }, []);
-
-  // Handle all setting changes
-  const updateSetting = (
-    key: keyof typeof settings,
-    value: boolean | string
-  ) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
+  }, [updateSetting]);
 
   const showFeedback = (
     type: "success" | "error" | "warning",
@@ -589,10 +593,13 @@ const PrivacySecurityPage: React.FC = () => {
     );
   };
 
-  // Update the handleVerifyEmail function to use the VerifyEmailCode component
+  // Update the handleVerifyEmail function to always show the modal
   const handleVerifyEmail = async () => {
+    // Always show the modal first, regardless of API status
+    setShowVerifyModal(true);
+
+    // Try to send verification email in the background
     try {
-      // Call the API to request email verification
       const response = await fetch("/api/request-email-verification", {
         method: "POST",
         headers: {
@@ -601,22 +608,11 @@ const PrivacySecurityPage: React.FC = () => {
         body: JSON.stringify({ email: userEmail }),
       });
 
-      if (response.ok) {
-        setShowVerifyModal(true);
-      } else {
-        showFeedback(
-          "error",
-          "Error",
-          "Failed to send verification email. Please try again."
-        );
+      if (!response.ok) {
+        // Failed to send verification email, but modal is still shown
       }
-    } catch (error) {
-      console.error("Error requesting email verification:", error);
-      showFeedback(
-        "error",
-        "Error",
-        "An unexpected error occurred. Please try again."
-      );
+    } catch {
+      // Error requesting email verification, but modal is still shown
     }
   };
 
@@ -631,8 +627,8 @@ const PrivacySecurityPage: React.FC = () => {
         parsedUserData.emailverified = true;
         sessionStorage.setItem("userData", JSON.stringify(parsedUserData));
       }
-    } catch (error) {
-      console.error("Error updating user data in sessionStorage:", error);
+    } catch {
+      // Error updating user data in sessionStorage
     }
 
     showFeedback(
@@ -671,13 +667,13 @@ const PrivacySecurityPage: React.FC = () => {
               </h2>
               <p className="text-muted-foreground italic text-sm mb-4">
                 Your account is protected with an additional verification step
-                using your Authenticator App. You'll need to provide a
+                using your Authenticator App. You&apos;ll need to provide a
                 verification code along with your password when signing in from
                 new devices.
               </p>
               <div className="bg-input flex w-full justify-between px-3 py-4 items-center gap-2 rounded">
                 <span className="text-muted-foreground">
-                  {userEmail || "No email found"}
+                  {userEmail || `No email found`}
                 </span>
                 {settings.emailVerified ? (
                   <Check className="w-4 h-4 text-green-500" />
