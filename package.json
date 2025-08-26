@@ -22,7 +22,9 @@
     "prepare": "husky",
     "commit": "git-cz",
     "analyze": "ANALYZE=true npm run build",
-    "clean": "rm -rf .next out coverage"
+    "clean": "rm -rf .next out coverage",
+    "prebuild": "npm run type-check",
+    "predev": "npm run type-check"
   },
   "dependencies": {
     "@fontsource/inter": "^5.1.1",
