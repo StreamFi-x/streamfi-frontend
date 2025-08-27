@@ -3,13 +3,14 @@ import { sql } from "@vercel/postgres";
 
 export async function GET(
   req: Request,
-  { params }: { params: { wallet: string } }
+  { params }: { params: Promise<{ wallet: string }> }
 ) {
   try {
-    console.log("API: Fetching user for wallet:", params.wallet);
+    const { wallet } = await params;
+    console.log("API: Fetching user for wallet:", wallet);
 
     // Normalize the wallet address to lowercase for consistent comparison
-    const normalizedWallet = params.wallet.toLowerCase();
+    const normalizedWallet = wallet.toLowerCase();
 
     const result = await sql`
       SELECT * FROM users WHERE LOWER(wallet) = ${normalizedWallet}
@@ -20,7 +21,7 @@ export async function GET(
     const user = result.rows[0];
 
     if (!user) {
-      console.log("API: User not found for wallet:", params.wallet);
+      console.log("API: User not found for wallet:", wallet);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
