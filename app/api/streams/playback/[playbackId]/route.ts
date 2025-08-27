@@ -4,10 +4,13 @@ import { sql } from "@vercel/postgres";
 
 export async function GET(
   req: Request,
-  { params }: { params: { playbackId: string } }
+  { params }: { params: Promise<{ playbackId: string }> }
 ) {
+  let playbackId: string = "unknown";
+
   try {
-    const { playbackId } = params;
+    const { playbackId: paramPlaybackId } = await params;
+    playbackId = paramPlaybackId;
 
     console.log("🎬 Playback request for:", playbackId);
 
@@ -144,7 +147,7 @@ export async function GET(
     console.log("Error details:", {
       message: errorMessage,
       stack: errorStack,
-      playbackId: params?.playbackId,
+      playbackId: playbackId,
     });
 
     if (error instanceof Error) {
@@ -178,7 +181,7 @@ export async function GET(
       {
         error: "Failed to get playback source",
         details: errorMessage,
-        playbackId: params?.playbackId || "unknown",
+        playbackId: playbackId,
       },
       { status: 500 }
     );

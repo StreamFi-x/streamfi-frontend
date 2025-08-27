@@ -4,10 +4,10 @@ import { getStreamHealth } from "@/lib/livepeer/server";
 
 export async function GET(
   req: Request,
-  { params }: { params: { wallet: string } }
+  { params }: { params: Promise<{ wallet: string }> }
 ) {
   try {
-    const { wallet } = params;
+    const { wallet } = await params;
 
     if (!wallet) {
       return NextResponse.json(

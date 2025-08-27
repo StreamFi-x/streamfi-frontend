@@ -3,9 +3,9 @@ import { sql } from "@vercel/postgres";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { title: string } }
+  { params }: { params: Promise<{ title: string }> }
 ) {
-  const title = params.title;
+  const { title } = await params;
 
   try {
     const { rows } = await sql`
