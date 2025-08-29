@@ -4,18 +4,11 @@ import type React from "react";
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Upload, XCircle } from "lucide-react";
+import { X, Upload } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
-import {
-  bgClasses,
-  textClasses,
-  borderClasses,
-  buttonClasses,
-  ringClasses,
-} from "@/lib/theme-classes";
 
 // Form schema
 const streamInfoSchema = z.object({
@@ -69,7 +62,9 @@ export default function StreamInfoModal({
   });
 
   const handleAddTag = () => {
-    if (!newTag.trim() || tags.length >= 4) return;
+    if (!newTag.trim() || tags.length >= 4) {
+      return;
+    }
 
     if (!tags.includes(newTag)) {
       setTags([...tags, newTag]);
@@ -87,7 +82,9 @@ export default function StreamInfoModal({
 
   const handleThumbnailChange = (e: ThumbnailChangeEvent): void => {
     const file: File | null = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     // Validate file type
     const validTypes: string[] = ["image/jpeg", "image/png", "image/webp"];
@@ -169,42 +166,36 @@ export default function StreamInfoModal({
 
   return (
     <AnimatePresence>
-      <div
-        className={`fixed inset-0 ${bgClasses.overlay} z-50 flex items-center justify-center p-4`}
-      >
+      <div className="fixed inset-0 bg-overlay z-50 flex items-center justify-center p-4">
         <motion.div
-          className={`${bgClasses.modal} rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden border ${borderClasses.primary}`}
+          className="bg-modal rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden border border-border"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ duration: 0.2 }}
         >
-          <div
-            className={`p-4 border-b ${borderClasses.primary} flex justify-between items-center`}
-          >
-            <h2 className={`text-xl font-semibold ${textClasses.primary}`}>
+          <div className="p-4 border-b border-border flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-foreground">
               Edit Stream Info
             </h2>
             <button
               onClick={onClose}
-              className={`p-1 ${bgClasses.hover} rounded-md transition-colors`}
+              className="p-1 hover:bg-surface-hover rounded-md transition-colors"
             >
-              <X size={20} className={textClasses.secondary} />
+              <X size={20} className="text-muted-foreground" />
             </button>
           </div>
 
           <div className="p-4 overflow-y-auto max-h-[calc(90vh-60px)]">
             <form onSubmit={handleSubmit(onSubmit)}>
               <div className="mb-4">
-                <label
-                  className={`block text-sm font-medium mb-1 ${textClasses.primary}`}
-                >
+                <label className="block text-sm font-medium mb-1 text-foreground">
                   Title <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   {...register("title")}
-                  className={`w-full ${bgClasses.input} border ${borderClasses.primary} rounded-md px-3 py-2 ${ringClasses.primary} ${textClasses.primary}`}
+                  className="w-full bg-input border border-border rounded-md px-3 py-2 focus:ring-1 focus:ring-highlight focus:outline-none text-foreground"
                 />
                 {errors.title && (
                   <p className="mt-1 text-sm text-red-500">
@@ -214,39 +205,33 @@ export default function StreamInfoModal({
               </div>
 
               <div className="mb-4">
-                <label
-                  className={`block text-sm font-medium mb-1 ${textClasses.primary}`}
-                >
+                <label className="block text-sm font-medium mb-1 text-foreground">
                   Category
                 </label>
                 <input
                   type="text"
                   {...register("category")}
-                  className={`w-full ${bgClasses.input} border ${borderClasses.primary} rounded-md px-3 py-2 ${ringClasses.primary} ${textClasses.primary}`}
+                  className="w-full bg-input border border-border rounded-md px-3 py-2 focus:ring-1 focus:ring-highlight focus:outline-none text-foreground"
                 />
               </div>
 
               <div className="mb-4">
-                <label
-                  className={`block text-sm font-medium mb-1 ${textClasses.primary}`}
-                >
+                <label className="block text-sm font-medium mb-1 text-foreground">
                   Description
                 </label>
                 <textarea
                   {...register("description")}
                   rows={3}
-                  className={`w-full ${bgClasses.input} border ${borderClasses.primary} rounded-md px-3 py-2 ${ringClasses.primary} ${textClasses.primary}`}
+                  className="w-full bg-input border border-border rounded-md px-3 py-2 focus:ring-1 focus:ring-highlight focus:outline-none text-foreground"
                 />
               </div>
 
               <div className="mb-4">
-                <label
-                  className={`block text-sm font-medium mb-1 ${textClasses.primary}`}
-                >
+                <label className="block text-sm font-medium mb-1 text-foreground">
                   Thumbnail (1200x640, max 4MB)
                 </label>
                 <div
-                  className={`border-2 border-dashed ${borderClasses.primary}  ${textClasses.primary} rounded-md p-4 text-center cursor-pointer hover:${borderClasses.hover} transition-colors`}
+                  className="border-2 border-dashed border-border text-foreground rounded-md p-4 text-center cursor-pointer hover:border-highlight transition-colors"
                   onClick={() => fileInputRef.current?.click()}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
@@ -277,13 +262,13 @@ export default function StreamInfoModal({
                   ) : (
                     <div className="py-4">
                       <Upload
-                        className={`mx-auto mb-2 ${textClasses.secondary}`}
+                        className="mx-auto mb-2 text-muted-foreground"
                         size={24}
                       />
-                      <p className={textClasses.primary}>
+                      <p className="text-foreground">
                         Drag and drop an image here or click to browse
                       </p>
-                      <p className={`text-sm ${textClasses.tertiary} mt-1`}>
+                      <p className="text-sm text-muted-foreground mt-1">
                         JPEG, PNG, or WebP (1200x640)
                       </p>
                     </div>
@@ -299,24 +284,22 @@ export default function StreamInfoModal({
               </div>
 
               <div className="mb-4">
-                <label
-                  className={`block text-sm font-medium mb-1 ${textClasses.primary}`}
-                >
+                <label className="block text-sm font-medium mb-1 text-foreground">
                   Tags (max 4)
                 </label>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {tags.map(tag => (
                     <div
                       key={tag}
-                      className={`px-2 py-1 ${bgClasses.card} rounded-md text-sm flex items-center group border ${borderClasses.primary}`}
+                      className="px-2 py-1 bg-card rounded-md text-sm flex items-center group border border-border"
                     >
-                      <span className={textClasses.primary}>{tag}</span>
+                      <span className="text-foreground">{tag}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveTag(tag)}
                         className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        <X size={14} className={textClasses.secondary} />
+                        <X size={14} className="text-muted-foreground" />
                       </button>
                     </div>
                   ))}
@@ -327,14 +310,14 @@ export default function StreamInfoModal({
                     value={newTag}
                     onChange={e => setNewTag(e.target.value)}
                     placeholder="Add a tag"
-                    className={`flex-1 ${bgClasses.input} border ${borderClasses.primary} rounded-l-md px-3 py-2 ${ringClasses.primary} ${textClasses.primary}`}
+                    className="flex-1 bg-input border border-border rounded-l-md px-3 py-2 focus:ring-1 focus:ring-highlight focus:outline-none text-foreground"
                     disabled={tags.length >= 4}
                   />
                   <button
                     type="button"
                     onClick={handleAddTag}
                     disabled={!newTag.trim() || tags.length >= 4}
-                    className={`${buttonClasses.primary} disabled:${bgClasses.tertiary} disabled:${textClasses.tertiary} px-4 rounded-r-md transition-colors`}
+                    className="bg-highlight hover:bg-highlight/80 text-primary-foreground disabled:bg-tertiary disabled:text-muted-foreground px-4 rounded-r-md transition-colors"
                   >
                     Add
                   </button>
@@ -350,14 +333,14 @@ export default function StreamInfoModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className={`px-4 py-2 ${buttonClasses.outline} rounded-md transition-colors`}
+                  className="px-4 py-2 bg-transparent border border-border hover:bg-surface-hover rounded-md transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!isValid}
-                  className={`px-4 py-2 ${buttonClasses.primary} disabled:${bgClasses.tertiary} disabled:${textClasses.tertiary} rounded-md transition-colors`}
+                  className="px-4 py-2 bg-highlight hover:bg-highlight/80 text-primary-foreground disabled:bg-tertiary disabled:text-muted-foreground rounded-md transition-colors"
                 >
                   Done
                 </button>

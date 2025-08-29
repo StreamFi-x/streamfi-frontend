@@ -19,7 +19,6 @@ import { BasicSettingsSection } from "./basic-settings-section";
 
 import { LanguageSection } from "./language-section";
 
-import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
 import type { StaticImageData } from "next/image";
 import { SocialLinksSection } from "./social-links-section";
 import { SaveSection } from "./save-section";
@@ -319,17 +318,10 @@ export default function ProfileSettings() {
 
   if (isLoading || !isInitialized) {
     return (
-      <div
-        className={combineClasses(
-          "min-h-screen",
-          bgClasses.secondary,
-          textClasses.primary,
-          "flex items-center justify-center"
-        )}
-      >
+      <div className="min-h-screen bg-secondary text-foreground flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl mb-4">Loading...</h2>
-          <p className={textClasses.tertiary}>
+          <p className="text-muted-foreground">
             Please wait while we load your profile.
           </p>
         </div>
@@ -433,14 +425,7 @@ export default function ProfileSettings() {
   };
 
   return (
-    <div
-      className={combineClasses(
-        "min-h-screen",
-        bgClasses.secondary,
-        textClasses.primary,
-        "pb-8"
-      )}
-    >
+    <div className="min-h-screen bg-secondary text-foreground pb-8">
       <div className="mx-auto max-w-8xl">
         {/* Avatar Section */}
         <ProfileHeader avatar={avatar} onAvatarClick={handleAvatarClick} />

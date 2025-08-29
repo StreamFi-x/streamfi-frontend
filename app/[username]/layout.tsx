@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { notFound, usePathname } from "next/navigation";
 import { toast } from "sonner";
 
@@ -8,22 +8,20 @@ import Banner from "@/components/shared/profile/Banner";
 import ProfileHeader from "@/components/shared/profile/ProfileHeader";
 import TabsNavigation from "@/components/shared/profile/TabsNavigation";
 import ViewStream from "@/components/stream/view-stream";
-import { bgClasses, textClasses, combineClasses } from "@/lib/theme-classes";
+
 import ConnectWalletModal from "@/components/connectWallet";
 
-export default function UsernameLayout({
-  children,
-  params,
-}: {
+interface UsernameLayoutProps {
   children: React.ReactNode;
-  params: { username: string };
-}) {
-  const { username } = params;
+  username: string;
+}
+
+function UsernameLayoutClient({ children, username }: UsernameLayoutProps) {
   const pathname = usePathname();
 
   const [isLive, setIsLive] = useState<boolean | null>(null);
   const [userData, setUserData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+
   const [userExists, setUserExists] = useState(true);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -39,7 +37,6 @@ export default function UsernameLayout({
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        setLoading(true);
         const response = await fetch(`/api/users/${username}`);
         if (response.status === 404) {
           setUserExists(false);
@@ -55,15 +52,11 @@ export default function UsernameLayout({
         ) {
           const loggedInUser = sessionStorage.getItem("userData");
           const id = loggedInUser ? JSON.parse(loggedInUser).id : null;
-          console.log(id);
-          console.log(loggedInUser);
           setIsFollowing(data.user.followers?.includes(id));
         }
-      } catch (error) {
+      } catch {
         toast.error("Failed to fetch user data");
         setUserExists(false);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -104,7 +97,7 @@ export default function UsernameLayout({
       } else {
         toast.error(result.error || "Failed to follow");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network error while following");
     } finally {
       setFollowLoading(false);
@@ -144,24 +137,20 @@ export default function UsernameLayout({
       } else {
         toast.error(result.error || "Failed to unfollow");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network error while unfollowing");
     } finally {
       setFollowLoading(false);
     }
   };
 
-  if (!userExists) return notFound();
+  if (!userExists) {
+    return notFound();
+  }
 
   if (isDefaultRoute && isLive) {
     return (
-      <div
-        className={combineClasses(
-          "flex flex-col h-screen",
-          bgClasses.secondary,
-          textClasses.primary
-        )}
-      >
+      <div className="flex flex-col h-screen bg-secondary text-foreground">
         <main className="flex-1 overflow-auto">
           <ViewStream
             username={username}
@@ -175,15 +164,9 @@ export default function UsernameLayout({
   }
 
   return (
-    <div
-      className={combineClasses(
-        "flex flex-col h-screen",
-        bgClasses.secondary,
-        textClasses.primary
-      )}
-    >
+    <div className="flex flex-col h-screen bg-secondary text-foreground">
       <main className="flex-1 overflow-auto">
-        <div className={combineClasses(bgClasses.secondary, "min-h-screen")}>
+        <div className="bg-secondary min-h-screen">
           <Banner
             username={username}
             isLive={isDefaultRoute && !!isLive}
@@ -210,5 +193,18 @@ export default function UsernameLayout({
         />
       )}
     </div>
+  );
+}
+
+export default async function UsernameLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ username: string }>;
+}) {
+  const { username } = await params;
+  return (
+    <UsernameLayoutClient username={username}>{children}</UsernameLayoutClient>
   );
 }

@@ -27,12 +27,7 @@ import StreamInfoModal from "../dashboard/common/StreamInfoModal";
 import DashboardScreenGuard from "../explore/DashboardScreenGuard";
 import { Button } from "../ui/button";
 import ChatSection from "./chat-section";
-import {
-  bgClasses,
-  borderClasses,
-  combineClasses,
-  textClasses,
-} from "@/lib/theme-classes";
+
 import { text } from "stream/consumers";
 import { Flag } from "lucide-react";
 import ReportLiveStreamModal from "../modals/ReportLiveStreamModal";
@@ -329,14 +324,7 @@ const ViewStream = ({
 
   return (
     <DashboardScreenGuard>
-      <div
-        className={combineClasses(
-          bgClasses.primary,
-          textClasses.primary,
-          borderClasses.primary,
-          `flex flex-col h-full bg-[#17191A]`
-        )}
-      >
+      <div className="bg-background text-foreground border border-border flex flex-col h-full bg-[#17191A]">
         <div className="flex flex-1 items-start relative overflow-hidden">
           {/* Main content */}
           <div
@@ -509,12 +497,7 @@ const ViewStream = ({
 
               {/* Fullscreen chat - now sits beside the video */}
               {isFullscreen && showChat && (
-                <div
-                  className={combineClasses(
-                    borderClasses.secondary,
-                    "w-[350px] flex-shrink-0 bg-black border-l border-gray-"
-                  )}
-                >
+                <div className="border border-border w-[350px] flex-shrink-0 bg-black border-l border-gray-">
                   <ChatSection
                     messages={chatMessages}
                     onSendMessage={handleSendMessage}
@@ -531,12 +514,7 @@ const ViewStream = ({
             {/* Stream info - only show when not in fullscreen */}
             {!isFullscreen && (
               <>
-                <div
-                  className={combineClasses(
-                    textClasses.secondary,
-                    "border-b border-gray- p-4"
-                  )}
-                >
+                <div className="text-muted-foreground border-b border-gray- p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div className="relative w-12 h-12 rounded-full overflow-hidden bg-purple-600">
@@ -659,12 +637,7 @@ const ViewStream = ({
                   <h3 className="font-medium mb-4">Past Streams</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {/* Past streams would be populated here */}
-                    <div
-                      className={combineClasses(
-                        bgClasses.primary,
-                        "bg-[#] rounded-md overflow-hidden"
-                      )}
-                    >
+                    <div className="bg-background bg-[#] rounded-md overflow-hidden">
                       <div className="aspect-video relative">
                         <Image
                           src="/Images/explore/home/trending-streams/img1.png"
@@ -698,10 +671,7 @@ const ViewStream = ({
                 onSendMessage={handleSendMessage}
                 isCollapsible={true}
                 isFullscreen={false}
-                className={combineClasses(
-                  borderClasses.primary,
-                  "h-full border-l "
-                )}
+                className="border border-border h-full border-l"
                 onToggleChat={toggleChat}
                 showChat={showChat}
               />

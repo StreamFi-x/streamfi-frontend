@@ -10,7 +10,6 @@ import StreamInfo from "@/components/dashboard/stream-manager/StreamInfo";
 import StreamSettings from "@/components/dashboard/stream-manager/StreamSettings";
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
-import { bgClasses, textClasses, borderClasses } from "@/lib/theme-classes";
 
 export default function StreamManagerPage() {
   const [streamData, setStreamData] = useState({
@@ -94,19 +93,15 @@ export default function StreamManagerPage() {
 
   return (
     <>
-      <div
-        className={`flex flex-col h-screen ${bgClasses.secondary} ${textClasses.primary}`}
-      >
+      <div className="flex flex-col h-screen bg-secondary text-foreground">
         {/* Stats Bar */}
-        <div
-          className={`flex justify-between items-center px-2 border-b ${borderClasses.primary}`}
-        >
+        <div className="flex justify-between items-center px-2 border-b border-border">
           <div className="flex space-x-4 ">
             <StatsCard title="Viewers" value={stats.viewers} />
             <StatsCard title="New followers" value={stats.followers} />
             <StatsCard title="Donations" value={stats.donations} />
           </div>
-          <div className={textClasses.secondary}>
+          <div className="text-muted-foreground">
             <span>Stream Session: </span>
             <span className="font-mono">{streamSession}</span>
           </div>
@@ -179,12 +174,12 @@ const StatsCard: React.FC<{ title: string; value: number }> = ({
   value,
 }) => (
   <motion.div
-    className={`${bgClasses.card} px-4 py-1.5 rounded-md text-center border ${borderClasses.primary}`}
+    className="bg-card px-4 py-1.5 rounded-md text-center border border-border"
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.3 }}
   >
-    <div className={`text-xl font-bold ${textClasses.primary}`}>{value}</div>
-    <div className={`text-xs ${textClasses.tertiary}`}>{title}</div>
+    <div className="text-xl font-bold text-foreground">{value}</div>
+    <div className="text-xs text-muted-foreground">{title}</div>
   </motion.div>
 );

@@ -5,7 +5,6 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { bgClasses, textClasses } from "@/lib/theme-classes";
 
 export default function BrowseLayout({
   children,
@@ -60,7 +59,7 @@ export default function BrowseLayout({
   };
 
   return (
-    <main className={` ${bgClasses.primary} ${textClasses.primary}`}>
+    <main className="bg-background text-foreground">
       <div className="flex flex-col h-screen">
         {/* <Navbar /> */}
         <div className="flex h-screen overflow-hidden">
@@ -72,6 +71,7 @@ export default function BrowseLayout({
                   <div className="mb-4">
                     <h1
                       className={`${textClasses.primary} text-3xl sm:text-4xl font-bold text- mb-2"`}
+
                     >
                       Browse
                     </h1>
@@ -122,6 +122,7 @@ export default function BrowseLayout({
                   </div>
                 </>
               )}
+
 
               {children}
             </div>

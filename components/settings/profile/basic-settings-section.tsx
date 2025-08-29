@@ -1,10 +1,5 @@
 "use client";
-import {
-  bgClasses,
-  textClasses,
-  componentClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
+
 import type { FormState, UIState } from "@/types/settings/profile";
 import { AlertTriangle } from "lucide-react";
 import { Check } from "lucide-react";
@@ -26,15 +21,11 @@ export function BasicSettingsSection({
 }: BasicSettingsSectionProps) {
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const getInputStyle = (inputName: string) => {
-    return combineClasses(
-      "w-full",
-      bgClasses.input,
-      "rounded-lg px-4 py-3 text-sm font-medium outline-none",
+    return `w-full bg-input rounded-lg px-4 py-3 text-sm font-medium outline-none ${
       uiState.focusedInput === inputName
         ? "border border-purple-600"
-        : "border border-transparent",
-      "transition-all duration-200"
-    );
+        : "border border-transparent"
+    } transition-all duration-200`;
   };
   useEffect(() => {
     try {
@@ -51,10 +42,8 @@ export function BasicSettingsSection({
     }
   }, []);
   return (
-    <div className={combineClasses(componentClasses.card, "p-4 mb-6")}>
-      <h2 className={combineClasses(textClasses.primary, "text-lg mb-4")}>
-        Basic Settings
-      </h2>
+    <div className="bg-card border border-border shadow-sm rounded-lg p-4 mb-6">
+      <h2 className="text-foreground text-lg mb-4">Basic Settings</h2>
 
       <div className="mb-5">
         <label className="block mb-2 text-sm">User Name</label>
@@ -67,12 +56,7 @@ export function BasicSettingsSection({
           className={getInputStyle("username")}
           style={{ outlineWidth: 0, boxShadow: "none" }}
         />
-        <p
-          className={combineClasses(
-            textClasses.tertiary,
-            "italic text-xs mt-1"
-          )}
-        >
+        <p className="text-muted-foreground italic text-xs mt-1">
           You can only change your display name once in a month.
         </p>
       </div>
@@ -85,7 +69,7 @@ export function BasicSettingsSection({
             type="text"
             value={formState.email}
             readOnly
-            className={combineClasses(getInputStyle("email"), "opacity-70")}
+            className={`${getInputStyle("email")} opacity-70`}
             style={{ outlineWidth: 0, boxShadow: "none" }}
           />
           <div className="absolute right-2 -translate-y-1/2 top-1/2">
@@ -97,12 +81,7 @@ export function BasicSettingsSection({
           </div>
         </div>
         {!isEmailVerified && (
-          <p
-            className={combineClasses(
-              textClasses.tertiary,
-              "italic text-xs mt-1"
-            )}
-          >
+          <p className="text-muted-foreground italic text-xs mt-1">
             <Link href="/settings/privacy" className="text-purple-500">
               Click here
             </Link>{" "}
@@ -118,15 +97,10 @@ export function BasicSettingsSection({
           onChange={e => updateFormField("bio", e.target.value)}
           onFocus={() => updateUiState({ focusedInput: "bio" })}
           onBlur={() => updateUiState({ focusedInput: null })}
-          className={combineClasses(getInputStyle("bio"), "min-h-[7em]")}
+          className={`${getInputStyle("bio")} min-h-[7em]`}
           style={{ outlineWidth: 0, boxShadow: "none", height: "7em" }}
         />
-        <p
-          className={combineClasses(
-            textClasses.tertiary,
-            "italic text-xs mt-1"
-          )}
-        >
+        <p className="text-muted-foreground italic text-xs mt-1">
           Share a bit about yourself. (Max 150 words)
         </p>
       </div>
