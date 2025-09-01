@@ -53,7 +53,7 @@
     --card-foreground: 210 40% 98%; /* gray-50 */
     --popover: 222.2 84% 4.9%; /* slate-900 */
     --popover-foreground: 210 40% 98%; /* gray-50 */
-    --primary: 222.2 84% 4.9%; /* slate-900 */
+    --primary: 0 0 100%; /* slate-900 */
     --primary-foreground: 210 40% 98%; /* gray-50 */
     --secondary: 0 0% 0%; /* black */
     --secondary-foreground: 210 40% 98%; /* gray-50 */

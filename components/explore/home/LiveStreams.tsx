@@ -223,13 +223,13 @@ export function LiveStreams({
                     {stream.title}
                   </h3>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    <span className="text-sm px-2 py-0.5 rounded bg-tag text-background">
+                    <span className="text-sm px-2 py-0.5 rounded bg-tag text-white">
                       {stream.location}
                     </span>
                     {stream.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="text-sm px-2 py-0.5 rounded bg-tag text-background"
+                        className="text-sm px-2 py-0.5 rounded bg-tag text-white"
                       >
                         {tag}
                       </span>
@@ -252,7 +252,7 @@ export function LiveStreams({
             <Button
               onClick={handleToggle}
               disabled={isTransitioning}
-              className={`flex items-center justify-center gap-2 w-full outline-none border-none focus:ring-0 transition-opacity bg-transparent hover:bg-surface-hover ${
+              className={`flex items-center justify-center text-white gap-2 w-full outline-none border-none focus:ring-0 transition-opacity bg-tag hover:bg-surface-hover ${
                 isTransitioning
                   ? "opacity-70 cursor-not-allowed"
                   : "opacity-100"
