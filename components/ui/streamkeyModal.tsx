@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import Copy from "@/public/Images/copy.png";
+import { Copy } from "@/public/Images";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface StreamKeyModalProps {
