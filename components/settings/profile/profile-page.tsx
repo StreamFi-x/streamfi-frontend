@@ -383,11 +383,7 @@ export default function ProfileSettings() {
 
       // Prepare avatar data if it's a File/Blob
       let avatarData: string | File | undefined;
-      if (
-        typeof avatar === "string" &&
-        avatar !==
-          (typeof ProfileImage === "string" ? ProfileImage : ProfileImage.src)
-      ) {
+      if (typeof avatar === "string" && avatar !== "/Images/profile.png") {
         avatarData = avatar;
       } else if (avatar instanceof File) {
         avatarData = avatar;
