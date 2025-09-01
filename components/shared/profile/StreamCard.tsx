@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Eye } from "lucide-react";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 interface StreamCardProps {
   id: string;
   title: string;
@@ -18,12 +18,12 @@ const StreamCard = ({
   title,
   thumbnailUrl,
   username,
-  category,
+  // category,
   tags,
   viewCount,
   isLive,
 }: StreamCardProps) => {
-  const route = useRouter();
+  // const route = useRouter();
   return (
     <Link href={`/${username}/watch?v=${id}`}>
       <div className="group cursor-pointer rounded-lg overflow-hidden transition-colors">
@@ -90,7 +90,7 @@ const StreamCard = ({
               </a>
             </div>
           </div>
-          <h3 className="text-sm font-semibold text-white mb-1 truncate w-full line-clamp-2">
+          <h3 className="text-sm font-semibold mb-1 truncate w-full line-clamp-2">
             {title} What does this mean?
           </h3>
 
@@ -98,7 +98,7 @@ const StreamCard = ({
             {tags.slice(0, 3).map(tag => (
               <span
                 key={tag}
-                className="text-xs  px-2 py-1.5 rounded bg-gray-700 text-gray-300"
+                className="text-xs  px-2 py-1.5 rounded bg-tag text-background"
               >
                 {tag}
               </span>

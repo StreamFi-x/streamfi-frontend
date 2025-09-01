@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BrowseLiveSkeleton } from "@/components/skeletons/browseLiveSkeleton";
+import { BrowseLiveSkeleton } from "@/components/skeletons/skeletons/browseLiveSkeleton";
 
 export default function BrowseLivePage() {
   const [isLoading, setIsLoading] = useState(true);

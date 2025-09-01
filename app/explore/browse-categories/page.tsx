@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BrowseCategoriesSkeleton } from "@/components/skeletons/browseCategoriesSkeleton";
+import { BrowseCategoriesSkeleton } from "@/components/skeletons/skeletons/browseCategoriesSkeleton";
 
 export default function BrowseCategoriesPage() {
   const [isLoading, setIsLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {

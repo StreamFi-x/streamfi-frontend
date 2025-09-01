@@ -229,7 +229,7 @@ export default function Navbar({}: NavbarProps) {
   };
 
   const handleProfileDisplayModal = useCallback(async () => {
-    if (!address) return;
+    if (!address) {return;}
 
     setIsLoading(true);
     try {
@@ -330,7 +330,7 @@ export default function Navbar({}: NavbarProps) {
                 setIsSearchDropdownOpen(true);
               }}
               onFocus={() => {
-                if (searchResults.length > 0) setIsSearchDropdownOpen(true);
+                if (searchResults.length > 0) {setIsSearchDropdownOpen(true);}
               }}
               className={`w-full bg-input rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:ring-1 focus:ring-highlight focus:outline-none`}
             />
@@ -456,7 +456,7 @@ export default function Navbar({}: NavbarProps) {
           {!isConnected && (
             <button
               onClick={handleConnectWallet}
-              className={`bg-highlight hover:bg-highlight/80 text-primary-foreground px-4 py-3 rounded-md text-sm font-medium`}
+              className={`bg-highlight hover:bg-highlight/80 text-background px-4 py-3 rounded-md text-sm font-medium`}
             >
               Connect Wallet
             </button>

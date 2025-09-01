@@ -27,9 +27,13 @@
     "predev": "npm run type-check"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@fontsource/inter": "^5.1.1",
     "@hookform/resolvers": "^5.1.1",
     "@livepeer/react": "^4.3.5",
+    "@mui/icons-material": "^7.3.1",
+    "@mui/material": "^7.3.1",
     "@neondatabase/serverless": "^1.0.0",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.14",

@@ -1,5 +1,7 @@
 "use client";
 import CategoryCard from "@/components/category/CategoryCard";
+import { BrowsePageSkeleton } from "@/components/skeletons/skeletons/browsePageSkeleton";
+import { EmptyState } from "@/components/skeletons/EmptyState";
 import { sortOptions } from "@/data/browse/live-content";
 import {
   Select,
@@ -21,47 +23,66 @@ type Category = {
 };
 
 export default function BrowseCategoryPage() {
-  // const [selectedLanguage, setSelectedLanguage] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSort, setSelectedSort] = useState("recommended");
-
-  // const clearAllFilters = () => {
-  //   setSelectedLanguage("all");
-  //   setSearchQuery("");
-  //   setSelectedSort("recommended");
-  // };
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const clearAllFilters = () => {
+    setSearchQuery("");
+    setSelectedSort("recommended");
+  };
+
   useEffect(() => {
     const fetchCategories = async () => {
       try {
+        setLoading(true);
+        setError(null);
         const response = await fetch("/api/category");
         if (!response.ok) {
           throw new Error("Failed to fetch categories");
         }
         const data = await response.json();
         console.log(data.categories);
-        setCategories(data.categories);
+        setCategories(data.categories || []);
       } catch (error) {
         console.error(error);
+        setError(
+          error instanceof Error ? error.message : "Failed to fetch categories"
+        );
+      } finally {
+        setLoading(false);
       }
     };
     fetchCategories();
   }, []);
 
-  // const filteredVideos = useMemo(() => {
-  //   return liveVideos.filter(video => {
-  //     const matchesLanguage =
-  //       selectedLanguage === "all" || video.language === selectedLanguage;
-  //     const matchesSearch =
-  //       searchQuery === "" ||
-  //       video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //       video.tags.some(tag =>
-  //         tag.toLowerCase().includes(searchQuery.toLowerCase())
-  //       );
+  // Filter categories based on search query
+  const filteredCategories = categories.filter(
+    category =>
+      searchQuery === "" ||
+      category.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      category?.tags?.some(tag =>
+        tag.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+  );
 
-  //     return matchesLanguage && matchesSearch;
-  //   });
-  // }, [selectedLanguage, searchQuery]);
+  // Show loading state
+
+  // Show error state
+  if (error) {
+    return (
+      <EmptyState
+        title="Error Loading Categories"
+        description={error}
+        icon="users"
+        actionLabel="Try Again"
+        onAction={() => window.location.reload()}
+      />
+    );
+  }
+
   return (
     <div className="">
       <div className="flex flex-col sm:flex-row gap-6 items-center justify-between  rounded-lg">
@@ -72,7 +93,7 @@ export default function BrowseCategoryPage() {
               placeholder="Search tags"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="pl-12 pr-4 py-3 bg-[#181818] border-[#363636] text-white  placeholder-gray-400"
+              className="pl-12 pr-4 py-3 border-gray-300   placeholder-gray-400"
             />
           </div>
         </div>
@@ -94,11 +115,29 @@ export default function BrowseCategoryPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 py-4 gap-6">
-        {categories.map(category => (
-          <CategoryCard key={category.id} category={category} />
-        ))}
-      </div>
+      {loading && <BrowsePageSkeleton type="categories" count={15} />}
+
+      {/* Categories Grid */}
+      {filteredCategories.length > 0 ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 py-4 gap-2">
+          {filteredCategories.map(category => (
+            <CategoryCard key={category.id} category={category} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="No categories found"
+          description={
+            searchQuery
+              ? "Try adjusting your search terms"
+              : "No categories available at the moment"
+          }
+          icon="gamepad"
+          actionLabel="Clear search"
+          onAction={clearAllFilters}
+          showAction={!!searchQuery}
+        />
+      )}
     </div>
   );
 }

@@ -7,45 +7,6 @@ interface BrowseLiveSkeletonProps {
 export function BrowseLiveSkeleton({ count = 12 }: BrowseLiveSkeletonProps) {
   return (
     <div className="mb-8 space-y-4">
-      {/* Long list of tags below "Browse" */}
-      <div className="flex overflow-x-auto lg:flex-wrap lg:overflow-x-visible scrollbar-hide gap-3">
-        <Skeleton className="w-20 h-8 rounded-md px-8 py-6" />
-        <Skeleton className="w-32 h-8 rounded-md px-8 py-6" />
-        <Skeleton className="w-22 h-8 rounded-md px-8 py-6" />
-        <Skeleton className="w-18 h-8 rounded-md px-8 py-6" />
-        <Skeleton className="w-24 h-8 rounded-md px-8 py-6" />
-        <Skeleton className="w-22 h-8 rounded-md px-8 py-6" />
-        <Skeleton className="w-16 h-8 rounded-md px-8 py-6" />
-        <Skeleton className="w-24 h-8 rounded-md px-8 py-6" />
-        <Skeleton className="w-32 h-8 rounded-md px-8 py-6" />
-        <Skeleton className="w-19 h-8 rounded-md px-8 py-6" />
-        <Skeleton className="w-28 h-8 rounded-md px-8 py-6" />
-        <Skeleton className="w-21 h-8 rounded-md px-8 py-6" />
-      </div>
-
-      {/* Section to switch between live channels and categories */}
-      <div className="flex space-x-8 border-b border-gray-700">
-        <Skeleton className="w-28 h-8 rounded-md mb-0.5" />
-        <Skeleton className="w-24 h-8 rounded-md" />
-      </div>
-
-      {/* Search bar and sort by section */}
-      <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-stretch md:items-center p-4 md:p-6 rounded-lg">
-        {/* Filter on the left */}
-        <div className="w-full md:w-auto">
-          <Skeleton className="h-9 w-full md:w-48 rounded-md" />
-        </div>
-        {/* Search bar in the center */}
-        <div className="w-full md:flex-1 md:max-w-xl">
-          <Skeleton className="h-9 w-full rounded-md" />
-        </div>
-
-        {/* Sort by dropdown on the right */}
-        <div className="w-full md:w-auto md:ml-auto">
-          <Skeleton className="h-9 w-full md:w-64 rounded-md" />
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.from({ length: count }).map((_, index) => (
           <LiveStreamCardSkeleton key={index} />
