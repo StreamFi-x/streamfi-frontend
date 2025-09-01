@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { Mail } from "lucide-react";
-import {Logo} from "@/public/Images";
+import { Logo } from "@/public/Images";
 import Section from "@/components/layout/Section";
 
 export default function Footer() {

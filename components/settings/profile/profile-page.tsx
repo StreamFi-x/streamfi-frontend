@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 import { useEffect, useCallback, useState } from "react";
 import type React from "react";
@@ -382,7 +383,11 @@ export default function ProfileSettings() {
 
       // Prepare avatar data if it's a File/Blob
       let avatarData: string | File | undefined;
-      if (typeof avatar === "string" && avatar !== ProfileImage.src) {
+      if (
+        typeof avatar === "string" &&
+        avatar !==
+          (typeof ProfileImage === "string" ? ProfileImage : ProfileImage.src)
+      ) {
         avatarData = avatar;
       } else if (avatar instanceof File) {
         avatarData = avatar;
