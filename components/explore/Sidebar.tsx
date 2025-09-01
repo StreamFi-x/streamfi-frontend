@@ -41,17 +41,17 @@ export default function Sidebar() {
   }, []);
 
   const isRouteActive = (href: string) => {
-    if (href === "/" && pathname === "/explore") return true;
+    if (href === "/" && pathname === "/explore") {return true;}
     if (
       href === "/browse" &&
       (pathname === "/browse" || pathname.startsWith("/browse/"))
     )
-      return true;
+      {return true;}
     if (
       href === "/explore/browse" &&
       (pathname === "/browse" || pathname.startsWith("/browse/"))
     )
-      return true;
+      {return true;}
     return (
       pathname === `/explore${href}` || pathname.startsWith(`/explore${href}/`)
     );
@@ -359,7 +359,7 @@ export default function Sidebar() {
         </div>
         <motion.button
           variants={itemVariants}
-          className="w-full mt-3 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-lg py-2.5 text-center font-medium"
+          className="w-full mt-3 text-xs bg-tag text-background hover:bg-tag/90 rounded-lg py-2.5 text-center font-medium"
           whileHover={{ scale: 1.02, y: -1 }}
           whileTap={{ scale: 0.98 }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -441,7 +441,7 @@ export default function Sidebar() {
         </div>
         <motion.button
           variants={itemVariants}
-          className="w-full mt-3 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-lg py-1.5 text-center font-medium"
+          className="w-full mt-3 text-xs bg-tag text-background hover:bg-tag/90 rounded-lg py-1.5 text-center font-medium"
           whileHover={{ scale: 1.02, y: -1 }}
           whileTap={{ scale: 0.98 }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}

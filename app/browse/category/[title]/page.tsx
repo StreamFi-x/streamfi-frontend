@@ -14,13 +14,14 @@ import {
 } from "@/components/ui/select";
 import { Search, ExternalLink } from "lucide-react";
 import StreamCard from "@/components/shared/profile/StreamCard";
+import { BrowseLayoutSkeleton } from "@/components/skeletons/skeletons/browseLayoutSkeleton";
+import { EmptyState } from "@/components/skeletons/EmptyState";
 import {
   languageOptions,
   sortOptions,
   liveVideos,
 } from "@/data/browse/live-content";
 import { cn } from "@/lib/utils";
-import { bgClasses, buttonClasses } from "@/lib/theme-classes";
 
 // Mock category data with follower counts
 const categoryMockData = {
@@ -108,6 +109,55 @@ interface CategoryApiResponse {
     tags: string[];
     imageUrl?: string;
   };
+}
+
+// Category Hero Skeleton Component
+function CategoryHeroSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row gap-6 p-6 bg-gradient-to-r from-gray-900 to-gray-800 rounded-lg">
+        <div className="w-full sm:w-48 h-48 sm:h-52 bg-gray-700 rounded-lg animate-pulse flex-shrink-0" />
+        <div className="flex-1 space-y-4">
+          <div className="h-8 bg-gray-700 rounded animate-pulse" />
+          <div className="h-4 bg-gray-700 rounded animate-pulse w-1/2" />
+          <div className="flex gap-2">
+            <div className="h-6 w-16 bg-gray-700 rounded-full animate-pulse" />
+            <div className="h-6 w-16 bg-gray-700 rounded-full animate-pulse" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-10 w-20 bg-gray-700 rounded animate-pulse" />
+            <div className="h-10 w-10 bg-gray-700 rounded animate-pulse" />
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs skeleton */}
+      <div className="border-b border-gray-700">
+        <div className="flex space-x-8">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="pb-4 px-1">
+              <div className="h-6 w-24 bg-gray-700 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Filters skeleton */}
+      <div className="flex flex-col sm:flex-row gap-6 items-center p-0 rounded-lg">
+        <div className="flex items-center space-x-2">
+          <div className="h-4 w-16 bg-gray-700 rounded animate-pulse" />
+          <div className="h-9 w-48 bg-gray-700 rounded animate-pulse" />
+        </div>
+        <div className="flex-1 max-w-xl">
+          <div className="h-9 w-full bg-gray-700 rounded animate-pulse" />
+        </div>
+        <div className="flex items-center space-x-3 ml-auto">
+          <div className="h-4 w-16 bg-gray-700 rounded animate-pulse" />
+          <div className="h-9 w-64 bg-gray-700 rounded animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function CategoryDetailPage() {
@@ -267,23 +317,9 @@ export default function CategoryDetailPage() {
   // Show loading state
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row gap-6 p-6 bg-gradient-to-r from-gray-900 to-gray-800 rounded-lg">
-          <div className="w-full sm:w-48 h-48 sm:h-32 bg-gray-700 rounded-lg animate-pulse flex-shrink-0" />
-          <div className="flex-1 space-y-4">
-            <div className="h-8 bg-gray-700 rounded animate-pulse" />
-            <div className="h-4 bg-gray-700 rounded animate-pulse w-1/2" />
-            <div className="flex gap-2">
-              <div className="h-6 w-16 bg-gray-700 rounded-full animate-pulse" />
-              <div className="h-6 w-16 bg-gray-700 rounded-full animate-pulse" />
-            </div>
-            <div className="flex gap-2">
-              <div className="h-10 w-20 bg-gray-700 rounded animate-pulse" />
-              <div className="h-10 w-10 bg-gray-700 rounded animate-pulse" />
-            </div>
-          </div>
-        </div>
-        <div className="text-center text-gray-400">Loading category...</div>
+      <div className="space-y-8">
+        <BrowseLayoutSkeleton />
+        <CategoryHeroSkeleton />
       </div>
     );
   }
@@ -291,21 +327,13 @@ export default function CategoryDetailPage() {
   // Show error state
   if (error) {
     return (
-      <div className="space-y-6">
-        <div className="bg-red-900/20 border border-red-700 p-6 rounded-lg text-center">
-          <h2 className="text-xl font-semibold text-red-400 mb-2">
-            Error Loading Category
-          </h2>
-          <p className="text-red-300 mb-4">{error}</p>
-          <Button
-            onClick={() => window.location.reload()}
-            variant="outline"
-            className="border-red-600 text-red-300 hover:bg-red-900/30"
-          >
-            Try Again
-          </Button>
-        </div>
-      </div>
+      <EmptyState
+        title="Error Loading Category"
+        description={error}
+        icon="users"
+        actionLabel="Try Again"
+        onAction={() => window.location.reload()}
+      />
     );
   }
 
@@ -326,11 +354,9 @@ export default function CategoryDetailPage() {
         </div>
 
         <div className="flex-1 flex flex-col justify-center">
-          <h1 className="text-2xl font-bold text-white mb-2">
-            {categoryData.title}
-          </h1>
+          <h1 className="text-2xl font-bold  mb-2">{categoryData.title}</h1>
 
-          <div className="flex flex-col sm:flex-row gap-2 text-sm text-white mb-4">
+          <div className="flex flex-col sm:flex-row gap-2 text-sm  mb-4">
             <span>{categoryData.followerCount.toLocaleString()} followers</span>
             <span>•</span>
             <span>{categoryData.viewerCount} watching</span>
@@ -341,7 +367,7 @@ export default function CategoryDetailPage() {
             {categoryData.tags.map(tag => (
               <span
                 key={tag}
-                className={`${bgClasses.tag} px-4 py-1 bg-gray-700 text-gray-300 rounded-md text-sm`}
+                className={` px-4 py-1 bg-gray-700 text-gray-300 rounded-md text-sm`}
               >
                 {tag}
               </span>
@@ -350,7 +376,7 @@ export default function CategoryDetailPage() {
 
           {/* Action Buttons */}
           <div className="flex gap-3">
-            <Button className={`${buttonClasses.connect}  px-7`}>Follow</Button>
+            <Button className={` px-7`}>Follow</Button>
             <Button variant="outline" size="icon" className="bg-[#2E2F30]">
               <ExternalLink className="h-1 w-1" />
             </Button>
@@ -368,8 +394,8 @@ export default function CategoryDetailPage() {
               className={cn(
                 "pb-4 px-1 text-sm font-medium transition-colors relative",
                 activeTab === tab.id
-                  ? "text-white border-b-2 border-purple-500"
-                  : "text-gray-400 hover:text-white"
+                  ? " border-b-2 border-purple-500"
+                  : "text-gray-400 hover:"
               )}
             >
               {tab.name}
@@ -386,9 +412,9 @@ export default function CategoryDetailPage() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-6 items-center p-0 rounded-lg">
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-white font-medium">Filter by:</span>
+          <span className="text-sm text- font-medium">Filter by:</span>
           <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-            <SelectTrigger className="w-48 bg-[#222222] text-white border-none">
+            <SelectTrigger className="w-48 text- border">
               <SelectValue placeholder="Language" />
             </SelectTrigger>
             <SelectContent>
@@ -408,15 +434,15 @@ export default function CategoryDetailPage() {
               placeholder="Search tags"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="pl-12 pr-4 py-3 bg-[#181818] border-[#363636] text-white placeholder-gray-400 max-w-xs"
+              className="pl-12 pr-4 py-3 bg- border-[#363636] text- placeholder-gray-400 max-w-xs"
             />
           </div>
         </div>
 
         <div className="flex items-center space-x-3 ml-auto">
-          <span className="text-sm text-white font-medium">Sort by:</span>
+          <span className="text-sm  font-medium">Sort by:</span>
           <Select value={selectedSort} onValueChange={setSelectedSort}>
-            <SelectTrigger className="w-64 bg-[#222222] text-white border border-none">
+            <SelectTrigger className="w-64  border border-tag">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -438,24 +464,13 @@ export default function CategoryDetailPage() {
           ))}
         </div>
       ) : (
-        <div className="bg-gray-800 p-16 rounded-lg border border-gray-700 text-center">
-          <div className="h-16 w-16 mx-auto mb-6 text-gray-400">
-            <Search className="h-full w-full" />
-          </div>
-          <h3 className="text-xl font-semibold text-white mb-4">
-            No {activeTab === "live" ? "live streams" : activeTab} found
-          </h3>
-          <p className="text-gray-400 mb-6">
-            Try adjusting your filters or search terms
-          </p>
-          <Button
-            onClick={clearAllFilters}
-            variant="outline"
-            className="border-gray-600 text-gray-300"
-          >
-            Clear all filters
-          </Button>
-        </div>
+        <EmptyState
+          title={`No ${activeTab === "live" ? "live streams" : activeTab} found`}
+          description="Try adjusting your filters or search terms"
+          icon={activeTab === "live" ? "video" : "search"}
+          actionLabel="Clear all filters"
+          onAction={clearAllFilters}
+        />
       )}
     </div>
   );

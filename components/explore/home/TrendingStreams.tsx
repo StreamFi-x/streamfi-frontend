@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,9 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
   const easeInOut: Easing = "easeInOut";
 
   const getInitialCount = () => {
-    if (typeof window === "undefined") return 4;
-    if (window.innerWidth < 640) return 2; // Mobile: 2 cards
-    if (window.innerWidth < 1024) return 3; // Tablet: 3 cards
+    if (typeof window === "undefined") {return 4;}
+    if (window.innerWidth < 640) {return 2;} // Mobile: 2 cards
+    if (window.innerWidth < 1024) {return 3;} // Tablet: 3 cards
     return 4; // Desktop: 4 cards
   };
 
@@ -105,7 +105,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
   };
 
   const handleToggle = async () => {
-    if (isTransitioning) return;
+    if (isTransitioning) {return;}
 
     setIsTransitioning(true);
 
@@ -217,13 +217,13 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
                     {stream.title}
                   </h3>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    <span className="text-sm px-2 py-0.5 rounded bg-highlight text-foreground">
+                    <span className="text-xs px-2 py-0.5 rounded bg-tag text-background">
                       {stream.location}
                     </span>
                     {stream.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="text-sm px-2 py-0.5 rounded bg-highlight text-foreground"
+                        className="text-xs px-2 py-0.5 rounded bg-tag text-background"
                       >
                         {tag}
                       </span>

@@ -27,8 +27,8 @@ import StreamInfoModal from "../dashboard/common/StreamInfoModal";
 import DashboardScreenGuard from "../explore/DashboardScreenGuard";
 import { Button } from "../ui/button";
 import ChatSection from "./chat-section";
+import { ViewStreamSkeleton } from "../skeletons/ViewStreamSkeleton";
 
-import { text } from "stream/consumers";
 import { Flag } from "lucide-react";
 import ReportLiveStreamModal from "../modals/ReportLiveStreamModal";
 
@@ -44,9 +44,10 @@ interface ViewStreamProps {
   isLive?: boolean;
   onStatusChange?: (isLive: boolean) => void;
   isOwner?: boolean;
+  userData?: any;
 }
 
-// Mock API function to fetch stream data
+// Mock API function to fetch stream data (fallback)
 const fetchStreamData = async () => {
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1000));
@@ -81,7 +82,9 @@ const TIPPING_CURRENCIES = [
 ];
 
 function formatAddress(address: string) {
-  if (!address) return "";
+  if (!address) {
+    return "";
+  }
   return address.slice(0, 5) + "...." + address.slice(-5);
 }
 
@@ -107,7 +110,9 @@ const TippingModal = ({
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Only allow numbers and decimals
     const val = e.target.value;
-    if (/^\d*\.?\d*$/.test(val)) setAmount(val);
+    if (/^\d*\.?\d*$/.test(val)) {
+      setAmount(val);
+    }
   };
 
   return isOpen ? (
@@ -183,6 +188,7 @@ const ViewStream = ({
   isLive: initialIsLive,
   onStatusChange,
   isOwner = false,
+  userData,
 }: ViewStreamProps) => {
   const [isLive, setIsLive] = useState(initialIsLive);
   const [streamData, setStreamData] = useState<any>(null);
@@ -204,18 +210,45 @@ const ViewStream = ({
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
 
-  // Fetch stream data on component mount
+  // Use userData from props if available, otherwise fetch it
   useEffect(() => {
     const getStreamData = async () => {
       try {
         setLoading(true);
-        const data = await fetchStreamData();
-        setStreamData(data);
 
-        // Update live status
-        setIsLive(data.isLive);
-        if (onStatusChange) {
-          onStatusChange(data.isLive);
+        if (userData) {
+          // Use data from props
+          const data = {
+            isLive: initialIsLive || false,
+            title: userData.streamTitle || `${username}'s Live Stream`,
+            tags: userData.tags || ["live", "streaming"],
+            viewCount: userData.viewCount || 0,
+            duration: "00:00:00", // Live streams don't have duration
+            thumbnailUrl: userData.avatar || "/Images/user.png",
+            avatarUrl: userData.avatar || "/Images/user.png",
+            followers: userData.followers?.length || 0,
+            bio: userData.bio || `Welcome to ${username}'s stream!`,
+            socialLinks: userData.socialLinks || {
+              twitter: "",
+              instagram: "",
+              discord: "",
+            },
+            starknetAddress: userData.starknetAddress || "",
+          };
+
+          setStreamData(data);
+          setIsLive(data.isLive);
+          if (onStatusChange) {
+            onStatusChange(data.isLive);
+          }
+        } else {
+          // Fallback to API call if no userData provided
+          const data = await fetchStreamData();
+          setStreamData(data);
+          setIsLive(data.isLive);
+          if (onStatusChange) {
+            onStatusChange(data.isLive);
+          }
         }
       } catch (err) {
         setError("Failed to load stream data");
@@ -226,11 +259,13 @@ const ViewStream = ({
     };
 
     getStreamData();
-  }, [username, onStatusChange]);
+  }, [username, onStatusChange, userData, initialIsLive]);
 
   // Handle fullscreen toggle
   const toggleFullscreen = () => {
-    if (!videoContainerRef.current) return;
+    if (!videoContainerRef.current) {
+      return;
+    }
 
     if (!document.fullscreenElement) {
       videoContainerRef.current.requestFullscreen().catch(err => {
@@ -307,11 +342,7 @@ const ViewStream = ({
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[400px] bg-[#17191A]">
-        <div className="text-white">Loading stream...</div>
-      </div>
-    );
+    return <ViewStreamSkeleton />;
   }
 
   if (error || !streamData) {
