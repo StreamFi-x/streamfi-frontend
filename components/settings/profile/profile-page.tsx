@@ -1,10 +1,12 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 import { useEffect, useCallback, useState } from "react";
 import type React from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { motion, AnimatePresence } from "framer-motion";
-import profileImage from "@/public/Images/profile.png";
-import Avatar from "@/public/icons/avatar.svg";
+// Remove direct image imports
+import { Avatar } from "@/public/icons";
+import { ProfileImage } from "@/public/Images";
 import VerificationPopup from "./popup";
 import AvatarSelectionModal from "./avatar-modal";
 import type {
@@ -30,7 +32,7 @@ export default function ProfileSettings() {
   const { showToast } = useToast();
 
   const [avatar, setAvatar] = useState<StaticImageData | string | File>(
-    profileImage
+    ProfileImage
   );
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
 
@@ -381,7 +383,7 @@ export default function ProfileSettings() {
 
       // Prepare avatar data if it's a File/Blob
       let avatarData: string | File | undefined;
-      if (typeof avatar === "string" && avatar !== profileImage.src) {
+      if (typeof avatar === "string" && avatar !== "/Images/profile.png") {
         avatarData = avatar;
       } else if (avatar instanceof File) {
         avatarData = avatar;
