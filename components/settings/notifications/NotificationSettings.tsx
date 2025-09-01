@@ -3,14 +3,6 @@
 import type React from "react";
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import {
-  bgClasses,
-  textClasses,
-  borderClasses,
-  buttonClasses,
-  componentClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
 
 interface NotificationOptionType {
   title: string;
@@ -35,7 +27,7 @@ interface NotificationCategoryProps {
 const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ enabled, onChange }) => {
   return (
     <div
-      className={`flex-shrink-0 w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${enabled ? "bg-purple-600" : "bg-gray-700 dark:bg-gray-700"}`}
+      className={`flex-shrink-0 w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${enabled ? "bg-highlight" : "bg-muted"}`}
       onClick={onChange}
     >
       <div
@@ -54,39 +46,23 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
   onOptionToggle,
 }) => {
   return (
-    <div
-      className={combineClasses(componentClasses.card, "mb-4 overflow-hidden")}
-    >
+    <div className="bg-card border border-border shadow-sm rounded-lg mb-4 overflow-hidden">
       <div
         className="flex justify-between items-center cursor-pointer p-6"
         onClick={toggleSection}
       >
         <div className="flex-1">
-          <h2
-            className={combineClasses(
-              textClasses.highlight,
-              "text-xl font-medium"
-            )}
-          >
-            {title}
-          </h2>
-          <p className={combineClasses(textClasses.tertiary, "text-sm")}>
-            {description}
-          </p>
+          <h2 className="text-highlight text-xl font-medium">{title}</h2>
+          <p className="text-muted-foreground text-sm">{description}</p>
         </div>
-        <button className={textClasses.primary}>
+        <button className="text-foreground">
           {isOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
         </button>
       </div>
 
       {isOpen && (
         <div>
-          <hr
-            className={combineClasses(
-              borderClasses.primary,
-              "m-0 w-[96%] mx-auto"
-            )}
-          />
+          <hr className="border-border m-0 w-[96%] mx-auto" />
           <div>
             {options.map((option, index) => (
               <div
@@ -94,13 +70,8 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
                 className="py-5 flex justify-between items-center px-6 pl-24 md:pl-20"
               >
                 <div className="flex-1 pr-4">
-                  <h3 className={textClasses.primary}>{option.title}</h3>
-                  <p
-                    className={combineClasses(
-                      textClasses.tertiary,
-                      "text-sm italic font-light"
-                    )}
-                  >
+                  <h3 className="text-foreground">{option.title}</h3>
+                  <p className="text-muted-foreground text-sm italic font-light">
                     {option.description}
                   </p>
                 </div>
@@ -230,13 +201,7 @@ const NotificationSettings: React.FC = () => {
   };
 
   return (
-    <div
-      className={combineClasses(
-        bgClasses.secondary,
-        textClasses.primary,
-        "min-h-screen"
-      )}
-    >
+    <div className="bg-secondary text-foreground min-h-screen">
       <div className="max-w-8xl mx-auto">
         {notificationOptions.map((category, categoryIndex) => (
           <NotificationCategory
@@ -254,10 +219,7 @@ const NotificationSettings: React.FC = () => {
 
         <div className="flex justify-end">
           <button
-            className={combineClasses(
-              buttonClasses.secondary,
-              "px-6 py-3 rounded-md"
-            )}
+            className="bg-highlight hover:bg-highlight/80 text-primary-foreground px-6 py-3 rounded-md"
             onClick={saveChanges}
           >
             Save Changes

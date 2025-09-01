@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -12,6 +11,8 @@ import {
 } from "@/components/ui/select";
 import { Search } from "lucide-react";
 import StreamCard from "@/components/shared/profile/StreamCard";
+import { BrowsePageSkeleton } from "@/components/skeletons/skeletons/browsePageSkeleton";
+import { EmptyState } from "@/components/skeletons/EmptyState";
 import {
   languageOptions,
   sortOptions,
@@ -22,6 +23,15 @@ export default function LivePage() {
   const [selectedLanguage, setSelectedLanguage] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSort, setSelectedSort] = useState("recommended");
+  const [loading, setLoading] = useState(true);
+
+  // Simulate API loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const clearAllFilters = () => {
     setSelectedLanguage("all");
@@ -47,11 +57,11 @@ export default function LivePage() {
   return (
     <div className="space-y-8">
       {/* Secondary Filters - FIRST (no tag filters here anymore) */}
-      <div className="flex flex-col sm:flex-row gap-6 items-center p-6 rounded-lg">
+      <div className="flex flex-col sm:flex-row gap-6 items-center rounded-lg">
         <div className="flex items-center space-x-3">
           <span className="text-sm text-gray-400 font-medium">Filter by:</span>
           <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-            <SelectTrigger className="w-48 bg-[#222222] text-white">
+            <SelectTrigger className="w-48">
               <SelectValue placeholder="Language" />
             </SelectTrigger>
             <SelectContent>
@@ -71,7 +81,7 @@ export default function LivePage() {
               placeholder="Search tags"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="pl-12 pr-4 py-3 bg-[#181818] border-[#363636] text-white  placeholder-gray-400"
+              className="pl-12 pr-4 py-3 border-gray-300   placeholder-gray-400"
             />
           </div>
         </div>
@@ -79,7 +89,7 @@ export default function LivePage() {
         <div className="flex items-center space-x-3 ml-auto">
           <span className="text-sm text-gray-400 font-medium">Sort by:</span>
           <Select value={selectedSort} onValueChange={setSelectedSort}>
-            <SelectTrigger className="w-64 bg-[#222222] text-white border border-gray-600">
+            <SelectTrigger className="w-64 border border-gray-200">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -93,6 +103,8 @@ export default function LivePage() {
         </div>
       </div>
 
+      {loading && <BrowsePageSkeleton type="live" count={12} />}
+
       {/* Video Grid */}
       {filteredVideos.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -101,24 +113,13 @@ export default function LivePage() {
           ))}
         </div>
       ) : (
-        <div className="bg-gray-800 p-16 rounded-lg border border-gray-700 text-center">
-          <div className="h-16 w-16 mx-auto mb-6 text-gray-400">
-            <Search className="h-full w-full" />
-          </div>
-          <h3 className="text-xl font-semibold text-white mb-4">
-            No streams found
-          </h3>
-          <p className="text-gray-400 mb-6">
-            Try adjusting your filters or search terms
-          </p>
-          <Button
-            onClick={clearAllFilters}
-            variant="outline"
-            className="border-gray-600 text-gray-300"
-          >
-            Clear all filters
-          </Button>
-        </div>
+        <EmptyState
+          title="No live streams found"
+          description="Try adjusting your filters or search terms"
+          icon="video"
+          actionLabel="Clear all filters"
+          onAction={clearAllFilters}
+        />
       )}
     </div>
   );

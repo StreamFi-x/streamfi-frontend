@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev ",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -14,13 +14,26 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --watchAll=false",
+    "type-check": "tsc --noEmit",
+    "type-check:watch": "tsc --noEmit --watch",
     "prepare": "husky",
-    "commit": "git-cz"
+    "commit": "git-cz",
+    "analyze": "ANALYZE=true npm run build",
+    "clean": "rm -rf .next out coverage",
+    "prebuild": "npm run type-check",
+    "predev": "npm run type-check"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@fontsource/inter": "^5.1.1",
     "@hookform/resolvers": "^5.1.1",
     "@livepeer/react": "^4.3.5",
+    "@mui/icons-material": "^7.3.1",
+    "@mui/material": "^7.3.1",
     "@neondatabase/serverless": "^1.0.0",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.14",
@@ -72,9 +85,11 @@
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@eslint/eslintrc": "^3",
+    "@next/bundle-analyzer": "^15.5.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@types/cors": "^2.8.19",
     "@types/formidable": "^3.4.5",
+    "@types/jest": "^30.0.0",
     "@types/mongoose": "^5.11.96",
     "@types/node": "^20",
     "@types/nodemailer": "^6.4.17",
@@ -96,7 +111,8 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "prettier --write"
+      "prettier --write",
+      "eslint --fix"
     ],
     "*.{json,md,yml,yaml}": [
       "prettier --write"

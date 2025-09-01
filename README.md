@@ -76,7 +76,7 @@ npm run commit       # Interactive commit (recommended)
 
 ### Commit Message Format
 
-We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification. **📚 See [COMMIT_GUIDE.md](./COMMIT_GUIDE.md) for detailed examples and troubleshooting!**
 
 ```
 type(scope): description
@@ -96,6 +96,8 @@ Types:
 - `perf`: Performance improvements
 - `test`: Adding or updating tests
 - `chore`: Maintenance tasks
+
+**💡 Pro Tip**: Use `./scripts/test-commit.sh "your message"` to test your commit message before committing!
 
 Example:
 

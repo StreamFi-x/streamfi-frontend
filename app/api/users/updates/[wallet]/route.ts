@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { uploadImage, deleteImage } from "@/utils/upload/Dcloudinary";
+import { uploadImage, deleteImage } from "@/utils/upload/cloudinary";
 import { promises as fs } from "fs";
 import path from "path";
 import os from "os";
@@ -10,14 +10,15 @@ import { UserUpdateInput } from "../../../../../types/user";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { wallet: string } }
+  { params }: { params: Promise<{ wallet: string }> }
 ) {
   try {
-    const wallet = params.wallet.toLowerCase();
+    const { wallet } = await params;
+    const normalizedWallet = wallet.toLowerCase();
 
     // Fetching current user data
     const existingResult = await sql`
-      SELECT * FROM users WHERE LOWER(wallet) = LOWER(${wallet})
+      SELECT * FROM users WHERE LOWER(wallet) = LOWER(${normalizedWallet})
     `;
     const user = existingResult.rows[0];
     if (!user) {
@@ -110,7 +111,7 @@ export async function PUT(
 
     if (email && email !== user.email) {
       const emailExists = await sql`
-        SELECT id FROM users WHERE email = ${email} AND wallet != ${wallet}
+        SELECT id FROM users WHERE email = ${email} AND wallet != ${normalizedWallet}
       `;
       if (emailExists.rows.length > 0) {
         return NextResponse.json(
@@ -123,7 +124,7 @@ export async function PUT(
     // Username uniqueness
     if (username && username !== user.username) {
       const usernameExists = await sql`
-        SELECT id FROM users WHERE username = ${username} AND wallet != ${wallet}
+        SELECT id FROM users WHERE username = ${username} AND wallet != ${normalizedWallet}
       `;
       if (usernameExists.rows.length > 0) {
         return NextResponse.json(
@@ -149,7 +150,9 @@ export async function PUT(
 
       if (user.avatar) {
         const oldPublicId = extractPublicIdFromUrl(user.avatar);
-        if (oldPublicId) await deleteImage(oldPublicId);
+        if (oldPublicId) {
+          await deleteImage(oldPublicId);
+        }
       }
     }
 
@@ -166,7 +169,7 @@ export async function PUT(
         emailnotifications = ${emailNotifications},
         creator = ${creator ? JSON.stringify(creator) : user.creator},
         updated_at = CURRENT_TIMESTAMP
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE LOWER(wallet) = LOWER(${normalizedWallet})
       RETURNING id, username, email, streamkey, avatar, bio, sociallinks, emailverified, emailnotifications, creator, wallet, created_at, updated_at
     `;
 
@@ -188,7 +191,9 @@ function extractPublicIdFromUrl(url: string): string | null {
     const urlObj = new URL(url);
     const parts = urlObj.pathname.split("/");
     const uploadIndex = parts.indexOf("upload");
-    if (uploadIndex < 0 || uploadIndex + 2 >= parts.length) return null;
+    if (uploadIndex < 0 || uploadIndex + 2 >= parts.length) {
+      return null;
+    }
     return parts
       .slice(uploadIndex + 2)
       .join("/")

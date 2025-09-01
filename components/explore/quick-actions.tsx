@@ -7,7 +7,6 @@ import { Home, Search, Settings, User, Wallet } from "lucide-react";
 import { useAccount } from "@starknet-react/core";
 import { useState, useEffect, useCallback } from "react";
 import ConnectModal from "../connectWallet";
-import { bgClasses, buttonClasses, textClasses } from "@/lib/theme-classes";
 
 interface QuickActionItem {
   icon: React.ElementType;
@@ -114,10 +113,10 @@ export default function QuickActions() {
               <Link
                 key={`${item.label}-${index}`}
                 href={item.href}
-                className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 ${buttonClasses} ${
+                className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 ${
                   isActive
-                    ? `${textClasses.primary} ${bgClasses.primary}`
-                    : "text-/60 hover:text-white hover:bg-[#2D2F31]/40"
+                    ? "text-foreground bg-background"
+                    : "text-white/60 hover:text-white hover:bg-[#2D2F31]/40"
                 }`}
               >
                 <item.icon size={20} className="mb-1" />

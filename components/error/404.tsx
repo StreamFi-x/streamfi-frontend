@@ -4,12 +4,6 @@ import { type FC, useEffect, useState } from "react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import Link from "next/link";
 import { Home, Compass, Gamepad2, Zap, Star, Sparkles } from "lucide-react";
-import {
-  bgClasses,
-  textClasses,
-  buttonClasses,
-  borderClasses,
-} from "@/lib/theme-classes";
 
 interface GameCentric404Props {
   onGoBack: () => void;
@@ -117,7 +111,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
 
   return (
     <div
-      className={`min-h-screen flex items-center justify-center relative overflow-hidden ${bgClasses.secondary}`}
+      className={`min-h-screen flex items-center justify-center relative overflow-hidden bg-secondary`}
     >
       {/* Animated Background Particles */}
       <div className="absolute inset-0 overflow-hidden">
@@ -174,7 +168,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
               animate="animate"
               className="p-3 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-sm"
             >
-              <Gamepad2 className={`w-8 h-8 ${textClasses.highlight}`} />
+              <Gamepad2 className={`w-8 h-8 text-highlight`} />
             </motion.div>
             <motion.div
               variants={pulseVariants}
@@ -182,7 +176,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
               transition={{ delay: 0.5 }}
               className="p-3 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 backdrop-blur-sm"
             >
-              <Zap className={`w-8 h-8 ${textClasses.highlight}`} />
+              <Zap className={`w-8 h-8 text-highlight`} />
             </motion.div>
             <motion.div
               variants={pulseVariants}
@@ -190,14 +184,14 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
               transition={{ delay: 1 }}
               className="p-3 rounded-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-sm"
             >
-              <Star className={`w-8 h-8 ${textClasses.highlight}`} />
+              <Star className={`w-8 h-8 text-highlight`} />
             </motion.div>
           </motion.div>
 
           {/* Main 404 Title with Glitch Effect */}
           <motion.div className="relative mb-6" variants={itemVariants}>
             <motion.h1
-              className={`text-8xl md:text-9xl font-black ${textClasses.primary} relative z-10`}
+              className={`text-8xl md:text-9xl font-black text-foreground relative z-10`}
               variants={glitchVariants}
               animate={glitchActive ? "glitch" : "normal"}
               style={{
@@ -231,7 +225,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
           {/* Game Over Text */}
           <motion.div variants={itemVariants} className="mb-8">
             <motion.h2
-              className={`text-3xl md:text-4xl font-bold ${textClasses.primary} mb-4`}
+              className={`text-3xl md:text-4xl font-bold text-foreground mb-4`}
               animate={{
                 opacity: [0.8, 1, 0.8],
               }}
@@ -244,7 +238,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
               GAME OVER
             </motion.h2>
             <motion.p
-              className={`text-lg ${textClasses.secondary} max-w-md mx-auto leading-relaxed`}
+              className={`text-lg text-muted-foreground max-w-md mx-auto leading-relaxed`}
               variants={itemVariants}
             >
               Looks like you&apos;ve wandered into uncharted territory! The page
@@ -263,7 +257,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
             >
               <Link
                 href="/"
-                className={`inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg ${buttonClasses.primary} shadow-lg hover:shadow-xl transform transition-all duration-200`}
+                className={`inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg bg-primary text-primary-foreground shadow-lg hover:shadow-xl transform transition-all duration-200`}
               >
                 <Home className="w-5 h-5" />
                 Respawn Home
@@ -276,7 +270,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
             >
               <Link
                 href="/explore"
-                className={`inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg ${buttonClasses.outline} ${borderClasses.primary} shadow-lg hover:shadow-xl transform transition-all duration-200`}
+                className={`inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg bg-transparent border border-border text-foreground shadow-lg hover:shadow-xl transform transition-all duration-200`}
               >
                 <Compass className="w-5 h-5" />
                 Explore Streams
@@ -287,15 +281,15 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
           {/* Gaming Stats UI */}
           <motion.div
             variants={itemVariants}
-            className={`inline-flex items-center gap-6 px-6 py-3 rounded-full ${bgClasses.card} ${borderClasses.primary} border backdrop-blur-sm`}
+            className={`inline-flex items-center gap-6 px-6 py-3 rounded-full bg-card border border-border backdrop-blur-sm`}
           >
             <div className="flex items-center gap-2">
-              <Sparkles className={`w-4 h-4 ${textClasses.highlight}`} />
-              <span className={`text-sm font-medium ${textClasses.secondary}`}>
+              <Sparkles className={`w-4 h-4 text-highlight`} />
+              <span className={`text-sm font-medium text-muted-foreground`}>
                 Error Code: 404
               </span>
             </div>
-            <div className={`w-px h-4 ${bgClasses.tertiary}`} />
+            <div className={`w-px h-4 bg-tertiary`} />
             <div className="flex items-center gap-2">
               <motion.div
                 className="w-2 h-2 bg-red-500 rounded-full"
@@ -308,7 +302,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
                   ease: easeInOut,
                 }}
               />
-              <span className={`text-sm font-medium ${textClasses.secondary}`}>
+              <span className={`text-sm font-medium text-muted-foreground`}>
                 Connection Lost
               </span>
             </div>
@@ -318,7 +312,7 @@ const GameCentric404: FC<GameCentric404Props> = ({ onGoBack }) => {
           <motion.div variants={itemVariants} className="mt-8">
             <motion.button
               onClick={onGoBack}
-              className={`text-sm ${textClasses.tertiary} hover:${textClasses.secondary} transition-colors duration-200`}
+              className={`text-sm text-muted-foreground hover:text-foreground transition-colors duration-200`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >

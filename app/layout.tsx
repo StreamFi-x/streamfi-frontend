@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Providers } from "../components/providers";
 import "./globals.css";
 import { Toaster } from "sonner";
+import React from "react";
 import SidebarWrapper from "../components/SidebarWrapper";
 
 export const metadata: Metadata = {

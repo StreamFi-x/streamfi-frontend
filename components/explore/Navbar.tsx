@@ -14,15 +14,6 @@ import ProfileModal from "./ProfileModal";
 import Avatar from "@/public/Images/user.png";
 import ProfileDropdown from "../ui/profileDropdown";
 
-import {
-  bgClasses,
-  textClasses,
-  borderClasses,
-  ringClasses,
-  buttonClasses,
-  componentClasses,
-} from "@/lib/theme-classes";
-
 interface NavbarProps {
   onConnectWallet?: () => void;
   toggleSidebar?: () => void;
@@ -238,7 +229,7 @@ export default function Navbar({}: NavbarProps) {
   };
 
   const handleProfileDisplayModal = useCallback(async () => {
-    if (!address) return;
+    if (!address) {return;}
 
     setIsLoading(true);
     try {
@@ -310,7 +301,7 @@ export default function Navbar({}: NavbarProps) {
   return (
     <>
       <header
-        className={`h-20 flex items-center justify-between px-4 border-b-[0.5px] ${borderClasses.primary}  ${bgClasses.highlight} z-50`}
+        className={`h-20 flex items-center justify-between px-4 border-b-[0.5px] border-border bg-sidebar z-50`}
       >
         <div className="flex items-center gap-4">
           <Link href="/explore" className="flex items-center gap-2">
@@ -339,9 +330,9 @@ export default function Navbar({}: NavbarProps) {
                 setIsSearchDropdownOpen(true);
               }}
               onFocus={() => {
-                if (searchResults.length > 0) setIsSearchDropdownOpen(true);
+                if (searchResults.length > 0) {setIsSearchDropdownOpen(true);}
               }}
-              className={`w-full ${bgClasses.input} rounded-xl py-2 pl-10 pr-4 text-sm outline-none ${ringClasses.primary}`}
+              className={`w-full bg-input rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:ring-1 focus:ring-highlight focus:outline-none`}
             />
             <Search
               className="absolute left-3 top-[47%] transform -translate-y-1/2 text-gray-400"
@@ -355,13 +346,13 @@ export default function Navbar({}: NavbarProps) {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className={`absolute top-full left-0 right-0 mt-2 ${componentClasses.dropdown} z-20`}
+                className={`absolute top-full left-0 right-0 mt-2 bg-dropdown border border-border shadow-lg rounded-md z-20`}
               >
                 <div className="p-2">
                   {searchResults.map(result => (
                     <Link
                       key={result.id}
-                      className={`flex items-center gap-3 p-2 ${bgClasses.hover} rounded-md cursor-pointer relative z-30`}
+                      className={`flex items-center gap-3 p-2 hover:bg-surface-hover rounded-md cursor-pointer relative z-30`}
                       href={`/browse/${result.type}/${result.title.toLowerCase()}`}
                     >
                       <div className="w-10 h-10 rounded bg-gray-700 overflow-hidden">
@@ -375,13 +366,11 @@ export default function Navbar({}: NavbarProps) {
                         />
                       </div>
                       <div>
-                        <div
-                          className={`text-sm font-medium ${textClasses.primary}`}
-                        >
+                        <div className={`text-sm font-medium text-foreground`}>
                           {result.title}
                         </div>
                         <div
-                          className={`text-xs ${textClasses.tertiary} capitalize`}
+                          className={`text-xs text-muted-foreground capitalize`}
                         >
                           {result.type}
                         </div>
@@ -398,13 +387,13 @@ export default function Navbar({}: NavbarProps) {
           {isConnected && address && (
             <>
               <button>
-                <Bell className={`${textClasses.primary} w-4 h-4 `} />
+                <Bell className={`text-foreground w-4 h-4 `} />
               </button>
 
               {/* Avatar with dropdown */}
               <div className="relative avatar-container">
                 <div
-                  className={`cursor-pointer flex gap-[10px] font-medium items-center text-[14px] ${textClasses.onColor}`}
+                  className={`cursor-pointer flex gap-[10px] font-medium items-center text-[14px] text-white`}
                   onClick={toggleProfileDropdown}
                 >
                   {isLoading ? (
@@ -416,7 +405,7 @@ export default function Navbar({}: NavbarProps) {
                   ) : (
                     <>
                       {/* Display name */}
-                      <span className={`${textClasses.primary} hidden sm:flex`}>
+                      <span className={`text-foreground hidden sm:flex`}>
                         {renderDisplayName()}
                       </span>
 
@@ -441,7 +430,7 @@ export default function Navbar({}: NavbarProps) {
                   )}
 
                   <ChevronDown
-                    className={`${textClasses.primary} w-4 h-4 sm:hidden mt-0.5`}
+                    className={`text-foreground w-4 h-4 sm:hidden mt-0.5`}
                   />
                 </div>
 
@@ -467,7 +456,7 @@ export default function Navbar({}: NavbarProps) {
           {!isConnected && (
             <button
               onClick={handleConnectWallet}
-              className={`${buttonClasses.connect} px-4 py-3 rounded-md text-sm font-medium`}
+              className={`bg-highlight hover:bg-highlight/80 text-background px-4 py-3 rounded-md text-sm font-medium`}
             >
               Connect Wallet
             </button>
@@ -481,11 +470,13 @@ export default function Navbar({}: NavbarProps) {
           <motion.div className="fixed inset-0 z-50 flex items-center justify-center">
             {/* Backdrop */}
             <div
-              className={`absolute inset-0 ${bgClasses.overlay}`}
+              className={`absolute inset-0 bg-overlay`}
               onClick={() => setIsModalOpen(false)}
             />
             {/* Modal Content */}
-            <motion.div className={`${componentClasses.modal} p-6 z-10`}>
+            <motion.div
+              className={`bg-modal border border-border shadow-xl rounded-lg p-6 z-10`}
+            >
               <ConnectModal
                 isModalOpen={isModalOpen}
                 setIsModalOpen={setIsModalOpen}

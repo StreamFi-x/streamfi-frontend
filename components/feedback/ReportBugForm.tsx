@@ -27,6 +27,8 @@ import {
 import { FeedbackHeader } from "./FeedbackHeader";
 import { FileUpload } from "./FileUpload";
 
+import { cn } from "@/lib/utils";
+
 const formSchema = z.object({
   feedbackType: z.string().min(1, {
     message: "Please select a feedback type.",
@@ -91,14 +93,14 @@ export function ReportBugForm() {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-6 bg-[#21202033] p-6"
+          className="space-y-6 bg-background"
         >
           <FormField
             control={form.control}
             name="feedbackType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-base font-medium">
+                <FormLabel className="text-base font-medium text-foreground">
                   Select type of feedback:
                 </FormLabel>
                 <Select
@@ -106,11 +108,11 @@ export function ReportBugForm() {
                   defaultValue={field.value}
                 >
                   <FormControl>
-                    <SelectTrigger className=" h-[60px] border border-[#D9CAE2] focus:border-[#5A189A] focus:ring-0 text-[#AF6EFF]">
+                    <SelectTrigger className="h-[60px] border border-border focus:ring-1 focus:ring-highlight focus:outline-none text-foreground">
                       <SelectValue placeholder="Select feedback type" />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent className="bg-[#111111] border-gray-400">
+                  <SelectContent className="bg-dropdown border border-border text-foreground">
                     <SelectItem value="bug-report">Bug Report</SelectItem>
                     <SelectItem value="feature-suggestion">
                       Feature Suggestion
@@ -127,11 +129,13 @@ export function ReportBugForm() {
             name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-base font-medium">Title</FormLabel>
+                <FormLabel className="text-base font-medium text-foreground">
+                  Title
+                </FormLabel>
                 <FormControl>
                   <Input
                     placeholder="Subject / Case Name"
-                    className="h-[82px] text-lg border border-[#D9CAE2] focus:border-[#5A189A] focus:ring-0"
+                    className="w-full bg-input text-foreground rounded-lg p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-purple-500 h-[82px] text-sm sm:text-lg"
                     {...field}
                   />
                 </FormControl>
@@ -145,13 +149,13 @@ export function ReportBugForm() {
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-base font-medium">
+                <FormLabel className="text-base font-medium text-foreground">
                   Description
                 </FormLabel>
                 <FormControl>
                   <Textarea
                     placeholder="Tell us what happened or what you'd like to see improved..."
-                    className=" border-[#D9CAE2] min-h-[120px] resize-none focus:border-[#5A189A] focus:ring-0"
+                    className="w-full bg-input text-foreground rounded-lg p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[120px] resize-none"
                     {...field}
                   />
                 </FormControl>
@@ -161,7 +165,7 @@ export function ReportBugForm() {
           />
 
           <div className="space-y-2">
-            <label className="text-base font-medium">
+            <label className="text-base font-medium text-foreground">
               Screenshot (optional)
             </label>
             <FileUpload
@@ -173,7 +177,7 @@ export function ReportBugForm() {
           <div className="flex justify-end pt-4">
             <Button
               type="submit"
-              className="bg-[#5A189A] hover:bg-[#7B2CBF] text-white px-6"
+              className=" bg-[#5A189A] hover:bg-[#7B2CBF] text-white px-6"
             >
               Send bug report
             </Button>

@@ -7,12 +7,6 @@ import { usePathname } from "next/navigation";
 import { navItems, recommendedUsers } from "@/data/explore/sidebar";
 import Image from "next/image";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import {
-  bgClasses,
-  textClasses,
-  borderClasses,
-  buttonClasses,
-} from "@/lib/theme-classes";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -47,17 +41,17 @@ export default function Sidebar() {
   }, []);
 
   const isRouteActive = (href: string) => {
-    if (href === "/" && pathname === "/explore") return true;
+    if (href === "/" && pathname === "/explore") {return true;}
     if (
       href === "/browse" &&
       (pathname === "/browse" || pathname.startsWith("/browse/"))
     )
-      return true;
+      {return true;}
     if (
       href === "/explore/browse" &&
       (pathname === "/browse" || pathname.startsWith("/browse/"))
     )
-      return true;
+      {return true;}
     return (
       pathname === `/explore${href}` || pathname.startsWith(`/explore${href}/`)
     );
@@ -204,7 +198,7 @@ export default function Sidebar() {
       >
         <motion.span
           variants={itemVariants}
-          className={`${textClasses.secondary} font-semibold tracking-wider`}
+          className={`text-muted-foreground font-semibold tracking-wider`}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.3 }}
@@ -213,7 +207,7 @@ export default function Sidebar() {
         </motion.span>
         <motion.button
           variants={itemVariants}
-          className={`p-2 ${bgClasses.hover} rounded-full ${textClasses.primary} relative overflow-hidden`}
+          className={`p-2 hover:bg-surface-hover rounded-full text-foreground relative overflow-hidden`}
           onClick={toggleCollapsed}
           whileHover={{ scale: 1.1, rotate: 5 }}
           whileTap={{ scale: 0.9 }}
@@ -258,8 +252,8 @@ export default function Sidebar() {
                   }
                   className={`flex items-center gap-3 py-1.5 px-2.5 rounded-lg transition-all duration-300 relative overflow-hidden ${
                     isActive
-                      ? `${bgClasses.selected} ${textClasses.primary} shadow-lg border-l-4 border-purple-500`
-                      : `${textClasses.secondary} hover:${textClasses.primary} ${bgClasses.hover}`
+                      ? `bg-accent text-foreground shadow-lg border-l-4 border-highlight`
+                      : `text-muted-foreground hover:text-foreground hover:bg-surface-hover`
                   }`}
                 >
                   <motion.div
@@ -269,7 +263,7 @@ export default function Sidebar() {
                     <item.icon
                       size={20}
                       className={
-                        isActive ? textClasses.primary : textClasses.secondary
+                        isActive ? "text-foreground" : "text-muted-foreground"
                       }
                     />
                   </motion.div>
@@ -298,12 +292,12 @@ export default function Sidebar() {
 
       <motion.hr
         variants={itemVariants}
-        className={`my-4 border-t ${borderClasses.primary}`}
+        className={`my-4 border-t border-border`}
       />
 
       <motion.div variants={itemVariants}>
         <motion.h3
-          className={`text-xs font-bold ${textClasses.tertiary} uppercase tracking- mb-3 px-1`}
+          className={`text-xs font-bold text-muted-foreground uppercase tracking- mb-3 px-1`}
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.3 }}
@@ -323,11 +317,11 @@ export default function Sidebar() {
               <motion.div variants={navItemVariants}>
                 <Link
                   href="#"
-                  className={`flex items-center gap-3 px-2 py-2 rounded-lg ${bgClasses.hover}`}
+                  className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-surface-hover"
                 >
                   <motion.div
                     variants={avatarVariants}
-                    className={`relative w-8 h-8 rounded-full ${bgClasses.tertiary} overflow-hidden`}
+                    className="relative w-8 h-8 rounded-full bg-tertiary overflow-hidden"
                   >
                     {renderAvatar(user.avatar, user.name)}
                     {user.status.toLowerCase().includes("watching") && (
@@ -342,7 +336,7 @@ export default function Sidebar() {
                   </motion.div>
                   <div>
                     <motion.div
-                      className={`text-xs ${textClasses.primary} font-semibold`}
+                      className="text-xs text-foreground font-semibold"
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05, duration: 0.3 }}
@@ -350,7 +344,7 @@ export default function Sidebar() {
                       {user.name}
                     </motion.div>
                     <motion.div
-                      className={`text-[10px] ${textClasses.tertiary}`}
+                      className="text-[10px] text-muted-foreground"
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 + 0.1, duration: 0.3 }}
@@ -365,7 +359,7 @@ export default function Sidebar() {
         </div>
         <motion.button
           variants={itemVariants}
-          className={`w-full mt-3 text-xs ${buttonClasses.reset} rounded-lg py-2.5 text-center font-medium`}
+          className="w-full mt-3 text-xs bg-tag text-background hover:bg-tag/90 rounded-lg py-2.5 text-center font-medium"
           whileHover={{ scale: 1.02, y: -1 }}
           whileTap={{ scale: 0.98 }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -376,12 +370,12 @@ export default function Sidebar() {
 
       <motion.hr
         variants={itemVariants}
-        className={`my-4 border-t ${borderClasses.primary}`}
+        className="my-4 border-t border-border"
       />
 
       <motion.div variants={itemVariants}>
         <motion.h3
-          className={`text-xs font-bold ${textClasses.tertiary} uppercase tracking mb-3 px-1`}
+          className="text-xs font-bold text-muted-foreground uppercase tracking mb-3 px-1"
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.3 }}
@@ -401,11 +395,11 @@ export default function Sidebar() {
               <motion.div variants={navItemVariants}>
                 <Link
                   href="#"
-                  className={`flex items-center gap-3 px-2 py-2 rounded-lg ${bgClasses.hover}`}
+                  className={`flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-surface-hover`}
                 >
                   <motion.div
                     variants={avatarVariants}
-                    className={`relative w-8 h-8 rounded-full ${bgClasses.tertiary} overflow-hidden`}
+                    className="relative w-8 h-8 rounded-full bg-tertiary overflow-hidden"
                   >
                     {renderAvatar(user.avatar, user.name)}
                     {user.name !== "Guraissay" && (
@@ -420,7 +414,7 @@ export default function Sidebar() {
                   </motion.div>
                   <div>
                     <motion.div
-                      className={`text-xs ${textClasses.primary} font-semibold`}
+                      className="text-xs text-foreground font-semibold"
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05, duration: 0.3 }}
@@ -428,7 +422,7 @@ export default function Sidebar() {
                       {user.name}
                     </motion.div>
                     <motion.div
-                      className={`text-[10px] ${textClasses.tertiary}`}
+                      className="text-[10px] text-muted-foreground"
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 + 0.1, duration: 0.3 }}
@@ -447,7 +441,7 @@ export default function Sidebar() {
         </div>
         <motion.button
           variants={itemVariants}
-          className={`w-full mt-3 text-xs ${buttonClasses.reset} rounded-lg py-1.5 text-center font-medium`}
+          className="w-full mt-3 text-xs bg-tag text-background hover:bg-tag/90 rounded-lg py-1.5 text-center font-medium"
           whileHover={{ scale: 1.02, y: -1 }}
           whileTap={{ scale: 0.98 }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -468,7 +462,7 @@ export default function Sidebar() {
     >
       <div className="flex justify-center items-center w-full mb-4">
         <motion.button
-          className={`p-2 ${bgClasses.hover} rounded-full ${textClasses.primary} relative overflow-hidden`}
+          className="p-2 hover:bg-surface-hover rounded-full text-foreground relative overflow-hidden"
           onClick={toggleCollapsed}
           whileHover={{ scale: 1.1, rotate: -5 }}
           whileTap={{ scale: 0.9 }}
@@ -515,8 +509,8 @@ export default function Sidebar() {
                 }
                 className={`flex items-center justify-center p-3 rounded-lg transition-all duration-300 relative ${
                   isActive
-                    ? `${bgClasses.selected} ${textClasses.primary} shadow-lg ring-2 ring-purple-500/30`
-                    : `${textClasses.secondary} hover:${textClasses.primary} ${bgClasses.hover}`
+                    ? "bg-accent text-foreground shadow-lg ring-2 ring-highlight/30"
+                    : "text-muted-foreground hover:text-foreground hover:bg-surface-hover"
                 }`}
                 title={item.label}
               >
@@ -527,7 +521,7 @@ export default function Sidebar() {
                   <item.icon
                     size={20}
                     className={
-                      isActive ? textClasses.primary : textClasses.secondary
+                      isActive ? "text-foreground" : "text-muted-foreground"
                     }
                   />
                 </motion.div>
@@ -549,7 +543,7 @@ export default function Sidebar() {
         initial={{ opacity: 0, scaleX: 0 }}
         animate={{ opacity: 1, scaleX: 1 }}
         transition={{ delay: 0.5, duration: 0.3 }}
-        className={`my-4 border-t ${borderClasses.primary}`}
+        className={`my-4 border-t border-border`}
       />
 
       <motion.div className="flex flex-col items-center gap-3">
@@ -567,9 +561,7 @@ export default function Sidebar() {
             whileTap={{ scale: 0.95 }}
           >
             <Link href="#" className="relative" title={user.name}>
-              <div
-                className={`w-9 h-9 rounded-full ${bgClasses.tertiary} overflow-hidden shadow-lg`}
-              >
+              <div className="w-9 h-9 rounded-full bg-tertiary overflow-hidden shadow-lg">
                 {renderAvatar(user.avatar, user.name)}
               </div>
               {user.status.toLowerCase().includes("watching") && (
@@ -590,7 +582,7 @@ export default function Sidebar() {
         initial={{ opacity: 0, scaleX: 0 }}
         animate={{ opacity: 1, scaleX: 1 }}
         transition={{ delay: 0.8, duration: 0.3 }}
-        className={`my-4 border-t ${borderClasses.primary}`}
+        className={`my-4 border-t border-border`}
       />
 
       <motion.div className="flex flex-col items-center gap-3">
@@ -608,9 +600,7 @@ export default function Sidebar() {
             whileTap={{ scale: 0.95 }}
           >
             <Link href="#" className="relative" title={user.name}>
-              <div
-                className={`w-9 h-9 rounded-full ${bgClasses.tertiary} overflow-hidden shadow-lg`}
-              >
+              <div className="w-9 h-9 rounded-full bg-tertiary overflow-hidden shadow-lg">
                 {renderAvatar(user.avatar, user.name)}
               </div>
               {user.name !== "Guraissay" && (
@@ -632,7 +622,7 @@ export default function Sidebar() {
   return (
     <>
       <motion.div
-        className={`hidden lg:block ${bgClasses.highlight} flex-shrink-0 relative overflow- overflow-y-auto border-r ${borderClasses.primary} shadow-lg`}
+        className="hidden lg:block bg-sidebar flex-shrink-0 relative overflow- overflow-y-auto border-r border-border shadow-lg"
         variants={sidebarVariants}
         animate={isCollapsed ? "collapsed" : "expanded"}
         style={{ willChange: "width" }}

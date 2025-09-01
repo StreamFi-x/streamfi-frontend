@@ -1,18 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import type { LiveStreamProps } from "@/types/explore/home";
 import Image from "next/image";
-import {
-  textClasses,
-  bgClasses,
-  buttonClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
 
 export function LiveStreams({
   title,
@@ -29,9 +23,9 @@ export function LiveStreams({
   const easeInOut: Easing = "easeInOut";
 
   const getInitialCount = () => {
-    if (typeof window === "undefined") return 4;
-    if (window.innerWidth < 640) return 2; // Mobile: 2 cards
-    if (window.innerWidth < 1024) return 3; // Tablet: 3 cards
+    if (typeof window === "undefined") {return 4;}
+    if (window.innerWidth < 640) {return 2;} // Mobile: 2 cards
+    if (window.innerWidth < 1024) {return 3;} // Tablet: 3 cards
     return 4; // Desktop: 4 cards
   };
 
@@ -118,7 +112,7 @@ export function LiveStreams({
   };
 
   const handleToggle = async () => {
-    if (isTransitioning) return;
+    if (isTransitioning) {return;}
 
     setIsTransitioning(true);
 
@@ -150,14 +144,7 @@ export function LiveStreams({
 
   return (
     <div ref={sectionRef} className="w-full py-6">
-      <h2
-        className={combineClasses(
-          "text-2xl font-bold mb-6",
-          textClasses.primary
-        )}
-      >
-        {title}
-      </h2>
+      <h2 className="text-2xl font-bold mb-6 text-foreground">{title}</h2>
 
       <motion.div
         variants={containerVariants}
@@ -176,7 +163,7 @@ export function LiveStreams({
               onClick={e => {
                 handleCardClick(stream, e);
               }}
-              className={`${bgClasses.card} group cursor-pointer p-2 pb-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-[1.02]`}
+              className="bg-card group cursor-pointer p-2 pb-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
             >
               <div className="relative rounded-lg overflow-hidden">
                 {typeof stream.thumbnail === "string" &&
@@ -226,43 +213,23 @@ export function LiveStreams({
                       />
                     )}
                   </div>
-                  <p
-                    className={combineClasses(
-                      "text-sm hover:underline",
-                      textClasses.secondary
-                    )}
-                  >
+                  <p className="text-sm hover:underline text-muted-foreground">
                     {stream.streamer.name}
                   </p>
                 </div>
 
                 <div>
-                  <h3
-                    className={combineClasses(
-                      "font-semibold text-lg line-clamp-1 group-hover:text-opacity-80 transition-opacity",
-                      textClasses.primary
-                    )}
-                  >
+                  <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-opacity-80 transition-opacity text-foreground">
                     {stream.title}
                   </h3>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    <span
-                      className={combineClasses(
-                        "text-sm px-2 py-0.5 rounded",
-                        bgClasses.selected,
-                        textClasses.primary
-                      )}
-                    >
+                    <span className="text-sm px-2 py-0.5 rounded bg-tag text-background">
                       {stream.location}
                     </span>
                     {stream.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className={combineClasses(
-                          "text-sm px-2 py-0.5 rounded",
-                          bgClasses.selected,
-                          textClasses.primary
-                        )}
+                        className="text-sm px-2 py-0.5 rounded bg-tag text-background"
                       >
                         {tag}
                       </span>
@@ -285,13 +252,11 @@ export function LiveStreams({
             <Button
               onClick={handleToggle}
               disabled={isTransitioning}
-              className={combineClasses(
-                "flex items-center justify-center gap-2 w-full outline-none border-none focus:ring-0 transition-opacity",
-                buttonClasses.reset,
+              className={`flex items-center justify-center gap-2 w-full outline-none border-none focus:ring-0 transition-opacity bg-transparent hover:bg-surface-hover ${
                 isTransitioning
                   ? "opacity-70 cursor-not-allowed"
                   : "opacity-100"
-              )}
+              }`}
             >
               {showAll ? "Show less" : "Show more"}
               <motion.div

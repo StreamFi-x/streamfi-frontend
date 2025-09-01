@@ -14,14 +14,7 @@ import {
   Youtube,
   Twitter,
 } from "lucide-react";
-import {
-  bgClasses,
-  textClasses,
-  componentClasses,
-  buttonClasses,
-  borderClasses,
-  combineClasses,
-} from "@/lib/theme-classes";
+
 import type {
   FormState,
   EditState,
@@ -65,15 +58,11 @@ export function SocialLinksSection({
   validateAndIdentifyLink,
 }: SocialLinksSectionProps) {
   const getInputStyle = (inputName: string) => {
-    return combineClasses(
-      "w-full",
-      bgClasses.input,
-      "rounded-lg px-4 py-3 text-sm font-medium outline-none",
+    return `w-full bg-input rounded-lg px-4 py-3 text-sm font-medium outline-none ${
       uiState.focusedInput === inputName
         ? "border border-purple-600"
-        : "border border-transparent",
-      "transition-all duration-200"
-    );
+        : "border border-transparent"
+    } transition-all duration-200`;
   };
 
   const getSocialIcon = (platform: Platform) => {
@@ -292,23 +281,14 @@ export function SocialLinksSection({
 
   return (
     <motion.div
-      className={combineClasses(componentClasses.card, "p-4 mb-6")}
+      className="bg-card border border-border shadow-sm rounded-lg p-4 mb-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <h2
-        className={combineClasses(
-          textClasses.primary,
-          "text-xl font-medium mb-1"
-        )}
-      >
-        Social Links
-      </h2>
+      <h2 className="text-foreground text-xl font-medium mb-1">Social Links</h2>
       <div className="flex flex-wrap items-center sm:gap-2 gap-3 mb-6">
-        <p
-          className={combineClasses(textClasses.tertiary, "text-xs sm:text-sm")}
-        >
+        <p className="text-muted-foreground text-xs sm:text-sm">
           Add up to 5 social media links to showcase your online presence.
         </p>
         <div className="flex items-center gap-2 flex-wrap">
@@ -355,7 +335,7 @@ export function SocialLinksSection({
             }
             onBlur={() => updateUiState({ focusedInput: null })}
             placeholder="https://www.discord.com/username"
-            className={combineClasses(getInputStyle("socialLinkUrl"), "pr-32")}
+            className={`${getInputStyle("socialLinkUrl")} pr-32`}
             style={{ outlineWidth: 0, boxShadow: "none" }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -383,7 +363,7 @@ export function SocialLinksSection({
         <AnimatePresence>
           {uiState.duplicateUrlError && (
             <motion.p
-              className={combineClasses(textClasses.error, "text-xs mt-1 mb-2")}
+              className="text-error text-xs mt-1 mb-2"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
@@ -397,10 +377,7 @@ export function SocialLinksSection({
           <motion.button
             onClick={handleAddSocialLink}
             disabled={socialLinks.length >= 5 || !formState.socialLinkUrl}
-            className={combineClasses(
-              buttonClasses.secondary,
-              "px-6 py-2 rounded-md transition text-sm disabled:opacity-50"
-            )}
+            className="bg-highlight hover:bg-highlight/80 text-primary-foreground px-6 py-2 rounded-md transition text-sm disabled:opacity-50"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             initial={{ opacity: 0 }}
@@ -424,11 +401,7 @@ export function SocialLinksSection({
             {socialLinks.map((link, index) => (
               <motion.div
                 key={index}
-                className={combineClasses(
-                  "flex rounded text-sm border-2",
-                  bgClasses.card,
-                  borderClasses.primary
-                )}
+                className="flex rounded text-sm border-2 bg-card border-border"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
@@ -451,10 +424,7 @@ export function SocialLinksSection({
                           updateUiState({ focusedInput: "editingTitle" })
                         }
                         onBlur={() => updateUiState({ focusedInput: null })}
-                        className={combineClasses(
-                          getInputStyle("editingTitle"),
-                          "w-full rounded px-3 py-1 text-sm mb-2"
-                        )}
+                        className={`${getInputStyle("editingTitle")} w-full rounded px-3 py-1 text-sm mb-2`}
                         style={{
                           outlineWidth: 0,
                           boxShadow: "none",
@@ -478,11 +448,9 @@ export function SocialLinksSection({
                           })
                         }
                         onBlur={() => updateUiState({ focusedInput: null })}
-                        className={combineClasses(
-                          getInputStyle("editingLink"),
-                          "w-full rounded px-3 py-1 text-sm",
+                        className={`${getInputStyle("editingLink")} w-full rounded px-3 py-1 text-sm ${
                           uiState.duplicateUrlError ? "border-red-500" : ""
-                        )}
+                        }`}
                         style={{
                           outlineWidth: 0,
                           boxShadow: "none",
@@ -494,10 +462,7 @@ export function SocialLinksSection({
                       <AnimatePresence>
                         {uiState.duplicateUrlError && (
                           <motion.p
-                            className={combineClasses(
-                              textClasses.error,
-                              "text-xs mt-1"
-                            )}
+                            className="text-error text-xs mt-1"
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
@@ -535,12 +500,7 @@ export function SocialLinksSection({
                     <div className="flex-1 p-3 border-l border-[#2a2a2a] truncate w-full">
                       <div className="flex flex-col justify-start">
                         <span className="font-medium">{link.title}</span>
-                        <div
-                          className={combineClasses(
-                            textClasses.tertiary,
-                            "text-xs mt-1 truncate max-w-sm"
-                          )}
-                        >
+                        <div className="text-muted-foreground text-xs mt-1 truncate max-w-sm">
                           {link.url}
                         </div>
                       </div>
@@ -548,10 +508,7 @@ export function SocialLinksSection({
                     <div className="flex items-center justify-end px-3">
                       <motion.button
                         onClick={() => handleEditLink(index)}
-                        className={combineClasses(
-                          textClasses.tertiary,
-                          "p-1 hover:text-white"
-                        )}
+                        className="text-muted-foreground p-1 hover:text-white"
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                       >
@@ -559,10 +516,7 @@ export function SocialLinksSection({
                       </motion.button>
                       <motion.button
                         onClick={() => handleDeleteLink(index)}
-                        className={combineClasses(
-                          textClasses.tertiary,
-                          "p-1 hover:text-red-500 ml-1"
-                        )}
+                        className="text-muted-foreground p-1 hover:text-red-500 ml-1"
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                       >

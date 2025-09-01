@@ -3,10 +3,11 @@ import { sql } from "@vercel/postgres";
 
 export async function GET(
   req: Request,
-  { params }: { params: { username: string } }
+  { params }: { params: Promise<{ username: string }> }
 ) {
   try {
-    const normalizedUsername = params.username.toLowerCase();
+    const { username } = await params;
+    const normalizedUsername = username.toLowerCase();
 
     const result = await sql`
       SELECT * FROM users WHERE LOWER(username) = ${normalizedUsername}
