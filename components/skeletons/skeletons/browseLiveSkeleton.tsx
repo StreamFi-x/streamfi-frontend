@@ -25,12 +25,12 @@ function LiveStreamCardSkeleton() {
 
         {/* LIVE indicator - red badge in top-left */}
         <div className="absolute top-2 left-2">
-          <Skeleton className="w-10 h-5 rounded-sm bg-red-500" />
+          <Skeleton className="w-10 h-5 rounded-sm bg-destructive" />
         </div>
 
         {/* Viewer count - bottom-right */}
         <div className="absolute bottom-2 right-2">
-          <Skeleton className="w-12 h-4 rounded-sm bg-black/60" />
+          <Skeleton className="w-12 h-4 rounded-sm bg-muted-foreground/60" />
         </div>
       </div>
 

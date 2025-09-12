@@ -40,7 +40,7 @@ export default function Navbar({}: NavbarProps) {
   const [connectStep, setConnectStep] = useState<
     "profile" | "verify" | "success"
   >("profile");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
   // Get display name from user data or fallback to address
@@ -282,6 +282,21 @@ export default function Navbar({}: NavbarProps) {
     };
   }, []);
 
+  // Handle initial loading state to prevent hydration mismatch
+  useEffect(() => {
+    if (isConnected && address) {
+      // If user is connected, check if we need to load user data
+      const userData = sessionStorage.getItem("userData");
+      if (userData) {
+        setIsLoading(false);
+      } else {
+        handleProfileDisplayModal();
+      }
+    } else {
+      setIsLoading(false);
+    }
+  }, [isConnected, address, handleProfileDisplayModal]);
+
   // Close modal automatically when wallet is connected
   useEffect(() => {
     if (isConnected) {
@@ -390,9 +405,12 @@ export default function Navbar({}: NavbarProps) {
         <div className="flex items-center gap-4">
           {isConnected && address && (
             <>
-              <button>
-                <Bell className={`text-foreground w-4 h-4 `} />
-              </button>
+              {/* Bell icon - only show when not loading */}
+              {!isLoading && (
+                <button>
+                  <Bell className={`text-foreground w-4 h-4 `} />
+                </button>
+              )}
 
               {/* Avatar with dropdown */}
               <div className="relative avatar-container">
@@ -403,13 +421,15 @@ export default function Navbar({}: NavbarProps) {
                   {isLoading ? (
                     // Skeletons while loading
                     <>
-                      <div className="w-24 h-6 animate-pulse bg-gray-400 rounded hidden sm:block" />
-                      <div className="w-6 h-6 rounded-full bg-gray-400 ml-1 animate-pulse inline-flex" />
+                      <div className="w-16 h-8 animate-pulse bg-muted rounded-md hidden sm:block" />
+                      <div className="w-8 h-8 rounded-full bg-muted animate-pulse inline-flex" />
                     </>
                   ) : (
                     <>
-                      {/* Display name */}
-                      <span className={`text-foreground hidden sm:flex`}>
+                      {/* Display name with fixed width to prevent layout shift */}
+                      <span
+                        className={`text-foreground hidden sm:flex  justify-end truncate`}
+                      >
                         {renderDisplayName()}
                       </span>
 
