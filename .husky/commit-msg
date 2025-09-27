@@ -1,9 +1,4 @@
 #!/usr/bin/env sh
 
-# Run our custom commit-msg hook first for better error messages
-.git/hooks/commit-msg "$1"
-
-# If our custom hook passes, then run commitlint for additional validation
-if [ $? -eq 0 ]; then
-  npx --no -- commitlint --edit $1
-fi
+# Run commitlint for commit message validation
+npx --no -- commitlint --edit $1
