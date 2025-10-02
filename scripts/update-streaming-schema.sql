@@ -467,3 +467,4 @@ COMMENT ON COLUMN users.stream_tablet_history IS 'Tablet history';
 COMMENT ON COLUMN users.stream_tv_history IS 'TV history';
 COMMENT ON COLUMN users.stream_console_history IS 'Console history';
 COMMENT ON COLUMN users.stream_other_history IS 'Other device history';
+

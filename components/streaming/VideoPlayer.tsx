@@ -7,6 +7,7 @@ import { Settings } from "lucide-react";
 import * as Player from "@livepeer/react/player";
 import { getSrc } from "@livepeer/react/external";
 import { Livepeer } from "livepeer";
+import { PlaybackInfo } from "livepeer/models/components";
 
 interface VideoPlayerProps {
   hlsUrl?: string;
@@ -23,7 +24,7 @@ export default function VideoPlayer({
   viewerCount = 0,
   playbackId = "",
 }: VideoPlayerProps) {
-  const [playbackSrc, setPlaybackSrc] = useState<string | null>(null);
+  const [playbackSrc, setPlaybackSrc] = useState<PlaybackInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,14 +43,14 @@ export default function VideoPlayer({
         const livepeer = new Livepeer({
           apiKey: process.env.NEXT_PUBLIC_LIVEPEER_API_KEY!,
         });
-        const playbackInfo = await livepeer.playback.get("8212bjbx0is3az97");
+        const playbackInfo = await livepeer.playback.get(playbackId);
 
         if (!playbackInfo.playbackInfo) {
           throw new Error("No playback info available");
         }
 
         const src = getSrc(playbackInfo.playbackInfo);
-        setPlaybackSrc(src);
+        setPlaybackSrc(playbackInfo.playbackInfo);
         console.log("Playback source:", src);
       } catch (err) {
         console.error("Error fetching playback source:", err);
@@ -61,6 +62,8 @@ export default function VideoPlayer({
 
     getPlaybackSource(playbackId);
   }, [playbackId]);
+
+  const src = getSrc(playbackSrc);
 
   return (
     <Card className="w-full">
@@ -103,7 +106,7 @@ export default function VideoPlayer({
             </div>
           ) : playbackSrc ? (
             <Player.Root
-              src={playbackSrc}
+              src={src}
               autoPlay={false}
               volume={0.8}
               lowLatency={isLive}

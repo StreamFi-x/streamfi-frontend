@@ -9,6 +9,7 @@ import {
   Settings,
   BarChartIcon as ChartColumnDecreasing,
   ArrowLeftToLine,
+  Video,
 } from "lucide-react";
 import { LiaCoinsSolid } from "react-icons/lia";
 
@@ -29,6 +30,11 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       name: "Stream Manager",
       icon: <ChartColumnDecreasing size={24} />,
       path: "/dashboard/stream-manager",
+    },
+    {
+      name: "Broadcast",
+      icon: <Video size={24} />,
+      path: "/broadcast",
     },
     {
       name: "Stream URL",

@@ -203,3 +203,4 @@ createStreamingTables()
     console.error('❌ Streaming tables creation failed:', error);
     process.exit(1);
   });
+

@@ -414,7 +414,7 @@ export default function StreamingTestUI() {
         <h1 className="text-3xl font-bold mb-2">
           StreamFi V2 Streaming Test UI
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-gray-400">
           Test the new wallet-based streaming backend with Livepeer integration
         </p>
       </div>
@@ -598,7 +598,7 @@ export default function StreamingTestUI() {
                 </div>
 
                 {streamStatus.stream && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <h3 className="font-semibold mb-2">Stream Information</h3>
                     <div className="space-y-2 text-sm">
                       <div>
@@ -712,19 +712,19 @@ export default function StreamingTestUI() {
               </Button>
 
               {playbackInfo && (
-                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <h3 className="font-semibold mb-2">Playback Info</h3>
                   <div className="space-y-2 text-sm">
                     <div>
                       <strong>Playback ID:</strong>
-                      <code className="ml-2 bg-gray-200 px-2 py-1 rounded text-xs">
+                      <code className="ml-2 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-xs">
                         {playbackInfo.playbackId}
                       </code>
                     </div>
                     {playbackInfo.playbackInfo.meta.source[0].url && (
                       <div>
                         <strong>Hls URL:</strong>
-                        <code className="ml-2 bg-gray-200 px-2 py-1 rounded text-xs">
+                        <code className="ml-2 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-xs">
                           {playbackInfo.playbackInfo.meta.source[0].url}
                         </code>
                       </div>
@@ -732,7 +732,7 @@ export default function StreamingTestUI() {
                     {playbackInfo.playbackInfo.meta.source[1].url && (
                       <div>
                         <strong>Webrtc URL:</strong>
-                        <code className="ml-2 bg-gray-200 px-2 py-1 rounded text-xs">
+                        <code className="ml-2 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-xs">
                           {playbackInfo.playbackInfo.meta.source[1].url}
                         </code>
                       </div>
@@ -776,7 +776,7 @@ export default function StreamingTestUI() {
                   playbackId={playbackInfo.playbackId}
                 />
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   <p>No live stream available</p>
                   <p className="text-sm">
                     Get playback info first to test video player
@@ -811,11 +811,11 @@ export default function StreamingTestUI() {
                         <div className="flex justify-between items-start">
                           <div>
                             <h3 className="font-semibold">{stream.title}</h3>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
                               {stream.creator.username}
                             </p>
                             {stream.description && (
-                              <p className="text-sm text-gray-500 mt-1">
+                              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                                 {stream.description}
                               </p>
                             )}
@@ -844,7 +844,7 @@ export default function StreamingTestUI() {
               )}
 
               {liveStreams.length === 0 && !isLoading && (
-                <div className="mt-4 text-center text-gray-500">
+                <div className="mt-4 text-center text-gray-500 dark:text-gray-400">
                   No live streams found
                 </div>
               )}
@@ -874,7 +874,7 @@ export default function StreamingTestUI() {
               </Button>
 
               {streamStatus.hasStream && (
-                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <h3 className="font-semibold mb-2">Current Stream Status</h3>
                   <div className="space-y-2 text-sm">
                     <div>
@@ -947,7 +947,7 @@ export default function StreamingTestUI() {
               )}
 
               {!streamStatus.hasStream && !isLoading && (
-                <div className="mt-4 text-center text-gray-500">
+                <div className="mt-4 text-center text-gray-500 dark:text-gray-400">
                   No stream found for this wallet
                 </div>
               )}

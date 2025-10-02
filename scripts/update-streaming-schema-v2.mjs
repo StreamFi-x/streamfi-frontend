@@ -119,3 +119,4 @@ updateStreamingSchemaV2().catch(err => {
   console.error("Unhandled error during V2 schema update:", err);
   process.exit(1);
 });
+

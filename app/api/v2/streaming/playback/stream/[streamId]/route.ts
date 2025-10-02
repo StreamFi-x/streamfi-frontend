@@ -91,11 +91,7 @@ export async function GET(
           username: user.username,
           wallet: user.wallet,
         },
-        playback: {
-          hlsUrl: playbackInfo.hlsUrl,
-          rtmpUrl: playbackInfo.rtmpUrl,
-          dashUrl: playbackInfo.dashUrl,
-        },
+        playback: playbackInfo.playbackInfo,
         health: streamHealth,
         livepeer: {
           name: livepeerStream.name,

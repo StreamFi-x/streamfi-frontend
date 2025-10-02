@@ -81,3 +81,4 @@ COMMENT ON COLUMN users.stream_category_v2 IS 'Category of the V2 stream';
 COMMENT ON COLUMN users.stream_tags_v2 IS 'Tags for the V2 stream';
 
 COMMENT ON TABLE stream_sessions_v2 IS 'V2 streaming sessions for wallet-based streaming';
+

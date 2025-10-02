@@ -338,3 +338,4 @@ CREATE INDEX IF NOT EXISTS idx_streaming_integrations_user_id ON streaming_integ
 CREATE INDEX IF NOT EXISTS idx_streaming_integrations_provider ON streaming_integrations(provider);
 CREATE INDEX IF NOT EXISTS idx_streaming_integrations_type ON streaming_integrations(integration_type);
 CREATE INDEX IF NOT EXISTS idx_streaming_integrations_status ON streaming_integrations(status);
+

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Home, Menu, Settings, User } from "lucide-react";
+import { Home, Menu, Settings, User, Video } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -12,6 +12,7 @@ const MobNav = () => {
   const navItems = [
     { name: "Home", icon: Home, path: "/explore" },
     { name: "Browse", icon: Menu, path: "/browse" },
+    { name: "Broadcast", icon: Video, path: "/broadcast" },
     { name: "Settings", icon: Settings, path: "/settings" },
     { name: "Profile", icon: User, path: "/profile" },
   ];

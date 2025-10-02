@@ -136,3 +136,4 @@ updateStreamingSchema()
     console.error('❌ Schema update failed:', error);
     process.exit(1);
   });
+
