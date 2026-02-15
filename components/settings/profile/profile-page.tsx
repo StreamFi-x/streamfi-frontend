@@ -36,8 +36,8 @@ export default function ProfileSettings() {
   );
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
 
-  const [usedPlatforms, setUsedPlatforms] = useState<Platform[]>([]);
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [, setUsedPlatforms] = useState<Platform[]>([]);
+  const [, setIsEmailVerified] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
   const [formState, setFormState] = useState<FormState>({
@@ -71,20 +71,32 @@ export default function ProfileSettings() {
   });
 
   const detectPlatformFromUrl = useCallback((url: string): Platform | null => {
-    if (!url) return null;
+    if (!url) {
+      return null;
+    }
 
     const domain = url.toLowerCase();
-    if (domain.includes("instagram")) return "instagram";
-    if (domain.includes("twitter") || domain.includes("x.com"))
+    if (domain.includes("instagram")) {
+      return "instagram";
+    }
+    if (domain.includes("twitter") || domain.includes("x.com")) {
       return "twitter";
-    if (domain.includes("facebook") || domain.includes("fb.com"))
+    }
+    if (domain.includes("facebook") || domain.includes("fb.com")) {
       return "facebook";
-    if (domain.includes("youtube") || domain.includes("youtu.be"))
+    }
+    if (domain.includes("youtube") || domain.includes("youtu.be")) {
       return "youtube";
-    if (domain.includes("telegram") || domain.includes("t.me"))
+    }
+    if (domain.includes("telegram") || domain.includes("t.me")) {
       return "telegram";
-    if (domain.includes("discord")) return "discord";
-    if (domain.includes("tiktok")) return "tiktok";
+    }
+    if (domain.includes("discord")) {
+      return "discord";
+    }
+    if (domain.includes("tiktok")) {
+      return "tiktok";
+    }
     return "other";
   }, []);
 
