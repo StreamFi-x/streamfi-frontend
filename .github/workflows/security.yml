@@ -25,6 +25,16 @@ jobs:
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
           extra_args: --debug --only-verified
+        if: github.event_name == 'pull_request'
+
+      - name: TruffleHog OSS (Push)
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.before }}
+          head: ${{ github.event.after }}
+          extra_args: --debug --only-verified
+        if: github.event_name == 'push'
 
   sast-codeql:
     name: SAST (CodeQL)
