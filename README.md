@@ -10,14 +10,15 @@ It is designed for content creators and gamers that empowers users with Web3-nat
 
 ### 🌍 Ecosystem and Integrations
 
-- Integrates with **StarkNet** for blockchain scalability.
+- Integrates with **Stellar** for high-speed, low-cost transactions.
+- Supports **Freelancer**, **xBull**, **Albedo**, and **Lobstr** wallets.
 - Engages with **Worldcoin** for user identity verification.
 
 ## 🏗 Project Structure
 
 - **Frontend**: Built with React, Next.js (Web), Flutter (Mobile).
 - **Backend**: Node.js, FastAPI, GraphQL.
-- **Smart Contracts**: Cairo (StarkNet).
+- **Blockchain**: Stellar SDK & Soroban Smart Contracts.
 - **Storage**: IPFS/Filecoin integration for decentralized content storage.
 
 ## 🔧 Installation & Setup
