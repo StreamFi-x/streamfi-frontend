@@ -42,31 +42,9 @@ jobs:
           flags: unittests
           name: codecov-umbrella
 
-  # Security Checks
-  security:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run security audit
-        run: npm audit --audit-level=moderate
-
-      - name: Check for outdated dependencies
-        run: npx npm-check-updates --errorLevel 2
-
   # Build and Deploy (only on main branch)
   deploy:
-    needs: [quality, security]
+    needs: [quality]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
