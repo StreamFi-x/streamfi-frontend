@@ -28,6 +28,7 @@ import DashboardScreenGuard from "../explore/DashboardScreenGuard";
 import { Button } from "../ui/button";
 import ChatSection from "./chat-section";
 import { ViewStreamSkeleton } from "../skeletons/ViewStreamSkeleton";
+import MuxPlayer from "@mux/mux-player-react";
 
 import { Flag } from "lucide-react";
 import ReportLiveStreamModal from "../modals/ReportLiveStreamModal";
@@ -372,21 +373,29 @@ const ViewStream = ({
               <div
                 className={`relative ${isFullscreen ? "flex-1" : "w-full h-full"}`}
               >
-                {isLive ? (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-white text-center">
-                      <div className="bg-red-600 text-white text-xs px-2 py-1 rounded-sm inline-block mb-4">
-                        Live
-                      </div>
-                      <p className="text-lg">Live Stream Content</p>
-                    </div>
-                  </div>
+                {isLive && userData?.playbackId ? (
+                  <MuxPlayer
+                    playbackId={userData.playbackId}
+                    streamType="live"
+                    autoPlay="muted"
+                    metadata={{
+                      video_id: userData.playbackId,
+                      video_title: streamData.title || `${username}'s Stream`,
+                      viewer_user_id: "anonymous",
+                    }}
+                    primaryColor="#ac39f2"
+                    className="w-full h-full"
+                  />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
                     <div className="text-white text-center">
-                      <p className="text-lg mb-2">Stream is offline</p>
+                      <p className="text-lg mb-2">
+                        {isLive ? "Loading stream..." : "Stream is offline"}
+                      </p>
                       <p className="text-sm text-gray-400">
-                        Check back later or browse past streams below
+                        {isLive
+                          ? "Please wait while we load the stream"
+                          : "Check back later or browse past streams below"}
                       </p>
                     </div>
                   </div>

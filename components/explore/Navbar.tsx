@@ -33,10 +33,11 @@ export default function Navbar({}: NavbarProps) {
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { address, isConnected } = useAccount();
-  const { user, refreshUser } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { disconnect } = useDisconnect();
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
   const [connectStep, setConnectStep] = useState<
     "profile" | "verify" | "success"
   >("profile");
@@ -110,28 +111,6 @@ export default function Navbar({}: NavbarProps) {
     return "Unknown User";
   };
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      // Only fetch if we have a username and address
-      if (!user?.username || !address) {
-        return;
-      }
-
-      try {
-        const response = await fetch(`/api/users/${user.username}`);
-        if (response.status === 404) {
-          // setProfileModalOpen(true);
-        } else if (response.ok) {
-          const result = await response.json();
-          console.log("User found:", result);
-        }
-      } catch (error) {
-        console.error("Error finding user:", error);
-      }
-    };
-    fetchUser();
-  }, [address, user?.username]);
-
   const getAvatar = useCallback(() => {
     if (user?.avatar) {
       return user.avatar;
@@ -156,11 +135,17 @@ export default function Navbar({}: NavbarProps) {
 
   const handleCloseProfileModal = () => {
     setProfileModalOpen(false);
+    setHasCheckedProfile(true); // Prevent modal from showing again
   };
 
   const handleNextStep = (step: "profile" | "verify" | "success") => {
     setConnectStep(step);
   };
+
+  // Reset profile check flag when wallet address changes
+  useEffect(() => {
+    setHasCheckedProfile(false);
+  }, [address]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -228,37 +213,6 @@ export default function Navbar({}: NavbarProps) {
     }
   };
 
-  const handleProfileDisplayModal = useCallback(async () => {
-    if (!address) {
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/users/wallet/${address}`);
-
-      if (response.status === 404) {
-        setProfileModalOpen(true);
-      } else if (response.ok) {
-        const result = await response.json();
-        console.log("User found:", result);
-
-        // Store the entire user object in sessionStorage
-        sessionStorage.setItem("userData", JSON.stringify(result.user));
-        sessionStorage.setItem("username", result.user?.username);
-
-        // Refresh user in auth context if needed
-        if (!user || user.wallet !== result.user.wallet) {
-          await refreshUser(address);
-        }
-      }
-    } catch (error) {
-      console.error("Error finding user:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [address, user, refreshUser]);
-
   // Toggle profile dropdown
   const toggleProfileDropdown = () => {
     setIsProfileDropdownOpen(!isProfileDropdownOpen);
@@ -282,20 +236,39 @@ export default function Navbar({}: NavbarProps) {
     };
   }, []);
 
-  // Handle initial loading state to prevent hydration mismatch
+  // Profile check: show modal only for new users (no profile in DB)
   useEffect(() => {
-    if (isConnected && address) {
-      // If user is connected, check if we need to load user data
-      const userData = sessionStorage.getItem("userData");
-      if (userData) {
-        setIsLoading(false);
-      } else {
-        handleProfileDisplayModal();
-      }
-    } else {
-      setIsLoading(false);
+    // Wait for auth to finish loading
+    if (authLoading) {
+      return;
     }
-  }, [isConnected, address, handleProfileDisplayModal]);
+
+    // Not connected — just stop the loading indicator
+    if (!isConnected || !address) {
+      setIsLoading(false);
+      return;
+    }
+
+    // Already checked for this address
+    if (hasCheckedProfile) {
+      setIsLoading(false);
+      return;
+    }
+
+    // Auth finished loading — now check user status
+    setHasCheckedProfile(true);
+
+    if (!user) {
+      // New user (no profile in DB) — show registration modal
+      setProfileModalOpen(true);
+    } else {
+      // Existing user — store data, do NOT show modal
+      sessionStorage.setItem("userData", JSON.stringify(user));
+      sessionStorage.setItem("username", user.username);
+    }
+
+    setIsLoading(false);
+  }, [isConnected, address, authLoading, user, hasCheckedProfile]);
 
   // Close modal automatically when wallet is connected
   useEffect(() => {
@@ -304,12 +277,6 @@ export default function Navbar({}: NavbarProps) {
     }
   }, [isConnected]);
 
-  // Fetch user data when wallet connects
-  useEffect(() => {
-    if (isConnected && address && !user) {
-      handleProfileDisplayModal();
-    }
-  }, [address, isConnected, user, handleProfileDisplayModal]);
   const userAvatar = getAvatar();
   const displayName = getDisplayName();
   const truncatedDisplayName =

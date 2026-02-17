@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { getStreamHealth } from "@/lib/livepeer/server";
+import { getMuxStreamHealth } from "@/lib/mux/server";
 
 export async function GET(
   req: Request,
@@ -17,13 +17,13 @@ export async function GET(
     }
 
     const result = await sql`
-      SELECT 
+      SELECT
         u.id,
         u.username,
         u.avatar,
         u.bio,
-        u.livepeer_stream_id,
-        u.playback_id,
+        u.mux_stream_id,
+        u.mux_playback_id,
         u.streamkey,
         u.is_live,
         u.current_viewers,
@@ -36,7 +36,6 @@ export async function GET(
         ss.id as session_id,
         ss.started_at as session_started_at,
         ss.peak_viewers,
-        ss.total_unique_viewers,
         ss.total_messages,
         ss.avg_bitrate,
         ss.resolution
@@ -51,12 +50,16 @@ export async function GET(
 
     const streamData = result.rows[0];
 
-    let livepeerHealth = null;
-    if (streamData.livepeer_stream_id) {
+    // Only fetch Mux health if explicitly requested (skip for fast dashboard loads)
+    const url = new URL(req.url);
+    const includeHealth = url.searchParams.get("includeHealth") === "true";
+
+    let muxHealth = null;
+    if (includeHealth && streamData.mux_stream_id) {
       try {
-        livepeerHealth = await getStreamHealth(streamData.livepeer_stream_id);
+        muxHealth = await getMuxStreamHealth(streamData.mux_stream_id);
       } catch (healthError) {
-        console.error("Failed to get Livepeer health:", healthError);
+        console.error("Failed to get Mux health:", healthError);
       }
     }
 
@@ -70,12 +73,12 @@ export async function GET(
         memberSince: streamData.created_at,
       },
       stream: {
-        streamId: streamData.livepeer_stream_id,
-        playbackId: streamData.playback_id,
+        streamId: streamData.mux_stream_id,
+        playbackId: streamData.mux_playback_id,
         streamKey: streamData.streamkey,
 
         isLive: streamData.is_live,
-        isConfigured: !!streamData.livepeer_stream_id,
+        isConfigured: !!streamData.mux_stream_id,
         startedAt: streamData.stream_started_at,
 
         title: streamData.creator?.streamTitle || "",
@@ -91,14 +94,13 @@ export async function GET(
         avgBitrate: streamData.avg_bitrate,
         resolution: streamData.resolution,
 
-        health: livepeerHealth,
+        health: muxHealth,
       },
       session: streamData.session_id
         ? {
             id: streamData.session_id,
             startedAt: streamData.session_started_at,
             peakViewers: streamData.peak_viewers,
-            totalUniqueViewers: streamData.total_unique_viewers,
             totalMessages: streamData.total_messages,
           }
         : null,

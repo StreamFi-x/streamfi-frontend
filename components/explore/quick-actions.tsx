@@ -1,12 +1,14 @@
 "use client";
 
+import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Search, Settings, User, Wallet } from "lucide-react";
 import { useAccount } from "@starknet-react/core";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import ConnectModal from "../connectWallet";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface QuickActionItem {
   icon: React.ElementType;
@@ -19,35 +21,20 @@ export default function QuickActions() {
   const pathname = usePathname();
   const { address, isConnected } = useAccount();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [username, setUsername] = useState("");
+
+  // Use SWR hook for optimized data fetching with caching
+  const { user } = useUserProfile(address);
+  const username = user?.username || "";
 
   const handleConnectWallet = () => {
     setIsModalOpen(true);
   };
-  const handleProfileDisplayModal = useCallback(() => {
-    if (!address) return;
 
-    fetch(`/api/users/wallet/${address}`)
-      .then(async res => {
-        if (res.ok) {
-          const result = await res.json();
-          setUsername(result.user.username);
-        }
-      })
-      .catch(reason => {
-        console.log("Error finding user ", reason);
-      });
-  }, [address]);
   useEffect(() => {
     if (isConnected) {
       setIsModalOpen(false);
     }
   }, [isConnected]);
-  useEffect(() => {
-    if (isConnected && address) {
-      handleProfileDisplayModal();
-    }
-  }, [address, handleProfileDisplayModal, isConnected]);
   // const allowedRoutes = [
   //   "/explore",
   //   "/settings",
@@ -65,7 +52,9 @@ export default function QuickActions() {
     route => pathname === route || pathname.startsWith(`${route}/`)
   );
 
-  if (!shouldShowQuickActions) return null;
+  if (!shouldShowQuickActions) {
+    return null;
+  }
   const quickActionItems: QuickActionItem[] = [
     { icon: Home, label: "Home", href: "/explore", type: "link" },
     { icon: Search, label: "Search", href: "/browse", type: "link" },
@@ -80,7 +69,9 @@ export default function QuickActions() {
       : { icon: Wallet, label: "Connect", href: "#", type: "action" },
   ];
 
-  if (!shouldShowQuickActions) return null;
+  if (!shouldShowQuickActions) {
+    return null;
+  }
 
   return (
     <>

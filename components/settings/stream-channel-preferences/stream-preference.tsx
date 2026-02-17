@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Eye } from "lucide-react";
 import StreamKeyModal from "@/components/ui/streamkeyModal";
 import StreamKeyConfirmationModal from "@/components/ui/streamKeyConfirmationModal";
+import { useAccount } from "@starknet-react/core";
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -109,6 +110,8 @@ const ToggleSection: React.FC<ToggleSectionProps> = ({
 };
 
 const StreamPreferencesPage: React.FC = () => {
+  const { address } = useAccount();
+
   const [state, setState] = useState({
     urlVisible: false,
     keyVisible: false,
@@ -116,12 +119,45 @@ const StreamPreferencesPage: React.FC = () => {
     copyrightWarning: true,
   });
 
+  // Real stream data from API
+  const [streamData, setStreamData] = useState<{
+    streamKey: string;
+    rtmpUrl: string;
+    playbackId: string;
+    isLive: boolean;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
   // State for the modals
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isRevealModalOpen, setIsRevealModalOpen] = useState(false);
 
   // Add auto-hide timer ref
-  const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fetch stream key on mount
+  useEffect(() => {
+    if (!address) {
+      return;
+    }
+
+    const fetchStreamKey = async () => {
+      try {
+        const response = await fetch(`/api/streams/key?wallet=${address}`);
+        const data = await response.json();
+
+        if (data.hasStream && data.streamData) {
+          setStreamData(data.streamData);
+        }
+      } catch (error) {
+        console.error("Failed to fetch stream key:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStreamKey();
+  }, [address]);
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -202,8 +238,10 @@ const StreamPreferencesPage: React.FC = () => {
   };
 
   const copyKey = () => {
-    navigator.clipboard.writeText("stream-key-would-be-here");
-    setIsCopyModalOpen(true);
+    if (streamData?.streamKey) {
+      navigator.clipboard.writeText(streamData.streamKey);
+      setIsCopyModalOpen(true);
+    }
   };
 
   const closeCopyModal = () => {
@@ -239,7 +277,7 @@ const StreamPreferencesPage: React.FC = () => {
   };
 
   const placeholderDescription =
-    "Add up to 5 social media links to showcase your online presence Add up to 5 social media links to showcase your online presence Add up to 5 social media links to showcase your online presence Add up to 5 social media links to showcase your online presence Add up to 5 social media links to showcase your online presence.";
+    "Add up to 5 social media links to showcase your online presence ";
 
   const streamKeyActions = (
     <div className="flex flex-col items-end gap-4 md:flex-row md:justify-start">
@@ -258,26 +296,63 @@ const StreamPreferencesPage: React.FC = () => {
     </div>
   );
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-secondary text-foreground flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl mb-2">Loading stream settings...</div>
+          <p className="text-muted-foreground">Please wait</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!streamData) {
+    return (
+      <div className="min-h-screen bg-secondary text-foreground flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl mb-2">No stream key found</div>
+          <p className="text-muted-foreground">
+            Create a stream first to get your stream key
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-secondary text-foreground">
       <div className="max-w-8xl mx-auto px-4 pt-12 pb-16">
         <SectionCard>
           {/* Stream URL */}
           <SecretField
-            label="Stream URL"
-            value="https://stream.example.com/live/yourusername"
+            label="Stream URL (RTMP Server)"
+            value={streamData.rtmpUrl}
             isVisible={state.urlVisible}
             onToggleVisibility={() => toggleVisibility("urlVisible")}
           />
 
           {/* Stream Key */}
           <SecretField
-            label="Stream Key"
-            value="stream-key-would-be-here"
+            label="Stream Key (Keep Secret!)"
+            value={streamData.streamKey}
             isVisible={state.keyVisible}
             onToggleVisibility={() => toggleVisibility("keyVisible")}
             actions={streamKeyActions}
           />
+
+          {/* Warning */}
+          <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4 mt-4">
+            <p className="text-yellow-600 dark:text-yellow-400 font-semibold mb-2">
+              ⚠️ Important Security Notice
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Never share your stream key with anyone. Anyone with this key can
+              broadcast to your channel. If you suspect your key has been
+              compromised, use the &quot;Reset&quot; button to generate a new
+              one.
+            </p>
+          </div>
         </SectionCard>
 
         <SectionCard className="flex w-full flex-col items-center-justify-center">

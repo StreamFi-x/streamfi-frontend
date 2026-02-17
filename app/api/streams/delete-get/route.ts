@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { deleteLivepeerStream } from "@/lib/livepeer/server";
+import { deleteMuxStream } from "@/lib/mux/server";
 
 export async function GET(req: Request) {
   try {
@@ -17,8 +17,8 @@ export async function GET(req: Request) {
     console.log(`🔧 Force deleting stream for wallet: ${wallet}`);
 
     const userResult = await sql`
-      SELECT id, username, livepeer_stream_id, is_live
-      FROM users 
+      SELECT id, username, mux_stream_id, is_live
+      FROM users
       WHERE LOWER(wallet) = LOWER(${wallet})
     `;
 
@@ -28,7 +28,7 @@ export async function GET(req: Request) {
 
     const user = userResult.rows[0];
 
-    if (!user.livepeer_stream_id) {
+    if (!user.mux_stream_id) {
       return NextResponse.json(
         { message: "No stream found to delete" },
         { status: 200 }
@@ -57,19 +57,19 @@ export async function GET(req: Request) {
       }
     }
 
-    console.log("🗑️ Deleting from Livepeer...");
+    console.log("🗑️ Deleting from Mux...");
     try {
-      await deleteLivepeerStream(user.livepeer_stream_id);
-    } catch (livepeerError) {
-      console.error("Livepeer deletion failed:", livepeerError);
+      await deleteMuxStream(user.mux_stream_id);
+    } catch (muxError) {
+      console.error("Mux deletion failed:", muxError);
     }
 
     console.log("🧹 Cleaning up database...");
     await sql`
       UPDATE users SET
-        livepeer_stream_id = NULL,
-        playback_id = NULL,
-        streamkey = NULL,
+        mux_stream_id = NULL,
+        mux_playback_id = NULL,
+        mux_stream_key = NULL,
         is_live = false,
         current_viewers = 0,
         stream_started_at = NULL,
@@ -84,7 +84,7 @@ export async function GET(req: Request) {
         message: "Stream force deleted successfully (stopped and removed)",
         actions: [
           user.is_live ? "Stopped live stream" : "Stream was already stopped",
-          "Deleted from Livepeer",
+          "Deleted from Mux",
           "Cleaned database records",
         ],
         wallet: wallet,

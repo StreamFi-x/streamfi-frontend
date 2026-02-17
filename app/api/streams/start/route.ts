@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { getStreamHealth } from "@/lib/livepeer/server";
+import { getMuxStreamHealth } from "@/lib/mux/server";
 
 export async function POST(req: Request) {
   try {
@@ -14,9 +14,9 @@ export async function POST(req: Request) {
     }
 
     const userResult = await sql`
-      SELECT id, username, livepeer_stream_id, is_live 
-      FROM users 
-      WHERE wallet = ${wallet} AND livepeer_stream_id IS NOT NULL
+      SELECT id, username, mux_stream_id, is_live, mux_playback_id
+      FROM users
+      WHERE wallet = ${wallet} AND mux_stream_id IS NOT NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     }
 
     try {
-      const streamHealth = await getStreamHealth(user.livepeer_stream_id);
+      const streamHealth = await getMuxStreamHealth(user.mux_stream_id);
       if (!streamHealth) {
         return NextResponse.json(
           { error: "Stream service unavailable" },
@@ -54,15 +54,15 @@ export async function POST(req: Request) {
         current_viewers = 0,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${user.id}
-      RETURNING id, username, livepeer_stream_id, playback_id
+      RETURNING id, username, mux_stream_id, mux_playback_id
     `;
 
     const updatedUser = result.rows[0];
 
     try {
       await sql`
-        INSERT INTO stream_sessions (user_id, livepeer_session_id, started_at)
-        VALUES (${updatedUser.id}, ${updatedUser.livepeer_stream_id}, CURRENT_TIMESTAMP)
+        INSERT INTO stream_sessions (user_id, mux_session_id, playback_id, started_at)
+        VALUES (${updatedUser.id}, ${updatedUser.mux_stream_id}, ${updatedUser.mux_playback_id}, CURRENT_TIMESTAMP)
       `;
     } catch (sessionError) {
       console.error("Failed to create stream session record:", sessionError);
@@ -73,8 +73,8 @@ export async function POST(req: Request) {
         message: "Stream started successfully",
         streamData: {
           isLive: true,
-          streamId: updatedUser.livepeer_stream_id,
-          playbackId: updatedUser.playback_id,
+          streamId: updatedUser.mux_stream_id,
+          playbackId: updatedUser.mux_playback_id,
           username: updatedUser.username,
           startedAt: new Date().toISOString(),
         },
@@ -102,8 +102,8 @@ export async function DELETE(req: Request) {
     }
 
     const userResult = await sql`
-      SELECT id, livepeer_stream_id, is_live 
-      FROM users 
+      SELECT id, mux_stream_id, is_live
+      FROM users
       WHERE wallet = ${wallet}
     `;
 

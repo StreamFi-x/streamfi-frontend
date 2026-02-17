@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { updateLivepeerStream } from "@/lib/livepeer/server";
+import { uploadImage } from "@/utils/upload/cloudinary";
 
 export async function PATCH(req: Request) {
   try {
@@ -29,8 +29,8 @@ export async function PATCH(req: Request) {
     }
 
     const userResult = await sql`
-      SELECT id, username, livepeer_stream_id, creator
-      FROM users 
+      SELECT id, username, mux_stream_id, creator
+      FROM users
       WHERE wallet = ${wallet}
     `;
 
@@ -40,21 +40,29 @@ export async function PATCH(req: Request) {
 
     const user = userResult.rows[0];
 
-    if (!user.livepeer_stream_id) {
+    if (!user.mux_stream_id) {
       return NextResponse.json(
         { error: "No stream configured for this user" },
         { status: 404 }
       );
     }
 
-    if (title) {
+    // Note: Mux streams don't require metadata updates on the service side
+    // All stream metadata is stored in the database
+
+    // Handle thumbnail upload to Cloudinary if it's base64
+    let thumbnailUrl = thumbnail;
+    if (thumbnail && thumbnail.startsWith("data:image")) {
       try {
-        await updateLivepeerStream(user.livepeer_stream_id, {
-          name: `${user.username} - ${title}`,
-          record: true,
-        });
-      } catch (livepeerError) {
-        console.error("Livepeer update failed:", livepeerError);
+        const uploadResult = await uploadImage(thumbnail, "stream-thumbnails");
+        thumbnailUrl = uploadResult.secure_url;
+        console.log("Thumbnail uploaded to Cloudinary:", thumbnailUrl);
+      } catch (error) {
+        console.error("Cloudinary upload error:", error);
+        return NextResponse.json(
+          { error: "Failed to upload thumbnail" },
+          { status: 500 }
+        );
       }
     }
 
@@ -65,7 +73,7 @@ export async function PATCH(req: Request) {
       ...(description !== undefined && { description }),
       ...(category && { category }),
       ...(tags && { tags }),
-      ...(thumbnail && { thumbnail }),
+      ...(thumbnailUrl && { thumbnail: thumbnailUrl }),
       lastUpdated: new Date().toISOString(),
     };
 

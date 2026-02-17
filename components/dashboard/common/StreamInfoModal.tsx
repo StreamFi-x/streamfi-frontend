@@ -31,12 +31,14 @@ interface StreamInfoModalProps {
   };
   onClose: () => void;
   onSave: (data: StreamInfoFormData) => void;
+  isSaving?: boolean;
 }
 
 export default function StreamInfoModal({
   initialData,
   onClose,
   onSave,
+  isSaving = false,
 }: StreamInfoModalProps) {
   const [tags, setTags] = useState(initialData.tags || []);
   const [newTag, setNewTag] = useState("");
@@ -333,16 +335,17 @@ export default function StreamInfoModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 bg-transparent border border-border hover:bg-surface-hover rounded-md transition-colors"
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-transparent border border-border hover:bg-surface-hover rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={!isValid}
+                  disabled={!isValid || isSaving}
                   className="px-4 py-2 bg-highlight hover:bg-highlight/80 text-primary-foreground disabled:bg-tertiary disabled:text-muted-foreground rounded-md transition-colors"
                 >
-                  Done
+                  {isSaving ? "Saving..." : "Done"}
                 </button>
               </div>
             </form>

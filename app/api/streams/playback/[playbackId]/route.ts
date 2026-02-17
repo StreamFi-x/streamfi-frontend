@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPlaybackSource } from "@/lib/livepeer/server";
+import { getPlaybackUrl } from "@/lib/mux/server";
 import { sql } from "@vercel/postgres";
 
 export async function GET(
@@ -21,14 +21,6 @@ export async function GET(
       );
     }
 
-    if (playbackId.length < 10 || playbackId.length > 50) {
-      console.log("❌ Invalid playback ID format:", playbackId);
-      return NextResponse.json(
-        { error: "Invalid playback ID format" },
-        { status: 400 }
-      );
-    }
-
     let streamInfo = null;
 
     try {
@@ -36,7 +28,7 @@ export async function GET(
       const streamCheck = await sql`
         SELECT id, username, is_live, creator, current_viewers, total_views
         FROM users
-        WHERE playback_id = ${playbackId}
+        WHERE mux_playback_id = ${playbackId}
       `;
 
       if (streamCheck.rows.length > 0) {
@@ -58,69 +50,17 @@ export async function GET(
       console.error("Database check failed:", dbError);
     }
 
-    console.log("🎬 Getting playback source from Livepeer...");
-    let playbackSrc;
-
-    try {
-      playbackSrc = await getPlaybackSource(playbackId);
-      console.log("✅ Playback source retrieved:", playbackSrc);
-    } catch (livepeerError) {
-      console.error("❌ Livepeer playback error:", livepeerError);
-
-      if (livepeerError instanceof Error) {
-        if (
-          livepeerError.message.includes("404") ||
-          livepeerError.message.includes("not found")
-        ) {
-          return NextResponse.json(
-            {
-              error: "Stream not found",
-              details: "This stream may not exist or has been deleted",
-              playbackId: playbackId,
-            },
-            { status: 404 }
-          );
-        }
-
-        if (
-          livepeerError.message.includes("unauthorized") ||
-          livepeerError.message.includes("401")
-        ) {
-          return NextResponse.json(
-            {
-              error: "Unauthorized access",
-              details: "Invalid API key or permissions",
-            },
-            { status: 401 }
-          );
-        }
-      }
-
-      console.log("⚠️ Livepeer API failed, providing fallback URLs");
-      playbackSrc = {
-        hls: `https://livepeercdn.studio/hls/${playbackId}/index.m3u8`,
-        webrtc: `https://livepeercdn.studio/webrtc/${playbackId}`,
-        thumbnail: `https://livepeercdn.studio/hls/${playbackId}/thumbnail.png`,
-      };
-    }
+    console.log("🎬 Getting playback source from Mux...");
+    const playbackSrc = await getPlaybackUrl(playbackId);
+    console.log("✅ Playback source retrieved:", playbackSrc);
 
     const responseData = {
       success: true,
       playbackId: playbackId,
       src: playbackSrc,
       urls: {
-        hls: Array.isArray(playbackSrc)
-          ? `https://livepeercdn.studio/hls/${playbackId}/index.m3u8`
-          : playbackSrc?.hls ||
-            `https://livepeercdn.studio/hls/${playbackId}/index.m3u8`,
-        webrtc: Array.isArray(playbackSrc)
-          ? `https://livepeercdn.studio/webrtc/${playbackId}`
-          : playbackSrc?.webrtc ||
-            `https://livepeercdn.studio/webrtc/${playbackId}`,
-        thumbnail: Array.isArray(playbackSrc)
-          ? `https://livepeercdn.studio/hls/${playbackId}/thumbnail.png`
-          : playbackSrc?.thumbnail ||
-            `https://livepeercdn.studio/hls/${playbackId}/thumbnail.png`,
+        hls: playbackSrc,
+        thumbnail: `https://image.mux.com/${playbackId}/thumbnail.jpg`,
       },
       streamInfo: streamInfo,
       timestamp: new Date().toISOString(),
@@ -139,7 +79,6 @@ export async function GET(
   } catch (error) {
     console.error("❌ Playback source error:", error);
 
-    // Detailed error logging
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     const errorStack = error instanceof Error ? error.stack : "";
@@ -149,33 +88,6 @@ export async function GET(
       stack: errorStack,
       playbackId: playbackId,
     });
-
-    if (error instanceof Error) {
-      if (
-        errorMessage.includes("ENOTFOUND") ||
-        errorMessage.includes("ECONNREFUSED")
-      ) {
-        return NextResponse.json(
-          {
-            error: "Streaming service unavailable",
-            details: "Cannot connect to Livepeer servers",
-            retry: true,
-          },
-          { status: 503 }
-        );
-      }
-
-      if (errorMessage.includes("timeout")) {
-        return NextResponse.json(
-          {
-            error: "Request timeout",
-            details: "Livepeer API request timed out",
-            retry: true,
-          },
-          { status: 504 }
-        );
-      }
-    }
 
     return NextResponse.json(
       {

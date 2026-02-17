@@ -1,4 +1,4 @@
-"use client";
+import React from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "./explore/Sidebar";
 import Navbar from "./explore/Navbar";
@@ -6,6 +6,7 @@ import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import ConnectModal from "@/components/explore/ProfileModal";
 import QuickActions from "./explore/quick-actions";
+import TopLoadingBar from "./ui/TopLoadingBar";
 
 export default function SidebarWrapper({
   children,
@@ -34,6 +35,7 @@ export default function SidebarWrapper({
 
   return (
     <>
+      <TopLoadingBar />
       <div className="flex flex-col h-screen">
         {!hideSidebar && <Navbar />}
         <div className="flex h-screen overflow-hidden">

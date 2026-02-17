@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { deleteLivepeerStream } from "@/lib/livepeer/server";
+import { deleteMuxStream } from "@/lib/mux/server";
 
 export async function DELETE(req: Request) {
   try {
@@ -14,8 +14,8 @@ export async function DELETE(req: Request) {
     }
 
     const userResult = await sql`
-      SELECT id, username, livepeer_stream_id, is_live
-      FROM users 
+      SELECT id, username, mux_stream_id, is_live
+      FROM users
       WHERE wallet = ${wallet}
     `;
 
@@ -25,7 +25,7 @@ export async function DELETE(req: Request) {
 
     const user = userResult.rows[0];
 
-    if (!user.livepeer_stream_id) {
+    if (!user.mux_stream_id) {
       return NextResponse.json(
         { error: "No stream found to delete" },
         { status: 404 }
@@ -43,9 +43,10 @@ export async function DELETE(req: Request) {
     }
 
     try {
-      await deleteLivepeerStream(user.livepeer_stream_id);
-    } catch (livepeerError) {
-      console.error("Livepeer deletion failed:", livepeerError);
+      await deleteMuxStream(user.mux_stream_id);
+    } catch (muxError) {
+      console.error("Mux deletion failed:", muxError);
+      // Continue even if Mux deletion fails
     }
 
     try {
@@ -60,8 +61,8 @@ export async function DELETE(req: Request) {
 
     await sql`
       UPDATE users SET
-        livepeer_stream_id = NULL,
-        playback_id = NULL,
+        mux_stream_id = NULL,
+        mux_playback_id = NULL,
         streamkey = NULL,
         is_live = false,
         current_viewers = 0,

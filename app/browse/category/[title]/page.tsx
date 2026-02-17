@@ -2,6 +2,8 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { useAccount } from "@starknet-react/core";
+import useSWR from "swr";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,12 +18,32 @@ import { Search, ExternalLink } from "lucide-react";
 import StreamCard from "@/components/shared/profile/StreamCard";
 import { BrowseLayoutSkeleton } from "@/components/skeletons/skeletons/browseLayoutSkeleton";
 import { EmptyState } from "@/components/skeletons/EmptyState";
-import {
-  languageOptions,
-  sortOptions,
-  liveVideos,
-} from "@/data/browse/live-content";
+import { languageOptions, sortOptions } from "@/data/browse/live-content";
 import { cn } from "@/lib/utils";
+
+interface LiveStream {
+  id: string;
+  username: string;
+  avatar: string | null;
+  playbackId: string;
+  title: string;
+  description: string;
+  category: string;
+  tags: string[];
+  thumbnail: string | null;
+  viewerCount: number;
+  totalViews: number;
+  isFollowing: boolean;
+  streamStartedAt: string;
+}
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error("Failed to fetch live streams");
+  }
+  return res.json();
+};
 
 // Mock category data with follower counts
 const categoryMockData = {
@@ -163,6 +185,7 @@ function CategoryHeroSkeleton() {
 export default function CategoryDetailPage() {
   const params = useParams();
   const title = params.title as string;
+  const { address } = useAccount();
 
   // State for category data
   const [categoryData, setCategoryData] = useState({
@@ -176,6 +199,19 @@ export default function CategoryDetailPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch live streams with 20-second polling
+  const { data } = useSWR<{ streams: LiveStream[] }>(
+    address
+      ? `/api/streams/live?viewer_wallet=${address}`
+      : "/api/streams/live",
+    fetcher,
+    {
+      refreshInterval: 20000,
+      revalidateOnFocus: false,
+      dedupingInterval: 5000,
+    }
+  );
 
   // Fetch category data from API
   useEffect(() => {
@@ -253,60 +289,74 @@ export default function CategoryDetailPage() {
   ];
 
   // Calculate counts for each tab type (before applying tab filter)
-  const categoryFilteredVideos = useMemo(() => {
-    return liveVideos.filter(video => {
-      // Category matching
+  const categoryFilteredStreams = useMemo(() => {
+    const streams = data?.streams || [];
+
+    return streams.filter(stream => {
+      // Category matching - match by category name or tags
       const matchesCategory =
-        video.category.toLowerCase() === categoryData.title.toLowerCase() ||
-        video.tags.some(tag =>
+        stream.category?.toLowerCase() === categoryData.title.toLowerCase() ||
+        stream.tags.some(tag =>
           categoryData.tags.some(categoryTag =>
             tag.toLowerCase().includes(categoryTag.toLowerCase())
           )
-        );
+        ) ||
+        categoryData.title
+          .toLowerCase()
+          .includes(stream.category?.toLowerCase() || "");
 
-      // Language matching
-      const matchesLanguage =
-        selectedLanguage === "all" || video.language === selectedLanguage;
+      // Language matching (currently no language field, so all pass)
+      const matchesLanguage = selectedLanguage === "all";
 
       // Search matching
       const matchesSearch =
         searchQuery === "" ||
-        video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        video.tags.some(tag =>
+        stream.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        stream.tags.some(tag =>
           tag.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        ) ||
+        stream.category?.toLowerCase().includes(searchQuery.toLowerCase());
 
       return matchesCategory && matchesLanguage && matchesSearch;
     });
-  }, [categoryData, selectedLanguage, searchQuery]);
+  }, [data?.streams, categoryData, selectedLanguage, searchQuery]);
 
-  // Apply tab filter to category filtered videos
-  const filteredVideos = useMemo(() => {
-    return categoryFilteredVideos.filter(video => {
-      // Tab type filtering
-      const matchesTab =
-        activeTab === "live"
-          ? video.isLive
-          : activeTab === "shorts"
-            ? false // No shorts data for now
-            : activeTab === "videos"
-              ? true // All videos for videos tab
-              : true;
+  // Apply tab filter to category filtered streams
+  const filteredStreams = useMemo(() => {
+    // For now, all streams are live streams
+    // Shorts and videos tabs will be empty until we add that data
+    return activeTab === "live" ? categoryFilteredStreams : [];
+  }, [categoryFilteredStreams, activeTab]);
 
-      return matchesTab;
-    });
-  }, [categoryFilteredVideos, activeTab]);
-
-  // Update tab counts based on category filtered videos
+  // Update tab counts based on category filtered streams
   const tabsWithCounts = tabs.map(tab => ({
     ...tab,
-    count:
-      tab.id === "live"
-        ? categoryFilteredVideos.filter(v => v.isLive).length
-        : tab.id === "shorts"
-          ? 0 // No shorts data yet
-          : categoryFilteredVideos.length,
+    count: tab.id === "live" ? categoryFilteredStreams.length : 0, // No shorts or videos data yet
   }));
+
+  // Map streams to StreamCard props
+  const mappedStreams = useMemo(
+    () =>
+      filteredStreams.map(stream => ({
+        id: stream.id,
+        title: stream.title,
+        thumbnailUrl: stream.thumbnail || "/placeholder.svg",
+        username: stream.username,
+        category: stream.category || "General",
+        tags: stream.tags,
+        viewCount: stream.viewerCount,
+        isLive: true,
+      })),
+    [filteredStreams]
+  );
+
+  // Compute total viewer count without updating state to avoid circular dependency
+  const totalViewerCount = useMemo(() => {
+    return categoryFilteredStreams.reduce(
+      (sum, stream) => sum + stream.viewerCount,
+      0
+    );
+  }, [categoryFilteredStreams]);
 
   const clearAllFilters = () => {
     setSelectedLanguage("all");
@@ -359,7 +409,7 @@ export default function CategoryDetailPage() {
           <div className="flex flex-col sm:flex-row gap-2 text-sm  mb-4">
             <span>{categoryData.followerCount.toLocaleString()} followers</span>
             <span>•</span>
-            <span>{categoryData.viewerCount} watching</span>
+            <span>{totalViewerCount} watching</span>
           </div>
 
           {/* Tags */}
@@ -457,19 +507,23 @@ export default function CategoryDetailPage() {
       </div>
 
       {/* Content Grid */}
-      {filteredVideos.length > 0 ? (
+      {mappedStreams.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredVideos.map(video => (
-            <StreamCard key={video.id} {...video} />
+          {mappedStreams.map(stream => (
+            <StreamCard key={stream.id} {...stream} />
           ))}
         </div>
       ) : (
         <EmptyState
           title={`No ${activeTab === "live" ? "live streams" : activeTab} found`}
-          description="Try adjusting your filters or search terms"
+          description={
+            activeTab === "live"
+              ? "No live streams in this category right now. Try adjusting your filters or check back later."
+              : "This feature is coming soon!"
+          }
           icon={activeTab === "live" ? "video" : "search"}
-          actionLabel="Clear all filters"
-          onAction={clearAllFilters}
+          actionLabel={activeTab === "live" ? "Clear all filters" : undefined}
+          onAction={activeTab === "live" ? clearAllFilters : undefined}
         />
       )}
     </div>

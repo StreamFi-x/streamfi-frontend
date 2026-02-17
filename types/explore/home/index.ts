@@ -4,6 +4,7 @@ export interface FeaturedStreamProps {
     thumbnail: string;
     isLive: boolean;
     streamerThumbnail?: string;
+    playbackId?: string;
   };
 }
 export interface LiveStreamProps {

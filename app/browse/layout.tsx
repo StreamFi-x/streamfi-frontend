@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,10 @@ export default function BrowseLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const searchParams = useSearchParams();
   const [layoutLoading, setLayoutLoading] = useState(true);
+
+  const selectedCategory = searchParams.get("category");
 
   // Check if we're on a category detail page
   const isCategoryDetailPage =
@@ -48,7 +50,7 @@ export default function BrowseLayout({
   ];
 
   const primaryTags = [
-    "Games",
+    "gaming",
     "IRL",
     "Shooter",
     "FPS",
@@ -61,10 +63,18 @@ export default function BrowseLayout({
     "Football",
   ];
 
-  const toggleTag = (tag: string) => {
-    setSelectedTags(prev =>
-      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-    );
+  const handleTagClick = (tag: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    // Toggle selection - if already selected, deselect it
+    if (selectedCategory === tag) {
+      params.delete("category");
+    } else {
+      params.set("category", tag);
+    }
+
+    // Update URL with new params
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   return (
@@ -95,18 +105,14 @@ export default function BrowseLayout({
                           {primaryTags.map(tag => (
                             <Button
                               key={tag}
-                              variant={
-                                selectedTags.includes(tag)
-                                  ? "default"
-                                  : "outline"
-                              }
+                              variant="outline"
                               size="sm"
-                              onClick={() => toggleTag(tag)}
+                              onClick={() => handleTagClick(tag)}
                               className={cn(
-                                "transition-colors text-[10px]  sm:text-sm px-2 text-white dark:tex !border-none sm:px-4 py-0.5 bg-tag sm:py-2 rounded-md",
-                                selectedTags.includes(tag)
-                                  ? "bg-purple-600 hover:bg-purple-700 "
-                                  : `hover:bg-tag hover:text-white`
+                                "transition-colors text-[10px] sm:text-sm px-2 text-white dark:tex !border-none sm:px-4 py-0.5 sm:py-2 rounded-md",
+                                selectedCategory === tag
+                                  ? "bg-purple-600 hover:bg-purple-700"
+                                  : "bg-tag hover:bg-purple-600 hover:text-white"
                               )}
                             >
                               {tag}

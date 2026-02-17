@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
-import Hls, { Level, ErrorTypes, ErrorData } from "hls.js";
+import React, { useState, useCallback } from "react";
+import VideoPlayerMux from "./VideoPlayerMux";
 
 interface StreamData {
   streamId?: string;
@@ -42,463 +42,7 @@ interface ApiResponse {
   messages?: ChatMessage[];
 }
 
-interface VideoPlayerProps {
-  playbackId: string;
-  addLog: (message: string, type?: "info" | "success" | "error") => void;
-}
-
-function VideoPlayerComponent({ playbackId, addLog }: VideoPlayerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<Hls | null>(null);
-  const [isHlsSupported, setIsHlsSupported] = useState(false);
-  const [currentQuality, setCurrentQuality] = useState(-1);
-  const [availableQualities, setAvailableQualities] = useState<Level[]>([]);
-  const [videoStats, setVideoStats] = useState({
-    buffered: 0,
-    currentTime: 0,
-    duration: 0,
-  });
-
-  const handleError = useCallback(
-    (e: Event) => {
-      const video = e.target as HTMLVideoElement;
-      const error = video.error;
-
-      let errorMessage = "Unknown video error";
-      if (error) {
-        switch (error.code) {
-          case MediaError.MEDIA_ERR_ABORTED:
-            errorMessage = "Video loading was aborted";
-            break;
-          case MediaError.MEDIA_ERR_NETWORK:
-            errorMessage = "Network error occurred";
-            break;
-          case MediaError.MEDIA_ERR_DECODE:
-            errorMessage = "Video decoding error";
-            break;
-          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-            errorMessage = "Video format not supported by browser";
-            break;
-          default:
-            errorMessage = error.message || "Video playback error";
-        }
-      }
-
-      addLog(`Video error: ${errorMessage}`, "error");
-    },
-    [addLog]
-  );
-
-  const handleLoadStart = useCallback(() => {
-    addLog("Video loading started", "info");
-  }, [addLog]);
-
-  const handleCanPlay = useCallback(() => {
-    addLog("Video ready to play", "success");
-  }, [addLog]);
-
-  const handlePlaying = useCallback(() => {
-    addLog("Video started playing!", "success");
-  }, [addLog]);
-
-  const handleWaiting = useCallback(() => {
-    addLog("Video buffering...", "info");
-  }, [addLog]);
-
-  const handleStalled = useCallback(() => {
-    addLog("Video stalled - checking connection", "info");
-  }, [addLog]);
-
-  const handleLoadedMetadata = useCallback(() => {
-    addLog("Video metadata loaded", "info");
-    const video = videoRef.current;
-    if (video) {
-      setVideoStats(prev => ({
-        ...prev,
-        duration: video.duration,
-      }));
-    }
-  }, [addLog]);
-
-  const handleTimeUpdate = useCallback(() => {
-    const video = videoRef.current;
-    if (video) {
-      const buffered =
-        video.buffered.length > 0
-          ? video.buffered.end(video.buffered.length - 1)
-          : 0;
-      setVideoStats({
-        buffered,
-        currentTime: video.currentTime,
-        duration: video.duration,
-      });
-    }
-  }, []);
-
-  const handleHlsError = useCallback(
-    (event: string, data: ErrorData) => {
-      console.error("HLS.js error:", data);
-
-      if (data.fatal) {
-        switch (data.type) {
-          case ErrorTypes.NETWORK_ERROR:
-            addLog("HLS Network error - attempting to recover", "error");
-            // Try to recover from network error
-            if (hlsRef.current) {
-              hlsRef.current.startLoad();
-            }
-            break;
-          case ErrorTypes.MEDIA_ERROR:
-            addLog("HLS Media error - attempting to recover", "error");
-            // Try to recover from media error
-            if (hlsRef.current) {
-              hlsRef.current.recoverMediaError();
-            }
-            break;
-          default:
-            addLog(
-              `HLS Fatal error: ${data.type} - destroying player`,
-              "error"
-            );
-            if (hlsRef.current) {
-              hlsRef.current.destroy();
-              hlsRef.current = null;
-            }
-            break;
-        }
-      } else {
-        switch (data.type) {
-          case ErrorTypes.NETWORK_ERROR:
-            addLog("HLS Network warning (non-fatal)", "info");
-            break;
-          case ErrorTypes.MEDIA_ERROR:
-            addLog("HLS Media warning (non-fatal)", "info");
-            break;
-          default:
-            addLog(`HLS Non-fatal error: ${data.type}`, "info");
-        }
-      }
-    },
-    [addLog]
-  );
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !playbackId) return;
-
-    const videoSrc = `https://livepeercdn.studio/hls/${playbackId}/index.m3u8`;
-
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
-    }
-
-    if (Hls.isSupported()) {
-      setIsHlsSupported(true);
-      addLog("✅ Using HLS.js for enhanced video playback", "success");
-
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-        backBufferLength: 90,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 600,
-        startLevel: -1,
-        capLevelToPlayerSize: true,
-        debug: false,
-      });
-
-      hlsRef.current = hls;
-
-      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-        addLog(
-          `HLS manifest loaded - ${data.levels.length} quality levels available`,
-          "success"
-        );
-        setAvailableQualities(data.levels);
-      });
-
-      hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
-        addLog(`HLS quality switched to level ${data.level}`, "info");
-        setCurrentQuality(data.level);
-      });
-
-      hls.on(Hls.Events.FRAG_LOADED, () => {});
-
-      hls.on(Hls.Events.ERROR, handleHlsError);
-
-      hls.on(Hls.Events.LEVEL_LOADED, () => {});
-
-      hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, (event, data) => {
-        addLog(`Audio track switched to ${data.id}`, "info");
-      });
-
-      hls.loadSource(videoSrc);
-      hls.attachMedia(video);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {});
-    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      setIsHlsSupported(false);
-      addLog("🍎 Using native Safari HLS support", "success");
-      video.src = videoSrc;
-    } else {
-      addLog("❌ Browser doesn't support HLS playback", "error");
-      return;
-    }
-
-    video.addEventListener("error", handleError);
-    video.addEventListener("loadstart", handleLoadStart);
-    video.addEventListener("canplay", handleCanPlay);
-    video.addEventListener("playing", handlePlaying);
-    video.addEventListener("waiting", handleWaiting);
-    video.addEventListener("stalled", handleStalled);
-    video.addEventListener("loadedmetadata", handleLoadedMetadata);
-    video.addEventListener("timeupdate", handleTimeUpdate);
-
-    return () => {
-      video.removeEventListener("error", handleError);
-      video.removeEventListener("loadstart", handleLoadStart);
-      video.removeEventListener("canplay", handleCanPlay);
-      video.removeEventListener("playing", handlePlaying);
-      video.removeEventListener("waiting", handleWaiting);
-      video.removeEventListener("stalled", handleStalled);
-      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      video.removeEventListener("timeupdate", handleTimeUpdate);
-
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-    };
-  }, [
-    playbackId,
-    handleError,
-    handleLoadStart,
-    handleCanPlay,
-    handlePlaying,
-    handleWaiting,
-    handleStalled,
-    handleLoadedMetadata,
-    handleTimeUpdate,
-    handleHlsError,
-    addLog,
-  ]);
-
-  const reloadVideo = useCallback(() => {
-    const video = videoRef.current;
-    if (video && playbackId) {
-      if (hlsRef.current) {
-        hlsRef.current.stopLoad();
-        hlsRef.current.loadSource(
-          `https://livepeercdn.studio/hls/${playbackId}/index.m3u8`
-        );
-        addLog(" HLS: Reloading stream...", "info");
-      } else {
-        video.src = `https://livepeercdn.studio/hls/${playbackId}/index.m3u8`;
-        video.load();
-        addLog(" Video: Reloading stream...", "info");
-      }
-    }
-  }, [playbackId, addLog]);
-
-  const togglePlayPause = useCallback(() => {
-    const video = videoRef.current;
-    if (video) {
-      if (video.paused) {
-        video.play().catch(err => {
-          addLog(`Play failed: ${err.message}`, "error");
-        });
-      } else {
-        video.pause();
-      }
-    }
-  }, [addLog]);
-
-  const toggleMute = useCallback(() => {
-    const video = videoRef.current;
-    if (video) {
-      video.muted = !video.muted;
-      addLog(`Video ${video.muted ? "muted" : "unmuted"}`, "info");
-    }
-  }, [addLog]);
-
-  const toggleFullscreen = useCallback(() => {
-    const video = videoRef.current;
-    if (video) {
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
-        addLog("Exited fullscreen", "info");
-      } else {
-        video.requestFullscreen().catch(err => {
-          addLog(`Fullscreen failed: ${err.message}`, "error");
-        });
-        addLog("Entered fullscreen", "info");
-      }
-    }
-  }, [addLog]);
-
-  const getVideoStats = useCallback(() => {
-    const video = videoRef.current;
-    if (video && hlsRef.current) {
-      const currentLevel = hlsRef.current.currentLevel;
-      const levels = hlsRef.current.levels;
-      const bufferedSeconds =
-        video.buffered.length > 0
-          ? video.buffered.end(0) - video.currentTime
-          : 0;
-
-      addLog(
-        ` HLS Stats - Quality: ${currentLevel >= 0 ? levels[currentLevel]?.height + "p" : "Auto"}, Buffer: ${bufferedSeconds.toFixed(1)}s`,
-        "info"
-      );
-    } else if (video) {
-      const bufferedSeconds =
-        video.buffered.length > 0
-          ? video.buffered.end(0) - video.currentTime
-          : 0;
-      addLog(
-        `Video Stats - Buffer: ${bufferedSeconds.toFixed(1)}s, Duration: ${video.duration.toFixed(1)}s`,
-        "info"
-      );
-    }
-  }, [addLog]);
-
-  const switchQuality = useCallback(
-    (level: number) => {
-      if (hlsRef.current) {
-        hlsRef.current.currentLevel = level;
-        addLog(
-          `Switched to quality level ${level === -1 ? "Auto" : level}`,
-          "info"
-        );
-      }
-    },
-    [addLog]
-  );
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  return (
-    <div className="relative bg-black rounded-lg overflow-hidden">
-      <video
-        ref={videoRef}
-        controls
-        autoPlay={false}
-        muted={true}
-        playsInline
-        className="w-full aspect-video bg-black"
-        poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 450'%3E%3Crect width='800' height='450' fill='%23000'/%3E%3Ctext x='400' y='140' fill='%23fff' text-anchor='middle' font-size='28'%3E📺 HLS.js Enhanced Player%3C/text%3E%3Ctext x='400' y='180' fill='%23888' text-anchor='middle' font-size='18'%3ESupports all modern browsers%3C/text%3E%3Ctext x='400' y='220' fill='%23666' text-anchor='middle' font-size='16'%3EAdaptive quality • Low latency • Error recovery%3C/text%3E%3Ctext x='400' y='260' fill='%23555' text-anchor='middle' font-size='14'%3EStart streaming with OBS to see video%3C/text%3E%3Ctext x='400' y='300' fill='%23444' text-anchor='middle' font-size='12'%3EChrome • Firefox • Edge • Safari supported%3C/text%3E%3C/svg%3E"
-      >
-        <div className="w-full h-full flex items-center justify-center text-white bg-gray-900">
-          <div className="text-center p-6">
-            <div className="text-4xl mb-4">X</div>
-            <p className="text-lg mb-2">Video playback not supported</p>
-            <p className="text-sm text-gray-400 mb-4">
-              Please update your browser or try a different one
-            </p>
-            <p className="text-xs text-gray-500">
-              Requires a modern browser with HTML5 video support
-            </p>
-          </div>
-        </div>
-      </video>
-      <div className="absolute top-4 right-4 flex flex-wrap gap-1">
-        <button
-          onClick={reloadVideo}
-          className="bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs hover:bg-opacity-80 transition-opacity"
-          title="Reload video stream"
-        >
-          Reload
-        </button>
-
-        <button
-          onClick={togglePlayPause}
-          className="bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs hover:bg-opacity-80 transition-opacity"
-          title="Play or pause video"
-        >
-          Play/Pause
-        </button>
-
-        <button
-          onClick={toggleMute}
-          className="bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs hover:bg-opacity-80 transition-opacity"
-          title="Toggle mute"
-        >
-          Mute
-        </button>
-
-        <button
-          onClick={getVideoStats}
-          className="bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs hover:bg-opacity-80 transition-opacity"
-          title="Show video statistics"
-        >
-          Stats
-        </button>
-
-        <button
-          onClick={toggleFullscreen}
-          className="bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs hover:bg-opacity-80 transition-opacity"
-          title="Toggle fullscreen"
-        >
-          Full
-        </button>
-      </div>
-      <div className="absolute bottom-4 left-4">
-        <div className="bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
-          {isHlsSupported ? (
-            <>
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-              <span className="text-green-400">HLS.js Active</span>
-            </>
-          ) : (
-            <>
-              <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-              <span className="text-blue-400">Native HLS</span>
-            </>
-          )}
-        </div>
-      </div>
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-        <div className="bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs">
-          {videoStats.duration > 0 && (
-            <span>
-              {formatTime(videoStats.currentTime)} /{" "}
-              {formatTime(videoStats.duration)}
-            </span>
-          )}
-        </div>
-      </div>
-      {isHlsSupported && availableQualities.length > 0 && (
-        <div className="absolute bottom-4 right-4">
-          <select
-            value={currentQuality}
-            onChange={e => switchQuality(parseInt(e.target.value))}
-            className="bg-black bg-opacity-60 text-white text-xs rounded px-2 py-1 border-0"
-            title="Select video quality"
-          >
-            <option value="-1">Auto Quality</option>
-            {availableQualities.map((level: Level, index: number) => (
-              <option key={index} value={index}>
-                {level.height}p ({Math.round(level.bitrate / 1000)}k)
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      <div className="absolute top-4 left-4">
-        <div className="bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs">
-          Buffer:{" "}
-          {(videoStats.buffered - videoStats.currentTime || 0).toFixed(1)}s
-        </div>
-      </div>
-    </div>
-  );
-}
+// VideoPlayerComponent removed - now using VideoPlayerMux component
 
 export default function StreamTestComponent() {
   const [wallet] = useState(
@@ -512,9 +56,9 @@ export default function StreamTestComponent() {
   >("create");
   const [streamForm, setStreamForm] = useState({
     title: "Test Stream",
-    description: "Testing Livepeer integration with HLS.js",
+    description: "Testing Mux integration with enhanced player",
     category: "Technology",
-    tags: ["test", "livepeer", "streaming", "hls"],
+    tags: ["test", "mux", "streaming", "live"],
   });
 
   const [chatMessage, setChatMessage] = useState("");
@@ -554,7 +98,7 @@ export default function StreamTestComponent() {
 
   const apiCall = async (
     endpoint: string,
-    options: RequestInit = {}
+    options: Record<string, unknown> = {}
   ): Promise<ApiResponse> => {
     const startTime = Date.now();
 
@@ -701,7 +245,7 @@ export default function StreamTestComponent() {
       body: JSON.stringify({
         wallet,
         title: streamForm.title + " (Updated)",
-        description: "Updated description with HLS.js support",
+        description: "Updated description with Mux support",
       }),
     });
 
@@ -712,7 +256,9 @@ export default function StreamTestComponent() {
   };
 
   const deleteStream = async () => {
-    if (!confirm("Are you sure you want to delete the stream?")) return;
+    if (!confirm("Are you sure you want to delete the stream?")) {
+      return;
+    }
 
     setLoading(true);
     const result = await apiCall("/api/streams/delete", {
@@ -746,7 +292,9 @@ export default function StreamTestComponent() {
   };
 
   const sendChatMessage = async () => {
-    if (!chatMessage.trim() || !streamData.playbackId) return;
+    if (!chatMessage.trim() || !streamData.playbackId) {
+      return;
+    }
 
     const result = await apiCall("/api/streams/chat", {
       method: "POST",
@@ -766,7 +314,9 @@ export default function StreamTestComponent() {
   };
 
   const getChatMessages = async () => {
-    if (!streamData.playbackId) return;
+    if (!streamData.playbackId) {
+      return;
+    }
 
     const result = await apiCall(
       `/api/streams/chat?playbackId=${streamData.playbackId}`
@@ -807,18 +357,8 @@ export default function StreamTestComponent() {
   };
 
   const testHlsSupport = () => {
-    if (Hls.isSupported()) {
-      addLog(" HLS.js is supported in this browser", "success");
-      addLog(`HLS.js version: ${Hls.version}`, "info");
-    } else if (
-      document
-        .createElement("video")
-        .canPlayType("application/vnd.apple.mpegurl")
-    ) {
-      addLog("Native HLS support detected (Safari)", "success");
-    } else {
-      addLog(" No HLS support detected", "error");
-    }
+    addLog("✅ Using Mux Player for video playback", "success");
+    addLog("Mux Player supports all modern browsers", "info");
   };
 
   const clearApiHistory = () => {
@@ -830,10 +370,10 @@ export default function StreamTestComponent() {
     <div className="max-w-7xl mx-auto p-6 bg-white rounded-lg shadow-lg">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Livepeer Stream Testing Dashboard
+          Mux Stream Testing Dashboard
         </h1>
         <p className="text-gray-600">
-          Comprehensive testing suite with HLS.js integration for universal
+          Comprehensive testing suite with Mux Player integration for universal
           browser support
         </p>
         <div className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
@@ -886,9 +426,7 @@ export default function StreamTestComponent() {
           </div>
           <div>
             <span className="text-sm text-gray-500">HLS Support:</span>
-            <div className="font-semibold text-purple-600">
-              {Hls.isSupported() ? "HLS.js" : "Native"}
-            </div>
+            <div className="font-semibold text-purple-600">{"Mux Player"}</div>
           </div>
         </div>
       </div>
@@ -1244,7 +782,7 @@ export default function StreamTestComponent() {
                         <li>
                           Server:{" "}
                           <code className="bg-yellow-200 px-1 rounded">
-                            rtmp://rtmp.livepeer.com/live
+                            rtmp://global-live.mux.com:5222/app
                           </code>
                         </li>
                         <li>Stream Key: Use the key above</li>
@@ -1284,14 +822,8 @@ export default function StreamTestComponent() {
                       </div>
                       <div>
                         <span className="font-medium">HLS Support:</span>
-                        <span
-                          className={`ml-2 px-2 py-1 rounded text-xs ${
-                            Hls.isSupported()
-                              ? "bg-green-100 text-green-800"
-                              : "bg-blue-100 text-blue-800"
-                          }`}
-                        >
-                          {Hls.isSupported() ? "HLS.js Enhanced" : "Native HLS"}
+                        <span className="ml-2 px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+                          Mux Player
                         </span>
                       </div>
                     </div>
@@ -1327,12 +859,10 @@ export default function StreamTestComponent() {
                         </span>
                       )}
                     </div>
-                    <div className="text-sm text-gray-600">
-                      {Hls.isSupported() ? " HLS.js Enhanced" : " Native HLS"}
-                    </div>
+                    <div className="text-sm text-gray-600">{"Mux Player"}</div>
                   </div>
 
-                  <VideoPlayerComponent
+                  <VideoPlayerMux
                     playbackId={streamData.playbackId}
                     addLog={addLog}
                   />
@@ -1383,12 +913,10 @@ export default function StreamTestComponent() {
                       <h4 className="font-semibold mb-2"> Player Info</h4>
                       <div className="space-y-1">
                         <p>
-                          <strong>Player Type:</strong>{" "}
-                          {Hls.isSupported() ? "HLS.js" : "Native"}
+                          <strong>Player Type:</strong> {"Mux Player"}
                         </p>
                         <p>
-                          <strong>Version:</strong>{" "}
-                          {Hls.isSupported() ? Hls.version : "Browser"}
+                          <strong>Version:</strong> {"Latest"}
                         </p>
                         <p>
                           <strong>Quality:</strong> Adaptive
@@ -1486,7 +1014,7 @@ export default function StreamTestComponent() {
                           <li>
                             Server:{" "}
                             <code className="bg-yellow-100 px-1 rounded">
-                              rtmp://rtmp.livepeer.com/live
+                              rtmp://global-live.mux.com:5222/app
                             </code>
                           </li>
                           <li>
@@ -1694,12 +1222,10 @@ export default function StreamTestComponent() {
                   <div className="grid md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <p>
-                        <strong>HLS.js Supported:</strong>{" "}
-                        {Hls.isSupported() ? " Yes" : " No"}
+                        <strong>Mux Player:</strong> {" Yes"}
                       </p>
                       <p>
-                        <strong>Version:</strong>{" "}
-                        {Hls.isSupported() ? Hls.version : "N/A"}
+                        <strong>Version:</strong> {"Latest"}
                       </p>
                       <p>
                         <strong>Worker Support:</strong>{" "}
@@ -1821,7 +1347,7 @@ export default function StreamTestComponent() {
                       const config = {
                         streamData,
                         advancedSettings,
-                        hlsSupported: Hls.isSupported(),
+                        playerType: "Mux Player",
                         timestamp: new Date().toISOString(),
                       };
                       copyToClipboard(
@@ -1954,12 +1480,10 @@ export default function StreamTestComponent() {
           </div>
           <div>
             <p>
-              <strong> HLS Support:</strong>{" "}
-              {Hls.isSupported() ? "Enhanced" : "Native"}
+              <strong> HLS Support:</strong> {"Mux Player"}
             </p>
             <p>
-              <strong> Version:</strong>{" "}
-              {Hls.isSupported() ? Hls.version : "Browser"}
+              <strong> Version:</strong> {"Latest"}
             </p>
           </div>
         </div>

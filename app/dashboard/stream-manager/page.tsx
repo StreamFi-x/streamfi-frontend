@@ -3,6 +3,7 @@
 import type React from "react";
 
 import { useState, useEffect } from "react";
+import { useAccount } from "@starknet-react/core";
 import StreamPreview from "@/components/dashboard/stream-manager/StreamPreview";
 import ActivityFeed from "@/components/dashboard/stream-manager/ActivityFeed";
 import Chat from "@/components/dashboard/stream-manager/Chat";
@@ -12,22 +13,52 @@ import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
 
 export default function StreamManagerPage() {
+  const { address } = useAccount();
   const [streamData, setStreamData] = useState({
-    title: "Keeping up with Cassandra",
-    category: "Gaming",
-    description: "Late Night Grind - Leveling Up with the Crew!",
-    tags: ["Tech", "Design"],
-    thumbnail: "/placeholder.svg?height=640&width=1200",
+    title: "",
+    category: "",
+    description: "",
+    tags: [] as string[],
+    thumbnail: null as string | null,
   });
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [isStreamInfoModalOpen, setIsStreamInfoModalOpen] = useState(false);
   const [streamSession, setStreamSession] = useState("00:00:00");
-  const [stats, setStats] = useState({
-    viewers: 0,
-    followers: 0,
-    donations: 0,
-  });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Fetch stream data on mount
+  useEffect(() => {
+    const fetchStreamData = async () => {
+      if (!address) {
+        setIsLoadingData(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/streams/${address}`);
+        if (response.ok) {
+          const data = await response.json();
+          const creator = data.stream?.creator || {};
+          setStreamData({
+            title: creator.streamTitle || "",
+            category: creator.category || "",
+            description: creator.description || "",
+            tags: creator.tags || [],
+            thumbnail: creator.thumbnail || null,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching stream data:", error);
+        showToast("Failed to load stream data");
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    fetchStreamData();
+  }, [address]);
 
   // Update stream timer
   useEffect(() => {
@@ -35,8 +66,9 @@ export default function StreamManagerPage() {
       setStreamSession(prev => {
         try {
           const [hours, minutes, seconds] = prev.split(":").map(Number);
-          if (isNaN(hours) || isNaN(minutes) || isNaN(seconds))
+          if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
             throw new Error();
+          }
 
           let newSeconds = seconds + 1;
           let newMinutes = minutes;
@@ -64,14 +96,6 @@ export default function StreamManagerPage() {
     return () => clearInterval(timer);
   }, []);
 
-  interface StreamData {
-    title: string;
-    category: string;
-    description: string;
-    tags: string[];
-    thumbnail: string;
-  }
-
   interface StreamInfoUpdate {
     title?: string;
     category?: string;
@@ -80,10 +104,51 @@ export default function StreamManagerPage() {
     thumbnail?: string;
   }
 
-  const handleStreamInfoUpdate = (newData: StreamInfoUpdate) => {
-    setStreamData({ ...streamData, ...newData });
-    setIsStreamInfoModalOpen(false);
-    showToast("Stream info updated successfully!");
+  const handleStreamInfoUpdate = async (newData: StreamInfoUpdate) => {
+    if (!address) {
+      showToast("Wallet not connected");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const response = await fetch("/api/streams/update", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          wallet: address,
+          title: newData.title,
+          description: newData.description,
+          category: newData.category,
+          tags: newData.tags,
+          thumbnail: newData.thumbnail,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setStreamData({
+          title: result.streamData.title || "",
+          category: result.streamData.category || "",
+          description: result.streamData.description || "",
+          tags: result.streamData.tags || [],
+          thumbnail: result.streamData.thumbnail || null,
+        });
+        setIsStreamInfoModalOpen(false);
+        showToast("Stream info updated successfully!");
+      } else {
+        const error = await response.json();
+        showToast(error.error || "Failed to update stream info");
+      }
+    } catch (error) {
+      console.error("Error updating stream info:", error);
+      showToast("Failed to update stream info");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const showToast = (message: string) => {
@@ -97,9 +162,9 @@ export default function StreamManagerPage() {
         {/* Stats Bar */}
         <div className="flex justify-between items-center px-2 border-b border-border">
           <div className="flex space-x-4 ">
-            <StatsCard title="Viewers" value={stats.viewers} />
-            <StatsCard title="New followers" value={stats.followers} />
-            <StatsCard title="Donations" value={stats.donations} />
+            <StatsCard title="Viewers" value={0} />
+            <StatsCard title="New followers" value={0} />
+            <StatsCard title="Donations" value={0} />
           </div>
           <div className="text-muted-foreground">
             <span>Stream Session: </span>
@@ -131,7 +196,10 @@ export default function StreamManagerPage() {
               {/* Stream Info - Dynamic height based on content */}
               <div>
                 <StreamInfo
-                  data={streamData}
+                  data={{
+                    ...streamData,
+                    thumbnail: streamData.thumbnail || undefined,
+                  }}
                   onEditClick={() => setIsStreamInfoModalOpen(true)}
                 />
               </div>
@@ -145,11 +213,12 @@ export default function StreamManagerPage() {
         </div>
 
         {/* Stream Info Modal */}
-        {isStreamInfoModalOpen && (
+        {isStreamInfoModalOpen && !isLoadingData && (
           <StreamInfoModal
             initialData={streamData}
             onClose={() => setIsStreamInfoModalOpen(false)}
             onSave={handleStreamInfoUpdate}
+            isSaving={isSaving}
           />
         )}
 

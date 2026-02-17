@@ -173,7 +173,7 @@ const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
         {
           icon: <Settings size={20} />,
           label: "Settings",
-          route: "/settings",
+          route: "/settings/profile",
           mobile: true,
         },
       ],
@@ -205,15 +205,21 @@ const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
         disconnect();
       }
       logout();
-      if (onLinkClick) onLinkClick(item.route || "/explore");
+      if (onLinkClick) {
+        onLinkClick(item.route || "/explore");
+      }
       return;
     }
 
     if (item.route) {
       router.push(item.route);
-      if (onLinkClick) onLinkClick(item.route);
+      if (onLinkClick) {
+        onLinkClick(item.route);
+      }
     } else {
-      if (onLinkClick) onLinkClick("");
+      if (onLinkClick) {
+        onLinkClick("");
+      }
     }
   };
 

@@ -12,6 +12,7 @@ import {
 } from "@radix-ui/react-select";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 type Category = {
@@ -23,6 +24,8 @@ type Category = {
 };
 
 export default function BrowseCategoryPage() {
+  const searchParams = useSearchParams();
+  const selectedCategory = searchParams.get("category");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSort, setSelectedSort] = useState("recommended");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -58,15 +61,26 @@ export default function BrowseCategoryPage() {
     fetchCategories();
   }, []);
 
-  // Filter categories based on search query
-  const filteredCategories = categories.filter(
-    category =>
+  // Filter categories based on search query and selected category
+  const filteredCategories = categories.filter(category => {
+    // Filter by selected category tag
+    const matchesCategory =
+      !selectedCategory ||
+      category.title.toLowerCase() === selectedCategory.toLowerCase() ||
+      category?.tags?.some(
+        tag => tag.toLowerCase() === selectedCategory.toLowerCase()
+      );
+
+    // Filter by search query
+    const matchesSearch =
       searchQuery === "" ||
       category.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       category?.tags?.some(tag =>
         tag.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-  );
+      );
+
+    return matchesCategory && matchesSearch;
+  });
 
   // Show loading state
 

@@ -1,28 +1,181 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Settings, Maximize } from "lucide-react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Settings, X, Send, MessageCircle } from "lucide-react";
+import { useAccount } from "@starknet-react/core";
+import MuxPlayer from "@mux/mux-player-react";
+import { useStreamData } from "@/hooks/useStreamData";
 
 export default function StreamPreview() {
+  const { address } = useAccount();
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
+  const [showChatOverlay, setShowChatOverlay] = useState(true);
+  const [chatMessage, setChatMessage] = useState("");
+  const [fullscreenElement, setFullscreenElement] = useState<Element | null>(
+    null
+  );
 
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
-      });
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
+  // Use optimized SWR hook for data fetching with caching
+  const { streamData, isLoading } = useStreamData(address);
+
+  // Detect Mux Player fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const fsElement = document.fullscreenElement;
+      const isInFullscreen = !!fsElement;
+      setIsFullscreen(isInFullscreen);
+      setFullscreenElement(fsElement);
+      if (isInFullscreen) {
+        setShowChatOverlay(true);
+        console.log("Entered fullscreen, element:", fsElement?.tagName);
+      } else {
+        console.log("Exited fullscreen");
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+    document.addEventListener("msfullscreenchange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener(
+        "webkitfullscreenchange",
+        handleFullscreenChange
+      );
+      document.removeEventListener(
+        "mozfullscreenchange",
+        handleFullscreenChange
+      );
+      document.removeEventListener(
+        "msfullscreenchange",
+        handleFullscreenChange
+      );
+    };
+  }, []);
+
+  const handleSendMessage = () => {
+    if (chatMessage.trim()) {
+      // TODO: Implement actual chat message sending
+      console.log("Sending message:", chatMessage);
+      setChatMessage("");
     }
+  };
+
+  // Render chat overlay component
+  const renderChatOverlay = () => {
+    if (!isFullscreen || !showChatOverlay) {
+      return null;
+    }
+
+    return (
+      <motion.div
+        initial={{ x: 400, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: 400, opacity: 0 }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        className="absolute right-4 top-4 bottom-20 w-80 md:w-96 flex flex-col pointer-events-auto z-[100]"
+        style={{ maxHeight: "calc(100vh - 8rem)" }}
+      >
+        {/* Transparent Chat Container */}
+        <div className="flex flex-col h-full bg-gradient-to-b from-black/40 via-black/30 to-black/40 backdrop-blur-sm rounded-lg overflow-hidden">
+          {/* Chat Header */}
+          <div className="flex items-center justify-between p-3 bg-black/50 backdrop-blur-md border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <MessageCircle size={16} className="text-white" />
+              <span className="text-white font-semibold text-sm">
+                Live Chat
+              </span>
+            </div>
+            <button
+              onClick={() => setShowChatOverlay(false)}
+              className="p-1 hover:bg-white/20 rounded transition-colors"
+              title="Hide chat"
+            >
+              <X size={16} className="text-white" />
+            </button>
+          </div>
+
+          {/* Chat Messages - Scrollable */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+            <div className="text-xs text-white/60 text-center py-2">
+              Welcome to live chat!
+            </div>
+            {/* Example messages */}
+            <div className="flex flex-col gap-2">
+              <div className="bg-black/30 backdrop-blur-sm rounded-lg p-2">
+                <div className="flex items-start gap-2">
+                  <div className="w-6 h-6 rounded-full bg-purple-600 flex-shrink-0 flex items-center justify-center text-xs text-white font-semibold">
+                    C
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-purple-400 text-xs font-semibold">
+                        Chidinma
+                      </span>
+                      <span className="text-white/50 text-xs">2m</span>
+                    </div>
+                    <p className="text-white text-sm break-words">
+                      Wagwan peeps! First viewer joining in today
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Chat Input */}
+          <div className="p-3 bg-black/50 backdrop-blur-md border-t border-white/10">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={chatMessage}
+                onChange={e => setChatMessage(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleSendMessage()}
+                placeholder="Say something..."
+                className="flex-1 bg-white/10 text-white text-sm px-3 py-2 rounded-lg border border-white/20 focus:border-purple-500 focus:bg-white/15 focus:outline-none placeholder-white/50"
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!chatMessage.trim()}
+                className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 disabled:cursor-not-allowed text-white p-2 rounded-lg transition-colors"
+              >
+                <Send size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
+  // Render chat toggle button
+  const renderChatToggle = () => {
+    if (!isFullscreen || showChatOverlay) {
+      return null;
+    }
+
+    return (
+      <motion.button
+        initial={{ x: 100, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: 100, opacity: 0 }}
+        onClick={() => setShowChatOverlay(true)}
+        className="absolute right-4 top-20 bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-black/80 transition-all z-[100] flex items-center gap-2"
+        title="Show chat"
+      >
+        <MessageCircle size={16} />
+        <span className="text-sm font-semibold">Chat</span>
+      </motion.button>
+    );
   };
 
   return (
     <motion.div
-      className="h-full flex flex-col rounded-md w-full max-w-xl overflow-hidden"
+      className="h-full flex flex-col rounded-md w-full max-w-xl overflow-hidden relative"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
@@ -36,46 +189,76 @@ export default function StreamPreview() {
           <button className="p-1 hover:bg-surface-hover rounded-md transition-colors">
             <Settings size={18} className="text-muted-foreground" />
           </button>
-          <button
-            className="p-1 hover:bg-surface-hover rounded-md transition-colors"
-            onClick={toggleFullscreen}
-          >
-            <Maximize size={18} className="text-muted-foreground" />
-          </button>
         </div>
       </div>
 
-      <div className="flex-1 max-w-xl w-full bg-black relative">
-        <div className="absolute inset-0 flex items-center justify-center">
-          {isStreaming ? (
-            <video
-              className="w-full h-full object-contain"
-              autoPlay
-              muted
-              playsInline
-            >
-              <source src="/placeholder-video.mp4" type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
-          ) : (
-            <>
-              <img
-                src="/Images/stream-preview.png"
-                alt="Stream preview"
-                className="object-cover"
-              />
-              <div className="absolute top-4 left-4 bg-red-600 px-2 py-1 text-xs font-semibold rounded text-white">
-                OFFLINE
-              </div>
-            </>
-          )}
-        </div>
-        <div className="absolute bottom-4 right-4 flex space-x-2">
-          <button className="bg-card bg-opacity-70 p-2 rounded-md hover:bg-opacity-100 transition-colors border border-border">
-            <Settings size={18} className="text-foreground" />
-          </button>
-        </div>
+      <div
+        className="flex-1 max-w-xl w-full bg-black relative"
+        id="video-container"
+      >
+        {isLoading ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-white text-center">
+              <div className="text-lg">Loading stream...</div>
+            </div>
+          </div>
+        ) : streamData?.playbackId ? (
+          <>
+            <MuxPlayer
+              playbackId={streamData.playbackId}
+              streamType="live"
+              autoPlay="muted"
+              metadata={{
+                video_id: streamData.playbackId,
+                video_title: "Live Stream",
+                viewer_user_id: address || "anonymous",
+              }}
+              primaryColor="#ac39f2"
+              secondaryColor="#000000"
+              maxResolution="1080p"
+              minResolution="480p"
+              preload="auto"
+              className="w-full h-full"
+            />
+            <div className="absolute top-4 left-4 z-10 pointer-events-none">
+              {streamData.isLive ? (
+                <div className="bg-red-600 px-3 py-1 text-xs font-semibold rounded text-white flex items-center gap-2">
+                  <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                  LIVE
+                </div>
+              ) : (
+                <div className="bg-gray-600 px-3 py-1 text-xs font-semibold rounded text-white">
+                  OFFLINE
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <img
+              src="/Images/stream-preview.png"
+              alt="Stream preview"
+              className="object-cover"
+            />
+            <div className="absolute top-4 left-4 bg-gray-600 px-3 py-1 text-xs font-semibold rounded text-white">
+              NO STREAM
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Portal chat overlay into fullscreen element */}
+      {isFullscreen && fullscreenElement && (
+        <>
+          {createPortal(
+            <AnimatePresence>
+              {renderChatOverlay()}
+              {renderChatToggle()}
+            </AnimatePresence>,
+            fullscreenElement
+          )}
+        </>
+      )}
     </motion.div>
   );
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { checkExistingTableDetail, validateEmail } from "@/utils/validators";
 import { sql } from "@vercel/postgres";
 import { sendWelcomeRegistrationEmail } from "@/utils/send-email";
+import { createMuxStream } from "@/lib/mux/server";
 
 async function handler(req: Request) {
   try {
@@ -129,30 +130,62 @@ async function handler(req: Request) {
       );
     }
 
-    // Insert the new user with all fields
+    // Create Mux stream automatically for the new user
+    console.log(`🎬 Creating Mux stream for user: ${username}`);
+    let muxStream;
+    try {
+      muxStream = await createMuxStream({
+        name: `${username}'s Stream`,
+        record: true,
+      });
+      console.log(`✅ Mux stream created: ${muxStream.id}`);
+    } catch (muxError) {
+      console.error("❌ Failed to create Mux stream:", muxError);
+      return NextResponse.json(
+        { error: "Failed to create streaming account" },
+        { status: 500 }
+      );
+    }
+
+    // Insert the new user with all fields including Mux stream data
     await sql`
       INSERT INTO users (
-        email, 
-        username, 
-        wallet, 
-        socialLinks, 
+        email,
+        username,
+        wallet,
+        socialLinks,
         emailNotifications,
-        creator
+        creator,
+        mux_stream_id,
+        mux_playback_id,
+        streamkey
       )
       VALUES (
-        ${email}, 
-        ${username}, 
-        ${wallet}, 
-        ${JSON.stringify(socialLinks)}, 
+        ${email},
+        ${username},
+        ${wallet},
+        ${JSON.stringify(socialLinks)},
         ${emailNotifications},
-        ${JSON.stringify(creator)}
+        ${JSON.stringify(creator)},
+        ${muxStream.id},
+        ${muxStream.playbackId},
+        ${muxStream.streamKey}
       )
     `;
+
+    console.log(`✅ User registered with stream key: ${username}`);
 
     await sendWelcomeRegistrationEmail(email, username);
 
     return NextResponse.json(
-      { message: "User registration success" },
+      {
+        message: "User registration success",
+        streamCreated: true,
+        streamData: {
+          rtmpUrl: muxStream.rtmpUrl,
+          // Don't return stream key in response for security
+        },
+      },
       { status: 200 }
     );
   } catch (error) {

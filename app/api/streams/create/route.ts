@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { createLivepeerStream } from "@/lib/livepeer/server";
+import { createMuxStream } from "@/lib/mux/server";
 import { checkExistingTableDetail } from "@/utils/validators";
 
 export async function POST(req: Request) {
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
 
     console.log("🔍 Fetching user data...");
     const userResult = await sql`
-      SELECT id, username, creator, livepeer_stream_id FROM users WHERE LOWER(wallet) = LOWER(${wallet})
+      SELECT id, username, creator, mux_stream_id FROM users WHERE LOWER(wallet) = LOWER(${wallet})
     `;
 
     if (userResult.rows.length === 0) {
@@ -66,82 +66,96 @@ export async function POST(req: Request) {
     console.log("📊 User data:", {
       id: user.id,
       username: user.username,
-      hasStream: !!user.livepeer_stream_id,
-      existingStreamId: user.livepeer_stream_id,
+      hasStream: !!user.mux_stream_id,
+      existingStreamId: user.mux_stream_id,
     });
 
-    if (user.livepeer_stream_id) {
-      console.log("❌ User already has stream:", user.livepeer_stream_id);
+    // PERSISTENT STREAM KEY FLOW: If user already has a stream, return it
+    if (user.mux_stream_id) {
+      console.log("✅ User already has persistent stream:", user.mux_stream_id);
+
+      // Get additional stream data
+      const streamDataResult = await sql`
+        SELECT mux_stream_id, mux_playback_id, streamkey, is_live
+        FROM users
+        WHERE id = ${user.id}
+      `;
+
+      const streamData = streamDataResult.rows[0];
+
       return NextResponse.json(
         {
-          error:
-            "User already has an active stream. Please delete the existing stream first.",
+          message: "Stream already exists",
+          streamData: {
+            streamId: streamData.mux_stream_id,
+            playbackId: streamData.mux_playback_id,
+            streamKey: streamData.streamkey,
+            rtmpUrl: "rtmp://global-live.mux.com:5222/app",
+            title: title,
+            isActive: streamData.is_live || false,
+            persistent: true,
+          },
         },
-        { status: 409 }
+        { status: 200 }
       );
     }
 
-    if (!process.env.LIVEPEER_API_KEY) {
-      console.log("❌ Missing LIVEPEER_API_KEY environment variable");
+    if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
+      console.log("❌ Missing Mux credentials");
       return NextResponse.json(
-        { error: "Livepeer API key not configured" },
+        { error: "Mux credentials not configured" },
         { status: 500 }
       );
     }
-    console.log(
-      "✅ Livepeer API key found, length:",
-      process.env.LIVEPEER_API_KEY.length
-    );
+    console.log("✅ Mux credentials found");
 
-    console.log("🎬 Creating Livepeer stream...");
-    let livepeerStream;
+    console.log("🎬 Creating Mux stream...");
+    let muxStream;
     try {
-      livepeerStream = await createLivepeerStream({
+      muxStream = await createMuxStream({
         name: `${user.username} - ${title}`,
         record: true,
       });
-      console.log("✅ Livepeer stream created successfully:", {
-        id: livepeerStream?.id,
-        playbackId: livepeerStream?.playbackId,
-        hasStreamKey: !!livepeerStream?.streamKey,
+      console.log("✅ Mux stream created successfully:", {
+        id: muxStream?.id,
+        playbackId: muxStream?.playbackId,
+        hasStreamKey: !!muxStream?.streamKey,
       });
-    } catch (livepeerError) {
-      console.error("❌ Livepeer stream creation failed:", livepeerError);
+    } catch (muxError) {
+      console.error("❌ Mux stream creation failed:", muxError);
 
-      if (livepeerError instanceof Error) {
-        console.error("Livepeer error details:", {
-          message: livepeerError.message,
-          stack: livepeerError.stack,
-          name: livepeerError.name,
+      if (muxError instanceof Error) {
+        console.error("Mux error details:", {
+          message: muxError.message,
+          stack: muxError.stack,
+          name: muxError.name,
         });
       }
 
       return NextResponse.json(
         {
-          error: "Failed to create Livepeer stream",
+          error: "Failed to create Mux stream",
           details:
-            livepeerError instanceof Error
-              ? livepeerError.message
-              : "Unknown Livepeer error",
+            muxError instanceof Error ? muxError.message : "Unknown Mux error",
         },
         { status: 500 }
       );
     }
 
     if (
-      !livepeerStream ||
-      !livepeerStream.id ||
-      !livepeerStream.playbackId ||
-      !livepeerStream.streamKey
+      !muxStream ||
+      !muxStream.id ||
+      !muxStream.playbackId ||
+      !muxStream.streamKey
     ) {
-      console.log("❌ Invalid Livepeer response:", livepeerStream);
+      console.log("❌ Invalid Mux response:", muxStream);
       return NextResponse.json(
-        { error: "Failed to create Livepeer stream - incomplete response" },
+        { error: "Failed to create Mux stream - incomplete response" },
         { status: 500 }
       );
     }
 
-    console.log("🔍 Updating user with Livepeer data...");
+    console.log("🔍 Updating user with Mux data...");
     const updatedCreator = {
       ...user.creator,
       streamTitle: title,
@@ -154,9 +168,9 @@ export async function POST(req: Request) {
     try {
       await sql`
         UPDATE users SET
-          livepeer_stream_id = ${livepeerStream.id},
-          playback_id = ${livepeerStream.playbackId},
-          streamkey = ${livepeerStream.streamKey},
+          mux_stream_id = ${muxStream.id},
+          mux_playback_id = ${muxStream.playbackId},
+          streamkey = ${muxStream.streamKey},
           creator = ${JSON.stringify(updatedCreator)},
           updated_at = CURRENT_TIMESTAMP
         WHERE LOWER(wallet) = LOWER(${wallet})
@@ -165,8 +179,9 @@ export async function POST(req: Request) {
     } catch (dbError) {
       console.error("❌ Database update failed:", dbError);
 
-      console.log("🧹 Attempting to cleanup Livepeer stream...");
+      console.log("🧹 Attempting to cleanup Mux stream...");
       try {
+        // TODO: Add stream cleanup here if needed
         console.log("Stream cleanup would go here");
       } catch (cleanupError) {
         console.error("❌ Cleanup failed:", cleanupError);
@@ -188,11 +203,12 @@ export async function POST(req: Request) {
       {
         message: "Stream created successfully",
         streamData: {
-          streamId: livepeerStream.id,
-          playbackId: livepeerStream.playbackId,
-          streamKey: livepeerStream.streamKey,
+          streamId: muxStream.id,
+          playbackId: muxStream.playbackId,
+          streamKey: muxStream.streamKey,
+          rtmpUrl: muxStream.rtmpUrl,
           title: title,
-          isActive: livepeerStream.isActive || false,
+          isActive: muxStream.isActive || false,
         },
       },
       { status: 201 }
@@ -211,7 +227,7 @@ export async function POST(req: Request) {
     });
 
     if (error instanceof Error) {
-      if (error.message.includes("Livepeer")) {
+      if (error.message.includes("Mux")) {
         return NextResponse.json(
           { error: "Streaming service unavailable. Please try again later." },
           { status: 503 }

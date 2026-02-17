@@ -22,8 +22,9 @@ CREATE TABLE IF NOT EXISTS users (
     following TEXT[],
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    livepeer_stream_id VARCHAR(255),
-    playback_id VARCHAR(255),
+    mux_stream_id VARCHAR(255),
+    mux_playback_id VARCHAR(255),
+    mux_stream_key VARCHAR(255),
     is_live BOOLEAN DEFAULT FALSE,
     current_viewers INTEGER DEFAULT 0,
     total_views INTEGER DEFAULT 0,
@@ -42,8 +43,8 @@ ADD COLUMN IF NOT EXISTS following UUID[];
 CREATE TABLE IF NOT EXISTS stream_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    livepeer_session_id VARCHAR(255),
-    
+    mux_session_id VARCHAR(255),
+
     started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP WITH TIME ZONE,
     duration_seconds INTEGER GENERATED ALWAYS AS (

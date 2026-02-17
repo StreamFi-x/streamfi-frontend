@@ -26,7 +26,15 @@ export async function GET(
     }
 
     console.log("API: User found:", user.username);
-    return NextResponse.json({ user });
+    return NextResponse.json(
+      { user },
+      {
+        headers: {
+          // Cache for 60 seconds, serve stale for 2 minutes while revalidating
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+        },
+      }
+    );
   } catch (error) {
     console.error("API: Fetch user error:", error);
     return NextResponse.json(
