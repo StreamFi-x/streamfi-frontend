@@ -22,7 +22,11 @@ export interface MuxStreamData {
   isActive?: boolean;
 }
 
-export async function createMuxStream() {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function createMuxStream(_streamData?: {
+  name: string;
+  record?: boolean;
+}) {
   try {
     const liveStream = await mux.video.liveStreams.create({
       playback_policy: ["public"],

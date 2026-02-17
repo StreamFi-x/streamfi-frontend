@@ -98,7 +98,11 @@ export default function StreamTestComponent() {
 
   const apiCall = async (
     endpoint: string,
-    options: Record<string, unknown> = {}
+    options: {
+      method?: string;
+      headers?: Record<string, string>;
+      body?: string;
+    } = {}
   ): Promise<ApiResponse> => {
     const startTime = Date.now();
 

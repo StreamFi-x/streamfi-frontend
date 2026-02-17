@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { Suspense } from "react";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -7,11 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BrowseLayoutSkeleton } from "@/components/skeletons/skeletons/browseLayoutSkeleton";
 
-export default function BrowseLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function BrowseContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -151,5 +147,17 @@ export default function BrowseLayout({
         </div>
       </div>
     </main>
+  );
+}
+
+export default function BrowseLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense fallback={<BrowseLayoutSkeleton />}>
+      <BrowseContent>{children}</BrowseContent>
+    </Suspense>
   );
 }
