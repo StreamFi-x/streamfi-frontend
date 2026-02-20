@@ -31,38 +31,41 @@ export async function POST(req: Request) {
       );
     }
 
-    const userResult = await sql`
-      SELECT id, username FROM users WHERE wallet = ${wallet}
+    // Combined query: look up sender + stream + active session in one round-trip
+    const result = await sql`
+      SELECT
+        sender.id AS sender_id,
+        sender.username AS sender_username,
+        streamer.id AS streamer_id,
+        streamer.is_live,
+        (
+          SELECT ss.id FROM stream_sessions ss
+          WHERE ss.user_id = streamer.id AND ss.ended_at IS NULL
+          ORDER BY ss.started_at DESC LIMIT 1
+        ) AS session_id
+      FROM users sender
+      CROSS JOIN users streamer
+      WHERE sender.wallet = ${wallet}
+        AND streamer.mux_playback_id = ${playbackId}
     `;
 
-    if (userResult.rows.length === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (result.rows.length === 0) {
+      return NextResponse.json(
+        { error: "User or stream not found" },
+        { status: 404 }
+      );
     }
 
-    const user = userResult.rows[0];
+    const { sender_id, sender_username, is_live, session_id } = result.rows[0];
 
-    const streamResult = await sql`
-      SELECT u.id as stream_user_id, u.username as stream_username, u.is_live,
-             ss.id as session_id
-      FROM users u
-      LEFT JOIN stream_sessions ss ON u.id = ss.user_id AND ss.ended_at IS NULL
-      WHERE u.playback_id = ${playbackId}
-    `;
-
-    if (streamResult.rows.length === 0) {
-      return NextResponse.json({ error: "Stream not found" }, { status: 404 });
-    }
-
-    const stream = streamResult.rows[0];
-
-    if (!stream.is_live) {
+    if (!is_live) {
       return NextResponse.json(
         { error: "Cannot send message to offline stream" },
         { status: 409 }
       );
     }
 
-    if (!stream.session_id) {
+    if (!session_id) {
       return NextResponse.json(
         { error: "No active stream session" },
         { status: 404 }
@@ -72,12 +75,13 @@ export async function POST(req: Request) {
     const messageResult = await sql`
       INSERT INTO chat_messages (
         user_id,
+        username,
         stream_session_id,
         content,
         message_type,
         created_at
       )
-      VALUES (${user.id}, ${stream.session_id}, ${content}, ${messageType}, CURRENT_TIMESTAMP)
+      VALUES (${sender_id}, ${sender_username}, ${session_id}, ${content}, ${messageType}, CURRENT_TIMESTAMP)
       RETURNING id, created_at
     `;
 
@@ -86,7 +90,7 @@ export async function POST(req: Request) {
     await sql`
       UPDATE stream_sessions SET
         total_messages = total_messages + 1
-      WHERE id = ${stream.session_id}
+      WHERE id = ${session_id}
     `;
 
     return NextResponse.json(
@@ -97,7 +101,7 @@ export async function POST(req: Request) {
           content,
           messageType,
           user: {
-            username: user.username,
+            username: sender_username,
             wallet: wallet,
           },
           createdAt: newMessage.created_at,
@@ -132,7 +136,9 @@ export async function GET(req: Request) {
       SELECT ss.id as session_id
       FROM users u
       JOIN stream_sessions ss ON u.id = ss.user_id AND ss.ended_at IS NULL
-      WHERE u.playback_id = ${playbackId}
+      WHERE u.mux_playback_id = ${playbackId}
+      ORDER BY ss.started_at DESC
+      LIMIT 1
     `;
 
     if (streamResult.rows.length === 0) {
@@ -141,47 +147,25 @@ export async function GET(req: Request) {
 
     const sessionId = streamResult.rows[0].session_id;
 
-    let query;
-    if (before) {
-      query = sql`
-        SELECT 
-          cm.id,
-          cm.content,
-          cm.message_type,
-          cm.created_at,
-          cm.is_deleted,
-          u.username,
-          u.wallet,
-          u.avatar
-        FROM chat_messages cm
-        JOIN users u ON cm.user_id = u.id
-        WHERE cm.stream_session_id = ${sessionId}
-        AND cm.id < ${before}
+    // Single query handles both cursor-based and initial fetch
+    const beforeId = before ? parseInt(before) : null;
+    const messagesResult = await sql`
+      SELECT
+        cm.id,
+        cm.content,
+        cm.message_type,
+        cm.created_at,
+        u.username,
+        u.wallet,
+        u.avatar
+      FROM chat_messages cm
+      JOIN users u ON cm.user_id = u.id
+      WHERE cm.stream_session_id = ${sessionId}
         AND cm.is_deleted = false
-        ORDER BY cm.created_at DESC
-        LIMIT ${limit}
-      `;
-    } else {
-      query = sql`
-        SELECT 
-          cm.id,
-          cm.content,
-          cm.message_type,
-          cm.created_at,
-          cm.is_deleted,
-          u.username,
-          u.wallet,
-          u.avatar
-        FROM chat_messages cm
-        JOIN users u ON cm.user_id = u.id
-        WHERE cm.stream_session_id = ${sessionId}
-        AND cm.is_deleted = false
-        ORDER BY cm.created_at DESC
-        LIMIT ${limit}
-      `;
-    }
-
-    const messagesResult = await query;
+        AND (${beforeId}::int IS NULL OR cm.id < ${beforeId})
+      ORDER BY cm.created_at DESC
+      LIMIT ${limit}
+    `;
 
     const messages = messagesResult.rows.map(msg => ({
       id: msg.id,

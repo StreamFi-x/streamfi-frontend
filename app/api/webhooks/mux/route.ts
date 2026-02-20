@@ -8,7 +8,10 @@ import { sql } from "@vercel/postgres";
  * Setup Instructions:
  * 1. Go to Mux Dashboard → Settings → Webhooks
  * 2. Add webhook URL: https://yourdomain.com/api/webhooks/mux
- * 3. Select events: video.live_stream.active, video.live_stream.idle
+ * 3. Select events:
+ *    - video.live_stream.active / video.live_stream.connected (stream goes live)
+ *    - video.live_stream.idle / video.live_stream.disconnected (stream goes offline)
+ *    - video.asset.ready (optional - for stream recording)
  */
 export async function POST(req: Request) {
   try {
@@ -32,6 +35,7 @@ export async function POST(req: Request) {
     // Handle different event types
     switch (event.type) {
       case "video.live_stream.active":
+      case "video.live_stream.connected":
         // Stream went live!
         console.log(`🔴 Stream going LIVE: ${streamId}`);
 
@@ -45,6 +49,7 @@ export async function POST(req: Request) {
         `;
 
         // Create stream session record (optional - non-critical)
+        // Mux fires both "connected" and "active" — only create one session.
         try {
           const userResult = await sql`
             SELECT id, mux_playback_id, creator FROM users WHERE mux_stream_id = ${streamId}
@@ -52,13 +57,28 @@ export async function POST(req: Request) {
 
           if (userResult.rows.length > 0) {
             const user = userResult.rows[0];
-            const streamTitle =
-              user.creator?.title || user.creator?.streamTitle || "Live Stream";
 
-            await sql`
-              INSERT INTO stream_sessions (user_id, title, playback_id, started_at, mux_session_id)
-              VALUES (${user.id}, ${streamTitle}, ${user.mux_playback_id}, CURRENT_TIMESTAMP, ${streamId})
+            // Check if an active session already exists (prevents duplicates from connected+active)
+            const existingSession = await sql`
+              SELECT id FROM stream_sessions WHERE user_id = ${user.id} AND ended_at IS NULL LIMIT 1
             `;
+
+            if (existingSession.rows.length === 0) {
+              const streamTitle =
+                user.creator?.title ||
+                user.creator?.streamTitle ||
+                "Live Stream";
+
+              await sql`
+                INSERT INTO stream_sessions (user_id, title, playback_id, started_at, mux_session_id)
+                VALUES (${user.id}, ${streamTitle}, ${user.mux_playback_id}, CURRENT_TIMESTAMP, ${streamId})
+              `;
+              console.log("✅ New stream session created");
+            } else {
+              console.log(
+                "⏭️ Active session already exists, skipping creation"
+              );
+            }
           }
         } catch (sessionError) {
           console.error(
@@ -74,6 +94,7 @@ export async function POST(req: Request) {
         break;
 
       case "video.live_stream.idle":
+      case "video.live_stream.disconnected":
         // Stream went offline
         console.log(`⚫ Stream going OFFLINE: ${streamId}`);
 
@@ -137,7 +158,9 @@ export async function GET() {
     message: "Mux webhook endpoint is active",
     events: [
       "video.live_stream.active",
+      "video.live_stream.connected",
       "video.live_stream.idle",
+      "video.live_stream.disconnected",
       "video.live_stream.created",
       "video.live_stream.deleted",
     ],

@@ -69,7 +69,7 @@ export function FeaturedStream({ stream }: FeaturedStreamProps) {
           <MuxPlayer
             ref={playerRef}
             playbackId={stream.playbackId}
-            streamType="live"
+            streamType="ll-live:dvr"
             autoPlay="muted"
             muted={isMuted}
             metadata={{

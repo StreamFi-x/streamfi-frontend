@@ -48,6 +48,7 @@ export default function UsernameLayoutClient({
 
         const data = await response.json();
         setUserData(data.user);
+        setIsLive(data.user.is_live || false);
 
         if (
           typeof window !== "undefined" &&
@@ -64,6 +65,10 @@ export default function UsernameLayoutClient({
     };
 
     fetchUserData();
+
+    // Poll every 15 seconds to check for stream status changes
+    const interval = setInterval(fetchUserData, 15000);
+    return () => clearInterval(interval);
   }, [username]);
 
   // Handle follow
@@ -160,7 +165,10 @@ export default function UsernameLayoutClient({
             isLive={true}
             onStatusChange={status => setIsLive(status)}
             isOwner={isOwner}
-            userData={userData}
+            userData={{
+              ...userData,
+              playbackId: userData?.mux_playback_id,
+            }}
           />
         </main>
       </div>
@@ -174,7 +182,9 @@ export default function UsernameLayoutClient({
           <Banner
             username={username}
             isLive={isDefaultRoute && !!isLive}
-            streamTitle={undefined}
+            streamTitle={
+              userData?.creator?.streamTitle || userData?.creator?.title
+            }
           />
           <ProfileHeader
             username={username}

@@ -38,9 +38,15 @@ export default function ConnectWalletModal({
       setIsConnecting(true);
       setConnectionError(null);
     } else if (status === "disconnected" && isConnecting) {
-      setIsConnecting(false);
-      setConnectionError("Connection failed. Please try again.");
-      console.log("[ConnectWalletModal] Disconnected, resetting state");
+      // Braavos (and some wallets) briefly hit "disconnected" during the
+      // popup/handshake before landing on "connected". Debounce so that
+      // a transient disconnect doesn't look like a failure.
+      const timer = setTimeout(() => {
+        setIsConnecting(false);
+        setConnectionError("Connection failed. Please try again.");
+        console.log("[ConnectWalletModal] Disconnected, resetting state");
+      }, 2000);
+      return () => clearTimeout(timer);
     }
   }, [status, isConnecting]);
 
@@ -56,7 +62,9 @@ export default function ConnectWalletModal({
   };
 
   const handleWalletClick = async (wallet: (typeof connectors)[0]) => {
-    if (isConnecting) return;
+    if (isConnecting) {
+      return;
+    }
 
     try {
       setSelectedWallet(wallet);
@@ -64,7 +72,7 @@ export default function ConnectWalletModal({
       setConnectionError(null);
 
       await connect({ connector: wallet });
-      
+
       // The AuthProvider will automatically detect and store the active connector
     } catch (error) {
       console.error("[ConnectWalletModal] Connection error:", error);

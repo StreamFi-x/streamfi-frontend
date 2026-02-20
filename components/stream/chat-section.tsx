@@ -3,16 +3,8 @@
 import type React from "react";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronRight, Send, Smile, GiftIcon } from "lucide-react";
-
-import { text } from "stream/consumers";
-
-interface ChatMessage {
-  id: number;
-  username: string;
-  message: string;
-  color: string;
-}
+import { ChevronRight, Send, Smile, GiftIcon, Wallet } from "lucide-react";
+import type { ChatMessage } from "@/types/chat";
 
 interface ChatSectionProps {
   messages: ChatMessage[];
@@ -22,6 +14,8 @@ interface ChatSectionProps {
   className?: string;
   onToggleChat?: () => void;
   showChat?: boolean;
+  isWalletConnected?: boolean;
+  isSending?: boolean;
 }
 
 const ChatSection = ({
@@ -32,6 +26,8 @@ const ChatSection = ({
   className = "",
   onToggleChat,
   showChat = true,
+  isWalletConnected = false,
+  isSending = false,
 }: ChatSectionProps) => {
   const [chatMessage, setChatMessage] = useState("");
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -45,7 +41,9 @@ const ChatSection = ({
   }, [messages]);
 
   const handleSendMessage = () => {
-    if (!chatMessage.trim()) return;
+    if (!chatMessage.trim() || !isWalletConnected || isSending) {
+      return;
+    }
 
     onSendMessage(chatMessage);
     setChatMessage("");
@@ -67,7 +65,9 @@ const ChatSection = ({
     }
   };
 
-  if (!showChat) return null;
+  if (!showChat) {
+    return null;
+  }
 
   return (
     <div className={`bg-background flex flex-col ${className}`}>
@@ -98,20 +98,37 @@ const ChatSection = ({
           ref={chatContainerRef}
           className={`${isFullscreen ? "h-full" : "h-[calc(100vh-200px)]"} overflow-y-auto scrollbar-hide p-3 space-y-4 pt-8 pb-16`}
         >
-          {messages.map(message => (
-            <div key={message.id} className="text-xs xl:text-sm flex">
-              <div
-                className="w-1 mr-2 rounded-full"
-                style={{ backgroundColor: message.color }}
-              />
-              <div>
-                <span className="font-medium" style={{ color: message.color }}>
-                  {message.username}:{" "}
-                </span>
-                <span className="">{message.message}</span>
-              </div>
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center p-4">
+              <p className="text-sm font-semibold mb-2 text-foreground">
+                Chat is quiet... for now
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Messages will appear here when viewers start chatting.
+              </p>
             </div>
-          ))}
+          ) : (
+            messages.map(message => (
+              <div
+                key={message.id}
+                className={`text-xs xl:text-sm flex ${message.isPending ? "opacity-50" : ""}`}
+              >
+                <div
+                  className="w-1 mr-2 rounded-full"
+                  style={{ backgroundColor: message.color }}
+                />
+                <div>
+                  <span
+                    className="font-medium"
+                    style={{ color: message.color }}
+                  >
+                    {message.username}:{" "}
+                  </span>
+                  <span>{message.message}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Gradient overlay at bottom */}
@@ -124,30 +141,39 @@ const ChatSection = ({
 
       {/* Chat input */}
       <div className="border border-border p-3 border-t">
-        <div className="relative flex items-center">
-          <input
-            type="text"
-            value={chatMessage}
-            onChange={e => setChatMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Send a message"
-            className="w-full bg-secondary text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-highlight"
-          />
-          <div className="absolute right-2 top-2 flex space-x-1 items-center">
-            <button className="text-muted-foreground hover:text-foreground">
-              <Smile className="h-4 w-4" />
-            </button>
-            <button className="text-muted-foreground hover:text-foreground">
-              <GiftIcon className="h-4 w-4" />
-            </button>
-            <button
-              className="text-muted-foreground hover:text-foreground"
-              onClick={handleSendMessage}
-            >
-              <Send className="h-4 w-4" />
-            </button>
+        {isWalletConnected ? (
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              value={chatMessage}
+              onChange={e => setChatMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Send a message"
+              disabled={isSending}
+              className="w-full bg-secondary text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-highlight disabled:opacity-50"
+            />
+            <div className="absolute right-2 top-2 flex space-x-1 items-center">
+              <button className="text-muted-foreground hover:text-foreground">
+                <Smile className="h-4 w-4" />
+              </button>
+              <button className="text-muted-foreground hover:text-foreground">
+                <GiftIcon className="h-4 w-4" />
+              </button>
+              <button
+                className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+                onClick={handleSendMessage}
+                disabled={!chatMessage.trim() || isSending}
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-1">
+            <Wallet className="h-4 w-4" />
+            <span>Connect wallet to chat</span>
+          </div>
+        )}
       </div>
     </div>
   );

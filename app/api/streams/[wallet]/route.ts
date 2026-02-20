@@ -36,9 +36,7 @@ export async function GET(
         ss.id as session_id,
         ss.started_at as session_started_at,
         ss.peak_viewers,
-        ss.total_messages,
-        ss.avg_bitrate,
-        ss.resolution
+        ss.total_messages
       FROM users u
       LEFT JOIN stream_sessions ss ON u.id = ss.user_id AND ss.ended_at IS NULL
       WHERE u.wallet = ${wallet}

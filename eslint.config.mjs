@@ -20,23 +20,45 @@ const eslintConfig = [
       "no-undef": "error", // Error on undefined variables
       "prefer-const": "error", // Prefer const over let when possible
       "no-var": "error", // Don't allow var declarations
-      
+
       // React specific rules
       "react-hooks/rules-of-hooks": "error", // Enforce rules of hooks
       "react-hooks/exhaustive-deps": "warn", // Warn about missing dependencies
       "react/jsx-key": "error", // Require key prop in lists
       "react/jsx-no-duplicate-props": "error", // No duplicate props
-      
+
       // TypeScript specific rules
       "@typescript-eslint/no-unused-vars": "error", // TypeScript unused vars
       "@typescript-eslint/no-explicit-any": "warn", // Warn about any usage
-      
+
       // Best practices
       "eqeqeq": "error", // Require === and !==
       "curly": "error", // Require curly braces
       "no-eval": "error", // No eval usage
       "no-implied-eval": "error", // No implied eval
       "no-new-func": "error", // No new Function()
+    },
+  },
+  {
+    files: [
+      "**/__tests__/**/*.{js,jsx,ts,tsx}",
+      "**/*.{test,spec}.{js,jsx,ts,tsx}",
+      "__mocks__/**/*.{js,ts}",
+    ],
+    languageOptions: {
+      globals: {
+        jest: "readonly",
+        describe: "readonly",
+        it: "readonly",
+        expect: "readonly",
+        beforeEach: "readonly",
+        afterEach: "readonly",
+        beforeAll: "readonly",
+        afterAll: "readonly",
+      },
+    },
+    rules: {
+      "no-undef": "off",
     },
   },
 ];

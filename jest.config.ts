@@ -81,10 +81,13 @@ const config = {
   // Test environment
   testEnvironment: "jsdom",
 
-  // Transform files
+  // Transform files - include ESM-only packages like lucide-react
   transform: {
     "^.+\\.(js|jsx|ts|tsx)$": ["babel-jest", { presets: ["next/babel"] }],
   },
+
+  // Allow transforming ESM-only node_modules that Jest can't parse as-is
+  transformIgnorePatterns: ["/node_modules/(?!(lucide-react|@mux)/)"],
 
   // Module name mapping
   moduleNameMapper: {
@@ -93,6 +96,8 @@ const config = {
     "^@/lib/(.*)$": "<rootDir>/lib/$1",
     "^@/utils/(.*)$": "<rootDir>/utils/$1",
     "^@/hooks/(.*)$": "<rootDir>/hooks/$1",
+    // Mock ESM-only packages that Babel can't transform
+    "^lucide-react$": "<rootDir>/__mocks__/lucide-react.js",
   },
 
   // A path to a custom dependency extractor

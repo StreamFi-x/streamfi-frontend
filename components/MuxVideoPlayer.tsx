@@ -37,7 +37,7 @@ export default function MuxVideoPlayer({
     <div className={`relative ${className}`}>
       <MuxPlayer
         playbackId={playbackId}
-        streamType="live"
+        streamType="ll-live:dvr"
         autoPlay="muted"
         metadata={{
           video_id: videoId || playbackId,

@@ -34,7 +34,8 @@ export async function createMuxStream(_streamData?: {
         playback_policy: ["public"],
       },
       reconnect_window: 60, // Allow reconnection within 60 seconds
-      reduced_latency: true, // Enable low-latency streaming
+      latency_mode: "low", // Low-latency streaming (~3-5s delay)
+      max_continuous_duration: 43200, // 12 hours max
     });
 
     // Get the playback ID from the created stream
@@ -97,7 +98,7 @@ export async function getMuxStreamMetrics(streamId: string) {
       isActive: liveStream.status === "active",
       createdAt: liveStream.created_at,
       reconnectWindow: liveStream.reconnect_window,
-      reducedLatency: liveStream.reduced_latency,
+      latencyMode: liveStream.latency_mode,
     };
   } catch (error) {
     console.error("Mux metrics error:", error);
@@ -193,7 +194,7 @@ export async function getMuxStreamHealth(streamId: string) {
       isActive: liveStream.status === "active",
       status: liveStream.status,
       reconnectWindow: liveStream.reconnect_window,
-      reducedLatency: liveStream.reduced_latency,
+      latencyMode: liveStream.latency_mode,
       lastSeen: liveStream.recent_asset_ids?.[0] || null,
     };
   } catch (error) {

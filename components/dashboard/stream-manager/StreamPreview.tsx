@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, X, Send, MessageCircle } from "lucide-react";
 import { useAccount } from "@starknet-react/core";
 import MuxPlayer from "@mux/mux-player-react";
 import { useStreamData } from "@/hooks/useStreamData";
+import { useChat } from "@/hooks/useChat";
 
 export default function StreamPreview() {
   const { address } = useAccount();
@@ -16,9 +17,22 @@ export default function StreamPreview() {
   const [fullscreenElement, setFullscreenElement] = useState<Element | null>(
     null
   );
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const overlayInputRef = useRef<HTMLInputElement>(null);
 
   // Use optimized SWR hook for data fetching with caching
   const { streamData, isLoading } = useStreamData(address);
+  const { messages, sendMessage, isSending } = useChat(
+    streamData?.playbackId,
+    address,
+    streamData?.isLive ?? false
+  );
+
+  // Stable refs so the native keydown listener always reads current values
+  const chatMessageRef = useRef(chatMessage);
+  chatMessageRef.current = chatMessage;
+  const isSendingRef = useRef(isSending);
+  isSendingRef.current = isSending;
 
   // Detect Mux Player fullscreen changes
   useEffect(() => {
@@ -29,9 +43,6 @@ export default function StreamPreview() {
       setFullscreenElement(fsElement);
       if (isInFullscreen) {
         setShowChatOverlay(true);
-        console.log("Entered fullscreen, element:", fsElement?.tagName);
-      } else {
-        console.log("Exited fullscreen");
       }
     };
 
@@ -57,12 +68,46 @@ export default function StreamPreview() {
     };
   }, []);
 
-  const handleSendMessage = () => {
-    if (chatMessage.trim()) {
-      // TODO: Implement actual chat message sending
-      console.log("Sending message:", chatMessage);
-      setChatMessage("");
+  // Auto-scroll chat overlay when new messages arrive
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
+  }, [messages]);
+
+  // Native keydown listener: stops the event from reaching Mux Player's native
+  // keyboard handler (which calls preventDefault on space for play/pause).
+  // React's synthetic onKeyDown runs too late — the native event has already
+  // traveled the DOM tree by then. We also handle Enter here since stopPropagation
+  // prevents the React synthetic handler from firing.
+  useEffect(() => {
+    const input = overlayInputRef.current;
+    if (!input) {
+      return;
+    }
+
+    const handler = (e: KeyboardEvent) => {
+      e.stopPropagation(); // block Mux Player's bubble-phase listener
+      if (
+        e.key === "Enter" &&
+        !isSendingRef.current &&
+        chatMessageRef.current.trim()
+      ) {
+        sendMessage(chatMessageRef.current);
+        setChatMessage("");
+      }
+    };
+
+    input.addEventListener("keydown", handler);
+    return () => input.removeEventListener("keydown", handler);
+  }, [isFullscreen, showChatOverlay, sendMessage]);
+
+  const handleSendMessage = () => {
+    if (!chatMessage.trim() || isSending) {
+      return;
+    }
+    sendMessage(chatMessage);
+    setChatMessage("");
   };
 
   // Render chat overlay component
@@ -100,30 +145,42 @@ export default function StreamPreview() {
           </div>
 
           {/* Chat Messages - Scrollable */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+          <div
+            ref={chatScrollRef}
+            className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
+          >
             <div className="text-xs text-white/60 text-center py-2">
               Welcome to live chat!
             </div>
-            {/* Example messages */}
             <div className="flex flex-col gap-2">
-              <div className="bg-black/30 backdrop-blur-sm rounded-lg p-2">
-                <div className="flex items-start gap-2">
-                  <div className="w-6 h-6 rounded-full bg-purple-600 flex-shrink-0 flex items-center justify-center text-xs text-white font-semibold">
-                    C
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-purple-400 text-xs font-semibold">
-                        Chidinma
-                      </span>
-                      <span className="text-white/50 text-xs">2m</span>
+              {messages.map(msg => (
+                <div
+                  key={msg.id}
+                  className={`bg-black/30 backdrop-blur-sm rounded-lg p-2 ${msg.isPending ? "opacity-50" : ""}`}
+                >
+                  <div className="flex items-start gap-2">
+                    <div
+                      className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-white font-semibold"
+                      style={{ backgroundColor: msg.color }}
+                    >
+                      {msg.username.charAt(0).toUpperCase()}
                     </div>
-                    <p className="text-white text-sm break-words">
-                      Wagwan peeps! First viewer joining in today
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-2">
+                        <span
+                          className="text-xs font-semibold"
+                          style={{ color: msg.color }}
+                        >
+                          {msg.username}
+                        </span>
+                      </div>
+                      <p className="text-white text-sm break-words">
+                        {msg.message}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
 
@@ -131,16 +188,21 @@ export default function StreamPreview() {
           <div className="p-3 bg-black/50 backdrop-blur-md border-t border-white/10">
             <div className="flex items-center gap-2">
               <input
+                ref={overlayInputRef}
                 type="text"
                 value={chatMessage}
                 onChange={e => setChatMessage(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleSendMessage()}
                 placeholder="Say something..."
-                className="flex-1 bg-white/10 text-white text-sm px-3 py-2 rounded-lg border border-white/20 focus:border-purple-500 focus:bg-white/15 focus:outline-none placeholder-white/50"
+                disabled={isSending}
+                className="flex-1 bg-white/10 text-white text-sm px-3 py-2 rounded-lg border border-white/20 focus:border-purple-500 focus:bg-white/15 focus:outline-none placeholder-white/50 disabled:opacity-50"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
               />
               <button
                 onClick={handleSendMessage}
-                disabled={!chatMessage.trim()}
+                disabled={!chatMessage.trim() || isSending}
                 className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 disabled:cursor-not-allowed text-white p-2 rounded-lg transition-colors"
               >
                 <Send size={16} />
@@ -206,7 +268,7 @@ export default function StreamPreview() {
           <>
             <MuxPlayer
               playbackId={streamData.playbackId}
-              streamType="live"
+              streamType="ll-live:dvr"
               autoPlay="muted"
               metadata={{
                 video_id: streamData.playbackId,
