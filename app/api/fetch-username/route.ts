@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { withCorsResponse } from "@/lib/with-cors-response";
 import { resolve } from "path/posix";
+import { isValidStellarAddress } from "@/utils/stellar";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -11,6 +12,13 @@ export async function GET(req: Request) {
   if (!wallet && !email) {
     return withCorsResponse(
       { error: "Please provide wallet or email to fetch username" },
+      400
+    );
+  }
+
+  if (wallet && !isValidStellarAddress(wallet)) {
+    return withCorsResponse(
+      { error: "Invalid wallet address. Must be a valid Stellar public key." },
       400
     );
   }

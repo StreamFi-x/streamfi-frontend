@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { isValidStellarAddress } from "@/utils/stellar";
 
 export async function POST(req: NextRequest) {
-  const { callerUsername, receiverUsername, action } = await req.json();
+  const { callerUsername, receiverUsername, action, wallet } = await req.json();
+
+  // Validate wallet if provided (for future wallet-based follow operations)
+  if (wallet && !isValidStellarAddress(wallet)) {
+    return NextResponse.json(
+      { error: "Invalid wallet address. Must be a valid Stellar public key." },
+      { status: 400 }
+    );
+  }
 
   if (
     !callerUsername ||

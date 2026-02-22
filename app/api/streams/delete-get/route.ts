@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { deleteMuxStream } from "@/lib/mux/server";
+import { isValidStellarAddress } from "@/utils/stellar";
 
 export async function GET(req: Request) {
   try {
@@ -14,12 +15,19 @@ export async function GET(req: Request) {
       );
     }
 
+    if (!isValidStellarAddress(wallet)) {
+      return NextResponse.json(
+        { error: "Invalid wallet address. Must be a valid Stellar public key." },
+        { status: 400 }
+      );
+    }
+
     console.log(`🔧 Force deleting stream for wallet: ${wallet}`);
 
     const userResult = await sql`
       SELECT id, username, mux_stream_id, is_live
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE wallet = ${wallet}
     `;
 
     if (userResult.rows.length === 0) {
@@ -74,7 +82,7 @@ export async function GET(req: Request) {
         current_viewers = 0,
         stream_started_at = NULL,
         updated_at = CURRENT_TIMESTAMP
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE wallet = ${wallet}
     `;
 
     console.log("✅ Force delete completed!");
