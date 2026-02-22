@@ -42,7 +42,10 @@ async function handler(req: Request) {
       emailNotifications BOOLEAN DEFAULT TRUE,
       creator JSONB DEFAULT '{"streamTitle":"", "tags":[], "category":"", "payout":"", "thumbnail":""}',
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      total_tips_received NUMERIC(20, 7) DEFAULT 0,
+      total_tips_count INTEGER DEFAULT 0,
+      last_tip_at TIMESTAMP
     )
   `;
 
