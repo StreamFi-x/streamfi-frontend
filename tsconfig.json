@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     "next.config.cjs",
     "types/**/*.d.ts"
-  ],
+, "node_modules/middleware.ts"  ],
   "exclude": ["node_modules"]
 }

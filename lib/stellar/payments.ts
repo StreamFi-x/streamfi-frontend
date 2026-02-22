@@ -1,0 +1,192 @@
+import {
+  TransactionBuilder,
+  Networks,
+  Operation,
+  Asset,
+  BASE_FEE,
+  Memo,
+  Transaction,
+  Horizon,
+} from "@stellar/stellar-sdk";
+
+const Server = Horizon.Server;
+
+interface BuildTipTransactionParams {
+  sourcePublicKey: string; // Viewer's Stellar wallet
+  destinationPublicKey: string; // Creator's Stellar wallet
+  amount: string; // XLM amount (e.g., "10.0000000")
+  network: "testnet" | "mainnet";
+}
+
+interface SubmitTransactionResult {
+  success: boolean;
+  hash?: string;
+  ledger?: number;
+  error?: string;
+  resultCode?: string;
+}
+
+/**
+ * Get Stellar Horizon server instance based on network
+ */
+function getServer(network: "testnet" | "mainnet"): typeof Server.prototype {
+  const horizonUrl =
+    network === "testnet"
+      ? "https://horizon-testnet.stellar.org"
+      : "https://horizon.stellar.org";
+
+  return new Server(horizonUrl);
+}
+
+/**
+ * Get Stellar network passphrase based on network type
+ */
+function getNetworkPassphrase(network: "testnet" | "mainnet"): string {
+  return network === "testnet" ? Networks.TESTNET : Networks.PUBLIC;
+}
+
+/**
+ * Build a Stellar payment transaction for tipping
+ * @param params - Transaction parameters including source, destination, amount, and network
+ * @returns Unsigned Stellar transaction ready to be signed
+ */
+export async function buildTipTransaction(
+  params: BuildTipTransactionParams
+): Promise<Transaction> {
+  const { sourcePublicKey, destinationPublicKey, amount, network } = params;
+
+  try {
+    const server = getServer(network);
+    const networkPassphrase = getNetworkPassphrase(network);
+
+    // Load the source account from the network
+    const sourceAccount = await server.loadAccount(sourcePublicKey);
+
+    // Build the transaction
+    const transaction = new TransactionBuilder(sourceAccount, {
+      fee: BASE_FEE,
+      networkPassphrase,
+    })
+      .addOperation(
+        Operation.payment({
+          destination: destinationPublicKey,
+          asset: Asset.native(), // XLM
+          amount: amount,
+        })
+      )
+      .addMemo(Memo.text("StreamFi Tip"))
+      .setTimeout(30) // 30 seconds timeout
+      .build();
+
+    return transaction;
+  } catch (error) {
+    if (error instanceof Error) {
+      // Handle specific Stellar errors
+      if (error.message.includes("Account not found")) {
+        throw new Error(
+          `Source account not found: ${sourcePublicKey}. Please ensure the account is funded.`
+        );
+      }
+      throw new Error(`Failed to build transaction: ${error.message}`);
+    }
+    throw new Error("Failed to build transaction: Unknown error");
+  }
+}
+
+/**
+ * Submit a signed transaction to the Stellar network
+ * @param transaction - Signed Stellar transaction
+ * @param network - Network to submit to (testnet or mainnet)
+ * @returns Result object with success status, transaction hash, and ledger number
+ */
+export async function submitTransaction(
+  transaction: Transaction,
+  network: "testnet" | "mainnet"
+): Promise<SubmitTransactionResult> {
+  try {
+    const server = getServer(network);
+
+    // Submit the transaction to the network
+    const response = await server.submitTransaction(transaction);
+
+    return {
+      success: true,
+      hash: response.hash,
+      ledger: response.ledger,
+    };
+  } catch (error) {
+    // Handle Horizon-specific errors
+    if (error && typeof error === "object" && "response" in error) {
+      const horizonError = error as any;
+
+      const resultCodes =
+        horizonError.response?.data?.extras?.result_codes;
+      const transactionCode = resultCodes?.transaction;
+      const operationCodes = resultCodes?.operations;
+
+      // Map common error codes to user-friendly messages
+      let errorMessage = "Transaction failed";
+
+      if (transactionCode === "tx_insufficient_balance") {
+        errorMessage = "Insufficient XLM balance to complete the transaction";
+      } else if (transactionCode === "tx_bad_seq") {
+        errorMessage = "Transaction sequence number is invalid. Please try again";
+      } else if (transactionCode === "tx_insufficient_fee") {
+        errorMessage = "Transaction fee is too low";
+      } else if (operationCodes?.includes("op_underfunded")) {
+        errorMessage = "Insufficient funds for this payment";
+      } else if (operationCodes?.includes("op_no_destination")) {
+        errorMessage = "Destination account does not exist";
+      } else if (operationCodes?.includes("op_line_full")) {
+        errorMessage = "Destination account cannot receive more of this asset";
+      }
+
+      return {
+        success: false,
+        error: errorMessage,
+        resultCode: transactionCode || operationCodes?.join(", "),
+      };
+    }
+
+    // Generic error handling
+    if (error instanceof Error) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+
+    return {
+      success: false,
+      error: "Unknown error occurred while submitting transaction",
+    };
+  }
+}
+
+/**
+ * Get the current network from environment variable
+ * Defaults to testnet if not set
+ */
+export function getCurrentNetwork(): "testnet" | "mainnet" {
+  const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK;
+  return network === "mainnet" ? "mainnet" : "testnet";
+}
+
+/**
+ * Validate a Stellar public key format
+ * @param publicKey - Public key to validate
+ * @returns true if valid, false otherwise
+ */
+export function isValidStellarPublicKey(publicKey: string): boolean {
+  // Stellar public keys start with 'G' and are 56 characters long
+  return /^G[A-Z0-9]{55}$/.test(publicKey);
+}
+
+/**
+ * Format XLM amount to 7 decimal places (Stellar standard)
+ * @param amount - Amount to format
+ * @returns Formatted amount string
+ */
+export function formatXLMAmount(amount: number): string {
+  return amount.toFixed(7);
+}
