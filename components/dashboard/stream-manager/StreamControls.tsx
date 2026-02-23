@@ -15,7 +15,7 @@ export default function StreamControls({
   isLive,
   onStreamStateChange,
 }: StreamControlsProps) {
-  const { address } = useStellarWallet();
+  const { publicKey: address } = useStellarWallet();
   const [isLoading, setIsLoading] = useState(false);
   const [liveState, setLiveState] = useState(isLive);
 
@@ -41,7 +41,7 @@ export default function StreamControls({
 
       setLiveState(true);
       onStreamStateChange?.(true);
-      toast.success("Stream started! You're now live 🔴");
+      toast.success("Stream started! You're now live ??");
     } catch (error) {
       console.error("Failed to start stream:", error);
       toast.error(
@@ -107,7 +107,7 @@ export default function StreamControls({
       </div>
 
       <div className="text-xs text-muted-foreground mb-3 bg-muted p-2 rounded">
-        💡 <strong>Tip:</strong> Start streaming in OBS first, then click
+        ?? <strong>Tip:</strong> Start streaming in OBS first, then click
         &quot;Start Stream&quot; to mark yourself as live.
       </div>
 
@@ -137,3 +137,4 @@ export default function StreamControls({
     </div>
   );
 }
+

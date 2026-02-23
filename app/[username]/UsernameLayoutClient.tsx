@@ -34,7 +34,7 @@ export default function UsernameLayoutClient({
   const [followLoading, setFollowLoading] = useState(false);
 
   // Use custom hooks for Stellar wallet and tip modal state
-  const { address: stellarPublicKey } = useStellarWallet();
+  const { publicKey: stellarPublicKey } = useStellarWallet();
   const tipModalState = useTipModal();
 
   const loggedInUsername =

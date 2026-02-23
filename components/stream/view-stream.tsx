@@ -77,7 +77,7 @@ const fetchStreamData = async () => {
 // TippingModal component
 const TIPPING_CURRENCIES = [
   { label: "ETH", value: "ETH" },
-  { label: "STRK", value: "STRK" },
+  { label: "XLM", value: "XLM" },
   { label: "STRM", value: "STRM" },
   { label: "USDC", value: "USDC" },
 ];
@@ -100,7 +100,7 @@ const TippingModal = ({
   username: string;
 }) => {
   const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState("STRK");
+  const [currency, setCurrency] = useState("XLM");
   // Mock USD value for now
   const usdValue = amount && !isNaN(Number(amount)) ? (0).toFixed(2) : "0";
 
@@ -129,7 +129,7 @@ const TippingModal = ({
         </button>
         <h2 className="text-2xl font-bold text-center mb-8">Tip to Creator</h2>
         <div className="mb-6 flex justify-center gap-8 items-center">
-          <span className="text-gray-400 text-sm mb-1">Starknet address:</span>
+          <span className="text-gray-400 text-sm mb-1">Stellar address:</span>
           <span className="bg-[#18191C] px-4 py-2 rounded-lg font-mono text-base tracking-wider select-all">
             {formatAddress(creatorAddress)}
           </span>
@@ -207,7 +207,7 @@ const ViewStream = ({
   const [showReportModal, setShowReportModal] = useState(false);
 
   // Use custom hooks for Stellar wallet and tip modal state
-  const { address: stellarPublicKey, isConnected } = useStellarWallet();
+  const { publicKey: stellarPublicKey, isConnected } = useStellarWallet();
   const tipModalState = useTipModal();
 
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -249,7 +249,7 @@ const ViewStream = ({
               instagram: "",
               discord: "",
             },
-            starknetAddress: userData.starknetAddress || "",
+            stellarAddress: userData.stellarAddress || "",
           };
 
           setStreamData(data);
@@ -791,7 +791,7 @@ const ViewStream = ({
           isOpen={showTipModal}
           onClose={() => setShowTipModal(false)}
           creatorAddress={
-            streamData.starknetAddress ||
+            streamData.stellarAddress ||
             "0x5sddf6c7df6c7df6c7df6c7df6c7df6c7df6c7df6c"
           }
           username={username}
@@ -824,3 +824,4 @@ const ViewStream = ({
 };
 
 export default ViewStream;
+

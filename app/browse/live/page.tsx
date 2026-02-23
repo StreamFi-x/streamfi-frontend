@@ -43,7 +43,7 @@ const fetcher = async (url: string) => {
 };
 
 export default function LivePage() {
-  const { address } = useStellarWallet();
+  const { publicKey: address } = useStellarWallet();
   const searchParams = useSearchParams();
   const selectedCategory = searchParams.get("category");
   const [selectedLanguage, setSelectedLanguage] = useState("all");
@@ -250,3 +250,4 @@ export default function LivePage() {
     </div>
   );
 }
+

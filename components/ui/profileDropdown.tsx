@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import type { ReactNode } from "react";
 import Image from "next/image";
 import {
@@ -55,7 +56,7 @@ const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
     <Link
       href={route || "#"}
       className="flex items-center px-4 py-3 cursor-pointer hover:bg-surface-hover text-foreground"
-      onClick={e => {
+      onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault();
         onClick({ icon, label, route, mobile: true });
       }}
@@ -111,7 +112,7 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
             alt="User avatar"
             // sizes="40px"
             className="object-cover rounded-full"
-            onError={e => {
+            onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
               // If image fails to load, replace with placeholder
               const target = e.target as HTMLImageElement;
               target.src = "/Images/user.png";

@@ -1,0 +1,10 @@
+﻿
+C:\Users\IT_COMMS\GitHubProjects\OD\streamfi-frontend-OD\contexts\stellar-wallet-context.tsx
+   3:63  error    'ReactNode' is defined but never used         @typescript-eslint/no-unused-vars
+   8:5   error    'ISupportedWallet' is defined but never used  @typescript-eslint/no-unused-vars
+  31:65  error    'React' is not defined                        no-undef
+  57:21  warning  Unexpected console statement                  no-console
+  62:13  warning  Unexpected console statement                  no-console
+
+Γ£û 5 problems (3 errors, 2 warnings)
+
