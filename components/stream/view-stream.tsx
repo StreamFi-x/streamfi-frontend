@@ -30,6 +30,8 @@ import { ViewStreamSkeleton } from "../skeletons/ViewStreamSkeleton";
 import MuxPlayer from "@mux/mux-player-react";
 import ReportLiveStreamModal from "../modals/ReportLiveStreamModal";
 import { useChat } from "@/hooks/useChat";
+import { TipButton, TipModalContainer } from "@/components/tipping";
+import { useTipModal } from "@/hooks/useTipModal";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,
@@ -204,17 +206,19 @@ const ViewStream = ({
   const [showTipModal, setShowTipModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
 
+  // Use custom hooks for Stellar wallet and tip modal state
+  const { publicKey: stellarPublicKey, isConnected } = useStellarWallet();
+  const tipModalState = useTipModal();
+
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
   const overlayScrollRef = useRef<HTMLDivElement>(null);
   const overlayInputRef = useRef<HTMLInputElement>(null);
-
-  const { publicKey: address, isConnected } = useStellarWallet();
   const {
     messages: chatMessages,
     sendMessage,
     isSending,
-  } = useChat(userData?.playbackId, address, isLive);
+  } = useChat(userData?.playbackId, stellarPublicKey, isLive);
 
   // Stable refs so the native keydown listener always reads current values
   const chatOverlayMessageRef = useRef(chatOverlayMessage);
@@ -617,13 +621,29 @@ const ViewStream = ({
                             >
                               Follow
                             </Button>
-                            <Button
-                              variant="outline"
-                              className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-gray-600"
-                            >
-                              <Gift className="h-4 w-4 mr-2" />
-                              Gift
-                            </Button>
+                            {/* Stellar Tip Button */}
+                            {streamData.starknetAddress && stellarPublicKey && stellarPublicKey !== streamData.starknetAddress ? (
+                              <TipButton
+                                recipientUsername={username}
+                                recipientPublicKey={streamData.starknetAddress}
+                                onTipClick={tipModalState.openTipModal}
+                                variant="outline"
+                                className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-gray-600"
+                              >
+                                <Gift className="h-4 w-4 mr-2" />
+                                Send Tip
+                              </TipButton>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-gray-600"
+                                disabled
+                                title={!stellarPublicKey ? "Connect Stellar wallet to tip" : !streamData.starknetAddress ? "Streamer hasn't set up Stellar wallet" : "Cannot tip yourself"}
+                              >
+                                <Gift className="h-4 w-4 mr-2" />
+                                Send Tip
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               className="p-0 w-7 h- border-none focus:ring-0 focus:ring-offset-0 "
@@ -783,6 +803,21 @@ const ViewStream = ({
         isOpen={showReportModal}
         onClose={() => setShowReportModal(false)}
         username={username}
+      />
+
+      {/* Stellar Tip Modals */}
+      <TipModalContainer
+        isModalOpen={tipModalState.showTipModal}
+        onModalClose={tipModalState.closeTipModal}
+        recipientUsername={username}
+        recipientPublicKey={streamData?.starknetAddress || ""}
+        recipientAvatar={streamData?.avatarUrl}
+        senderPublicKey={stellarPublicKey}
+        onSuccess={tipModalState.showSuccess}
+        onError={tipModalState.showError}
+        confirmationState={tipModalState.tipConfirmation}
+        onConfirmationClose={tipModalState.closeConfirmation}
+        onRetry={tipModalState.retryFromConfirmation}
       />
     </DashboardScreenGuard>
   );

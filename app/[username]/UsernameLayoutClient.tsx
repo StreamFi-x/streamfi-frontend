@@ -10,6 +10,9 @@ import TabsNavigation from "@/components/shared/profile/TabsNavigation";
 import ViewStream from "@/components/stream/view-stream";
 
 import ConnectWalletModal from "@/components/connectWallet";
+import { TipModalContainer } from "@/components/tipping";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { useTipModal } from "@/hooks/useTipModal";
 
 interface UsernameLayoutClientProps {
   children: React.ReactNode;
@@ -29,6 +32,10 @@ export default function UsernameLayoutClient({
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+
+  // Use custom hooks for Stellar wallet and tip modal state
+  const { publicKey: stellarPublicKey } = useStellarWallet();
+  const tipModalState = useTipModal();
 
   const loggedInUsername =
     typeof window !== "undefined" ? sessionStorage.getItem("username") : null;
@@ -195,6 +202,9 @@ export default function UsernameLayoutClient({
             onFollow={handleFollow}
             onUnfollow={handleUnfollow}
             followLoading={followLoading}
+            stellarPublicKey={userData?.starknet_address}
+            userStellarPublicKey={stellarPublicKey}
+            onTipClick={tipModalState.openTipModal}
           />
           <TabsNavigation username={username} />
           <div className="p-4">{children}</div>
@@ -206,6 +216,21 @@ export default function UsernameLayoutClient({
           setIsModalOpen={setShowWalletModal}
         />
       )}
+
+      {/* Stellar Tip Modals */}
+      <TipModalContainer
+        isModalOpen={tipModalState.showTipModal}
+        onModalClose={tipModalState.closeTipModal}
+        recipientUsername={username}
+        recipientPublicKey={userData?.starknet_address || ""}
+        recipientAvatar={userData?.avatar}
+        senderPublicKey={stellarPublicKey}
+        onSuccess={tipModalState.showSuccess}
+        onError={tipModalState.showError}
+        confirmationState={tipModalState.tipConfirmation}
+        onConfirmationClose={tipModalState.closeConfirmation}
+        onRetry={tipModalState.retryFromConfirmation}
+      />
     </div>
   );
 }
