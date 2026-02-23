@@ -12,7 +12,7 @@ export function useStellarWallet() {
   useEffect(() => {
     const getStellarWallet = async () => {
       try {
-        const kit = getStellarWalletsKit();
+        const kit = getStellarWalletsKit() as any;
         const publicKey = await kit.getPublicKey();
         setStellarPublicKey(publicKey);
       } catch {
@@ -25,7 +25,7 @@ export function useStellarWallet() {
 
   // Listen for wallet disconnection events
   useEffect(() => {
-    const kit = getStellarWalletsKit();
+    const kit = getStellarWalletsKit() as any;
 
     const handleDisconnect = () => {
       setStellarPublicKey("");

@@ -60,7 +60,7 @@ export function TipModalContainer({
         amount={confirmationState.amount}
         txHash={confirmationState.txHash}
         error={confirmationState.error}
-        onRetry={onRetry}
+        onSendAnother={onRetry}
       />
     </>
   );

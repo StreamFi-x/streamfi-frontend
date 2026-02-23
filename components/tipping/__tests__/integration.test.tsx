@@ -264,7 +264,7 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
           state="error"
           amount="5"
           error="Network error"
-          onRetry={handleRetry}
+          onSendAnother={handleRetry}
         />
       );
 
