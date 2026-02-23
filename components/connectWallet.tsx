@@ -5,55 +5,93 @@ import type React from "react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { MdClose } from "react-icons/md";
-import { useConnect, useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import {
+  FREIGHTER_ID,
+  xBULL_ID,
+  ALBEDO_ID,
+  LOBSTR_ID,
+  HANA_ID,
+} from "@creit.tech/stellar-wallets-kit";
 
 interface ConnectModalProps {
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
 }
 
+interface StellarWallet {
+  id: string;
+  name: string;
+  icon: string;
+  installUrl?: string;
+}
+
+// Stellar wallet configurations
+const STELLAR_WALLETS: StellarWallet[] = [
+  {
+    id: FREIGHTER_ID,
+    name: "Freighter",
+    icon: "/wallets/freighter.svg",
+    installUrl:
+      "https://chrome.google.com/webstore/detail/freighter/bcacfldlkkdogcmkkibnjlakofdplcbk",
+  },
+  {
+    id: xBULL_ID,
+    name: "xBull",
+    icon: "/wallets/xbull.svg",
+    installUrl: "https://xbull.app/",
+  },
+  {
+    id: ALBEDO_ID,
+    name: "Albedo",
+    icon: "/wallets/albedo.svg",
+    installUrl: "https://albedo.link/",
+  },
+  {
+    id: LOBSTR_ID,
+    name: "Lobstr",
+    icon: "/wallets/lobstr.svg",
+    installUrl: "https://lobstr.co/",
+  },
+  {
+    id: HANA_ID,
+    name: "Hana",
+    icon: "/wallets/hana.svg",
+    installUrl: "https://hanawallet.io/",
+  },
+];
+
 export default function ConnectWalletModal({
   isModalOpen,
   setIsModalOpen,
 }: ConnectModalProps) {
-  const { connect, connectors } = useConnect();
-  const { isConnected, status } = useAccount();
+  const { isConnected, isConnecting, error, connectWallet } =
+    useStellarWallet();
 
-  const [selectedWallet, setSelectedWallet] = useState(connectors?.[0] || null);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Close modal when wallet connects successfully
   useEffect(() => {
     if (isConnected && isModalOpen) {
       setIsModalOpen(false);
-      setIsConnecting(false);
+      setSelectedWallet(null);
       setConnectionError(null);
     }
   }, [isConnected, isModalOpen, setIsModalOpen]);
 
-  // Handle connection status changes
+  // Update connection error from context
   useEffect(() => {
-    if (status === "connecting") {
-      setIsConnecting(true);
-      setConnectionError(null);
-    } else if (status === "disconnected" && isConnecting) {
-      // Braavos (and some wallets) briefly hit "disconnected" during the
-      // popup/handshake before landing on "connected". Debounce so that
-      // a transient disconnect doesn't look like a failure.
-      const timer = setTimeout(() => {
-        setIsConnecting(false);
-        setConnectionError("Connection failed. Please try again.");
-        console.log("[ConnectWalletModal] Disconnected, resetting state");
-      }, 2000);
-      return () => clearTimeout(timer);
+    if (error) {
+      setConnectionError(error);
     }
-  }, [status, isConnecting]);
+  }, [error]);
 
   const handleOverlayClick = () => {
     if (!isConnecting) {
       setIsModalOpen(false);
       setConnectionError(null);
+      setSelectedWallet(null);
     }
   };
 
@@ -61,23 +99,40 @@ export default function ConnectWalletModal({
     e.stopPropagation();
   };
 
-  const handleWalletClick = async (wallet: (typeof connectors)[0]) => {
+  const handleWalletClick = async (wallet: StellarWallet) => {
     if (isConnecting) {
       return;
     }
 
     try {
-      setSelectedWallet(wallet);
-      setIsConnecting(true);
+      setSelectedWallet(wallet.id);
       setConnectionError(null);
 
-      await connect({ connector: wallet });
+      await connectWallet(wallet.id);
+    } catch (err) {
+      console.error("[ConnectWalletModal] Connection error:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to connect wallet";
 
-      // The AuthProvider will automatically detect and store the active connector
-    } catch (error) {
-      console.error("[ConnectWalletModal] Connection error:", error);
-      setConnectionError("Failed to connect wallet. Please try again.");
-      setIsConnecting(false);
+      // Check if wallet is not installed
+      if (
+        errorMessage.includes("not installed") ||
+        errorMessage.includes("not found") ||
+        errorMessage.includes("not available")
+      ) {
+        setConnectionError(
+          `${wallet.name} is not installed. Please install it first.`
+        );
+      } else if (
+        errorMessage.includes("rejected") ||
+        errorMessage.includes("denied")
+      ) {
+        setConnectionError("Connection rejected. Please try again.");
+      } else {
+        setConnectionError(errorMessage);
+      }
+
+      setSelectedWallet(null);
     }
   };
 
@@ -85,7 +140,13 @@ export default function ConnectWalletModal({
     if (!isConnecting) {
       setIsModalOpen(false);
       setConnectionError(null);
+      setSelectedWallet(null);
     }
+  };
+
+  const getInstallLink = (walletId: string) => {
+    const wallet = STELLAR_WALLETS.find(w => w.id === walletId);
+    return wallet?.installUrl;
   };
 
   return (
@@ -128,34 +189,46 @@ export default function ConnectWalletModal({
             <p className="text-red-400 text-sm text-center">
               {connectionError}
             </p>
+            {connectionError.includes("not installed") && selectedWallet && (
+              <a
+                href={getInstallLink(selectedWallet)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block mt-2 text-center text-blue-400 hover:text-blue-300 text-sm underline"
+              >
+                Install Wallet
+              </a>
+            )}
           </div>
         )}
 
         {/* Wallet List */}
-        <div className="flex flex-row gap-[7px] rounded-[20px] bg-[#FFFFFF1A] p-[10px] justify-center mb-4">
-          {connectors.map(wallet => (
+        <div className="flex flex-row gap-[7px] rounded-[20px] bg-[#FFFFFF1A] p-[10px] justify-center mb-4 flex-wrap">
+          {STELLAR_WALLETS.map(wallet => (
             <div key={wallet.id} onClick={() => handleWalletClick(wallet)}>
               <button
-                className={`w-[80px] h-[80px] bg-[#1D2027] rounded-[16px] flex items-center justify-center p-3 text-white transition-all duration-200 ${
-                  isConnecting && selectedWallet?.id === wallet.id
+                className={`w-[80px] h-[80px] bg-[#1D2027] rounded-[16px] flex flex-col items-center justify-center p-2 text-white transition-all duration-200 ${
+                  isConnecting && selectedWallet === wallet.id
                     ? "bg-[#393B3D] opacity-75 cursor-not-allowed animate-pulse"
                     : isConnecting
                       ? "opacity-50 cursor-not-allowed"
                       : "hover:bg-[#393B3D] cursor-pointer"
                 }`}
                 disabled={isConnecting}
+                title={wallet.name}
               >
-                <Image
-                  src={
-                    typeof wallet.icon === "object"
-                      ? wallet.icon.dark || wallet.icon.light
-                      : wallet.icon
-                  }
-                  alt={wallet.name || "Unknown Wallet"}
-                  height={40}
-                  width={40}
-                  className="object-contain"
-                />
+                <div className="w-10 h-10 mb-1 flex items-center justify-center">
+                  <Image
+                    src={wallet.icon}
+                    alt={wallet.name}
+                    height={40}
+                    width={40}
+                    className="object-contain"
+                  />
+                </div>
+                <span className="text-xs text-center truncate w-full">
+                  {wallet.name}
+                </span>
               </button>
             </div>
           ))}
