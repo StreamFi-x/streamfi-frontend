@@ -1,143 +1,160 @@
 "use client";
 
-import React, {
+import {
   createContext,
   useContext,
-  useState,
-  useCallback,
   useEffect,
+  useState,
+  ReactNode,
+  useCallback,
   useRef,
 } from "react";
+import {
+  StellarWalletsKit,
+  WalletNetwork,
+  allowAllModules,
+  FREIGHTER_ID,
+} from "@creit.tech/stellar-wallets-kit";
 
-interface StellarWalletContextValue {
-  isConnected: boolean;
+interface StellarWalletContextType {
   address: string | null;
-  connect: () => void;
+  publicKey: string | null;
+  isConnected: boolean;
+  status: "connected" | "disconnected" | "connecting";
+  connect: () => Promise<void>;
   disconnect: () => void;
   isLoading: boolean;
+  isConnecting: boolean;
+  error: string | null;
 }
 
-const noop = () => {};
+const StellarWalletContext = createContext<
+  StellarWalletContextType | undefined
+>(undefined);
 
-const StellarWalletContext = createContext<StellarWalletContextValue>({
-  isConnected: false,
-  address: null,
-  connect: noop,
-  disconnect: noop,
-  isLoading: false,
-});
+export const useStellarWallet = () => {
+  const context = useContext(StellarWalletContext);
+  if (!context) {
+    throw new Error(
+      "useStellarWallet must be used within a StellarWalletProvider"
+    );
+  }
+  return context;
+};
 
-const STORAGE_KEY = "stellar-wallet-id";
+export function StellarWalletProvider({ children }: { children: ReactNode }) {
+  const [publicKey, setPublicKey] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const hasAttemptedAutoConnect = useRef(false);
 
-async function loadKit() {
-  const { StellarWalletsKit, WalletNetwork, allowAllModules, FREIGHTER_ID } =
-    await import("@creit.tech/stellar-wallets-kit");
-
-  return new StellarWalletsKit({
-    network: WalletNetwork.PUBLIC,
-    selectedWalletId: FREIGHTER_ID,
-    modules: allowAllModules(),
-  });
-}
-
-export function StellarWalletProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [address, setAddress] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const kitRef = useRef<any>(null);
-  const modalOpenRef = useRef(false);
-
-  const getKit = useCallback(async () => {
-    if (!kitRef.current) {
-      kitRef.current = await loadKit();
-    }
-    return kitRef.current;
-  }, []);
-
-  useEffect(() => {
-    const savedWalletId = localStorage.getItem(STORAGE_KEY);
-    if (!savedWalletId) {
-      return;
-    }
-
-    setIsLoading(true);
-
-    getKit()
-      .then((kit: any) => {
-        kit.setWallet(savedWalletId);
-        return kit.getAddress();
+  const [kit] = useState(
+    () =>
+      new StellarWalletsKit({
+        selectedWalletId: FREIGHTER_ID,
+        network: WalletNetwork.TESTNET,
+        modules: allowAllModules(),
       })
-      .then(({ address: addr }: { address: string }) => {
-        setAddress(addr);
-      })
-      .catch(() => {
-        localStorage.removeItem(STORAGE_KEY);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  }, [getKit]);
+  );
+
+  const isConnected = !!publicKey;
+  const status = isConnecting
+    ? "connecting"
+    : isConnected
+      ? "connected"
+      : "disconnected";
 
   const connect = useCallback(async () => {
-    if (modalOpenRef.current) {
+    setIsConnecting(true);
+    setError(null);
+    try {
+      await kit.openModal({
+        onWalletSelected: async wallet => {
+          kit.setWallet(wallet.id);
+          const { address } = await kit.getAddress();
+          setPublicKey(address);
+          localStorage.setItem("stellar_last_wallet", wallet.id);
+          localStorage.setItem("stellar_auto_connect", "true");
+          setIsConnecting(false);
+        },
+        onClosed: err => {
+          console.log("Modal closed", err);
+          setIsConnecting(false);
+        },
+      });
+    } catch (err) {
+      console.error("Failed to connect Stellar wallet:", err);
+      setError("Failed to connect wallet");
+      setIsConnecting(false);
+    }
+  }, [kit]);
+
+  const disconnect = useCallback(() => {
+    setPublicKey(null);
+    localStorage.removeItem("stellar_last_wallet");
+    localStorage.removeItem("stellar_auto_connect");
+  }, []);
+
+  // Attempt wallet restoration once for returning users.
+  useEffect(() => {
+    if (hasAttemptedAutoConnect.current || publicKey) {
       return;
     }
 
-    const kit = await getKit();
-    modalOpenRef.current = true;
-    setIsLoading(true);
+    hasAttemptedAutoConnect.current = true;
+    const autoConnect = localStorage.getItem("stellar_auto_connect") === "true";
+    const lastWalletId = localStorage.getItem("stellar_last_wallet");
 
-    kit.openModal({
-      onWalletSelected: async (option: { id: string }) => {
-        modalOpenRef.current = false;
-        try {
-          kit.setWallet(option.id);
-          const { address: addr } = await kit.getAddress();
-          localStorage.setItem(STORAGE_KEY, option.id);
-          setAddress(addr);
-        } catch (error) {
-          console.error("Stellar wallet connection failed:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      onClosed: () => {
-        modalOpenRef.current = false;
-        setIsLoading(false);
-      },
-    });
-  }, [getKit]);
-
-  const disconnect = useCallback(async () => {
-    const kit = await getKit();
-    try {
-      await kit.disconnect();
-    } catch {
-      // not all modules implement disconnect
+    if (!autoConnect || !lastWalletId) {
+      return;
     }
-    localStorage.removeItem(STORAGE_KEY);
-    setAddress(null);
-  }, [getKit]);
 
-  const value: StellarWalletContextValue = {
-    isConnected: address !== null,
-    address,
-    connect,
-    disconnect,
-    isLoading,
-  };
+    let cancelled = false;
+
+    const restoreConnection = async () => {
+      setIsConnecting(true);
+      setError(null);
+      try {
+        kit.setWallet(lastWalletId);
+        const { address } = await kit.getAddress();
+        if (!cancelled && address) {
+          setPublicKey(address);
+          localStorage.setItem("stellar_last_wallet", lastWalletId);
+          localStorage.setItem("stellar_auto_connect", "true");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.warn("Stellar auto-connect failed:", err);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsConnecting(false);
+        }
+      }
+    };
+
+    void restoreConnection();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [kit, publicKey]);
 
   return (
-    <StellarWalletContext.Provider value={value}>
+    <StellarWalletContext.Provider
+      value={{
+        address: publicKey,
+        publicKey,
+        isConnected,
+        status,
+        connect,
+        disconnect,
+        isLoading: isConnecting,
+        isConnecting,
+        error,
+      }}
+    >
       {children}
     </StellarWalletContext.Provider>
   );
-}
-
-export function useStellarWallet(): StellarWalletContextValue {
-  return useContext(StellarWalletContext);
 }

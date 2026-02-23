@@ -15,12 +15,12 @@ export default function ConnectWalletModal({
   isModalOpen,
   setIsModalOpen,
 }: ConnectModalProps) {
-  const { isConnected, isLoading, connect } = useStellarWallet();
+  const { isConnected, isLoading, connect, error: walletError } =
+    useStellarWallet();
   const [dismissed, setDismissed] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const hasOpened = useRef(false);
 
-  // Auto-close when wallet connects
   useEffect(() => {
     if (isConnected && isModalOpen) {
       setIsModalOpen(false);
@@ -30,7 +30,6 @@ export default function ConnectWalletModal({
     }
   }, [isConnected, isModalOpen, setIsModalOpen]);
 
-  // Detect when the kit modal closes without a wallet being selected
   useEffect(() => {
     if (hasOpened.current && !isLoading && !isConnected) {
       setDismissed(true);
@@ -38,7 +37,6 @@ export default function ConnectWalletModal({
     }
   }, [isLoading, isConnected]);
 
-  // Reset state when our modal is closed externally
   useEffect(() => {
     if (!isModalOpen) {
       setDismissed(false);
@@ -47,11 +45,11 @@ export default function ConnectWalletModal({
     }
   }, [isModalOpen]);
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     setDismissed(false);
     setShowConfirm(false);
     hasOpened.current = true;
-    connect();
+    await connect();
   };
 
   const requestClose = () => {
@@ -93,7 +91,6 @@ export default function ConnectWalletModal({
         className="relative w-full max-w-[329px] mx-auto bg-[#1D2027] rounded-[16px] py-4 px-[26px] min-h-[200px] flex flex-col items-center justify-center"
         onClick={handleModalClick}
       >
-        {/* Close Button */}
         <button
           className={`absolute top-4 right-4 text-white hover:text-gray-300 transition-colors rounded-full bg-[#383838] w-[30px] h-[30px] justify-center items-center flex ${
             isLoading ? "opacity-50 cursor-not-allowed" : ""
@@ -104,7 +101,6 @@ export default function ConnectWalletModal({
           <MdClose size={20} />
         </button>
 
-        {/* Close confirmation overlay */}
         {showConfirm ? (
           <>
             <h2 className="text-white text-lg font-semibold mb-2 text-center">
@@ -135,12 +131,17 @@ export default function ConnectWalletModal({
               {isLoading ? "Connecting..." : "Connect wallet"}
             </h2>
 
-            {/* Dismissed state: user closed kit modal without selecting */}
-            {dismissed && !isLoading && (
+            {dismissed && !isLoading && !walletError && (
               <div className="mb-4 p-3 bg-yellow-500/15 border border-yellow-500/30 rounded-lg w-full">
                 <p className="text-yellow-400 text-sm text-center">
                   No wallet was selected. Please try again.
                 </p>
+              </div>
+            )}
+
+            {walletError && (
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg w-full">
+                <p className="text-red-400 text-sm text-center">{walletError}</p>
               </div>
             )}
 
