@@ -10,7 +10,7 @@ import TabsNavigation from "@/components/shared/profile/TabsNavigation";
 import ViewStream from "@/components/stream/view-stream";
 
 import ConnectWalletModal from "@/components/connectWallet";
-import { TipModalContainer } from "@/components/tipping";
+import { TipModalContainer, TipCounter } from "@/components/tipping";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { useTipModal } from "@/hooks/useTipModal";
 
@@ -203,11 +203,19 @@ export default function UsernameLayoutClient({
             onUnfollow={handleUnfollow}
             followLoading={followLoading}
             stellarPublicKey={userData?.starknet_address}
-            userStellarPublicKey={stellarPublicKey}
+            userStellarPublicKey={stellarPublicKey ?? undefined}
             onTipClick={tipModalState.openTipModal}
           />
           <TabsNavigation username={username} />
-          <div className="p-4">{children}</div>
+          <div className="p-4 space-y-6">
+            <TipCounter
+              username={username}
+              variant="default"
+              autoRefresh={true}
+              refreshInterval={120000}
+            />
+            {children}
+          </div>
         </div>
       </main>
       {showWalletModal && (
