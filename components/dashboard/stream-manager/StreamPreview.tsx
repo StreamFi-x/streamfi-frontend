@@ -4,13 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, X, Send, MessageCircle } from "lucide-react";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import MuxPlayer from "@mux/mux-player-react";
 import { useStreamData } from "@/hooks/useStreamData";
 import { useChat } from "@/hooks/useChat";
 
 export default function StreamPreview() {
-  const { address } = useAccount();
+  const { address } = useStellarWallet();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChatOverlay, setShowChatOverlay] = useState(true);
   const [chatMessage, setChatMessage] = useState("");

@@ -4,7 +4,7 @@ import type React from "react";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { useAuth } from "./auth-provider";
 import ConnectWalletModal from "@/components/connectWallet";
 
@@ -14,7 +14,11 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter();
-  const { address, isConnected, status } = useAccount();
+  const {
+    address,
+    isConnected,
+    isLoading: isStellarLoading,
+  } = useStellarWallet();
   const { isInitializing, isWalletConnecting } = useAuth();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [hasCompletedInitialCheck, setHasCompletedInitialCheck] =
@@ -43,7 +47,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         shouldAutoConnect &&
         lastWalletId &&
         !autoConnectAttempted &&
-        status === "disconnected"
+        !isConnected &&
+        !isStellarLoading
       ) {
         // Set a timeout to give auto-connect more time
         setTimeout(() => {
@@ -69,7 +74,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }, [
     isConnected,
     address,
-    status,
+    isStellarLoading,
     isInitializing,
     isWalletConnecting,
     hasCompletedInitialCheck,

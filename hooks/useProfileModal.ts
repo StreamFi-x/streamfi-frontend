@@ -1,13 +1,12 @@
 // hooks/useProfileModal.ts
 
-import { useState } from "react";
-import { useAccount } from "@starknet-react/core";
+import React, { useState } from "react";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
 export function useProfileModal(
-  onNextStep: (step: "profile" | "verify" | "success") => void,
-  refreshUser?: () => Promise<any>
+  onNextStep: (step: "profile" | "verify" | "success") => void
 ) {
-  const { address } = useAccount();
+  const { address } = useStellarWallet();
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -55,7 +54,9 @@ export function useProfileModal(
       isValid = false;
     }
 
-    if (!isValid) return;
+    if (!isValid) {
+      return;
+    }
 
     setIsLoading(true);
 
@@ -85,7 +86,7 @@ export function useProfileModal(
         setRegistrationError(result.error || "Registration failed");
       }
     } catch (error) {
-      setRegistrationError("An unexpected error occurred");
+      setRegistrationError(`An unexpected error occurred: ${error}`);
     } finally {
       setIsLoading(false);
     }
@@ -104,7 +105,9 @@ export function useProfileModal(
   };
 
   const handleCodeChange = (index: number, value: string) => {
-    if (value.length > 1) value = value.charAt(0);
+    if (value.length > 1) {
+      value = value.charAt(0);
+    }
 
     const newCode = [...verificationCode];
     newCode[index] = value;
