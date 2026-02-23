@@ -27,7 +27,7 @@
     "predev": "npm run type-check"
   },
   "dependencies": {
-    "@creit.tech/stellar-wallets-kit": "^1.5.0",
+    "@creit.tech/stellar-wallets-kit": "^1.9.5",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fontsource/inter": "^5.1.1",
@@ -46,7 +46,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@react-email/render": "^1.0.6",
     "@stellar/freighter-api": "^6.0.1",
-    "@stellar/stellar-sdk": "^14.5.0",
+    "@stellar/stellar-sdk": "^13.3.0",
     "@vercel/postgres": "^0.10.0",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.6.1",

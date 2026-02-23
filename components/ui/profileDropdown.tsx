@@ -13,7 +13,7 @@ import { motion, easeInOut, easeOut } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-provider";
-// import { useAccount, useDisconnect } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
 import { Flag } from "lucide-react";
 
@@ -142,10 +142,7 @@ interface UserDropdownProps {
 const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
   const router = useRouter();
   const userAvatar = avatar;
-  // const { disconnect } = useDisconnect();
-  // const { isConnected } = useAccount();
-  const { disconnect } = { disconnect: () => console.log("Disconnect triggered (Starknet stub)") };
-  const { isConnected } = { isConnected: false } as any;
+  const { disconnect, isConnected } = useStellarWallet();
   const userName = username;
   const { logout } = useAuth(); // Use our auth context for logout
 
