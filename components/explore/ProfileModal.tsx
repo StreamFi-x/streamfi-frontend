@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
 import { MdClose } from "react-icons/md";
 import { useRouter } from "next/navigation";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import SimpleLoader from "@/components/ui/loader/simple-loader";
 
 interface ProfileModalProps {
@@ -40,7 +40,7 @@ export default function ProfileModal({
 
   // Router and wallet
   const router = useRouter();
-  const { address } = useAccount();
+  const { address } = useStellarWallet();
 
   // Verification code state
   const [verificationCode, setVerificationCode] = useState([
@@ -169,7 +169,9 @@ export default function ProfileModal({
     setIsProfileModalOpen(false);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

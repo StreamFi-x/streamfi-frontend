@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Radio, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { toast } from "sonner";
 
 interface StreamControlsProps {
@@ -15,7 +15,7 @@ export default function StreamControls({
   isLive,
   onStreamStateChange,
 }: StreamControlsProps) {
-  const { address } = useAccount();
+  const { address } = useStellarWallet();
   const [isLoading, setIsLoading] = useState(false);
   const [liveState, setLiveState] = useState(isLive);
 

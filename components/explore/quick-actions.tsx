@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Search, Settings, User, Wallet } from "lucide-react";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { useState, useEffect } from "react";
 import ConnectModal from "../connectWallet";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -19,7 +19,7 @@ interface QuickActionItem {
 
 export default function QuickActions() {
   const pathname = usePathname();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected } = useStellarWallet();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Use SWR hook for optimized data fetching with caching

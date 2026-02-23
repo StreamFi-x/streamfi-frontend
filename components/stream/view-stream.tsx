@@ -20,7 +20,7 @@ import Image from "next/image";
 import { createPortal } from "react-dom";
 import { JSX, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { FaDiscord, FaFacebook } from "react-icons/fa";
 import StreamInfoModal from "../dashboard/common/StreamInfoModal";
 import DashboardScreenGuard from "../explore/DashboardScreenGuard";
@@ -209,7 +209,7 @@ const ViewStream = ({
   const overlayScrollRef = useRef<HTMLDivElement>(null);
   const overlayInputRef = useRef<HTMLInputElement>(null);
 
-  const { address, isConnected } = useAccount();
+  const { address, isConnected } = useStellarWallet();
   const {
     messages: chatMessages,
     sendMessage,

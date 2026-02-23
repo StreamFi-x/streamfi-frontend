@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Eye } from "lucide-react";
 import StreamKeyModal from "@/components/ui/streamkeyModal";
 import StreamKeyConfirmationModal from "@/components/ui/streamKeyConfirmationModal";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -110,7 +110,7 @@ const ToggleSection: React.FC<ToggleSectionProps> = ({
 };
 
 const StreamPreferencesPage: React.FC = () => {
-  const { address } = useAccount();
+  const { address } = useStellarWallet();
 
   const [state, setState] = useState({
     urlVisible: false,

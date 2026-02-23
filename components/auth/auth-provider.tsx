@@ -10,7 +10,7 @@ import {
   useRef,
 } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount, useDisconnect } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { User, UserUpdateInput } from "@/types/user";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
@@ -51,21 +51,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const mountTime = useRef(Date.now());
 
   const router = useRouter();
-  const { address, isConnected, status } = useAccount();
-  const { disconnect } = useDisconnect();
+  const {
+    address,
+    isConnected,
+    disconnect,
+    isLoading: isStellarLoading,
+  } = useStellarWallet();
 
   // Use optimized SWR hook for user profile fetching
   const {
     user: swrUser,
     isLoading: swrLoading,
     mutate: mutateUser,
-  } = useUserProfile(address);
+  } = useUserProfile(address ?? undefined);
 
   // Compute effective user directly from SWR data (no useEffect delay)
   // This ensures `user` and `isLoading` update in the SAME render cycle
   const user = swrUser !== undefined ? (swrUser ?? null) : localUser;
 
-  // Wallet connection persistence (Stellar migration: was starknet_*)
+  // Wallet connection persistence
   const WALLET_CONNECTION_KEY = "stellar_last_wallet";
   const WALLET_AUTO_CONNECT_KEY = "stellar_auto_connect";
 
@@ -134,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Handle wallet connection changes
   useEffect(() => {
-    if (status === "connecting") {
+    if (isStellarLoading) {
       setIsWalletConnecting(true);
       return;
     }
@@ -142,16 +146,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsWalletConnecting(false);
 
     if (isConnected && address) {
-      // Store the address for auto-connect
       localStorage.setItem(WALLET_CONNECTION_KEY, "auto");
       localStorage.setItem(WALLET_AUTO_CONNECT_KEY, "true");
       setSessionCookies(address);
-      // SWR will automatically fetch user data via useUserProfile hook
-    } else if (status === "disconnected") {
+    } else if (!isConnected) {
       setLocalUser(null);
-      clearUserData(address);
+      clearUserData(address ?? undefined);
     }
-  }, [isConnected, address, status]);
+  }, [isConnected, address, isStellarLoading]);
 
   // Initialize auth on app start
   useEffect(() => {
@@ -176,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // Add a delay to ensure wallet provider is ready
+    // Add a delay to ensure Stellar provider is ready
     const timer = setTimeout(initAuth, 500);
     return () => clearTimeout(timer);
   }, []);
@@ -216,10 +218,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (isConnected && address) {
         setIsInitializing(false);
         setHasInitialized(true);
-      } else if (status === "disconnected" && !isWalletConnecting) {
-        // Give auto-connect more time (up to 10 seconds)
+      } else if (!isConnected && !isStellarLoading && !isWalletConnecting) {
         const timeSinceMount = Date.now() - mountTime.current;
-        const maxAutoConnectTime = 10000; // 10 seconds
+        const maxAutoConnectTime = 10000;
 
         if (timeSinceMount > maxAutoConnectTime) {
           setIsInitializing(false);
@@ -244,7 +245,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [
     isConnected,
     address,
-    status,
+    isStellarLoading,
     isWalletConnecting,
     hasInitialized,
     isInitializing,
@@ -291,13 +292,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Track page visibility changes (reloads, tab switches, etc.)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      console.log("[AuthProvider] 📄 Page visibility changed:", {
+      console.log("[AuthProvider] Page visibility changed:", {
         hidden: document.hidden,
         timestamp: new Date().toISOString(),
         walletState: {
           isConnected,
           address,
-          status,
+          isStellarLoading,
         },
         storageState: {
           localStorage: {
@@ -314,10 +315,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const handleBeforeUnload = () => {
-      console.log("[AuthProvider] 🔄 Page unloading - wallet state:", {
+      console.log("[AuthProvider] Page unloading - wallet state:", {
         isConnected,
         address,
-        status,
+        isStellarLoading,
         timestamp: new Date().toISOString(),
       });
     };
@@ -329,7 +330,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [isConnected, address, status]);
+  }, [isConnected, address, isStellarLoading]);
 
   return (
     <AuthContext.Provider
