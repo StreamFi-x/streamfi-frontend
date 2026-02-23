@@ -159,7 +159,11 @@ export function TipCounter({
         setIsRefreshing(true);
         try {
             // Requirements specify POST /api/tips/refresh-total
-            await fetch("/api/tips/refresh-total", { method: "POST" });
+            await fetch("/api/tips/refresh-total", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username })
+            });
             await revalidate();
         } catch (err) {
             console.error("Refresh failed", err);

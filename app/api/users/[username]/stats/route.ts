@@ -9,21 +9,33 @@ export async function GET(
         const { username } = await params;
         const normalizedUsername = username.toLowerCase();
 
-        // The requirements specify these exact column names: 
-        // total_tips_received, total_tips_count, last_tip_at, stellar_public_key
+        // Check if user exists by username OR wallet address
         const result = await sql`
-      SELECT 
-        total_tips_received, 
-        total_tips_count, 
-        last_tip_at, 
-        wallet as stellar_public_key 
-      FROM users 
-      WHERE LOWER(username) = ${normalizedUsername}
-    `;
+          SELECT 
+            total_tips_received, 
+            total_tips_count, 
+            last_tip_at, 
+            wallet as stellar_public_key 
+          FROM users 
+          WHERE LOWER(username) = ${normalizedUsername} OR wallet = ${username}
+        `;
 
-        const stats = result.rows[0];
+        let stats = result.rows[0];
 
+        // If user doesn't exist in DB but has a valid Stellar public key, 
+        // return empty stats instead of 404 to allow the UI to render.
         if (!stats) {
+            const isStellarAddress = username.startsWith('G') && username.length === 56;
+
+            if (isStellarAddress) {
+                return NextResponse.json({
+                    totalReceived: "0.0000000",
+                    totalCount: 0,
+                    lastTipAt: null,
+                    stellarPublicKey: username,
+                });
+            }
+
             return NextResponse.json({ error: "User stats not found" }, { status: 404 });
         }
 

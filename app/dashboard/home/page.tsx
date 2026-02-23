@@ -31,7 +31,7 @@ export default function DashboardHome() {
     }
   }, [userData]);
 
-  const effectiveUsername = username || "User";
+  const effectiveUsername = username || publicKey || "User";
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
