@@ -123,6 +123,11 @@ export function TipCounter({
     const [xlmPrice, setXlmPrice] = useState<number | null>(null);
     const [copied, setCopied] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const { data, error, isLoading, mutate: revalidate } = useSWR(
         `/api/users/${username}/stats`,
@@ -135,12 +140,15 @@ export function TipCounter({
     const fetchPrice = useCallback(async () => {
         try {
             const res = await fetch("https://api.coinbase.com/v2/prices/XLM-USD/spot");
+            if (!res.ok) throw new Error("Price fetch failed");
             const json = await res.json();
             setXlmPrice(parseFloat(json.data.amount));
         } catch (err) {
             console.error("Failed to fetch XLM price", err);
+            // Fallback price if API fails (approximate current value)
+            if (!xlmPrice) setXlmPrice(0.08);
         }
-    }, []);
+    }, [xlmPrice]);
 
     useEffect(() => {
         fetchPrice();
@@ -173,11 +181,13 @@ export function TipCounter({
     };
 
     if (isLoading) return <TipCounterSkeleton variant={variant} />;
-    if (error || (data && data.error)) return <TipCounterError message={data?.error || "Failed to load stats"} onRetry={() => revalidate()} />;
-
     const stats: TipStatistics = data;
+    const isZero = parseInt(stats.totalCount.toString()) === 0 && parseFloat(stats.totalReceived) === 0;
+    const hasReachedMilestone = parseFloat(stats.totalReceived) >= 1.0;
 
-    if (parseInt(stats.totalCount.toString()) === 0 && parseFloat(stats.totalReceived) === 0) {
+    // We show the empty state only for non-large variants (public profile views).
+    // For the dashboard (large variant), we always show the counter so the creator sees their stats panel.
+    if (isZero && variant !== 'large') {
         return <TipCounterEmpty variant={variant} username={username} />;
     }
 
@@ -186,7 +196,7 @@ export function TipCounter({
         currency: "USD",
     }) : null;
 
-    const lastTipReceived = stats.lastTipAt
+    const lastTipReceived = stats.lastTipAt && isMounted
         ? formatDistanceToNow(new Date(stats.lastTipAt), { addSuffix: true })
         : null;
 
@@ -196,15 +206,20 @@ export function TipCounter({
         return (
             <div className={cn(
                 "bg-card/40 backdrop-blur-md border border-border rounded-lg p-2 flex items-center justify-between gap-3 group transition-all hover:bg-card/60",
+                hasReachedMilestone && "border-highlight/40 ring-1 ring-highlight/20",
                 className
             )}>
                 <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-full bg-highlight/10 text-highlight">
+                    <div className={cn(
+                        "p-1.5 rounded-full",
+                        hasReachedMilestone ? "bg-highlight/20 text-highlight shadow-[0_0_10px_rgba(255,200,0,0.2)]" : "bg-highlight/10 text-highlight"
+                    )}>
                         <Coins className="w-3 h-3" />
                     </div>
                     <div>
-                        <div className="text-[11px] font-bold text-foreground">
+                        <div className="text-[11px] font-bold text-foreground flex items-center gap-1">
                             {formatXLM(stats.totalReceived)} <span className="text-[10px] text-muted-foreground font-medium">XLM</span>
+                            {hasReachedMilestone && <TrendingUp className="w-2 h-2 text-highlight animate-pulse" />}
                         </div>
                         <div className="text-[10px] text-muted-foreground flex items-center gap-1">
                             <TrendingUp className="w-2.5 h-2.5" />
@@ -230,11 +245,23 @@ export function TipCounter({
     if (variant === 'large') {
         return (
             <div className={cn(
-                "bg-gradient-to-br from-card via-card to-highlight/5 border border-border rounded-2xl p-8 relative overflow-hidden group shadow-xl",
+                "bg-gradient-to-br border border-border rounded-2xl p-8 relative overflow-hidden group shadow-xl transition-all duration-500",
+                hasReachedMilestone
+                    ? "from-card via-card to-highlight/20 border-highlight/30 ring-1 ring-highlight/10"
+                    : "from-card via-card to-highlight/5",
                 className
             )}>
                 {/* Decorative background elements */}
-                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-highlight/5 rounded-full blur-3xl pointer-events-none group-hover:bg-highlight/10 transition-colors duration-500" />
+                <div className={cn(
+                    "absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full blur-3xl pointer-events-none transition-all duration-700",
+                    hasReachedMilestone ? "bg-highlight/20 opacity-60 animate-pulse" : "bg-highlight/5 group-hover:bg-highlight/10"
+                )} />
+
+                {hasReachedMilestone && (
+                    <div className="absolute top-4 right-20 pointer-events-none select-none opacity-20">
+                        <TrendingUp className="w-32 h-32 text-highlight rotate-12" />
+                    </div>
+                )}
 
                 <div className="relative z-10">
                     <div className="flex items-center justify-between mb-8">
@@ -243,7 +270,15 @@ export function TipCounter({
                                 <Coins className="w-8 h-8" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-bold text-foreground">Earnings Overview</h3>
+                                <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                                    Earnings Overview
+                                    {hasReachedMilestone && (
+                                        <span className="flex items-center gap-1 px-2 py-0.5 bg-highlight text-highlight-foreground text-[10px] uppercase font-black rounded-full animate-bounce shadow-lg">
+                                            <TrendingUp className="w-2.5 h-2.5" />
+                                            Rising Star
+                                        </span>
+                                    )}
+                                </h3>
                                 <p className="text-sm text-muted-foreground">Total tips received via Stellar</p>
                             </div>
                         </div>
@@ -269,7 +304,17 @@ export function TipCounter({
                                 {formatXLM(stats.totalReceived)}
                                 <span className="text-lg font-bold text-highlight">XLM</span>
                             </div>
-                            <div className="flex items-center gap-2 h-6">
+
+                            {isZero && (
+                                <div className="mt-2 p-3 border border-dashed border-highlight/30 rounded-xl bg-highlight/5 max-w-xs">
+                                    <p className="text-[10px] text-highlight/80 font-semibold mb-1 uppercase tracking-wider">💡 Tip for Success</p>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                        Your earnings are currently at zero. <span className="text-foreground font-medium underline cursor-pointer hover:text-highlight transition-colors">Setup your tip link</span> to start receiving XLM.
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="flex items-center gap-2 h-6 mt-1">
                                 <AnimatePresence mode="wait">
                                     {usdValue ? (
                                         <motion.span
