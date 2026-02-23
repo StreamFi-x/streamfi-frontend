@@ -1,6 +1,6 @@
 "use client";
 
-import { useAccount } from "@starknet-react/core";
+// import { useAccount } from "@starknet-react/core";
 import useSWR from "swr";
 import { FeaturedStream } from "@/components/explore/home/FeaturedStream";
 import { LiveStreams } from "@/components/explore/home/LiveStreams";
@@ -32,7 +32,8 @@ const fetcher = async (url: string) => {
 };
 
 export default function Home() {
-  const { address } = useAccount();
+  // const { address } = useAccount();
+  const { address } = { address: undefined } as any;
 
   // Fetch live streams with 30-second polling
   const { data, isLoading } = useSWR<{ streams: LiveStream[] }>(

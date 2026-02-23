@@ -3,7 +3,7 @@
 import type React from "react";
 
 import { useState, useEffect } from "react";
-import { useAccount } from "@starknet-react/core";
+// import { useAccount } from "@starknet-react/core";
 import StreamPreview from "@/components/dashboard/stream-manager/StreamPreview";
 import ActivityFeed from "@/components/dashboard/stream-manager/ActivityFeed";
 import Chat from "@/components/dashboard/stream-manager/Chat";
@@ -13,7 +13,8 @@ import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
 
 export default function StreamManagerPage() {
-  const { address } = useAccount();
+  // const { address } = useAccount();
+  const { address } = { address: undefined } as any;
   const [streamData, setStreamData] = useState({
     title: "",
     category: "",

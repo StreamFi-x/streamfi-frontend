@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
 import { MdClose } from "react-icons/md";
 import { useRouter } from "next/navigation";
-import { useAccount } from "@starknet-react/core";
+// import { useAccount } from "@starknet-react/core";
 import SimpleLoader from "@/components/ui/loader/simple-loader";
 
 interface ProfileModalProps {
@@ -40,7 +40,8 @@ export default function ProfileModal({
 
   // Router and wallet
   const router = useRouter();
-  const { address } = useAccount();
+  // const { address } = useAccount();
+  const { address } = { address: undefined } as any;
 
   // Verification code state
   const [verificationCode, setVerificationCode] = useState([

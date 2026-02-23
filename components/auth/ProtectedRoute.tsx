@@ -4,7 +4,7 @@ import type React from "react";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount } from "@starknet-react/core";
+// import { useAccount } from "@starknet-react/core";
 import { useAuth } from "./auth-provider";
 import ConnectWalletModal from "@/components/connectWallet";
 
@@ -14,7 +14,8 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter();
-  const { address, isConnected, status } = useAccount();
+  // const { address, isConnected, status } = useAccount();
+  const { address, isConnected, status } = { address: undefined, isConnected: false, status: "disconnected" } as any;
   const { isInitializing, isWalletConnecting } = useAuth();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [hasCompletedInitialCheck, setHasCompletedInitialCheck] =

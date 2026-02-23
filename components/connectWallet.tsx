@@ -5,7 +5,7 @@ import type React from "react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { MdClose } from "react-icons/md";
-import { useConnect, useAccount } from "@starknet-react/core";
+// import { useConnect, useAccount } from "@starknet-react/core";
 
 interface ConnectModalProps {
   isModalOpen: boolean;
@@ -16,8 +16,10 @@ export default function ConnectWalletModal({
   isModalOpen,
   setIsModalOpen,
 }: ConnectModalProps) {
-  const { connect, connectors } = useConnect();
-  const { isConnected, status } = useAccount();
+  // const { connect, connectors } = useConnect();
+  // const { isConnected, status } = useAccount();
+  const { connect, connectors } = { connect: async () => {}, connectors: [] } as any;
+  const { isConnected, status } = { isConnected: false, status: "disconnected" } as any;
 
   const [selectedWallet, setSelectedWallet] = useState(connectors?.[0] || null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -133,7 +135,7 @@ export default function ConnectWalletModal({
 
         {/* Wallet List */}
         <div className="flex flex-row gap-[7px] rounded-[20px] bg-[#FFFFFF1A] p-[10px] justify-center mb-4">
-          {connectors.map(wallet => (
+          {connectors.map((wallet: any) => (
             <div key={wallet.id} onClick={() => handleWalletClick(wallet)}>
               <button
                 className={`w-[80px] h-[80px] bg-[#1D2027] rounded-[16px] flex items-center justify-center p-3 text-white transition-all duration-200 ${

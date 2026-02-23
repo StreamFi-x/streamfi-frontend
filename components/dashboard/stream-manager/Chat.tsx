@@ -3,12 +3,13 @@
 import React, { useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { MessageSquare, X, Send, Smile } from "lucide-react";
-import { useAccount } from "@starknet-react/core";
+// import { useAccount } from "@starknet-react/core";
 import { useStreamData } from "@/hooks/useStreamData";
 import { useChat } from "@/hooks/useChat";
 
 export default function Chat() {
-  const { address } = useAccount();
+  // const { address } = useAccount();
+  const { address } = { address: undefined } as any;
   const { streamData } = useStreamData(address);
   const { messages, sendMessage, isSending, isLoading } = useChat(
     streamData?.playbackId,

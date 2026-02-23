@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Radio, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAccount } from "@starknet-react/core";
+// import { useAccount } from "@starknet-react/core";
 import { toast } from "sonner";
 
 interface StreamControlsProps {
@@ -15,7 +15,8 @@ export default function StreamControls({
   isLive,
   onStreamStateChange,
 }: StreamControlsProps) {
-  const { address } = useAccount();
+  // const { address } = useAccount();
+  const { address } = { address: undefined } as any;
   const [isLoading, setIsLoading] = useState(false);
   const [liveState, setLiveState] = useState(isLive);
 

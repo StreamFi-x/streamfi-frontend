@@ -1,13 +1,14 @@
 // hooks/useProfileModal.ts
 
 import { useState } from "react";
-import { useAccount } from "@starknet-react/core";
+// import { useAccount } from "@starknet-react/core";
 
 export function useProfileModal(
   onNextStep: (step: "profile" | "verify" | "success") => void,
   refreshUser?: () => Promise<any>
 ) {
-  const { address } = useAccount();
+  // const { address } = useAccount();
+  const { address } = { address: undefined } as any;
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");

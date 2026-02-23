@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useAccount } from "@starknet-react/core";
+// import { useAccount } from "@starknet-react/core";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,8 @@ const fetcher = async (url: string) => {
 };
 
 export default function LivePage() {
-  const { address } = useAccount();
+  // const { address } = useAccount();
+  const { address } = { address: undefined } as any;
   const searchParams = useSearchParams();
   const selectedCategory = searchParams.get("category");
   const [selectedLanguage, setSelectedLanguage] = useState("all");

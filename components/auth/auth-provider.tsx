@@ -10,7 +10,8 @@ import {
   useRef,
 } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount, useDisconnect } from "@starknet-react/core";
+// Starknet components removed during Stellar migration
+// import { useAccount, useDisconnect } from "@starknet-react/core";
 import { User, UserUpdateInput } from "@/types/user";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
@@ -51,8 +52,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const mountTime = useRef(Date.now());
 
   const router = useRouter();
-  const { address, isConnected, status } = useAccount();
-  const { disconnect } = useDisconnect();
+  // const { address, isConnected, status } = useAccount();
+  // const { disconnect } = useDisconnect();
+  const { address, isConnected, status } = { address: undefined, isConnected: false, status: "disconnected" };
+  const { disconnect } = { disconnect: () => console.log("Disconnect triggered (Starknet stub)") };
 
   // Use optimized SWR hook for user profile fetching
   const {

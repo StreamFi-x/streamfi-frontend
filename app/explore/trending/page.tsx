@@ -4,7 +4,7 @@ import React from "react";
 import { Eye } from "lucide-react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useAccount } from "@starknet-react/core";
+// import { useAccount } from "@starknet-react/core";
 import useSWR from "swr";
 import Image from "next/image";
 
@@ -51,7 +51,8 @@ const calculateTrendingScore = (stream: LiveStream): number => {
 
 export default function TrendingPage() {
   const router = useRouter();
-  const { address } = useAccount();
+  // const { address } = useAccount();
+  const { address } = { address: undefined } as any;
 
   // Fetch live streams with 20-second polling
   const { data, error, isLoading } = useSWR<{ streams: LiveStream[] }>(
