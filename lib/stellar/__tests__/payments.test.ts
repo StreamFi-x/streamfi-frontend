@@ -187,7 +187,7 @@ describe("Stellar Payments", () => {
     const mockPublicKey = "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
 
     it("should return false when balance is sufficient", async () => {
-      const mockServer = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org");
+      const mockServer = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org") as any;
       (mockServer.loadAccount as jest.Mock).mockResolvedValue({
         balances: [
           { asset_type: "native", balance: "100.0000000" },
@@ -206,7 +206,7 @@ describe("Stellar Payments", () => {
     });
 
     it("should return true when balance is insufficient", async () => {
-      const mockServer = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org");
+      const mockServer = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org") as any;
       (mockServer.loadAccount as jest.Mock).mockResolvedValue({
         balances: [
           { asset_type: "native", balance: "1.0000000" },
@@ -225,7 +225,7 @@ describe("Stellar Payments", () => {
     });
 
     it("should consider transaction fees in calculation", async () => {
-      const mockServer = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org");
+      const mockServer = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org") as any;
       (mockServer.loadAccount as jest.Mock).mockResolvedValue({
         balances: [
           { asset_type: "native", balance: "10.0000000" },
@@ -258,7 +258,7 @@ describe("Stellar Payments", () => {
     });
 
     it("should handle missing native balance", async () => {
-      const mockServer = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org");
+      const mockServer = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org") as any;
       (mockServer.loadAccount as jest.Mock).mockResolvedValue({
         balances: [
           { asset_type: "credit_alphanum4", balance: "100.0000000" },
@@ -380,7 +380,7 @@ describe("Stellar Payments", () => {
 
   describe("getMinimumBalance", () => {
     it("should calculate minimum balance correctly", async () => {
-      const mockServer = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org");
+      const mockServer = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org") as any;
       (mockServer.ledgers as jest.Mock).mockReturnThis();
       (mockServer.order as jest.Mock).mockReturnThis();
       (mockServer.limit as jest.Mock).mockReturnThis();
@@ -395,7 +395,7 @@ describe("Stellar Payments", () => {
     });
 
     it("should return default value on error", async () => {
-      const mockServer = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org");
+      const mockServer = new StellarSdk.Horizon.Server("https://horizon-testnet.stellar.org") as any;
       (mockServer.ledgers as jest.Mock).mockReturnThis();
       (mockServer.order as jest.Mock).mockReturnThis();
       (mockServer.limit as jest.Mock).mockReturnThis();
