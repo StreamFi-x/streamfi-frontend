@@ -10,8 +10,9 @@ import TabsNavigation from "@/components/shared/profile/TabsNavigation";
 import ViewStream from "@/components/stream/view-stream";
 
 import ConnectWalletModal from "@/components/connectWallet";
-import { TipModal, TipConfirmation } from "@/components/tipping";
-import { getStellarWalletsKit } from "@/lib/stellar/payments";
+import { TipModalContainer } from "@/components/tipping";
+import { useStellarWallet } from "@/hooks/useStellarWallet";
+import { useTipModal } from "@/hooks/useTipModal";
 
 interface UsernameLayoutClientProps {
   children: React.ReactNode;
@@ -31,37 +32,16 @@ export default function UsernameLayoutClient({
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
-  const [showStellarTipModal, setShowStellarTipModal] = useState(false);
-  const [tipConfirmation, setTipConfirmation] = useState<{
-    show: boolean;
-    state: "success" | "error";
-    amount?: string;
-    txHash?: string;
-    error?: string;
-  }>({ show: false, state: "success" });
-  const [stellarPublicKey, setStellarPublicKey] = useState<string>("");
+
+  // Use custom hooks for Stellar wallet and tip modal state
+  const stellarPublicKey = useStellarWallet();
+  const tipModalState = useTipModal();
 
   const loggedInUsername =
     typeof window !== "undefined" ? sessionStorage.getItem("username") : null;
 
   const isDefaultRoute = pathname === `/${username}`;
   const isOwner = loggedInUsername === username;
-
-  // Get Stellar wallet public key
-  useEffect(() => {
-    const getStellarWallet = async () => {
-      try {
-        const kit = getStellarWalletsKit();
-        const publicKey = await kit.getPublicKey();
-        setStellarPublicKey(publicKey);
-      } catch (error) {
-        console.log("Stellar wallet not connected", error);
-        setStellarPublicKey("");
-      }
-    };
-
-    getStellarWallet();
-  }, []);
 
   // Fetch user data and following state
   useEffect(() => {
@@ -224,7 +204,7 @@ export default function UsernameLayoutClient({
             followLoading={followLoading}
             stellarPublicKey={userData?.starknet_address}
             userStellarPublicKey={stellarPublicKey}
-            onTipClick={() => setShowStellarTipModal(true)}
+            onTipClick={tipModalState.openTipModal}
           />
           <TabsNavigation username={username} />
           <div className="p-4">{children}</div>
@@ -237,48 +217,19 @@ export default function UsernameLayoutClient({
         />
       )}
 
-      {/* Stellar Tip Modal */}
-      {userData?.starknet_address && stellarPublicKey && (
-        <TipModal
-          isOpen={showStellarTipModal}
-          onClose={() => setShowStellarTipModal(false)}
-          recipientUsername={username}
-          recipientPublicKey={userData.starknet_address}
-          recipientAvatar={userData.avatar}
-          senderPublicKey={stellarPublicKey}
-          onSuccess={(txHash, amount) => {
-            setShowStellarTipModal(false);
-            setTipConfirmation({
-              show: true,
-              state: "success",
-              amount,
-              txHash,
-            });
-          }}
-          onError={(error) => {
-            setShowStellarTipModal(false);
-            setTipConfirmation({
-              show: true,
-              state: "error",
-              error,
-            });
-          }}
-        />
-      )}
-
-      {/* Tip Confirmation */}
-      <TipConfirmation
-        isOpen={tipConfirmation.show}
-        onClose={() => setTipConfirmation({ ...tipConfirmation, show: false })}
-        state={tipConfirmation.state}
-        amount={tipConfirmation.amount}
-        txHash={tipConfirmation.txHash}
-        error={tipConfirmation.error}
+      {/* Stellar Tip Modals */}
+      <TipModalContainer
+        isModalOpen={tipModalState.showTipModal}
+        onModalClose={tipModalState.closeTipModal}
         recipientUsername={username}
-        onSendAnother={() => {
-          setTipConfirmation({ ...tipConfirmation, show: false });
-          setShowStellarTipModal(true);
-        }}
+        recipientPublicKey={userData?.starknet_address || ""}
+        recipientAvatar={userData?.avatar}
+        senderPublicKey={stellarPublicKey}
+        onSuccess={tipModalState.showSuccess}
+        onError={tipModalState.showError}
+        confirmationState={tipModalState.tipConfirmation}
+        onConfirmationClose={tipModalState.closeConfirmation}
+        onRetry={tipModalState.retryFromConfirmation}
       />
     </div>
   );
