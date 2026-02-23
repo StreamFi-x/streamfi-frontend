@@ -9,7 +9,7 @@ import { useChat } from "@/hooks/useChat";
 
 export default function Chat() {
   const { address } = useStellarWallet();
-  const { streamData } = useStreamData(address);
+  const { streamData } = useStreamData(address ?? undefined);
   const { messages, sendMessage, isSending, isLoading } = useChat(
     streamData?.playbackId,
     address,

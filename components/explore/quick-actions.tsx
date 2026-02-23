@@ -23,7 +23,7 @@ export default function QuickActions() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Use SWR hook for optimized data fetching with caching
-  const { user } = useUserProfile(address);
+  const { user } = useUserProfile(address ?? undefined);
   const username = user?.username || "";
 
   const handleConnectWallet = () => {
