@@ -191,7 +191,6 @@ export function TipModal({
 
       // Sign and submit transaction
       setTransactionState("signing");
-      setTransactionState("submitting");
       const result = await submitTransaction(xdr, senderPublicKey);
 
       if (result.success) {
