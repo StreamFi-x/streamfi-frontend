@@ -644,10 +644,10 @@ wallet VARCHAR(255) UNIQUE NOT NULL
 
 **Acceptance criteria:**
 
-- [ ] Database schema reviewed for Stellar compatibility
-- [ ] `LOWER(wallet)` queries replaced with exact match where appropriate
-- [ ] Migration strategy documented for any existing StarkNet user data
-- [ ] `setup-db` and `update-schema` scripts updated if needed
+- [x] Database schema reviewed for Stellar compatibility
+- [x] `LOWER(wallet)` queries replaced with exact match where appropriate
+- [x] Migration strategy documented for any existing StarkNet user data (see `docs/stellar-wallet-migration.md`)
+- [x] `setup-db` and `update-schema` scripts updated if needed (no LOWER(wallet) in scripts; schema in `db/schema.sql` and `scripts/optimize-database.sql` updated)
 
 **Files affected:**
 

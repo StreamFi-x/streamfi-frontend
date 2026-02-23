@@ -118,7 +118,6 @@ CREATE TABLE IF NOT EXISTS tags (
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_wallet ON users(wallet);
-CREATE INDEX IF NOT EXISTS idx_users_wallet_lower ON users(LOWER(wallet));
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_livepeer_stream_id ON users(livepeer_stream_id);
@@ -191,7 +190,7 @@ BEGIN
         COALESCE(SUM(ss.total_messages), 0) as total_messages
     FROM users u
     LEFT JOIN stream_sessions ss ON u.id = ss.user_id
-    WHERE LOWER(u.wallet) = LOWER(user_wallet);
+    WHERE u.wallet = user_wallet;
 END;
 $$ LANGUAGE plpgsql;
 

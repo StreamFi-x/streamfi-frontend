@@ -30,7 +30,7 @@ export async function GET(req: Request) {
         mux_playback_id,
         is_live
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE wallet = ${wallet}
     `;
 
     if (userResult.rows.length === 0) {

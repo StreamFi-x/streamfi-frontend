@@ -7,9 +7,9 @@ export const DEV_MODE =
   process.env.NODE_ENV === "development" &&
   process.env.NEXT_PUBLIC_DEV_MODE === "true";
 
-// Test user for development
+// Test user for development (Stellar-format public key, 56 chars)
 export const DEV_TEST_USER = {
-  wallet: "0x04fef7247897775ee856f4a2c52b460300b67306c14a200ce71eb1f9190a388e",
+  wallet: "GDNP4YFH7K4E2WVX2X7QXN5V5V5V5V5V5V5V5V5V5V5V5V5V5V5V5V5V5V5",
   username: "test_user",
   id: "dev-user-id",
 };

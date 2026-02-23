@@ -14,11 +14,10 @@ export async function PUT(
 ) {
   try {
     const { wallet } = await params;
-    const normalizedWallet = wallet.toLowerCase();
 
-    // Fetching current user data
+    // Stellar public keys are uppercase; use exact match
     const existingResult = await sql`
-      SELECT * FROM users WHERE LOWER(wallet) = LOWER(${normalizedWallet})
+      SELECT * FROM users WHERE wallet = ${wallet}
     `;
     const user = existingResult.rows[0];
     if (!user) {
@@ -111,7 +110,7 @@ export async function PUT(
 
     if (email && email !== user.email) {
       const emailExists = await sql`
-        SELECT id FROM users WHERE email = ${email} AND wallet != ${normalizedWallet}
+        SELECT id FROM users WHERE email = ${email} AND wallet != ${wallet}
       `;
       if (emailExists.rows.length > 0) {
         return NextResponse.json(
@@ -124,7 +123,7 @@ export async function PUT(
     // Username uniqueness
     if (username && username !== user.username) {
       const usernameExists = await sql`
-        SELECT id FROM users WHERE username = ${username} AND wallet != ${normalizedWallet}
+        SELECT id FROM users WHERE username = ${username} AND wallet != ${wallet}
       `;
       if (usernameExists.rows.length > 0) {
         return NextResponse.json(
@@ -169,7 +168,7 @@ export async function PUT(
         emailnotifications = ${emailNotifications},
         creator = ${creator ? JSON.stringify(creator) : user.creator},
         updated_at = CURRENT_TIMESTAMP
-      WHERE LOWER(wallet) = LOWER(${normalizedWallet})
+      WHERE wallet = ${wallet}
       RETURNING id, username, email, streamkey, avatar, bio, sociallinks, emailverified, emailnotifications, creator, wallet, created_at, updated_at
     `;
 
