@@ -11,7 +11,7 @@ import ViewStream from "@/components/stream/view-stream";
 
 import ConnectWalletModal from "@/components/connectWallet";
 import { TipModalContainer } from "@/components/tipping";
-import { useStellarWallet } from "@/hooks/useStellarWallet";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { useTipModal } from "@/hooks/useTipModal";
 
 interface UsernameLayoutClientProps {
@@ -34,7 +34,7 @@ export default function UsernameLayoutClient({
   const [followLoading, setFollowLoading] = useState(false);
 
   // Use custom hooks for Stellar wallet and tip modal state
-  const stellarPublicKey = useStellarWallet();
+  const { address: stellarPublicKey } = useStellarWallet();
   const tipModalState = useTipModal();
 
   const loggedInUsername =

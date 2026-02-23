@@ -11,7 +11,7 @@ interface TipModalContainerProps {
   recipientUsername: string;
   recipientPublicKey: string;
   recipientAvatar?: string;
-  senderPublicKey: string;
+  senderPublicKey: string | null;
   onSuccess: (txHash: string, amount: string) => void;
   onError: (error: string) => void;
 

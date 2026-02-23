@@ -31,7 +31,6 @@ import MuxPlayer from "@mux/mux-player-react";
 import ReportLiveStreamModal from "../modals/ReportLiveStreamModal";
 import { useChat } from "@/hooks/useChat";
 import { TipButton, TipModalContainer } from "@/components/tipping";
-import { useStellarWallet as useStellarWalletConnection } from "@/hooks/useStellarWallet";
 import { useTipModal } from "@/hooks/useTipModal";
 
 const socialIcons: Record<string, JSX.Element> = {
@@ -208,20 +207,18 @@ const ViewStream = ({
   const [showReportModal, setShowReportModal] = useState(false);
 
   // Use custom hooks for Stellar wallet and tip modal state
-  const stellarPublicKey = useStellarWalletConnection();
+  const { address: stellarPublicKey, isConnected } = useStellarWallet();
   const tipModalState = useTipModal();
 
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
   const overlayScrollRef = useRef<HTMLDivElement>(null);
   const overlayInputRef = useRef<HTMLInputElement>(null);
-
-  const { address, isConnected } = useStellarWallet();
   const {
     messages: chatMessages,
     sendMessage,
     isSending,
-  } = useChat(userData?.playbackId, address, isLive);
+  } = useChat(userData?.playbackId, stellarPublicKey, isLive);
 
   // Stable refs so the native keydown listener always reads current values
   const chatOverlayMessageRef = useRef(chatOverlayMessage);
