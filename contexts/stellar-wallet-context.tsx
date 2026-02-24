@@ -16,7 +16,13 @@ import {
   FREIGHTER_ID,
 } from "@creit.tech/stellar-wallets-kit";
 
+const network =
+  process.env.NEXT_PUBLIC_STELLAR_NETWORK === "pubnet"
+    ? WalletNetwork.PUBLIC
+    : WalletNetwork.TESTNET;
+
 interface StellarWalletContextType {
+  kit: StellarWalletsKit;
   address: string | null;
   publicKey: string | null;
   isConnected: boolean;
@@ -26,6 +32,7 @@ interface StellarWalletContextType {
   isLoading: boolean;
   isConnecting: boolean;
   error: string | null;
+  network: WalletNetwork;
 }
 
 const StellarWalletContext = createContext<
@@ -52,7 +59,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     () =>
       new StellarWalletsKit({
         selectedWalletId: FREIGHTER_ID,
-        network: WalletNetwork.TESTNET,
+        network,
         modules: allowAllModules(),
       })
   );
@@ -143,6 +150,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   return (
     <StellarWalletContext.Provider
       value={{
+        kit,
         address: publicKey,
         publicKey,
         isConnected,
@@ -152,6 +160,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         isLoading: isConnecting,
         isConnecting,
         error,
+        network,
       }}
     >
       {children}
