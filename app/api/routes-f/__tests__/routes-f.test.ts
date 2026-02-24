@@ -14,6 +14,7 @@ jest.mock("next/server", () => ({
 
 import { GET as healthGET } from "../health/route";
 import { POST as validatePOST } from "../validate/route";
+import { POST as importPOST } from "../import/route";
 
 const makeRequest = (method: string, path: string, body?: unknown) =>
   new Request(`http://localhost${path}`, {
@@ -62,5 +63,28 @@ describe("POST /api/routes-f/validate", () => {
     const body = await res.json();
     expect(body.isValid).toBe(false);
     expect(body.errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe("POST /api/routes-f/import", () => {
+  it("returns 207 when mixed validity", async () => {
+    const payload = [
+      { name: "Route A", path: "/a", method: "GET" },
+      { name: "", path: "b", method: "POST" },
+    ];
+    const res = await importPOST(
+      makeRequest("POST", "/api/routes-f/import", payload)
+    );
+    expect(res.status).toBe(207);
+    const body = await res.json();
+    expect(body.results).toHaveLength(2);
+  });
+
+  it("returns 422 when all invalid", async () => {
+    const payload = [{ name: "", path: "b", method: "POST" }];
+    const res = await importPOST(
+      makeRequest("POST", "/api/routes-f/import", payload)
+    );
+    expect(res.status).toBe(422);
   });
 });
