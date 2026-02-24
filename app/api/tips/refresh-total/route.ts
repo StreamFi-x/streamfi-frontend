@@ -1,54 +1,104 @@
-import { NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
-import { getAccountTipStats } from "@/lib/stellar/horizon";
+// app/api/tips/refresh-total/route.ts
+import { NextResponse } from 'next/server';
+import { sql } from '@vercel/postgres';
+import { fetchPaymentsReceived } from '@/lib/stellar/horizon';
 
-export async function POST(req: Request) {
+interface RefreshTotalRequest {
+    username: string;
+}
+
+interface RefreshTotalResponse {
+    username: string;
+    totalReceived: string;
+    totalCount: number;
+    lastTipAt: string | null;
+    refreshedAt: string;
+}
+
+export async function POST(request: Request) {
     try {
-        const body = await req.json();
-        const { username } = body;
+        const { username } = await request.json();
 
         if (!username) {
-            return NextResponse.json({ error: "Username is required" }, { status: 400 });
+            return NextResponse.json(
+                { error: 'Username is required' },
+                { status: 400 }
+            );
         }
 
-        // 1. Get user's wallet address from database
+        // TODO: Add authentication check here
+        // Verify that the requesting user is the owner or admin
+
+        // 1. Fetch user from database
         const userResult = await sql`
-            SELECT wallet FROM users WHERE LOWER(username) = ${username.toLowerCase()}
-        `;
+      SELECT id, username, stellar_public_key
+      FROM users
+      WHERE username = ${username}
+    `;
+
+        if (userResult.rows.length === 0) {
+            return NextResponse.json(
+                { error: 'User not found' },
+                { status: 404 }
+            );
+        }
 
         const user = userResult.rows[0];
-        if (!user || !user.wallet) {
-            return NextResponse.json({ error: "User or wallet not found" }, { status: 404 });
+        if (!user.stellar_public_key) {
+            return NextResponse.json(
+                { error: 'User has not configured Stellar wallet' },
+                { status: 400 }
+            );
         }
 
-        const wallet = user.wallet;
+        // 2. Fetch all tips from Horizon API
+        let allTips: any[] = [];
+        let cursor: string | undefined = undefined;
+        let hasMore = true;
 
-        // 2. Fetch live stats from Stellar blockchain
-        // Note: For now we fetch last 200 payments. In prod, use an indexer or paging tokens.
-        const liveStats = await getAccountTipStats(wallet);
+        while (hasMore) {
+            const { tips, nextCursor } = await fetchPaymentsReceived({
+                publicKey: user.stellar_public_key,
+                limit: 200,
+                cursor
+            });
 
-        // 3. Update database with fresh totals
+            allTips = [...allTips, ...tips];
+            cursor = nextCursor || undefined;
+            hasMore = !!nextCursor;
+        }
+
+        // 3. Calculate totals
+        const totalReceived = allTips.reduce((sum, tip) => {
+            return sum + parseFloat(tip.amount);
+        }, 0).toFixed(7);
+
+        const totalCount = allTips.length;
+        const lastTipAt = allTips.length > 0 ? allTips[0].timestamp : null;
+
+        // 4. Update database
         await sql`
-            UPDATE users 
-            SET total_tips_received = ${liveStats.totalTipsReceived},
-                total_tips_count = ${liveStats.totalTipsCount},
-                last_tip_at = ${liveStats.lastTipAt}
-            WHERE LOWER(username) = ${username.toLowerCase()}
-        `;
+      UPDATE users
+      SET 
+        total_tips_received = ${totalReceived},
+        total_tips_count = ${totalCount},
+        last_tip_at = ${lastTipAt},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${user.id}
+    `;
 
+        // 5. Return updated statistics
         return NextResponse.json({
-            success: true,
-            message: "Tip total refreshed from blockchain",
-            stats: {
-                totalReceived: liveStats.totalTipsReceived,
-                totalCount: liveStats.totalTipsCount,
-                lastTipAt: liveStats.lastTipAt
-            }
+            username: user.username,
+            totalReceived,
+            totalCount,
+            lastTipAt,
+            refreshedAt: new Date().toISOString()
         });
     } catch (error) {
-        console.error("API: Refresh tips error:", error);
+        console.error('Refresh total error:', error);
         return NextResponse.json(
-            { error: "Failed to refresh tips from blockchain" },
+            { error: 'Failed to refresh tip totals' },
             { status: 500 }
         );
     }
