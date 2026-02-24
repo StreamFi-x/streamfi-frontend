@@ -89,10 +89,14 @@ export async function GET(
 
     let senderMap = new Map<string, string>();
     if (senderKeys.length > 0) {
+      // Build IN clause with proper escaping using sql.raw()
+      const escapedKeys = senderKeys
+        .map(key => `'${key.replace(/'/g, "''")}'`)
+        .join(',');
       const senderUsers = await sql`
         SELECT username, stellar_public_key
         FROM users
-        WHERE stellar_public_key = ANY(${senderKeys})
+        WHERE stellar_public_key IN (${sql.raw(escapedKeys)})
       `;
 
       senderMap = new Map(senderUsers.rows.map((u: any) => [u.stellar_public_key, u.username]));

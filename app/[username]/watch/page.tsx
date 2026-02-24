@@ -29,7 +29,7 @@ interface UserData {
   creator: any;
   followers: string[];
   following: string[];
-  starknet_address: string | null;
+  stellar_address: string | null;
 }
 
 const WatchPage = ({ params }: PageProps) => {
@@ -103,7 +103,7 @@ const WatchPage = ({ params }: PageProps) => {
       instagram: userData.creator?.socialLinks?.instagram || "",
       discord: userData.creator?.socialLinks?.discord || "",
     },
-    starknetAddress: userData.starknet_address || "",
+    stellarAddress: userData.stellar_address || "",
     playbackId: userData.mux_playback_id,
     isLive: userData.is_live,
   };

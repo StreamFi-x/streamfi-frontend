@@ -359,7 +359,7 @@ export default function Sidebar() {
         </div>
         <motion.button
           variants={itemVariants}
-          className="w-full mt-3 text-xs bg-tag text-background hover:bg-tag/90 rounded-lg py-2.5 text-center font-medium"
+          className="w-full mt-3 text-xs bg-tag text-primary hover:bg-tag/90 rounded-lg py-2.5 text-center font-medium"
           whileHover={{ scale: 1.02, y: -1 }}
           whileTap={{ scale: 0.98 }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -441,7 +441,7 @@ export default function Sidebar() {
         </div>
         <motion.button
           variants={itemVariants}
-          className="w-full mt-3 text-xs bg-tag text-background hover:bg-tag/90 rounded-lg py-1.5 text-center font-medium"
+          className="w-full mt-3 text-xs bg-tag text-primary hover:bg-tag/90 rounded-lg py-1.5 text-center font-medium"
           whileHover={{ scale: 1.02, y: -1 }}
           whileTap={{ scale: 0.98 }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}

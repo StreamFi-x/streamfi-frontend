@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "setup-db": "node scripts/setup-db.cjs",
+    "setup-db": "node scripts/setup-db.js",
     "update-schema": "node scripts/updateUserSchema.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -27,7 +27,7 @@
     "predev": "npm run type-check"
   },
   "dependencies": {
-    "@creit.tech/stellar-wallets-kit": "^1.5.0",
+    "@creit.tech/stellar-wallets-kit": "^1.9.5",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fontsource/inter": "^5.1.1",
@@ -48,7 +48,7 @@
     "@starknet-react/chains": "^5.0.3",
     "@starknet-react/core": "^5.0.3",
     "@stellar/freighter-api": "^6.0.1",
-    "@stellar/stellar-sdk": "^14.5.0",
+    "@stellar/stellar-sdk": "^13.3.0",
     "@vercel/postgres": "^0.10.0",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.6.1",
