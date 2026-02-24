@@ -1,4 +1,4 @@
-import { MaintenanceWindow, RoutesFRecord } from "./types";
+import { AuditEvent, MaintenanceWindow, RoutesFRecord } from "./types";
 
 let routesFRecords: RoutesFRecord[] = [
   {
@@ -44,6 +44,44 @@ let routesFRecords: RoutesFRecord[] = [
 ];
 
 let maintenanceWindows: MaintenanceWindow[] = [];
+
+let auditEvents: AuditEvent[] = [
+  {
+    id: "ae-005",
+    actor: "system-bot",
+    action: "HEALTH_CHECK_PASSED",
+    target: "routes-f/health",
+    timestamp: "2026-02-24T11:00:00.000Z",
+  },
+  {
+    id: "ae-004",
+    actor: "admin-alice",
+    action: "FLAG_UPDATED",
+    target: "routes-f/flags/new-ui",
+    timestamp: "2026-02-24T10:30:00.000Z",
+  },
+  {
+    id: "ae-003",
+    actor: "admin-bob",
+    action: "CACHE_PURGED",
+    target: "routes-f/cache/global",
+    timestamp: "2026-02-24T09:15:00.000Z",
+  },
+  {
+    id: "ae-002",
+    actor: "system-cron",
+    action: "METRICS_ROTATED",
+    target: "routes-f/metrics",
+    timestamp: "2026-02-24T00:00:00.000Z",
+  },
+  {
+    id: "ae-001",
+    actor: "admin-alice",
+    action: "MAINTENANCE_SCHEDULED",
+    target: "routes-f/maintenance",
+    timestamp: "2026-02-23T22:00:00.000Z",
+  },
+];
 
 export function getRoutesFRecords(): RoutesFRecord[] {
   return [...routesFRecords];
@@ -153,6 +191,37 @@ export function createMaintenanceWindow(input: {
 
 export function clearMaintenanceWindows() {
   maintenanceWindows = [];
+}
+
+export function getAuditTrail(params: {
+  limit: number;
+  cursor?: string;
+}): { items: AuditEvent[]; nextCursor: string | null } {
+  const sortedEvents = [...auditEvents].sort((a, b) =>
+    b.timestamp.localeCompare(a.timestamp)
+  );
+
+  let startIndex = 0;
+  if (params.cursor) {
+    startIndex = sortedEvents.findIndex(e => e.id === params.cursor) + 1;
+  }
+
+  // If cursor is invalid or points to end, return empty
+  if (startIndex === 0 && params.cursor) {
+    return { items: [], nextCursor: null };
+  }
+
+  const items = sortedEvents.slice(startIndex, startIndex + params.limit);
+  const nextCursor =
+    items.length > 0 && startIndex + items.length < sortedEvents.length
+      ? items[items.length - 1].id
+      : null;
+
+  return { items, nextCursor };
+}
+
+export function __test__setAuditEvents(events: AuditEvent[]) {
+  auditEvents = [...events];
 }
 
 export function __test__setMaintenanceWindows(windows: MaintenanceWindow[]) {
