@@ -5,6 +5,7 @@ export interface RoutesFRecord {
   tags: string[];
   createdAt: string;
   updatedAt?: string;
+  etag?: string;
 }
 
 export interface MaintenanceWindow {
