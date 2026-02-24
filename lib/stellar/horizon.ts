@@ -1,4 +1,5 @@
 import { Server } from "@stellar/stellar-sdk";
+import { getStellarNetwork } from "./config";
 
 export interface FetchPaymentsParams {
   publicKey: string;
@@ -8,20 +9,25 @@ export interface FetchPaymentsParams {
 }
 
 export async function fetchPaymentsReceived(params: FetchPaymentsParams) {
-  const network = params.network || (process.env.NEXT_PUBLIC_STELLAR_NETWORK as any) || "testnet";
+  const network = params.network || getStellarNetwork();
 
   const server =
     network === "testnet"
       ? new Server("https://horizon-testnet.stellar.org")
       : new Server("https://horizon.stellar.org");
 
-  const payments = await server
+  const paymentsCall = server
     .payments()
     .forAccount(params.publicKey)
     .limit(params.limit || 20)
-    .cursor(params.cursor || "now")
-    .order("desc")
-    .call();
+    .order("desc");
+
+  // Only set cursor if provided; omitting it fetches from the beginning
+  if (params.cursor) {
+    paymentsCall.cursor(params.cursor);
+  }
+
+  const payments = await paymentsCall.call();
 
   const tips = payments.records
     .filter((payment: any) => {
@@ -41,8 +47,13 @@ export async function fetchPaymentsReceived(params: FetchPaymentsParams) {
       ledger: payment.ledger,
     }));
 
+  // Only set nextCursor if records are available
+  const nextCursor = payments.records.length > 0
+    ? payments.records[payments.records.length - 1]?.paging_token
+    : undefined;
+
   return {
     tips,
-    nextCursor: payments.records[payments.records.length - 1]?.paging_token,
+    nextCursor,
   };
 }

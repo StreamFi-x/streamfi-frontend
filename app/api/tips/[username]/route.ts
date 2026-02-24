@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { fetchPaymentsReceived } from '@/lib/stellar/horizon';
+import { getStellarNetwork } from '@/lib/stellar/config';
 
 type TipRecord = {
   id: string;
@@ -75,7 +76,7 @@ export async function GET(
     }
 
     // 2. Fetch payments from Horizon API
-    const network = (process.env.NEXT_PUBLIC_STELLAR_NETWORK as any) || 'testnet';
+    const network = getStellarNetwork();
     const { tips, nextCursor } = await fetchPaymentsReceived({
       publicKey: user.stellar_public_key,
       limit,
