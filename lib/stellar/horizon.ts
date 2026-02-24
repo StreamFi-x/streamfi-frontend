@@ -1,11 +1,11 @@
-import StellarSdk from "@stellar/stellar-sdk";
-import { getHorizonUrl, type StellarNetwork } from "./config";
+import * as StellarSdk from "@stellar/stellar-sdk";
+import { getHorizonUrl, getStellarNetwork, type StellarNetwork } from "./config";
 
 export interface FetchPaymentsParams {
   publicKey: string;
   limit?: number;
   cursor?: string;
-  network: StellarNetwork;
+  network?: StellarNetwork;
 }
 
 export interface TipRecord {
@@ -32,10 +32,19 @@ interface HorizonPaymentRecord {
   ledger?: number;
 }
 
+interface HorizonResponse {
+  records: HorizonPaymentRecord[];
+}
+
 export async function fetchPaymentsReceived(
   params: FetchPaymentsParams
 ): Promise<{ tips: TipRecord[]; nextCursor: string | null }> {
-  const { publicKey, limit = 20, cursor = "now", network } = params;
+  const {
+    publicKey,
+    limit = 20,
+    cursor = "now",
+    network = getStellarNetwork(),
+  } = params;
 
   if (!publicKey || !publicKey.trim()) {
     return { tips: [], nextCursor: null };
@@ -46,18 +55,16 @@ export async function fetchPaymentsReceived(
     : 20;
 
   try {
-    const server = new Server(getHorizonUrl(network));
-    const response = await server
+    const server = new StellarSdk.Horizon.Server(getHorizonUrl(network));
+    const response = (await server
       .payments()
       .forAccount(publicKey)
       .cursor(cursor)
       .limit(safeLimit)
       .order("desc")
-      .call();
+      .call()) as HorizonResponse;
 
-    const records = ((response as { records?: HorizonPaymentRecord[] }).records ??
-      []) as HorizonPaymentRecord[];
-
+    const records = response.records ?? [];
     const incomingNativePayments = records.filter(record => {
       return (
         record.type === "payment" &&
@@ -69,7 +76,7 @@ export async function fetchPaymentsReceived(
     const tips: TipRecord[] = incomingNativePayments.map(record => ({
       id: record.id ?? record.paging_token ?? "",
       sender: record.from ?? "",
-      amount: record.amount ?? "0",
+      amount: record.amount ?? "0.0000000",
       asset: "XLM",
       txHash: record.transaction_hash ?? "",
       timestamp: record.created_at ?? "",
@@ -89,4 +96,35 @@ export async function fetchPaymentsReceived(
     return { tips: [], nextCursor: null };
   }
 }
-const { Server } = StellarSdk;
+
+export async function getAccountTipStats(publicKey: string) {
+  try {
+    const { tips } = await fetchPaymentsReceived({
+      publicKey,
+      limit: 200,
+      network: getStellarNetwork(),
+      cursor: "now",
+    });
+
+    let totalTipsReceived = 0;
+    let totalTipsCount = 0;
+    let lastTipAt: string | null = null;
+
+    tips.forEach(tip => {
+      totalTipsReceived += parseFloat(tip.amount);
+      totalTipsCount += 1;
+      if (!lastTipAt || tip.timestamp > lastTipAt) {
+        lastTipAt = tip.timestamp;
+      }
+    });
+
+    return {
+      totalTipsReceived: totalTipsReceived.toFixed(7),
+      totalTipsCount,
+      lastTipAt,
+    };
+  } catch (error) {
+    console.error("Error fetching Stellar account stats:", error);
+    throw error;
+  }
+}
