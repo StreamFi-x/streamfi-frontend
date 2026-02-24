@@ -7,7 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import type { SearchResult } from "@/types/explore";
-import { useAccount, useDisconnect } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { useAuth } from "@/components/auth/auth-provider";
 import ConnectModal from "../connectWallet";
 import ProfileModal from "./ProfileModal";
@@ -32,9 +32,8 @@ export default function Navbar({}: NavbarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, disconnect } = useStellarWallet();
   const { user, isLoading: authLoading } = useAuth();
-  const { disconnect } = useDisconnect();
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
@@ -44,14 +43,12 @@ export default function Navbar({}: NavbarProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
-  // Get display name from user data or fallback to address
   const getDisplayName = useCallback(() => {
     if (user?.username) {
       return user.username;
     }
 
     if (typeof window !== "undefined") {
-      // ✅ prevents SSR error
       try {
         const userData = sessionStorage.getItem("userData");
         if (userData) {
@@ -72,9 +69,7 @@ export default function Navbar({}: NavbarProps) {
     return "Unknown User";
   }, [user?.username, address]);
 
-  // Returns either the placeholder, username, or sliced address
   const renderDisplayName = () => {
-    // Show loading pulse while fetching user info
     if (isLoading) {
       return (
         <>
@@ -84,12 +79,10 @@ export default function Navbar({}: NavbarProps) {
       );
     }
 
-    // Try to get username from auth context
     if (user?.username) {
       return user.username;
     }
 
-    // Try to get username from sessionStorage
     try {
       const storedData = sessionStorage.getItem("userData");
       if (storedData) {
@@ -102,12 +95,10 @@ export default function Navbar({}: NavbarProps) {
       console.error("Error reading userData from sessionStorage:", err);
     }
 
-    // Fallback to sliced address
     if (address) {
       return `${address.substring(0, 6)}...${address.slice(-4)}`;
     }
 
-    // If all else fails
     return "Unknown User";
   };
 
@@ -135,14 +126,13 @@ export default function Navbar({}: NavbarProps) {
 
   const handleCloseProfileModal = () => {
     setProfileModalOpen(false);
-    setHasCheckedProfile(true); // Prevent modal from showing again
+    setHasCheckedProfile(true);
   };
 
   const handleNextStep = (step: "profile" | "verify" | "success") => {
     setConnectStep(step);
   };
 
-  // Reset profile check flag when wallet address changes
   useEffect(() => {
     setHasCheckedProfile(false);
   }, [address]);
@@ -164,14 +154,12 @@ export default function Navbar({}: NavbarProps) {
     };
   }, []);
 
-  // Autofocus input on mount
   useEffect(() => {
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, []);
 
-  // Fetch live search results
   useEffect(() => {
     if (searchQuery.trim() === "") {
       setSearchResults([]);
@@ -190,7 +178,7 @@ export default function Navbar({}: NavbarProps) {
             id: cat.id,
             title: cat.title,
             image: cat.imageurl || "/placeholder.svg",
-            type: "category", // static label
+            type: "category",
           })
         );
 
@@ -213,12 +201,10 @@ export default function Navbar({}: NavbarProps) {
     }
   };
 
-  // Toggle profile dropdown
   const toggleProfileDropdown = () => {
     setIsProfileDropdownOpen(!isProfileDropdownOpen);
   };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -236,33 +222,26 @@ export default function Navbar({}: NavbarProps) {
     };
   }, []);
 
-  // Profile check: show modal only for new users (no profile in DB)
   useEffect(() => {
-    // Wait for auth to finish loading
     if (authLoading) {
       return;
     }
 
-    // Not connected — just stop the loading indicator
     if (!isConnected || !address) {
       setIsLoading(false);
       return;
     }
 
-    // Already checked for this address
     if (hasCheckedProfile) {
       setIsLoading(false);
       return;
     }
 
-    // Auth finished loading — now check user status
     setHasCheckedProfile(true);
 
     if (!user) {
-      // New user (no profile in DB) — show registration modal
       setProfileModalOpen(true);
     } else {
-      // Existing user — store data, do NOT show modal
       sessionStorage.setItem("userData", JSON.stringify(user));
       sessionStorage.setItem("username", user.username);
     }
@@ -270,7 +249,6 @@ export default function Navbar({}: NavbarProps) {
     setIsLoading(false);
   }, [isConnected, address, authLoading, user, hasCheckedProfile]);
 
-  // Close modal automatically when wallet is connected
   useEffect(() => {
     if (isConnected) {
       setIsModalOpen(false);
@@ -318,7 +296,7 @@ export default function Navbar({}: NavbarProps) {
                   setIsSearchDropdownOpen(true);
                 }
               }}
-              className={`w-full bg-input rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:ring-1 focus:ring-highlight focus:outline-none`}
+              className="w-full bg-input rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:ring-1 focus:ring-highlight focus:outline-none"
             />
             <Search
               className="absolute left-3 top-[47%] transform -translate-y-1/2 text-gray-400"
@@ -332,13 +310,13 @@ export default function Navbar({}: NavbarProps) {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className={`absolute top-full left-0 right-0 mt-2 bg-dropdown border border-border shadow-lg rounded-md z-20`}
+                className="absolute top-full left-0 right-0 mt-2 bg-dropdown border border-border shadow-lg rounded-md z-20"
               >
                 <div className="p-2">
                   {searchResults.map(result => (
                     <Link
                       key={result.id}
-                      className={`flex items-center gap-3 p-2 hover:bg-surface-hover rounded-md cursor-pointer relative z-30`}
+                      className="flex items-center gap-3 p-2 hover:bg-surface-hover rounded-md cursor-pointer relative z-30"
                       href={`/browse/${result.type}/${result.title.toLowerCase()}`}
                     >
                       <div className="w-10 h-10 rounded bg-gray-700 overflow-hidden">
@@ -352,12 +330,10 @@ export default function Navbar({}: NavbarProps) {
                         />
                       </div>
                       <div>
-                        <div className={`text-sm font-medium text-foreground`}>
+                        <div className="text-sm font-medium text-foreground">
                           {result.title}
                         </div>
-                        <div
-                          className={`text-xs text-muted-foreground capitalize`}
-                        >
+                        <div className="text-xs text-muted-foreground capitalize">
                           {result.type}
                         </div>
                       </div>
@@ -372,35 +348,28 @@ export default function Navbar({}: NavbarProps) {
         <div className="flex items-center gap-4">
           {isConnected && address && (
             <>
-              {/* Bell icon - only show when not loading */}
               {!isLoading && (
                 <button>
-                  <Bell className={`text-foreground w-4 h-4 `} />
+                  <Bell className="text-foreground w-4 h-4" />
                 </button>
               )}
 
-              {/* Avatar with dropdown */}
               <div className="relative avatar-container">
                 <div
-                  className={`cursor-pointer flex gap-[10px] font-medium items-center text-[14px] text-white`}
+                  className="cursor-pointer flex gap-[10px] font-medium items-center text-[14px] text-white"
                   onClick={toggleProfileDropdown}
                 >
                   {isLoading ? (
-                    // Skeletons while loading
                     <>
                       <div className="w-16 h-8 animate-pulse bg-muted rounded-md hidden sm:block" />
                       <div className="w-8 h-8 rounded-full bg-muted animate-pulse inline-flex" />
                     </>
                   ) : (
                     <>
-                      {/* Display name with fixed width to prevent layout shift */}
-                      <span
-                        className={`text-foreground hidden sm:flex  justify-end truncate`}
-                      >
+                      <span className="text-foreground hidden sm:flex justify-end truncate">
                         {renderDisplayName()}
                       </span>
 
-                      {/* Avatar */}
                       {typeof userAvatar === "string" &&
                       userAvatar.includes("cloudinary.com") ? (
                         <img
@@ -420,12 +389,9 @@ export default function Navbar({}: NavbarProps) {
                     </>
                   )}
 
-                  <ChevronDown
-                    className={`text-foreground w-4 h-4 sm:hidden mt-0.5`}
-                  />
+                  <ChevronDown className="text-foreground w-4 h-4 sm:hidden mt-0.5" />
                 </div>
 
-                {/* Render ProfileDropdown with AnimatePresence */}
                 <AnimatePresence>
                   {isProfileDropdownOpen && (
                     <div className="absolute top-full -right-2 sm:right-0 mt-2 profile-dropdown-container z-50">
@@ -447,7 +413,7 @@ export default function Navbar({}: NavbarProps) {
           {!isConnected && (
             <button
               onClick={handleConnectWallet}
-              className={`bg-highlight hover:bg-highlight/80 text-background px-4 py-3 rounded-md text-sm font-medium`}
+              className="bg-highlight hover:bg-highlight/80 text-background px-4 py-3 rounded-md text-sm font-medium"
             >
               Connect Wallet
             </button>
@@ -455,19 +421,14 @@ export default function Navbar({}: NavbarProps) {
         </div>
       </header>
 
-      {/* Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <motion.div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* Backdrop */}
             <div
-              className={`absolute inset-0 bg-overlay`}
+              className="absolute inset-0 bg-overlay"
               onClick={() => setIsModalOpen(false)}
             />
-            {/* Modal Content */}
-            <motion.div
-              className={`bg-modal border border-border shadow-xl rounded-lg p-6 z-10`}
-            >
+            <motion.div className="bg-modal border border-border shadow-xl rounded-lg p-6 z-10">
               <ConnectModal
                 isModalOpen={isModalOpen}
                 setIsModalOpen={setIsModalOpen}
@@ -485,8 +446,6 @@ export default function Navbar({}: NavbarProps) {
           />
         )}
       </AnimatePresence>
-
-      {/* {isLoading && <SimpleLoader />} */}
     </>
   );
 }

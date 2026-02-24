@@ -3,16 +3,16 @@
 import React, { useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { MessageSquare, X, Send, Smile } from "lucide-react";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { useStreamData } from "@/hooks/useStreamData";
 import { useChat } from "@/hooks/useChat";
 
 export default function Chat() {
-  const { address } = useAccount();
-  const { streamData } = useStreamData(address);
+  const { publicKey: address } = useStellarWallet();
+  const { streamData } = useStreamData(address || undefined);
   const { messages, sendMessage, isSending, isLoading } = useChat(
     streamData?.playbackId,
-    address,
+    address || undefined,
     streamData?.isLive ?? false
   );
 
@@ -163,3 +163,4 @@ export default function Chat() {
     </motion.div>
   );
 }
+

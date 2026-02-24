@@ -20,9 +20,9 @@ import { Keypair } from "@stellar/stellar-sdk";
 // Test configuration
 const TEST_CONFIG = {
   // Replace these with your testnet accounts
-  sourcePublicKey: "GA5AJZ2HYSKNN5MGZGBBVCJ73RXOGXTWFV4FWCUDLVCJXKSLGTAI7L5F", // Viewer wallet
-  sourceSecretKey: "SDTIZXLNUEXETRYIBQKYQ7MO3YXRKBPPTRJDZODQHZT57LZ7DBNENRTC", // Viewer secret
-  destinationPublicKey: "GD4KLYVQBT225M5UVGIKAQCHRI3YU2S7IOJG6B667ZVDTPGIXKJAOTQT", // Creator wallet
+  sourcePublicKey: process.env.TEST_STELLAR_PUBLIC_KEY || "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", // Viewer wallet
+  sourceSecretKey: process.env.TEST_STELLAR_SECRET_KEY || "", // Viewer secret (load from env)
+  destinationPublicKey: process.env.TEST_STELLAR_DESTINATION_KEY || "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", // Creator wallet
   amount: "10.0000000", // 10 XLM
   network: "testnet" as const,
 };
@@ -101,8 +101,9 @@ async function runTests() {
 
       // Test 7: Submit transaction (requires signing)
       console.log("✅ Test 7: Submit transaction");
-      if (TEST_CONFIG.sourceSecretKey.startsWith("SX")) {
-        console.log("   ⚠️  SKIPPED: Add source secret key to TEST_CONFIG to test submission");
+      if (!TEST_CONFIG.sourceSecretKey) {
+        console.log("   ⚠️  SKIPPED: Set TEST_STELLAR_SECRET_KEY environment variable to test submission");
+        console.log("   📝 Example: TEST_STELLAR_SECRET_KEY=SXXXXXXX... npx tsx lib/stellar/__tests__/payments.test.ts");
       } else {
         try {
           // Sign the transaction

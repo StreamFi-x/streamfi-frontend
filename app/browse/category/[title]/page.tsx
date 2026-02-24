@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import useSWR from "swr";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -185,7 +185,7 @@ function CategoryHeroSkeleton() {
 export default function CategoryDetailPage() {
   const params = useParams();
   const title = params.title as string;
-  const { address } = useAccount();
+  const { publicKey: address } = useStellarWallet();
 
   // State for category data
   const [categoryData, setCategoryData] = useState({
@@ -529,3 +529,4 @@ export default function CategoryDetailPage() {
     </div>
   );
 }
+
