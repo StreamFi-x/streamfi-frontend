@@ -15,14 +15,27 @@ jest.mock("next/server", () => ({
 import { GET as healthGET } from "../health/route";
 import { POST as validatePOST } from "../validate/route";
 import { POST as importPOST } from "../import/route";
+import { GET as preferencesGET, POST as preferencesPOST } from "../preferences/route";
+import { POST as webhookPOST } from "../webhook/route";
 
-const makeRequest = (method: string, path: string, body?: unknown) =>
+const makeRequest = (method: string, path: string, body?: unknown, headers?: Record<string, string>) =>
   new Request(`http://localhost${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
+      ...(headers || {}),
     },
     body: body ? JSON.stringify(body) : undefined,
+  });
+
+const makeRawRequest = (method: string, path: string, rawBody: string, headers?: Record<string, string>) =>
+  new Request(`http://localhost${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(headers || {}),
+    },
+    body: rawBody,
   });
 
 describe("GET /api/routes-f/health", () => {
@@ -86,5 +99,66 @@ describe("POST /api/routes-f/import", () => {
       makeRequest("POST", "/api/routes-f/import", payload)
     );
     expect(res.status).toBe(422);
+  });
+});
+
+describe("/api/routes-f/preferences", () => {
+  it("returns defaults on GET", async () => {
+    const res = await preferencesGET(
+      makeRequest("GET", "/api/routes-f/preferences")
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.preferences).toBeDefined();
+  });
+
+  it("rejects invalid keys on POST", async () => {
+    const res = await preferencesPOST(
+      makeRequest("POST", "/api/routes-f/preferences", { invalidKey: true })
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("accepts valid updates on POST", async () => {
+    const res = await preferencesPOST(
+      makeRequest("POST", "/api/routes-f/preferences", { compactMode: true })
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.preferences.compactMode).toBe(true);
+  });
+});
+
+describe("POST /api/routes-f/webhook", () => {
+  const secret = "test-secret";
+
+  beforeAll(() => {
+    process.env.ROUTES_F_WEBHOOK_SECRET = secret;
+  });
+
+  it("returns 401 for invalid signature", async () => {
+    const res = await webhookPOST(
+      makeRawRequest("POST", "/api/routes-f/webhook", "{}", {
+        "x-signature": "bad-signature",
+      })
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 200 for valid signature", async () => {
+    const payload = "{\"event\":\"test\"}";
+    const crypto = await import("crypto");
+    const signature = crypto
+      .createHmac("sha256", secret)
+      .update(payload)
+      .digest("hex");
+
+    const res = await webhookPOST(
+      makeRawRequest("POST", "/api/routes-f/webhook", payload, {
+        "x-signature": signature,
+      })
+    );
+
+    expect(res.status).toBe(200);
   });
 });
