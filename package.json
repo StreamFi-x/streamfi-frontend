@@ -144,5 +144,8 @@
     "commitizen": {
       "path": "cz-conventional-changelog"
     }
+  },
+  "overrides": {
+    "starknet-types-07": "npm:@starknet-io/types-js@0.9.2"
   }
 }
