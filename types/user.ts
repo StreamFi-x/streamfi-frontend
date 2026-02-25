@@ -24,6 +24,8 @@ export interface User {
   creator: Creator;
   created_at: string;
   updated_at: string;
+  /** When true, Mux records live streams and makes them available as VOD. Default false. */
+  enable_recording?: boolean;
 }
 
 export interface UserRegistrationInput {
@@ -46,4 +48,5 @@ export type UserUpdateInput = {
   emailNotifications?: boolean;
   socialLinks?: Record<string, string>;
   creator?: Creator;
+  enable_recording?: boolean;
 };

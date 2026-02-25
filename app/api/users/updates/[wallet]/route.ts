@@ -34,6 +34,11 @@ export async function PUT(
     const emailVerified = formData.get("emailVerified") ?? user.emailVerified;
     const emailNotifications =
       formData.get("emailNotifications") ?? user.emailNotifications;
+    const enableRecordingRaw = formData.get("enable_recording");
+    const enableRecording =
+      enableRecordingRaw !== null && enableRecordingRaw !== undefined
+        ? String(enableRecordingRaw) === "true"
+        : user.enable_recording;
 
     // Social links - Use lowercase column name to match database
     let processedSocialLinks = user.sociallinks;
@@ -156,7 +161,7 @@ export async function PUT(
       }
     }
 
-    // Prepare SQL update - Use lowercase column name
+    // Prepare SQL update - Use lowercase column name for Postgres
     const updatedUser = await sql`
       UPDATE users SET
         username = ${username},
@@ -168,9 +173,10 @@ export async function PUT(
         emailverified = ${emailVerified},
         emailnotifications = ${emailNotifications},
         creator = ${creator ? JSON.stringify(creator) : user.creator},
+        enable_recording = ${enableRecording},
         updated_at = CURRENT_TIMESTAMP
       WHERE LOWER(wallet) = LOWER(${normalizedWallet})
-      RETURNING id, username, email, streamkey, avatar, bio, sociallinks, emailverified, emailnotifications, creator, wallet, created_at, updated_at
+      RETURNING id, username, email, streamkey, avatar, bio, sociallinks, emailverified, emailnotifications, creator, wallet, enable_recording, created_at, updated_at
     `;
 
     return NextResponse.json({
