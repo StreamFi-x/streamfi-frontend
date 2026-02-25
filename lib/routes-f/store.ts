@@ -1,4 +1,4 @@
-import { AuditEvent, MaintenanceWindow, RoutesFRecord } from "./types";
+import { AuditEvent, MaintenanceWindow, RoutesFRecord, RoutesFJob } from "./types";
 import { sanitizeObject } from "./sanitizer";
 
 let routesFRecords: RoutesFRecord[] = [
@@ -9,6 +9,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["guide", "getting-started"],
     createdAt: "2026-02-20T10:00:00.000Z",
     updatedAt: "2026-02-20T10:00:00.000Z",
+    etag: `"2026-02-20T10:00:00.000Z"`,
   },
   {
     id: "rf-002",
@@ -17,6 +18,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["metrics", "performance"],
     createdAt: "2026-02-21T12:30:00.000Z",
     updatedAt: "2026-02-21T12:30:00.000Z",
+    etag: `"2026-02-21T12:30:00.000Z"`,
   },
   {
     id: "rf-003",
@@ -25,6 +27,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["cache", "architecture"],
     createdAt: "2026-02-22T08:15:00.000Z",
     updatedAt: "2026-02-22T08:15:00.000Z",
+    etag: `"2026-02-22T08:15:00.000Z"`,
   },
   {
     id: "rf-004",
@@ -33,6 +36,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["flags", "rollout"],
     createdAt: "2026-02-23T09:45:00.000Z",
     updatedAt: "2026-02-23T09:45:00.000Z",
+    etag: `"2026-02-23T09:45:00.000Z"`,
   },
   {
     id: "rf-005",
@@ -41,6 +45,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["operations", "maintenance"],
     createdAt: "2026-02-24T01:05:00.000Z",
     updatedAt: "2026-02-24T01:05:00.000Z",
+    etag: `"2026-02-24T01:05:00.000Z"`,
   },
 ];
 
@@ -84,20 +89,33 @@ let auditEvents: AuditEvent[] = [
   },
 ];
 
-let routesFJobs: import("./types").RoutesFJob[] = [
+let routesFJobs: RoutesFJob[] = [
   { id: "job-queued", status: "queued", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
   { id: "job-running", status: "running", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
   { id: "job-complete", status: "complete", result: { data: "success" }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
   { id: "job-failed", status: "failed", error: "Something went wrong", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
 ];
 
-export function getRoutesFJob(id: string): import("./types").RoutesFJob | undefined {
+
+
+/* ============================= */
+/*            JOBS               */
+/* ============================= */
+
+export function getRoutesFJob(id: string): RoutesFJob | undefined {
   return routesFJobs.find(job => job.id === id);
 }
 
-export function __test__setRoutesFJobs(jobs: import("./types").RoutesFJob[]) {
+export function __test__setRoutesFJobs(jobs: RoutesFJob[]) {
   routesFJobs = [...jobs];
 }
+
+
+
+/* ============================= */
+/*        ROUTES-F RECORDS      */
+/* ============================= */
+
 export function getRoutesFRecords(): RoutesFRecord[] {
   return [...routesFRecords];
 }
@@ -110,6 +128,31 @@ export function getRecentRoutesFRecords(limit: number): RoutesFRecord[] {
   return [...routesFRecords]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit);
+}
+
+export function createRoutesFRecord(input: {
+  title: string;
+  description: string;
+  tags?: string[];
+}): RoutesFRecord {
+  if (!input.title?.trim() || !input.description?.trim()) {
+    throw new Error("invalid-payload");
+  }
+
+  const now = new Date().toISOString();
+
+  const newRecord: RoutesFRecord = {
+    id: `rf-${Math.random().toString(36).slice(2, 10)}`,
+    title: input.title.trim(),
+    description: input.description.trim(),
+    tags: input.tags || [],
+    createdAt: now,
+    updatedAt: now,
+    etag: `"${now}"`,
+  };
+
+  routesFRecords = [newRecord, ...routesFRecords];
+  return newRecord;
 }
 
 export function getRoutesFRecordById(id: string): RoutesFRecord | undefined {
@@ -126,22 +169,22 @@ export function updateRoutesFRecord(
 
   const current = routesFRecords[index];
 
-  // If-Match concurrency control
   if (ifMatchHeader) {
-    const etag = current.etag || `"${current.updatedAt || current.createdAt}"`;
+    const etag = current.etag || `"${current.updatedAt}"`;
     if (ifMatchHeader !== etag) {
       throw new Error("ETAG_MISMATCH");
     }
   }
 
+  const updatedAt = new Date().toISOString();
+
   const updated: RoutesFRecord = {
     ...current,
     ...updates,
-    id: current.id, // Cannot update ID
-    updatedAt: new Date().toISOString(),
+    id: current.id,
+    updatedAt,
+    etag: `"${updatedAt}"`,
   };
-
-  updated.etag = `"${updated.updatedAt}"`;
 
   routesFRecords[index] = updated;
   return updated;
@@ -154,6 +197,12 @@ export function deleteRoutesFRecord(id: string): boolean {
   routesFRecords.splice(index, 1);
   return true;
 }
+
+
+
+/* ============================= */
+/*            SEARCH             */
+/* ============================= */
 
 export function searchRoutesFRecords(params: {
   query?: string;
@@ -171,9 +220,8 @@ export function searchRoutesFRecords(params: {
         record.title,
         record.description,
         record.tags.join(" "),
-      ]
-        .join(" ")
-        .toLowerCase();
+      ].join(" ").toLowerCase();
+
       return haystack.includes(query);
     });
   }
@@ -194,9 +242,15 @@ export function searchRoutesFRecords(params: {
   };
 }
 
+
+
+/* ============================= */
+/*     MAINTENANCE WINDOWS      */
+/* ============================= */
+
 function windowsOverlap(a: MaintenanceWindow, b: MaintenanceWindow) {
   return Date.parse(a.start) < Date.parse(b.end) &&
-    Date.parse(b.start) < Date.parse(a.end);
+         Date.parse(b.start) < Date.parse(a.end);
 }
 
 export function getMaintenanceWindows(now = new Date()): MaintenanceWindow[] {
@@ -241,9 +295,8 @@ export function createMaintenanceWindow(input: {
     throw new Error("overlap");
   }
 
-  maintenanceWindows = [...maintenanceWindows, candidate].sort((a, b) =>
-    a.start.localeCompare(b.start)
-  );
+  maintenanceWindows = [...maintenanceWindows, candidate]
+    .sort((a, b) => a.start.localeCompare(b.start));
 
   return candidate;
 }
@@ -252,25 +305,29 @@ export function clearMaintenanceWindows() {
   maintenanceWindows = [];
 }
 
+
+
+/* ============================= */
+/*           AUDIT TRAIL        */
+/* ============================= */
+
 export function getAuditTrail(params: {
   limit: number;
   cursor?: string;
 }): { items: AuditEvent[]; nextCursor: string | null } {
-  const sortedEvents = [...auditEvents].sort((a, b) =>
-    b.timestamp.localeCompare(a.timestamp)
-  );
+  const sortedEvents = [...auditEvents]
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
   let startIndex = 0;
-  if (params.cursor) {
-    startIndex = sortedEvents.findIndex(e => e.id === params.cursor) + 1;
-  }
 
-  // If cursor is invalid or points to end, return empty
-  if (startIndex === 0 && params.cursor) {
-    return { items: [], nextCursor: null };
+  if (params.cursor) {
+    const index = sortedEvents.findIndex(e => e.id === params.cursor);
+    if (index === -1) return { items: [], nextCursor: null };
+    startIndex = index + 1;
   }
 
   const items = sortedEvents.slice(startIndex, startIndex + params.limit);
+
   const nextCursor =
     items.length > 0 && startIndex + items.length < sortedEvents.length
       ? items[items.length - 1].id
@@ -278,6 +335,12 @@ export function getAuditTrail(params: {
 
   return { items, nextCursor };
 }
+
+
+
+/* ============================= */
+/*        TEST HELPERS          */
+/* ============================= */
 
 export function __test__setAuditEvents(events: AuditEvent[]) {
   auditEvents = sanitizeObject([...events]);
