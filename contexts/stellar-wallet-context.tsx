@@ -16,7 +16,13 @@ import {
   FREIGHTER_ID,
 } from "@creit.tech/stellar-wallets-kit";
 
+const network =
+  process.env.NEXT_PUBLIC_STELLAR_NETWORK === "pubnet"
+    ? WalletNetwork.PUBLIC
+    : WalletNetwork.TESTNET;
+
 interface StellarWalletContextType {
+  kit: StellarWalletsKit;
   address: string | null;
   publicKey: string | null;
   isConnected: boolean;
@@ -26,6 +32,7 @@ interface StellarWalletContextType {
   isLoading: boolean;
   isConnecting: boolean;
   error: string | null;
+  network: WalletNetwork;
 }
 
 const StellarWalletContext = createContext<
@@ -48,14 +55,16 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const hasAttemptedAutoConnect = useRef(false);
 
-  const [kit] = useState(
-    () =>
-      new StellarWalletsKit({
-        selectedWalletId: FREIGHTER_ID,
-        network: WalletNetwork.TESTNET,
-        modules: allowAllModules(),
-      })
-  );
+  const [kit] = useState(() => {
+    if (typeof window === "undefined") {
+      return null as unknown as StellarWalletsKit;
+    }
+    return new StellarWalletsKit({
+      selectedWalletId: FREIGHTER_ID,
+      network,
+      modules: allowAllModules(),
+    });
+  });
 
   const isConnected = !!publicKey;
   const status = isConnecting
@@ -143,6 +152,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   return (
     <StellarWalletContext.Provider
       value={{
+        kit,
         address: publicKey,
         publicKey,
         isConnected,
@@ -152,6 +162,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         isLoading: isConnecting,
         isConnecting,
         error,
+        network,
       }}
     >
       {children}

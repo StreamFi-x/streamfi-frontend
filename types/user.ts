@@ -1,3 +1,6 @@
+/** Stellar public key — 56-character Base32 string starting with 'G' */
+export type StellarPublicKey = string;
+
 export interface SocialLink {
   socialTitle: string;
   socialLink: string;
@@ -12,7 +15,8 @@ export interface Creator {
 
 export interface User {
   id: string;
-  wallet: string;
+  /** Stellar public key (G..., 56 characters) */
+  wallet: StellarPublicKey;
   username: string;
   email: string;
   streamkey?: string;
@@ -29,7 +33,8 @@ export interface User {
 export interface UserRegistrationInput {
   email: string;
   username: string;
-  wallet: string;
+  /** Stellar public key (G..., 56 characters) */
+  wallet: StellarPublicKey;
   socialLinks?: SocialLink[];
   emailNotifications?: boolean;
   creator?: Partial<Creator>;
@@ -39,7 +44,8 @@ export type UserUpdateInput = {
   username?: string;
   email?: string;
   bio?: string;
-  wallet?: string;
+  /** Stellar public key (G..., 56 characters) */
+  wallet?: StellarPublicKey;
   avatar?: string | File;
   streamkey?: string;
   emailVerified?: boolean;

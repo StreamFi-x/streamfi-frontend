@@ -1,185 +1,239 @@
-import * as StellarSdk from "@stellar/stellar-sdk";
 import {
-  StellarWalletsKit,
-  WalletNetwork,
-  ISupportedWallet,
-  FREIGHTER_ID,
-  FreighterModule,
-  xBullModule,
-} from "@creit.tech/stellar-wallets-kit";
+  TransactionBuilder,
+  Networks,
+  Operation,
+  Asset,
+  BASE_FEE,
+  Memo,
+  Transaction,
+  Horizon,
+} from "@stellar/stellar-sdk";
 
-// Stellar network configuration
-const HORIZON_URL = process.env.NEXT_PUBLIC_STELLAR_HORIZON_URL || "https://horizon-testnet.stellar.org";
-const NETWORK_PASSPHRASE = process.env.NEXT_PUBLIC_STELLAR_NETWORK === "public"
-  ? StellarSdk.Networks.PUBLIC
-  : StellarSdk.Networks.TESTNET;
+const Server = Horizon.Server;
 
-// Initialize Stellar server
-const server = new StellarSdk.Horizon.Server(HORIZON_URL);
+interface BuildTipTransactionParams {
+  sourcePublicKey: string; // Viewer's Stellar wallet
+  destinationPublicKey: string; // Creator's Stellar wallet
+  amount: string; // XLM amount (e.g., "10.0000000")
+  network: "testnet" | "mainnet";
+}
 
-/**
- * Get the Stellar Wallets Kit instance
- */
-export function getStellarWalletsKit(): StellarWalletsKit {
-  const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK === "public"
-    ? WalletNetwork.PUBLIC
-    : WalletNetwork.TESTNET;
-
-  return new StellarWalletsKit({
-    network,
-    selectedWalletId: FREIGHTER_ID,
-    modules: [new FreighterModule(), new xBullModule()],
-  });
+interface SubmitTransactionResult {
+  success: boolean;
+  hash?: string;
+  ledger?: number;
+  error?: string;
+  resultCode?: string;
 }
 
 /**
- * Get account details from Stellar network
+ * Get Stellar Horizon server instance based on network
  */
-export async function getAccount(publicKey: string) {
-  try {
-    return await server.loadAccount(publicKey);
-  } catch (error) {
-    console.error("Error loading account:", error);
-    throw new Error("Failed to load account. Please ensure the account exists and is funded.");
-  }
+function getServer(network: "testnet" | "mainnet"): typeof Server.prototype {
+  const horizonUrl =
+    network === "testnet"
+      ? "https://horizon-testnet.stellar.org"
+      : "https://horizon.stellar.org";
+
+  return new Server(horizonUrl);
 }
 
 /**
- * Get the minimum balance required for an account
+ * Get Stellar network passphrase based on network type
  */
-export async function getMinimumBalance(): Promise<number> {
-  try {
-    const ledger = await server.ledgers().order("desc").limit(1).call();
-    const baseReserve = ledger.records[0].base_reserve_in_stroops;
-    // Minimum balance = (2 + number of entries) * base reserve
-    // For a basic account: 2 * base reserve
-    return (2 * Number(baseReserve)) / 10000000; // Convert stroops to XLM
-  } catch (error) {
-    console.error("Error getting minimum balance:", error);
-    return 1; // Default minimum balance
-  }
+function getNetworkPassphrase(network: "testnet" | "mainnet"): string {
+  return network === "testnet" ? Networks.TESTNET : Networks.PUBLIC;
 }
 
 /**
- * Build a tip transaction
+ * Build a Stellar payment transaction for tipping
+ * @param params - Transaction parameters including source, destination, amount, and network
+ * @returns Unsigned Stellar transaction ready to be signed
  */
 export async function buildTipTransaction(
-  senderPublicKey: string,
-  recipientPublicKey: string,
-  amount: string,
-  memo?: string
-): Promise<string> {
+  params: BuildTipTransactionParams
+): Promise<Transaction> {
+  const { sourcePublicKey, destinationPublicKey, amount, network } = params;
+
   try {
-    // Validate amount
-    const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      throw new Error("Invalid amount. Must be a positive number.");
-    }
+    const server = getServer(network);
+    const networkPassphrase = getNetworkPassphrase(network);
 
-    // Load sender account
-    const sourceAccount = await getAccount(senderPublicKey);
+    // Load the source account from the network
+    const sourceAccount = await server.loadAccount(sourcePublicKey);
 
-    // Build transaction
-    const transaction = new StellarSdk.TransactionBuilder(sourceAccount, {
-      fee: StellarSdk.BASE_FEE,
-      networkPassphrase: NETWORK_PASSPHRASE,
+    // Build the transaction
+    const transaction = new TransactionBuilder(sourceAccount, {
+      fee: BASE_FEE,
+      networkPassphrase,
     })
       .addOperation(
-        StellarSdk.Operation.payment({
-          destination: recipientPublicKey,
-          asset: StellarSdk.Asset.native(),
+        Operation.payment({
+          destination: destinationPublicKey,
+          asset: Asset.native(), // XLM
           amount: amount,
         })
       )
-      .setTimeout(180); // 3 minutes timeout
+      .addMemo(Memo.text("StreamFi Tip"))
+      .setTimeout(30) // 30 seconds timeout
+      .build();
 
-    // Add memo if provided
-    if (memo && memo.trim()) {
-      transaction.addMemo(StellarSdk.Memo.text(memo.slice(0, 28))); // Max 28 characters
-    }
-
-    const builtTransaction = transaction.build();
-    return builtTransaction.toXDR();
+    return transaction;
   } catch (error) {
-    console.error("Error building transaction:", error);
-    throw error;
+    if (error instanceof Error) {
+      // Handle specific Stellar errors
+      if (error.message.includes("Account not found")) {
+        throw new Error(
+          `Source account not found: ${sourcePublicKey}. Please ensure the account is funded.`
+        );
+      }
+      throw new Error(`Failed to build transaction: ${error.message}`);
+    }
+    throw new Error("Failed to build transaction: Unknown error");
   }
 }
 
 /**
- * Sign and submit a transaction using Stellar Wallets Kit
+ * Submit a signed transaction to the Stellar network
+ * @param transaction - Signed Stellar transaction
+ * @param network - Network to submit to (testnet or mainnet)
+ * @returns Result object with success status, transaction hash, and ledger number
  */
 export async function submitTransaction(
-  xdr: string,
-  publicKey: string
-): Promise<{
-  hash: string;
-  success: boolean;
-}> {
+  transaction: Transaction,
+  network: "testnet" | "mainnet"
+): Promise<SubmitTransactionResult> {
   try {
-    const kit = getStellarWalletsKit();
+    const server = getServer(network);
 
-    // Sign the transaction
-    const { signedTxXdr } = await kit.signTransaction(xdr, {
-      address: publicKey,
-      networkPassphrase: NETWORK_PASSPHRASE,
-    });
-
-    // Submit to network
-    const response = await server.submitTransaction(
-      StellarSdk.TransactionBuilder.fromXDR(signedTxXdr, NETWORK_PASSPHRASE) as StellarSdk.Transaction
-    );
+    // Submit the transaction to the network
+    const response = await server.submitTransaction(transaction);
 
     return {
+      success: true,
       hash: response.hash,
-      success: response.successful,
+      ledger: response.ledger,
     };
   } catch (error) {
-    console.error("Error submitting transaction:", error);
-    throw error;
+    // Handle Horizon-specific errors
+    if (error && typeof error === "object" && "response" in error) {
+      const horizonError = error as any;
+
+      const resultCodes =
+        horizonError.response?.data?.extras?.result_codes;
+      const transactionCode = resultCodes?.transaction;
+      const operationCodes = resultCodes?.operations;
+
+      // Map common error codes to user-friendly messages
+      let errorMessage = "Transaction failed";
+
+      if (transactionCode === "tx_insufficient_balance") {
+        errorMessage = "Insufficient XLM balance to complete the transaction";
+      } else if (transactionCode === "tx_bad_seq") {
+        errorMessage = "Transaction sequence number is invalid. Please try again";
+      } else if (transactionCode === "tx_insufficient_fee") {
+        errorMessage = "Transaction fee is too low";
+      } else if (operationCodes?.includes("op_underfunded")) {
+        errorMessage = "Insufficient funds for this payment";
+      } else if (operationCodes?.includes("op_no_destination")) {
+        errorMessage = "Destination account does not exist";
+      } else if (operationCodes?.includes("op_line_full")) {
+        errorMessage = "Destination account cannot receive more of this asset";
+      }
+
+      return {
+        success: false,
+        error: errorMessage,
+        resultCode: transactionCode || operationCodes?.join(", "),
+      };
+    }
+
+    // Generic error handling
+    if (error instanceof Error) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+
+    return {
+      success: false,
+      error: "Unknown error occurred while submitting transaction",
+    };
   }
 }
 
 /**
- * Validate if an account has sufficient balance for a transaction
+ * Get the current network from environment variable
+ * Defaults to testnet if not set
+ */
+export function getCurrentNetwork(): "testnet" | "mainnet" {
+  const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK;
+  return network === "mainnet" ? "mainnet" : "testnet";
+}
+
+/**
+ * Validate a Stellar public key format
+ * @param publicKey - Public key to validate
+ * @returns true if valid, false otherwise
+ */
+export function isValidStellarPublicKey(publicKey: string): boolean {
+  // Stellar public keys start with 'G' and are 56 characters long
+  return /^G[A-Z0-9]{55}$/.test(publicKey);
+}
+
+/**
+ * Format XLM amount to 7 decimal places (Stellar standard)
+ * @param amount - Amount to format
+ * @returns Formatted amount string
+ */
+export function formatXLMAmount(amount: number): string {
+  return amount.toFixed(7);
+}
+
+/**
+ * Calculate the fee estimate for a transaction in XLM
+ */
+export function calculateFeeEstimate(): number {
+  return (BASE_FEE as any) / 10000000;
+}
+
+/**
+ * Get the current XLM price in USD
+ */
+export async function getXLMPrice(): Promise<number> {
+  try {
+    const response = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=stellar&vs_currencies=usd"
+    );
+    const data = await response.json();
+    return data.stellar.usd;
+  } catch (error) {
+    console.error("Failed to fetch XLM price:", error);
+    return 0.12; // Fallback price
+  }
+}
+
+/**
+ * Check if the account has insufficient balance for the payment and fee
  */
 export async function hasInsufficientBalance(
   publicKey: string,
   amount: string
 ): Promise<boolean> {
   try {
-    const account = await getAccount(publicKey);
-    const balance = parseFloat(
-      account.balances.find((b: StellarSdk.Horizon.HorizonApi.BalanceLine) => b.asset_type === "native")?.balance || "0"
-    );
-    const minimumBalance = await getMinimumBalance();
-    const requiredAmount = parseFloat(amount) + parseFloat(StellarSdk.BASE_FEE) / 10000000; // Add fee
+    const network = getCurrentNetwork();
+    const server = getServer(network);
+    const account = await server.loadAccount(publicKey);
+    const nativeBalance = account.balances.find(b => b.asset_type === "native");
+    if (!nativeBalance) return true;
 
-    return balance - requiredAmount < minimumBalance;
+    const balance = parseFloat(nativeBalance.balance);
+    const required = parseFloat(amount) + calculateFeeEstimate();
+    return balance < required;
   } catch (error) {
-    console.error("Error checking balance:", error);
-    return true; // Assume insufficient balance on error
+    // If account doesn't exist, it definitely has insufficient balance
+    console.error("Failed to check balance:", error);
+    return true;
   }
-}
-
-/**
- * Get current XLM to USD price from Coinbase API
- */
-export async function getXLMPrice(): Promise<number> {
-  try {
-    const response = await fetch("https://api.coinbase.com/v2/prices/XLM-USD/spot");
-    const data = await response.json();
-    return parseFloat(data.data.amount);
-  } catch (error) {
-    console.error("Error fetching XLM price:", error);
-    return 0; // Return 0 if price fetch fails
-  }
-}
-
-/**
- * Calculate transaction fee estimate
- */
-export function calculateFeeEstimate(): number {
-  // BASE_FEE is in stroops (1 XLM = 10,000,000 stroops)
-  return parseFloat(StellarSdk.BASE_FEE) / 10000000;
 }

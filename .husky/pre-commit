@@ -1,2 +1,2 @@
 
-npx jest
+npm run build
