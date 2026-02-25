@@ -169,10 +169,12 @@ export async function getXLMPrice(): Promise<number> {
   try {
     const response = await fetch("https://api.coinbase.com/v2/prices/XLM-USD/spot");
     const data = await response.json();
-    return parseFloat(data.data.amount);
+    const amount = data?.data?.amount;
+    const parsed = amount != null ? parseFloat(String(amount)) : NaN;
+    return Number.isFinite(parsed) ? parsed : NaN;
   } catch (error) {
     console.error("Error fetching XLM price:", error);
-    return 0; // Return 0 if price fetch fails
+    return 0; // Return 0 on network/fetch failure
   }
 }
 
