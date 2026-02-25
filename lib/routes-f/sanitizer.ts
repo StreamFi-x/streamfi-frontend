@@ -17,18 +17,29 @@ export function sanitizeString(input: string | null | undefined): string {
     }
 
     let sanitized = input;
+    let previous;
 
-    // 1. Remove script tags and their content
-    // Note: Simple regex for simplicity, as per requirements.
-    sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+    // Loop to handle nested tags like <scr<script>ipt>
+    do {
+        previous = sanitized;
 
-    // 2. Remove all other HTML tags
-    sanitized = sanitized.replace(/<[^>]*>?/gm, "");
+        // 1. Remove script tags and their content (handling whitespace in closing tag)
+        sanitized = sanitized.replace(
+            /<script\b[^<]*(?:(?!<\/script\s*>)<[^<]*)*<\/script\s*>/gi,
+            ""
+        );
 
-    // 3. Normalize whitespace (tabs, multiple spaces, multiple newlines)
+        // 2. Remove all other HTML tags
+        sanitized = sanitized.replace(/<[^>]*>?/gm, "");
+
+        // 3. Specifically remove orphaned <script if it remains
+        sanitized = sanitized.replace(/<script/gi, "");
+    } while (sanitized !== previous);
+
+    // 4. Normalize whitespace (tabs, multiple spaces, multiple newlines)
     sanitized = sanitized.replace(/\s+/g, " ");
 
-    // 4. Final trim
+    // 5. Final trim
     return sanitized.trim();
 }
 

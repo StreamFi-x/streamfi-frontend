@@ -17,6 +17,16 @@ describe("Routes-F Sanitizer", () => {
         it("should remove script tags and their content", () => {
             expect(sanitizeString("<script>alert('xss')</script>Safe Content")).toBe("Safe Content");
             expect(sanitizeString("Safe<script src='evil.js'></script>Content")).toBe("Safe Content");
+            expect(sanitizeString("<script >alert('xss')</script >Safe")).toBe("Safe");
+        });
+
+        it("should handle nested tag bypasses", () => {
+            expect(sanitizeString("<scr<script>ipt>alert(1)</script>")).toBe("alert(1)");
+            expect(sanitizeString("<<script>script>alert(1)</</script>script>")).toBe("alert(1)");
+        });
+
+        it("should handle orphaned script starts", () => {
+            expect(sanitizeString("<script alert(1)")).toBe("alert(1)");
         });
 
         it("should handle mixed HTML and script tags", () => {
