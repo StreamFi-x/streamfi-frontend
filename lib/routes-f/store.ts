@@ -1,4 +1,5 @@
 import { AuditEvent, MaintenanceWindow, RoutesFRecord } from "./types";
+import { sanitizeObject } from "./sanitizer";
 
 let routesFRecords: RoutesFRecord[] = [
   {
@@ -88,7 +89,7 @@ export function getRoutesFRecords(): RoutesFRecord[] {
 }
 
 export function setRoutesFRecords(records: RoutesFRecord[]) {
-  routesFRecords = [...records];
+  routesFRecords = sanitizeObject([...records]);
 }
 
 export function getRecentRoutesFRecords(limit: number): RoutesFRecord[] {
@@ -155,8 +156,9 @@ export function createMaintenanceWindow(input: {
   end: string;
   reason?: string;
 }): MaintenanceWindow {
-  const startMs = Date.parse(input.start);
-  const endMs = Date.parse(input.end);
+  const sanitizedInput = sanitizeObject(input);
+  const startMs = Date.parse(sanitizedInput.start);
+  const endMs = Date.parse(sanitizedInput.end);
 
   if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
     throw new Error("invalid-time");
@@ -170,7 +172,7 @@ export function createMaintenanceWindow(input: {
     id: `mw-${Math.random().toString(36).slice(2, 10)}`,
     start: new Date(startMs).toISOString(),
     end: new Date(endMs).toISOString(),
-    reason: input.reason?.trim() || undefined,
+    reason: sanitizedInput.reason?.trim() || undefined,
     createdAt: new Date().toISOString(),
   };
 
@@ -221,13 +223,13 @@ export function getAuditTrail(params: {
 }
 
 export function __test__setAuditEvents(events: AuditEvent[]) {
-  auditEvents = [...events];
+  auditEvents = sanitizeObject([...events]);
 }
 
 export function __test__setMaintenanceWindows(windows: MaintenanceWindow[]) {
-  maintenanceWindows = [...windows];
+  maintenanceWindows = sanitizeObject([...windows]);
 }
 
 export function __test__setRoutesFRecords(records: RoutesFRecord[]) {
-  routesFRecords = [...records];
+  routesFRecords = sanitizeObject([...records]);
 }
