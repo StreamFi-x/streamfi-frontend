@@ -83,7 +83,18 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
     const resolvedParams = await Promise.resolve(params);
-    const { id } = resolvedParams;
+    const id = (resolvedParams.id || "").trim();
+
+    if (id.length === 0) {
+        return NextResponse.json({ error: "Not Found" }, { status: 404 });
+    }
+
+    if (!id.startsWith("rf-")) {
+        return NextResponse.json(
+            { error: "Bad Request", message: "Invalid ID format" },
+            { status: 400 }
+        );
+    }
 
     const record = getRoutesFRecordById(id);
     if (!record) {
