@@ -1,3 +1,5 @@
+import { StellarPublicKey } from "@/types/user";
+
 // Types
 export type Platform =
   | "instagram"
@@ -19,7 +21,8 @@ export interface FormState {
   username: string;
   email: string;
   bio: string;
-  wallet: string;
+  /** Stellar public key (G..., 56 characters) */
+  wallet: StellarPublicKey;
   socialLinkUrl: string;
   socialLinkTitle: string;
   language: string;
