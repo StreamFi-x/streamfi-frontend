@@ -24,6 +24,17 @@ export interface AuditEvent {
   timestamp: string;
 }
 
+export type JobStatus = "queued" | "running" | "complete" | "failed";
+
+export interface RoutesFJob {
+  id: string;
+  status: JobStatus;
+  createdAt: string;
+  updatedAt: string;
+  result?: any;
+  error?: string;
+}
+
 export type MetricsKey =
   | "flags"
   | "search"
