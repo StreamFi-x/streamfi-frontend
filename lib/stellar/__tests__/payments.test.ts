@@ -30,6 +30,22 @@ jest.mock("@stellar/stellar-sdk", () => {
   };
 });
 
+// Mock Stellar Wallets Kit - constructor returns shared instance so getStellarWalletsKit() returns it
+jest.mock("@creit.tech/stellar-wallets-kit", () => {
+  const mockKitInstance = {
+    signTransaction: jest.fn(),
+    getPublicKey: jest.fn(),
+  };
+  (global as any).__mockStellarKit = mockKitInstance;
+  return {
+    StellarWalletsKit: jest.fn(() => mockKitInstance),
+    WalletNetwork: { PUBLIC: "PUBLIC", TESTNET: "TESTNET" },
+    FREIGHTER_ID: "freighter",
+    FreighterModule: jest.fn(),
+    xBullModule: jest.fn(),
+  };
+});
+
 describe("Stellar Payments", () => {
   let validSenderKey: string;
   let validRecipientKey: string;
@@ -76,6 +92,24 @@ describe("Stellar Payments", () => {
       expect(transaction.memo.value).toBe("StreamFi Tip");
     });
 
+    it("should reject invalid amount (negative)", async () => {
+      await expect(
+        buildTipTransaction(buildParams({ amount: "-5" }))
+      ).rejects.toThrow();
+    });
+
+    it("should reject invalid amount (zero)", async () => {
+      await expect(
+        buildTipTransaction(buildParams({ amount: "0" }))
+      ).rejects.toThrow();
+    });
+
+    it("should reject invalid amount (NaN)", async () => {
+      await expect(
+        buildTipTransaction(buildParams({ amount: "abc" }))
+      ).rejects.toThrow();
+    });
+
     it("should handle account not found error", async () => {
       mockServerInstance.loadAccount.mockRejectedValue(
         new Error("Account not found")
@@ -89,6 +123,13 @@ describe("Stellar Payments", () => {
 
       expect(transaction).toBeDefined();
       expect(transaction.operations).toHaveLength(1);
+    });
+
+    it("should build transaction with memo", async () => {
+      const transaction = await buildTipTransaction(buildParams());
+
+      expect(transaction).toBeDefined();
+      expect(transaction.memo).toBeDefined();
     });
   });
 
@@ -112,7 +153,7 @@ describe("Stellar Payments", () => {
       expect(result.ledger).toBe(12345);
     });
 
-    it("should handle transaction submission failure", async () => {
+    it("should return failure when submission fails", async () => {
       mockServerInstance.loadAccount.mockResolvedValue({
         accountId: () => validSenderKey,
         sequenceNumber: () => "123456",
@@ -127,6 +168,32 @@ describe("Stellar Payments", () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
+    });
+
+    it("should return failure with message on Horizon error", async () => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        accountId: () => validSenderKey,
+        sequenceNumber: () => "123456",
+        incrementSequenceNumber: jest.fn(),
+      });
+      const transaction = await buildTipTransaction(buildParams({ amount: "1" }));
+      mockServerInstance.submitTransaction.mockRejectedValue({
+        response: {
+          data: {
+            extras: {
+              result_codes: {
+                transaction: "tx_insufficient_balance",
+                operations: ["op_underfunded"],
+              },
+            },
+          },
+        },
+      });
+
+      const result = await submitTransaction(transaction, "testnet");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Insufficient");
     });
   });
 
@@ -189,14 +256,22 @@ describe("Stellar Payments", () => {
     const COINGECKO_URL =
       "https://api.coingecko.com/api/v3/simple/price?ids=stellar&vs_currencies=usd";
 
+    let fetchSpy: jest.SpyInstance;
+
     beforeEach(() => {
-      global.fetch = jest.fn() as any;
+      fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
+        json: async () => ({ stellar: { usd: 0.12 } }),
+      } as Response);
+    });
+
+    afterEach(() => {
+      fetchSpy?.mockRestore();
     });
 
     it("should fetch XLM price successfully", async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+      fetchSpy.mockResolvedValueOnce({
         json: async () => ({ stellar: { usd: 0.12 } }),
-      });
+      } as Response);
 
       const price = await getXLMPrice();
 
@@ -204,28 +279,28 @@ describe("Stellar Payments", () => {
       expect(global.fetch).toHaveBeenCalledWith(COINGECKO_URL);
     });
 
-    it("should return 0.12 fallback on API failure", async () => {
-      (global.fetch as jest.Mock).mockRejectedValue(new Error("API error"));
+    it("should return fallback on API failure", async () => {
+      fetchSpy.mockRejectedValueOnce(new Error("API error"));
 
       const price = await getXLMPrice();
 
       expect(price).toBe(0.12);
     });
 
-    it("should return 0.12 fallback on invalid response format", async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+    it("should return fallback on invalid response format", async () => {
+      fetchSpy.mockResolvedValueOnce({
         json: async () => ({ invalid: "data" }),
-      });
+      } as Response);
 
       const price = await getXLMPrice();
 
       expect(price).toBe(0.12);
     });
 
-    it("should return numeric price from API", async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+    it("should parse numeric price correctly", async () => {
+      fetchSpy.mockResolvedValueOnce({
         json: async () => ({ stellar: { usd: 1.5678 } }),
-      });
+      } as Response);
 
       const price = await getXLMPrice();
 
@@ -289,14 +364,15 @@ describe("Stellar Payments", () => {
     });
 
     it("should handle concurrent price fetches", async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
         json: async () => ({ stellar: { usd: 0.12 } }),
-      }) as any;
+      } as Response);
 
       const promises = [getXLMPrice(), getXLMPrice(), getXLMPrice()];
       const results = await Promise.all(promises);
 
       expect(results).toEqual([0.12, 0.12, 0.12]);
+      fetchSpy.mockRestore();
     });
   });
 });
