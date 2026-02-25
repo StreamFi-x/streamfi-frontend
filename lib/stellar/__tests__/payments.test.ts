@@ -1,144 +1,378 @@
 /**
- * Test script for Stellar payment utilities
- * 
- * To run this test:
- * 1. Get testnet accounts from https://laboratory.stellar.org/#account-creator
- * 2. Fund them with testnet XLM using Friendbot
- * 3. Replace the placeholder addresses below
- * 4. Run: npx ts-node lib/stellar/__tests__/payments.test.ts
+ * Unit tests for Stellar payment utilities (lib/stellar/payments.ts).
+ * Run with: npx jest lib/stellar/__tests__/payments.test.ts
  */
 
 import {
   buildTipTransaction,
   submitTransaction,
+  hasInsufficientBalance,
+  getXLMPrice,
+  calculateFeeEstimate,
   isValidStellarPublicKey,
   formatXLMAmount,
   getCurrentNetwork,
-} from "../payments.js";
+} from "../payments";
 import { Keypair } from "@stellar/stellar-sdk";
 
-// Test configuration
-const TEST_CONFIG = {
-  // Replace these with your testnet accounts
-  sourcePublicKey: process.env.TEST_STELLAR_PUBLIC_KEY || "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", // Viewer wallet
-  sourceSecretKey: process.env.TEST_STELLAR_SECRET_KEY || "", // Viewer secret (load from env)
-  destinationPublicKey: process.env.TEST_STELLAR_DESTINATION_KEY || "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", // Creator wallet
-  amount: "10.0000000", // 10 XLM
-  network: "testnet" as const,
+const mockServerInstance = {
+  loadAccount: jest.fn(),
+  submitTransaction: jest.fn(),
 };
 
-async function runTests() {
-  console.log("🚀 Starting Stellar Payment Utility Tests\n");
+jest.mock("@stellar/stellar-sdk", () => {
+  const actual = jest.requireActual("@stellar/stellar-sdk");
+  return {
+    ...actual,
+    Horizon: {
+      Server: jest.fn(() => mockServerInstance),
+    },
+  };
+});
 
-  // Test 1: File exists and exports functions
-  console.log("✅ Test 1: Module exports");
-  console.log("   - buildTipTransaction:", typeof buildTipTransaction);
-  console.log("   - submitTransaction:", typeof submitTransaction);
-  console.log("   - isValidStellarPublicKey:", typeof isValidStellarPublicKey);
-  console.log("   - formatXLMAmount:", typeof formatXLMAmount);
-  console.log("   - getCurrentNetwork:", typeof getCurrentNetwork);
-  console.log("");
+// Mock Stellar Wallets Kit - constructor returns shared instance so getStellarWalletsKit() returns it
+jest.mock("@creit.tech/stellar-wallets-kit", () => {
+  const mockKitInstance = {
+    signTransaction: jest.fn(),
+    getPublicKey: jest.fn(),
+  };
+  (global as any).__mockStellarKit = mockKitInstance;
+  return {
+    StellarWalletsKit: jest.fn(() => mockKitInstance),
+    WalletNetwork: { PUBLIC: "PUBLIC", TESTNET: "TESTNET" },
+    FREIGHTER_ID: "freighter",
+    FreighterModule: jest.fn(),
+    xBullModule: jest.fn(),
+  };
+});
 
-  // Test 2: TypeScript types
-  console.log("✅ Test 2: TypeScript types defined");
-  console.log("   - BuildTipTransactionParams interface exists");
-  console.log("   - SubmitTransactionResult interface exists");
-  console.log("");
+describe("Stellar Payments", () => {
+  let validSenderKey: string;
+  let validRecipientKey: string;
+  beforeAll(() => {
+    const senderKp = Keypair.random();
+    const recipientKp = Keypair.random();
+    validSenderKey = senderKp.publicKey();
+    validRecipientKey = recipientKp.publicKey();
+  });
 
-  // Test 3: Validate Stellar public key
-  console.log("✅ Test 3: Public key validation");
-  const validKey = "GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H";
-  const invalidKey1 = "INVALID_KEY";
-  const invalidKey2 = "ABRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H"; // Wrong prefix
-  
-  console.log(`   - Valid key (${validKey.substring(0, 10)}...):`, isValidStellarPublicKey(validKey));
-  console.log(`   - Invalid key (${invalidKey1}):`, isValidStellarPublicKey(invalidKey1));
-  console.log(`   - Invalid prefix (A...):`, isValidStellarPublicKey(invalidKey2));
-  console.log("");
+  let consoleErrorSpy: jest.SpyInstance;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    consoleErrorSpy?.mockRestore();
+  });
 
-  // Test 4: Format XLM amount
-  console.log("✅ Test 4: XLM amount formatting");
-  console.log("   - formatXLMAmount(10):", formatXLMAmount(10));
-  console.log("   - formatXLMAmount(0.5):", formatXLMAmount(0.5));
-  console.log("   - formatXLMAmount(100.123456789):", formatXLMAmount(100.123456789));
-  console.log("");
+  function buildParams(overrides: Partial<{ amount: string; network: "testnet" | "mainnet" }> = {}) {
+    return {
+      sourcePublicKey: validSenderKey,
+      destinationPublicKey: validRecipientKey,
+      amount: "10",
+      network: "testnet" as const,
+      ...overrides,
+    };
+  }
 
-  // Test 5: Get current network
-  console.log("✅ Test 5: Network selection");
-  console.log("   - getCurrentNetwork():", getCurrentNetwork());
-  console.log("   - NEXT_PUBLIC_STELLAR_NETWORK:", process.env.NEXT_PUBLIC_STELLAR_NETWORK || "not set (defaults to testnet)");
-  console.log("");
+  describe("buildTipTransaction", () => {
+    beforeEach(() => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        accountId: () => validSenderKey,
+        sequenceNumber: () => "123456",
+        incrementSequenceNumber: jest.fn(),
+      });
+    });
 
-  // Test 6: Build transaction (requires real testnet accounts)
-  console.log("✅ Test 6: Build tip transaction");
-  if (TEST_CONFIG.sourcePublicKey.startsWith("GX")) {
-    console.log("   ⚠️  SKIPPED: Replace placeholder addresses in TEST_CONFIG");
-    console.log("   📝 To test:");
-    console.log("      1. Visit https://laboratory.stellar.org/#account-creator");
-    console.log("      2. Create two testnet accounts");
-    console.log("      3. Fund them with Friendbot");
-    console.log("      4. Update TEST_CONFIG in this file");
-  } else {
-    try {
-      console.log(`   - Source: ${TEST_CONFIG.sourcePublicKey.substring(0, 10)}...`);
-      console.log(`   - Destination: ${TEST_CONFIG.destinationPublicKey.substring(0, 10)}...`);
-      console.log(`   - Amount: ${TEST_CONFIG.amount} XLM`);
-      console.log(`   - Network: ${TEST_CONFIG.network}`);
-      
-      const transaction = await buildTipTransaction({
-        sourcePublicKey: TEST_CONFIG.sourcePublicKey,
-        destinationPublicKey: TEST_CONFIG.destinationPublicKey,
-        amount: TEST_CONFIG.amount,
-        network: TEST_CONFIG.network,
+    it("should build transaction with valid inputs", async () => {
+      const transaction = await buildTipTransaction(buildParams());
+
+      expect(transaction).toBeDefined();
+      expect(transaction.operations).toHaveLength(1);
+      expect(transaction.memo.value).toBe("StreamFi Tip");
+    });
+
+    it("should reject invalid amount (negative)", async () => {
+      await expect(
+        buildTipTransaction(buildParams({ amount: "-5" }))
+      ).rejects.toThrow();
+    });
+
+    it("should reject invalid amount (zero)", async () => {
+      await expect(
+        buildTipTransaction(buildParams({ amount: "0" }))
+      ).rejects.toThrow();
+    });
+
+    it("should reject invalid amount (NaN)", async () => {
+      await expect(
+        buildTipTransaction(buildParams({ amount: "abc" }))
+      ).rejects.toThrow();
+    });
+
+    it("should handle account not found error", async () => {
+      mockServerInstance.loadAccount.mockRejectedValue(
+        new Error("Account not found")
+      );
+
+      await expect(buildTipTransaction(buildParams())).rejects.toThrow();
+    });
+
+    it("should build transaction with custom amount", async () => {
+      const transaction = await buildTipTransaction(buildParams({ amount: "5.5" }));
+
+      expect(transaction).toBeDefined();
+      expect(transaction.operations).toHaveLength(1);
+    });
+
+    it("should build transaction with memo", async () => {
+      const transaction = await buildTipTransaction(buildParams());
+
+      expect(transaction).toBeDefined();
+      expect(transaction.memo).toBeDefined();
+    });
+  });
+
+  describe("submitTransaction", () => {
+    it("should submit transaction successfully", async () => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        accountId: () => validSenderKey,
+        sequenceNumber: () => "123456",
+        incrementSequenceNumber: jest.fn(),
+      });
+      const transaction = await buildTipTransaction(buildParams({ amount: "1" }));
+      mockServerInstance.submitTransaction.mockResolvedValue({
+        hash: "ABC123",
+        ledger: 12345,
       });
 
-      console.log("   ✅ Transaction built successfully!");
-      console.log(`   - Operations: ${transaction.operations.length}`);
-      console.log(`   - Memo: ${transaction.memo.type} - "${transaction.memo.value}"`);
-      console.log(`   - Fee: ${transaction.fee}`);
-      console.log(`   - Timeout: ${transaction.timeBounds?.maxTime}`);
-      console.log("");
+      const result = await submitTransaction(transaction, "testnet");
 
-      // Test 7: Submit transaction (requires signing)
-      console.log("✅ Test 7: Submit transaction");
-      if (!TEST_CONFIG.sourceSecretKey) {
-        console.log("   ⚠️  SKIPPED: Set TEST_STELLAR_SECRET_KEY environment variable to test submission");
-        console.log("   📝 Example: TEST_STELLAR_SECRET_KEY=SXXXXXXX... npx tsx lib/stellar/__tests__/payments.test.ts");
-      } else {
-        try {
-          // Sign the transaction
-          const sourceKeypair = Keypair.fromSecret(TEST_CONFIG.sourceSecretKey);
-          transaction.sign(sourceKeypair);
+      expect(result.success).toBe(true);
+      expect(result.hash).toBe("ABC123");
+      expect(result.ledger).toBe(12345);
+    });
 
-          console.log("   - Transaction signed");
-          console.log("   - Submitting to Stellar Testnet...");
+    it("should return failure when submission fails", async () => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        accountId: () => validSenderKey,
+        sequenceNumber: () => "123456",
+        incrementSequenceNumber: jest.fn(),
+      });
+      const transaction = await buildTipTransaction(buildParams({ amount: "1" }));
+      mockServerInstance.submitTransaction.mockRejectedValue(
+        new Error("Transaction failed")
+      );
 
-          const result = await submitTransaction(transaction, TEST_CONFIG.network);
+      const result = await submitTransaction(transaction, "testnet");
 
-          if (result.success) {
-            console.log("   ✅ Transaction submitted successfully!");
-            console.log(`   - Hash: ${result.hash}`);
-            console.log(`   - Ledger: ${result.ledger}`);
-            console.log(`   - View on Stellar Expert: https://stellar.expert/explorer/testnet/tx/${result.hash}`);
-          } else {
-            console.log("   ❌ Transaction failed:");
-            console.log(`   - Error: ${result.error}`);
-            console.log(`   - Result code: ${result.resultCode}`);
-          }
-        } catch (error) {
-          console.log("   ❌ Error submitting transaction:");
-          console.log(`   - ${error instanceof Error ? error.message : error}`);
-        }
-      }
-    } catch (error) {
-      console.log("   ❌ Error building transaction:");
-      console.log(`   - ${error instanceof Error ? error.message : error}`);
-    }
-  }
-  console.log("");
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
 
-  console.log("🎉 All tests completed!\n");
-}
+    it("should return failure with message on Horizon error", async () => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        accountId: () => validSenderKey,
+        sequenceNumber: () => "123456",
+        incrementSequenceNumber: jest.fn(),
+      });
+      const transaction = await buildTipTransaction(buildParams({ amount: "1" }));
+      mockServerInstance.submitTransaction.mockRejectedValue({
+        response: {
+          data: {
+            extras: {
+              result_codes: {
+                transaction: "tx_insufficient_balance",
+                operations: ["op_underfunded"],
+              },
+            },
+          },
+        },
+      });
 
-// Run tests
-runTests().catch(console.error);
+      const result = await submitTransaction(transaction, "testnet");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Insufficient");
+    });
+  });
+
+  describe("hasInsufficientBalance", () => {
+    const mockPublicKey = "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+
+    it("should return false when balance is sufficient", async () => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        balances: [{ asset_type: "native", balance: "100.0000000" }],
+      });
+
+      const result = await hasInsufficientBalance(mockPublicKey, "10");
+
+      expect(result).toBe(false);
+    });
+
+    it("should return true when balance is insufficient", async () => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        balances: [{ asset_type: "native", balance: "1.0000000" }],
+      });
+
+      const result = await hasInsufficientBalance(mockPublicKey, "100");
+
+      expect(result).toBe(true);
+    });
+
+    it("should consider transaction fees in calculation", async () => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        balances: [{ asset_type: "native", balance: "10.0000000" }],
+      });
+
+      // 10 XLM balance - 10 XLM tip leaves only fee margin; required = 10 + fee > 10
+      const result = await hasInsufficientBalance(mockPublicKey, "10");
+
+      expect(result).toBe(true);
+    });
+
+    it("should return true on account error", async () => {
+      mockServerInstance.loadAccount.mockRejectedValue(
+        new Error("Account not found")
+      );
+
+      const result = await hasInsufficientBalance(mockPublicKey, "10");
+
+      expect(result).toBe(true);
+    });
+
+    it("should handle missing native balance", async () => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        balances: [{ asset_type: "credit_alphanum4", balance: "100.0000000" }],
+      });
+
+      const result = await hasInsufficientBalance(mockPublicKey, "10");
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe("getXLMPrice", () => {
+    const COINGECKO_URL =
+      "https://api.coingecko.com/api/v3/simple/price?ids=stellar&vs_currencies=usd";
+
+    let fetchSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
+        json: async () => ({ stellar: { usd: 0.12 } }),
+      } as Response);
+    });
+
+    afterEach(() => {
+      fetchSpy?.mockRestore();
+    });
+
+    it("should fetch XLM price successfully", async () => {
+      fetchSpy.mockResolvedValueOnce({
+        json: async () => ({ stellar: { usd: 0.12 } }),
+      } as Response);
+
+      const price = await getXLMPrice();
+
+      expect(price).toBe(0.12);
+      expect(global.fetch).toHaveBeenCalledWith(COINGECKO_URL);
+    });
+
+    it("should return fallback on API failure", async () => {
+      fetchSpy.mockRejectedValueOnce(new Error("API error"));
+
+      const price = await getXLMPrice();
+
+      expect(price).toBe(0.12);
+    });
+
+    it("should return fallback on invalid response format", async () => {
+      fetchSpy.mockResolvedValueOnce({
+        json: async () => ({ invalid: "data" }),
+      } as Response);
+
+      const price = await getXLMPrice();
+
+      expect(price).toBe(0.12);
+    });
+
+    it("should parse numeric price correctly", async () => {
+      fetchSpy.mockResolvedValueOnce({
+        json: async () => ({ stellar: { usd: 1.5678 } }),
+      } as Response);
+
+      const price = await getXLMPrice();
+
+      expect(price).toBe(1.5678);
+    });
+  });
+
+  describe("calculateFeeEstimate", () => {
+    it("should return correct fee estimate", () => {
+      const fee = calculateFeeEstimate();
+
+      // BASE_FEE is typically 100 stroops = 0.00001 XLM
+      expect(fee).toBeGreaterThan(0);
+      expect(fee).toBeLessThan(1);
+    });
+
+    it("should return consistent values", () => {
+      const fee1 = calculateFeeEstimate();
+      const fee2 = calculateFeeEstimate();
+
+      expect(fee1).toBe(fee2);
+    });
+
+    it("should return fee in XLM (not stroops)", () => {
+      const fee = calculateFeeEstimate();
+
+      // Fee should be a small decimal (XLM), not a large integer (stroops)
+      expect(fee).toBeLessThan(0.1);
+    });
+  });
+
+  describe("Edge Cases", () => {
+    it("should handle very small amounts correctly", async () => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        accountId: () => validSenderKey,
+        sequenceNumber: () => "123456",
+        incrementSequenceNumber: jest.fn(),
+      });
+
+      const transaction = await buildTipTransaction(
+        buildParams({ amount: "0.0000001" })
+      );
+
+      expect(transaction).toBeDefined();
+      expect(transaction.operations).toHaveLength(1);
+    });
+
+    it("should handle very large amounts correctly", async () => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        accountId: () => validSenderKey,
+        sequenceNumber: () => "123456",
+        incrementSequenceNumber: jest.fn(),
+      });
+
+      const transaction = await buildTipTransaction(
+        buildParams({ amount: "9999" })
+      );
+
+      expect(transaction).toBeDefined();
+      expect(transaction.operations).toHaveLength(1);
+    });
+
+    it("should handle concurrent price fetches", async () => {
+      const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
+        json: async () => ({ stellar: { usd: 0.12 } }),
+      } as Response);
+
+      const promises = [getXLMPrice(), getXLMPrice(), getXLMPrice()];
+      const results = await Promise.all(promises);
+
+      expect(results).toEqual([0.12, 0.12, 0.12]);
+      fetchSpy.mockRestore();
+    });
+  });
+});

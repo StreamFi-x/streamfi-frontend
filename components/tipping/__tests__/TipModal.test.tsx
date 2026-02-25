@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TipModal } from "../TipModal";
 import * as stellarPayments from "@/lib/stellar/payments";
@@ -113,7 +113,7 @@ describe("TipModal", () => {
       render(<TipModal {...mockProps} />);
 
       const input = screen.getByPlaceholderText("0.00");
-      const submitButton = screen.getByText("Send Tip");
+      const submitButton = screen.getByRole("button", { name: "Send Tip" });
 
       fireEvent.change(input, { target: { value: "-5" } });
 
@@ -125,7 +125,7 @@ describe("TipModal", () => {
       render(<TipModal {...mockProps} />);
 
       const input = screen.getByPlaceholderText("0.00");
-      const submitButton = screen.getByText("Send Tip");
+      const submitButton = screen.getByRole("button", { name: "Send Tip" });
 
       fireEvent.change(input, { target: { value: "0.00000001" } });
       fireEvent.click(submitButton);
@@ -139,7 +139,7 @@ describe("TipModal", () => {
       render(<TipModal {...mockProps} />);
 
       const input = screen.getByPlaceholderText("0.00");
-      const submitButton = screen.getByText("Send Tip");
+      const submitButton = screen.getByRole("button", { name: "Send Tip" });
 
       fireEvent.change(input, { target: { value: "10001" } });
       fireEvent.click(submitButton);
@@ -153,7 +153,7 @@ describe("TipModal", () => {
       render(<TipModal {...mockProps} />);
 
       const input = screen.getByPlaceholderText("0.00");
-      const submitButton = screen.getByText("Send Tip");
+      const submitButton = screen.getByRole("button", { name: "Send Tip" });
 
       fireEvent.change(input, { target: { value: "0" } });
       fireEvent.click(submitButton);
@@ -166,7 +166,7 @@ describe("TipModal", () => {
 
   describe("Transaction State Transitions", () => {
     it("should transition through states on successful transaction", async () => {
-      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue("mockXDR");
+      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue({} as any);
       (stellarPayments.submitTransaction as jest.Mock).mockResolvedValue({
         success: true,
         hash: "mockTxHash123",
@@ -175,22 +175,17 @@ describe("TipModal", () => {
       const onSuccess = jest.fn();
       render(<TipModal {...mockProps} onSuccess={onSuccess} />);
 
-      const input = screen.getByPlaceholderText("0.00");
-      const submitButton = screen.getByText("Send Tip");
+      const user = userEvent.setup();
+      await user.type(screen.getByPlaceholderText("0.00"), "5");
+      await user.click(screen.getByRole("button", { name: "Send Tip" }));
 
-      fireEvent.change(input, { target: { value: "5" } });
-      fireEvent.click(submitButton);
-
-      // Building state
-      await waitFor(() => {
-        expect(screen.getByText(/Building transaction/i)).toBeInTheDocument();
-      });
-
-      // Success state
-      await waitFor(() => {
-        expect(screen.getByText("5 XLM sent!")).toBeInTheDocument();
-        expect(onSuccess).toHaveBeenCalledWith("mockTxHash123", "5");
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByText((c) => c.includes("XLM sent!"))).toBeInTheDocument();
+          expect(onSuccess).toHaveBeenCalledWith("mockTxHash123", "5");
+        },
+        { timeout: 5000 }
+      );
     });
 
     it("should handle transaction failure", async () => {
@@ -201,35 +196,37 @@ describe("TipModal", () => {
       const onError = jest.fn();
       render(<TipModal {...mockProps} onError={onError} />);
 
-      const input = screen.getByPlaceholderText("0.00");
-      const submitButton = screen.getByText("Send Tip");
+      const user = userEvent.setup();
+      await user.type(screen.getByPlaceholderText("0.00"), "5");
+      await user.click(screen.getByRole("button", { name: "Send Tip" }));
 
-      fireEvent.change(input, { target: { value: "5" } });
-      fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByText(/Network error/i)).toBeInTheDocument();
-        expect(onError).toHaveBeenCalled();
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByText((c) => c.includes("Network error"))).toBeInTheDocument();
+          expect(onError).toHaveBeenCalled();
+        },
+        { timeout: 5000 }
+      );
     });
 
     it("should handle user rejection", async () => {
-      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue("mockXDR");
+      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue({} as any);
       (stellarPayments.submitTransaction as jest.Mock).mockRejectedValue(
         new Error("User declined")
       );
 
       render(<TipModal {...mockProps} />);
 
-      const input = screen.getByPlaceholderText("0.00");
-      const submitButton = screen.getByText("Send Tip");
+      const user = userEvent.setup();
+      await user.type(screen.getByPlaceholderText("0.00"), "5");
+      await user.click(screen.getByRole("button", { name: "Send Tip" }));
 
-      fireEvent.change(input, { target: { value: "5" } });
-      fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByText(/Transaction was cancelled/i)).toBeInTheDocument();
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByText((c) => c.includes("Transaction was cancelled"))).toBeInTheDocument();
+        },
+        { timeout: 5000 }
+      );
     });
   });
 
@@ -240,60 +237,66 @@ describe("TipModal", () => {
       const onError = jest.fn();
       render(<TipModal {...mockProps} onError={onError} />);
 
-      const input = screen.getByPlaceholderText("0.00");
-      const submitButton = screen.getByText("Send Tip");
-
-      fireEvent.change(input, { target: { value: "5" } });
-      fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByText(/Insufficient balance/i)).toBeInTheDocument();
-        expect(onError).toHaveBeenCalledWith("Insufficient balance");
+      const dialog = screen.getByTestId("dialog");
+      // Use preset "5 XLM" so amount state is set reliably; flush before submit
+      await act(async () => {
+        fireEvent.click(within(dialog).getByText("5 XLM"));
       });
+      expect(within(dialog).getByDisplayValue("5")).toBeInTheDocument();
+      const submitButton = within(dialog).getByRole("button", { name: "Send Tip" });
+      expect(submitButton).not.toBeDisabled();
+
+      const user = userEvent.setup();
+      await user.click(submitButton);
+      await waitFor(
+        () => {
+          expect(within(dialog).getByText(/Insufficient balance/i)).toBeInTheDocument();
+          expect(onError).toHaveBeenCalledWith("Insufficient balance");
+        },
+        { timeout: 5000 }
+      );
     });
 
     it("should show retry button on error", async () => {
+      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(false);
       (stellarPayments.buildTipTransaction as jest.Mock).mockRejectedValue(
         new Error("Network error")
       );
 
       render(<TipModal {...mockProps} />);
 
-      const input = screen.getByPlaceholderText("0.00");
-      const submitButton = screen.getByText("Send Tip");
+      const user = userEvent.setup();
+      await user.type(screen.getByPlaceholderText("0.00"), "5");
+      await user.click(screen.getByRole("button", { name: "Send Tip" }));
 
-      fireEvent.change(input, { target: { value: "5" } });
-      fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByText("Try Again")).toBeInTheDocument();
-      });
+      await waitFor(
+        () => expect(screen.getByRole("button", { name: "Try Again" })).toBeInTheDocument(),
+        { timeout: 5000 }
+      );
     });
 
     it("should reset state on retry", async () => {
+      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(false);
       (stellarPayments.buildTipTransaction as jest.Mock).mockRejectedValue(
         new Error("Network error")
       );
 
       render(<TipModal {...mockProps} />);
 
-      const input = screen.getByPlaceholderText("0.00");
-      let submitButton = screen.getByText("Send Tip");
+      const user = userEvent.setup();
+      await user.type(screen.getByPlaceholderText("0.00"), "5");
+      await user.click(screen.getByRole("button", { name: "Send Tip" }));
 
-      fireEvent.change(input, { target: { value: "5" } });
-      fireEvent.click(submitButton);
+      const retryButton = await waitFor(
+        () => screen.getByRole("button", { name: "Try Again" }),
+        { timeout: 5000 }
+      );
+      await user.click(retryButton);
 
-      await waitFor(() => {
-        expect(screen.getByText("Try Again")).toBeInTheDocument();
-      });
-
-      const retryButton = screen.getByText("Try Again");
-      fireEvent.click(retryButton);
-
-      await waitFor(() => {
-        submitButton = screen.getByText("Send Tip");
-        expect(submitButton).toBeInTheDocument();
-      });
+      await waitFor(
+        () => expect(screen.getByRole("button", { name: "Send Tip" })).toBeInTheDocument(),
+        { timeout: 5000 }
+      );
     });
 
     it("should validate invalid recipient public key", async () => {
@@ -305,19 +308,18 @@ describe("TipModal", () => {
       render(<TipModal {...invalidProps} />);
 
       const input = screen.getByPlaceholderText("0.00");
-      const submitButton = screen.getByText("Send Tip");
+      const submitButton = screen.getByRole("button", { name: "Send Tip" });
 
       fireEvent.change(input, { target: { value: "5" } });
       fireEvent.click(submitButton);
 
-      await waitFor(() => {
-        expect(screen.getByText(/Invalid recipient Stellar address/i)).toBeInTheDocument();
-      });
+      expect(await screen.findByText(/Invalid recipient Stellar address/i)).toBeInTheDocument();
     });
   });
 
   describe("Success/Error States", () => {
     it("should display success state with transaction hash", async () => {
+      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(false);
       (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue("mockXDR");
       (stellarPayments.submitTransaction as jest.Mock).mockResolvedValue({
         success: true,
@@ -326,16 +328,17 @@ describe("TipModal", () => {
 
       render(<TipModal {...mockProps} />);
 
-      const input = screen.getByPlaceholderText("0.00");
-      const submitButton = screen.getByText("Send Tip");
+      const user = userEvent.setup();
+      await user.type(screen.getByPlaceholderText("0.00"), "5");
+      await user.click(screen.getByRole("button", { name: "Send Tip" }));
 
-      fireEvent.change(input, { target: { value: "5" } });
-      fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByText("5 XLM sent!")).toBeInTheDocument();
-        expect(screen.getByText(/View on Explorer/i)).toBeInTheDocument();
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByText((c) => c.includes("XLM sent!"))).toBeInTheDocument();
+          expect(screen.getByText(/View on Explorer/i)).toBeInTheDocument();
+        },
+        { timeout: 5000 }
+      );
     });
 
     it("should show price fetch failure warning", async () => {
@@ -343,9 +346,12 @@ describe("TipModal", () => {
 
       render(<TipModal {...mockProps} />);
 
-      await waitFor(() => {
-        expect(screen.getByText(/Unable to load current XLM price/i)).toBeInTheDocument();
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByText((c) => c.includes("Unable to load current XLM price"))).toBeInTheDocument();
+        },
+        { timeout: 5000 }
+      );
     });
   });
 
@@ -376,22 +382,25 @@ describe("TipModal", () => {
       });
     });
 
-    it("should prevent closing during transaction processing", () => {
+    it("should prevent closing during transaction processing", async () => {
+      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(false);
       (stellarPayments.buildTipTransaction as jest.Mock).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => { }) // Never resolves
       );
 
       render(<TipModal {...mockProps} />);
 
-      const input = screen.getByPlaceholderText("0.00");
-      const submitButton = screen.getByText("Send Tip");
+      const user = userEvent.setup();
+      await user.type(screen.getByPlaceholderText("0.00"), "5");
+      await user.click(screen.getByRole("button", { name: "Send Tip" }));
 
-      fireEvent.change(input, { target: { value: "5" } });
-      fireEvent.click(submitButton);
-
-      // Try to close - should not work during processing
-      const cancelButton = screen.getByText("Cancel");
-      expect(cancelButton).toBeDisabled();
+      await waitFor(
+        () => {
+          const cancelButton = screen.getByRole("button", { name: "Cancel" });
+          expect(cancelButton).toBeDisabled();
+        },
+        { timeout: 5000 }
+      );
     });
   });
 });

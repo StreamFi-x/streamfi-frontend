@@ -1,3 +1,3 @@
 npm test
 
-npx jest
+npm run build
