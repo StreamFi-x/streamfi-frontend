@@ -22,7 +22,7 @@ export default function QuickActions() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { user } = useUserProfile(publicKey || undefined);
-  const username = user?.username;
+  const username = user?.username as string;
 
   const handleConnectWallet = () => {
     setIsModalOpen(true);
