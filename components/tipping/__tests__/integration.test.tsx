@@ -263,7 +263,7 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
           onClose={handleConfirmationClose}
           state="error"
           amount="5"
-          error="Network error"
+          error={{ message: "Network error" }}
           onSendAnother={handleRetry}
         />
       );
