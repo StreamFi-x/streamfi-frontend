@@ -58,8 +58,9 @@ export function TipModalContainer({
         onClose={onConfirmationClose}
         state={confirmationState.state}
         amount={confirmationState.amount}
+        recipientUsername={recipientUsername}
         txHash={confirmationState.txHash}
-        error={confirmationState.error}
+        error={confirmationState.error ? { message: confirmationState.error } : undefined}
         onSendAnother={onRetry}
       />
     </>

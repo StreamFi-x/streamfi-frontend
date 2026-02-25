@@ -1,5 +1,32 @@
 import { NextResponse } from "next/server";
-import { getRoutesFRecordById, updateRoutesFRecord } from "@/lib/routes-f/store";
+import { getRoutesFRecordById, updateRoutesFRecord, deleteRoutesFRecord } from "@/lib/routes-f/store";
+
+export async function DELETE(
+    req: Request,
+    { params }: { params: Promise<{ id: string }> | { id: string } }
+) {
+    const resolvedParams = await Promise.resolve(params);
+    const { id } = resolvedParams;
+
+    // Validate ID format (must start with rf-)
+    if (!id.startsWith("rf-")) {
+        return NextResponse.json(
+            { error: "Bad Request", message: "Invalid ID format" },
+            { status: 400 }
+        );
+    }
+
+    const deleted = deleteRoutesFRecord(id);
+
+    if (!deleted) {
+        return NextResponse.json(
+            { error: "Not Found", message: "Item not found" },
+            { status: 404 }
+        );
+    }
+
+    return new Response(null, { status: 204 });
+}
 
 export async function PATCH(
     req: Request,
