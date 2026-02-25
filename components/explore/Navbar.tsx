@@ -423,18 +423,10 @@ export default function Navbar({}: NavbarProps) {
 
       <AnimatePresence>
         {isModalOpen && (
-          <motion.div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div
-              className="absolute inset-0 bg-overlay"
-              onClick={() => setIsModalOpen(false)}
-            />
-            <motion.div className="bg-modal border border-border shadow-xl rounded-lg p-6 z-10">
-              <ConnectModal
-                isModalOpen={isModalOpen}
-                setIsModalOpen={setIsModalOpen}
-              />
-            </motion.div>
-          </motion.div>
+          <ConnectModal
+            isModalOpen={isModalOpen}
+            setIsModalOpen={setIsModalOpen}
+          />
         )}
         {profileModalOpen && (
           <ProfileModal
