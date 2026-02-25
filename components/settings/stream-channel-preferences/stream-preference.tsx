@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Eye } from "lucide-react";
 import StreamKeyModal from "@/components/ui/streamkeyModal";
 import StreamKeyConfirmationModal from "@/components/ui/streamKeyConfirmationModal";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -110,7 +110,7 @@ const ToggleSection: React.FC<ToggleSectionProps> = ({
 };
 
 const StreamPreferencesPage: React.FC = () => {
-  const { address } = useAccount();
+  const { publicKey: address } = useStellarWallet();
 
   const [state, setState] = useState({
     urlVisible: false,
@@ -344,7 +344,7 @@ const StreamPreferencesPage: React.FC = () => {
           {/* Warning */}
           <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4 mt-4">
             <p className="text-yellow-600 dark:text-yellow-400 font-semibold mb-2">
-              ⚠️ Important Security Notice
+              ?? Important Security Notice
             </p>
             <p className="text-sm text-muted-foreground">
               Never share your stream key with anyone. Anyone with this key can
@@ -392,3 +392,4 @@ const StreamPreferencesPage: React.FC = () => {
 };
 
 export default StreamPreferencesPage;
+

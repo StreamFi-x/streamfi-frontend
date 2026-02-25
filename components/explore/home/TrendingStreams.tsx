@@ -217,13 +217,13 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
                     {stream.title}
                   </h3>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    <span className="text-xs px-2 py-0.5 rounded bg-tag text-background">
+                    <span className="text-xs px-2 py-0.5 rounded bg-tag text-primary">
                       {stream.location}
                     </span>
                     {stream.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="text-xs px-2 py-0.5 rounded bg-tag text-background"
+                        className="text-xs px-2 py-0.5 rounded bg-tag text-primary"
                       >
                         {tag}
                       </span>
@@ -246,7 +246,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
             <Button
               onClick={handleToggle}
               disabled={isTransitioning}
-              className={`flex items-center justify-center gap-2 w-full outline-none border-none focus:ring-0 transition-opacity bg-transparent hover:bg-surface-hover ${
+              className={`flex items-center justify-center gap-2 w-full text-white outline-none border-none focus:ring-0 transition-opacity bg-tag hover:bg-surface-hover ${
                 isTransitioning
                   ? "opacity-70 cursor-not-allowed"
                   : "opacity-100"

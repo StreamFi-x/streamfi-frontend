@@ -7,8 +7,8 @@ import { createMuxStream } from "@/lib/mux/server";
 async function handler(req: Request) {
   try {
     const tableCheck = await sql`
-      SELECT table_name 
-      FROM information_schema.tables 
+      SELECT table_name
+      FROM information_schema.tables
       WHERE table_schema = 'public'
       ORDER BY table_name;
     `;
@@ -27,7 +27,7 @@ async function handler(req: Request) {
     console.error("Connection diagnostic error:", err);
   }
 
-  // Ensure the users table exists with all required fields
+  // Ensure users table and streaming columns exist.
   await sql`
     CREATE TABLE IF NOT EXISTS users (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -47,6 +47,13 @@ async function handler(req: Request) {
       total_tips_count INTEGER DEFAULT 0,
       last_tip_at TIMESTAMP
     )
+  `;
+
+  await sql`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS mux_stream_id VARCHAR(255)
+  `;
+  await sql`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS mux_playback_id VARCHAR(255)
   `;
 
   if (req.method !== "POST") {
@@ -69,12 +76,8 @@ async function handler(req: Request) {
     },
   } = requestBody;
 
-  // Basic validation
   if (!username) {
-    return NextResponse.json(
-      { error: "Username is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Username is required" }, { status: 400 });
   }
 
   if (!wallet) {
@@ -86,44 +89,20 @@ async function handler(req: Request) {
   }
 
   if (!validateEmail(email)) {
-    return NextResponse.json(
-      { error: "Invalid email format" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
   }
 
   try {
-    // Check for existing records
-    const userEmailExist = await checkExistingTableDetail(
-      "users",
-      "email",
-      email
-    );
-
-    const usernameExist = await checkExistingTableDetail(
-      "users",
-      "username",
-      username
-    );
-
-    const userWalletExist = await checkExistingTableDetail(
-      "users",
-      "wallet",
-      wallet
-    );
+    const userEmailExist = await checkExistingTableDetail("users", "email", email);
+    const usernameExist = await checkExistingTableDetail("users", "username", username);
+    const userWalletExist = await checkExistingTableDetail("users", "wallet", wallet);
 
     if (userEmailExist) {
-      return NextResponse.json(
-        { error: "Email already exist" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Email already exist" }, { status: 400 });
     }
 
     if (usernameExist) {
-      return NextResponse.json(
-        { error: "Username already exist" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Username already exist" }, { status: 400 });
     }
 
     if (userWalletExist) {
@@ -133,24 +112,29 @@ async function handler(req: Request) {
       );
     }
 
-    // Create Mux stream automatically for the new user
-    console.log(`🎬 Creating Mux stream for user: ${username}`);
-    let muxStream;
-    try {
-      muxStream = await createMuxStream({
-        name: `${username}'s Stream`,
-        record: true,
-      });
-      console.log(`✅ Mux stream created: ${muxStream.id}`);
-    } catch (muxError) {
-      console.error("❌ Failed to create Mux stream:", muxError);
-      return NextResponse.json(
-        { error: "Failed to create streaming account" },
-        { status: 500 }
+    // Try to provision Mux stream, but do not block registration if unavailable.
+    const hasMuxCredentials =
+      !!process.env.MUX_TOKEN_ID && !!process.env.MUX_TOKEN_SECRET;
+
+    let muxStream: Awaited<ReturnType<typeof createMuxStream>> | null = null;
+
+    if (hasMuxCredentials) {
+      console.log(`[register] Creating Mux stream for user: ${username}`);
+      try {
+        muxStream = await createMuxStream({
+          name: `${username}'s Stream`,
+          record: true,
+        });
+        console.log(`[register] Mux stream created: ${muxStream.id}`);
+      } catch (muxError) {
+        console.error("[register] Failed to create Mux stream:", muxError);
+      }
+    } else {
+      console.warn(
+        "[register] Mux credentials missing. Skipping stream provisioning."
       );
     }
 
-    // Insert the new user with all fields including Mux stream data
     await sql`
       INSERT INTO users (
         email,
@@ -170,33 +154,29 @@ async function handler(req: Request) {
         ${JSON.stringify(socialLinks)},
         ${emailNotifications},
         ${JSON.stringify(creator)},
-        ${muxStream.id},
-        ${muxStream.playbackId},
-        ${muxStream.streamKey}
+        ${muxStream?.id ?? null},
+        ${muxStream?.playbackId ?? null},
+        ${muxStream?.streamKey ?? null}
       )
     `;
 
-    console.log(`✅ User registered with stream key: ${username}`);
+    console.log(`[register] User registered: ${username}`);
 
     await sendWelcomeRegistrationEmail(email, username);
 
     return NextResponse.json(
       {
         message: "User registration success",
-        streamCreated: true,
+        streamCreated: !!muxStream,
         streamData: {
-          rtmpUrl: muxStream.rtmpUrl,
-          // Don't return stream key in response for security
+          rtmpUrl: muxStream?.rtmpUrl ?? null,
         },
       },
       { status: 200 }
     );
   } catch (error) {
     console.error("Registration error:", error);
-    return NextResponse.json(
-      { error: "Failed to register user" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to register user" }, { status: 500 });
   }
 }
 

@@ -37,6 +37,21 @@ npm install
 npm run dev
 ```
 
+## 🌐 Stellar Network Configuration
+
+StreamFi supports switching between Stellar Testnet and Mainnet through a centralized environment variable `NEXT_PUBLIC_STELLAR_NETWORK`.
+
+1. **Set the environment variable:**
+   Create a `.env.local` file (for local development) or configure your hosting environment with:
+   ```env
+   NEXT_PUBLIC_STELLAR_NETWORK=testnet
+   ```
+2. **Valid Values:**
+   - `"testnet"` (default): Uses `horizon-testnet.stellar.org`. Safe for local testing.
+   - `"mainnet"`: Uses `horizon.stellar.org`. Only for production.
+
+*Note: For safety, any invalid or missing value will automatically default to `testnet` and log a warning.*
+
 ## 🛠 Development Tools
 
 ### Code Formatting & Linting
