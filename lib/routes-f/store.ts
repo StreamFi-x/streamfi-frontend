@@ -84,6 +84,20 @@ let auditEvents: AuditEvent[] = [
   },
 ];
 
+let routesFJobs: import("./types").RoutesFJob[] = [
+  { id: "job-queued", status: "queued", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: "job-running", status: "running", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: "job-complete", status: "complete", result: { data: "success" }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: "job-failed", status: "failed", error: "Something went wrong", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+];
+
+export function getRoutesFJob(id: string): import("./types").RoutesFJob | undefined {
+  return routesFJobs.find(job => job.id === id);
+}
+
+export function __test__setRoutesFJobs(jobs: import("./types").RoutesFJob[]) {
+  routesFJobs = [...jobs];
+}
 export function getRoutesFRecords(): RoutesFRecord[] {
   return [...routesFRecords];
 }
