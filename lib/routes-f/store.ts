@@ -8,6 +8,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["guide", "getting-started"],
     createdAt: "2026-02-20T10:00:00.000Z",
     updatedAt: "2026-02-20T10:00:00.000Z",
+    status: "active",
   },
   {
     id: "rf-002",
@@ -16,6 +17,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["metrics", "performance"],
     createdAt: "2026-02-21T12:30:00.000Z",
     updatedAt: "2026-02-21T12:30:00.000Z",
+    status: "active",
   },
   {
     id: "rf-003",
@@ -24,6 +26,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["cache", "architecture"],
     createdAt: "2026-02-22T08:15:00.000Z",
     updatedAt: "2026-02-22T08:15:00.000Z",
+    status: "inactive",
   },
   {
     id: "rf-004",
@@ -32,6 +35,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["flags", "rollout"],
     createdAt: "2026-02-23T09:45:00.000Z",
     updatedAt: "2026-02-23T09:45:00.000Z",
+    status: "active",
   },
   {
     id: "rf-005",
@@ -40,6 +44,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["operations", "maintenance"],
     createdAt: "2026-02-24T01:05:00.000Z",
     updatedAt: "2026-02-24T01:05:00.000Z",
+    status: "active",
   },
 ];
 
@@ -57,6 +62,39 @@ export function getRecentRoutesFRecords(limit: number): RoutesFRecord[] {
   return [...routesFRecords]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit);
+}
+
+export function listRoutesFRecords(params: {
+  limit: number;
+  cursor?: string;
+  status: string;
+}): { items: RoutesFRecord[]; total: number; nextCursor: string | null } {
+  const filtered = routesFRecords.filter(
+    (r) => (r.status || "active") === params.status
+  );
+
+  const sorted = [...filtered].sort((a, b) => {
+    // Sort by createdAt descending, then by id descending for stable sorting
+    const dateCmp = b.createdAt.localeCompare(a.createdAt);
+    if (dateCmp !== 0) return dateCmp;
+    return b.id.localeCompare(a.id);
+  });
+
+  let startIndex = 0;
+  if (params.cursor) {
+    const cursorIndex = sorted.findIndex((r) => r.id === params.cursor);
+    if (cursorIndex !== -1) {
+      startIndex = cursorIndex + 1;
+    }
+  }
+
+  const slice = sorted.slice(startIndex, startIndex + params.limit);
+  const nextCursor =
+    slice.length === params.limit && startIndex + params.limit < sorted.length
+      ? slice[slice.length - 1].id
+      : null;
+
+  return { items: slice, total: sorted.length, nextCursor };
 }
 
 export function searchRoutesFRecords(params: {
