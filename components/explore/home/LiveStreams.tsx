@@ -23,9 +23,15 @@ export function LiveStreams({
   const easeInOut: Easing = "easeInOut";
 
   const getInitialCount = () => {
-    if (typeof window === "undefined") {return 4;}
-    if (window.innerWidth < 640) {return 2;} // Mobile: 2 cards
-    if (window.innerWidth < 1024) {return 3;} // Tablet: 3 cards
+    if (typeof window === "undefined") {
+      return 4;
+    }
+    if (window.innerWidth < 640) {
+      return 2;
+    } // Mobile: 2 cards
+    if (window.innerWidth < 1024) {
+      return 3;
+    } // Tablet: 3 cards
     return 4; // Desktop: 4 cards
   };
 
@@ -112,7 +118,9 @@ export function LiveStreams({
   };
 
   const handleToggle = async () => {
-    if (isTransitioning) {return;}
+    if (isTransitioning) {
+      return;
+    }
 
     setIsTransitioning(true);
 

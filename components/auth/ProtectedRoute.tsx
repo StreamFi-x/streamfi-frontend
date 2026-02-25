@@ -13,12 +13,13 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const router = useRouter()
-  const { address, isConnected, status } = useAccount()
-  const { isInitializing, isWalletConnecting } = useAuth()
-  const [showWalletModal, setShowWalletModal] = useState(false)
-  const [hasCompletedInitialCheck, setHasCompletedInitialCheck] = useState(false)
-  const [autoConnectAttempted, setAutoConnectAttempted] = useState(false)
+  const router = useRouter();
+  const { address, isConnected, status } = useAccount();
+  const { isInitializing, isWalletConnecting } = useAuth();
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [hasCompletedInitialCheck, setHasCompletedInitialCheck] =
+    useState(false);
+  const [autoConnectAttempted, setAutoConnectAttempted] = useState(false);
 
   useEffect(() => {
     const checkAccess = () => {
@@ -33,41 +34,70 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       }
 
       // Check if auto-connect is enabled and we should wait for it
-      const shouldAutoConnect = localStorage.getItem("starknet_auto_connect") === "true"
-      const lastWalletId = localStorage.getItem("starknet_last_wallet")
+      const shouldAutoConnect =
+        localStorage.getItem("starknet_auto_connect") === "true";
+      const lastWalletId = localStorage.getItem("starknet_last_wallet");
 
       // If auto-connect is enabled and we haven't attempted it yet, wait a bit longer
-      if (shouldAutoConnect && lastWalletId && !autoConnectAttempted && status === "disconnected") {
+      if (
+        shouldAutoConnect &&
+        lastWalletId &&
+        !autoConnectAttempted &&
+        status === "disconnected"
+      ) {
         // Set a timeout to give auto-connect more time
         setTimeout(() => {
-          setAutoConnectAttempted(true)
-        }, 3000) // Wait 3 seconds for auto-connect
-        return
+          setAutoConnectAttempted(true);
+        }, 3000); // Wait 3 seconds for auto-connect
+        return;
       }
 
       // Only after initialization is complete and auto-connect has been attempted, check wallet connection
-      if (hasCompletedInitialCheck && (autoConnectAttempted || !shouldAutoConnect || !lastWalletId)) {
+      if (
+        hasCompletedInitialCheck &&
+        (autoConnectAttempted || !shouldAutoConnect || !lastWalletId)
+      ) {
         if (!isConnected || !address) {
-          setShowWalletModal(true)
+          setShowWalletModal(true);
         } else {
-          setShowWalletModal(false) // Ensure modal is closed if wallet connects
+          setShowWalletModal(false); // Ensure modal is closed if wallet connects
         }
       }
     };
 
-    checkAccess()
-  }, [isConnected, address, status, isInitializing, isWalletConnecting, hasCompletedInitialCheck, autoConnectAttempted])
+    checkAccess();
+  }, [
+    isConnected,
+    address,
+    status,
+    isInitializing,
+    isWalletConnecting,
+    hasCompletedInitialCheck,
+    autoConnectAttempted,
+  ]);
 
   // Handle redirection only if modal closes AND wallet is NOT connected AND auto-connect has been attempted
   useEffect(() => {
-    const shouldAutoConnect = localStorage.getItem("starknet_auto_connect") === "true"
-    const lastWalletId = localStorage.getItem("starknet_last_wallet")
-    
-    if (hasCompletedInitialCheck && !showWalletModal && (!isConnected || !address) && 
-        (autoConnectAttempted || !shouldAutoConnect || !lastWalletId)) {
-      router.replace("/explore")
+    const shouldAutoConnect =
+      localStorage.getItem("starknet_auto_connect") === "true";
+    const lastWalletId = localStorage.getItem("starknet_last_wallet");
+
+    if (
+      hasCompletedInitialCheck &&
+      !showWalletModal &&
+      (!isConnected || !address) &&
+      (autoConnectAttempted || !shouldAutoConnect || !lastWalletId)
+    ) {
+      router.replace("/explore");
     }
-  }, [showWalletModal, isConnected, address, hasCompletedInitialCheck, autoConnectAttempted, router])
+  }, [
+    showWalletModal,
+    isConnected,
+    address,
+    hasCompletedInitialCheck,
+    autoConnectAttempted,
+    router,
+  ]);
 
   // Show loading state during initialization or wallet connection
   if (isInitializing || isWalletConnecting || !hasCompletedInitialCheck) {
@@ -76,7 +106,9 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         <div className="text-center">
           <h2 className="text-xl mb-4">Loading...</h2>
           <p className="text-gray-400">
-            {isInitializing ? "Initializing application..." : "Connecting wallet..."}
+            {isInitializing
+              ? "Initializing application..."
+              : "Connecting wallet..."}
           </p>
         </div>
       </div>

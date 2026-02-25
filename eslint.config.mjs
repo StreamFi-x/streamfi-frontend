@@ -32,8 +32,8 @@ const eslintConfig = [
       "@typescript-eslint/no-explicit-any": "warn", // Warn about any usage
 
       // Best practices
-      "eqeqeq": "error", // Require === and !==
-      "curly": "error", // Require curly braces
+      eqeqeq: "error", // Require === and !==
+      curly: "error", // Require curly braces
       "no-eval": "error", // No eval usage
       "no-implied-eval": "error", // No implied eval
       "no-new-func": "error", // No new Function()
