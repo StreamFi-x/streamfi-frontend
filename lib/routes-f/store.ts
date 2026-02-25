@@ -59,6 +59,41 @@ export function getRecentRoutesFRecords(limit: number): RoutesFRecord[] {
     .slice(0, limit);
 }
 
+export function getRoutesFRecordById(id: string): RoutesFRecord | undefined {
+  return routesFRecords.find((r) => r.id === id);
+}
+
+export function updateRoutesFRecord(
+  id: string,
+  updates: Partial<RoutesFRecord>,
+  ifMatchHeader?: string
+): RoutesFRecord | null {
+  const index = routesFRecords.findIndex((r) => r.id === id);
+  if (index === -1) return null;
+
+  const current = routesFRecords[index];
+
+  // If-Match concurrency control
+  if (ifMatchHeader) {
+    const etag = current.etag || `"${current.updatedAt || current.createdAt}"`;
+    if (ifMatchHeader !== etag) {
+      throw new Error("ETAG_MISMATCH");
+    }
+  }
+
+  const updated: RoutesFRecord = {
+    ...current,
+    ...updates,
+    id: current.id, // Cannot update ID
+    updatedAt: new Date().toISOString(),
+  };
+
+  updated.etag = `"${updated.updatedAt}"`;
+
+  routesFRecords[index] = updated;
+  return updated;
+}
+
 export function searchRoutesFRecords(params: {
   query?: string;
   tag?: string;
