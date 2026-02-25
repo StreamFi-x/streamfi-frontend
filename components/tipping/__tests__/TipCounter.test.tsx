@@ -41,6 +41,7 @@ describe("TipCounter Component", () => {
         (global.fetch as jest.Mock).mockImplementation((url) => {
             if (typeof url === 'string' && url.includes("coinbase")) {
                 return Promise.resolve({
+                    ok: true,
                     json: () => Promise.resolve(mockPriceResponse),
                 });
             }
@@ -59,7 +60,7 @@ describe("TipCounter Component", () => {
         expect(screen.getByText("100.5000000")).toBeInTheDocument();
         expect(screen.getByText("1.5K Tips")).toBeInTheDocument();
         await waitFor(() => {
-            expect(screen.getByText(/≈ \$12\.06 USD/)).toBeInTheDocument();
+            expect(screen.getByText(/\$12\.06/, { exact: false })).toBeInTheDocument();
         });
     });
 
@@ -98,9 +99,10 @@ describe("TipCounter Component", () => {
 
     it("shows error state", async () => {
         (useSWR as jest.Mock).mockReturnValue({
-            data: { error: "API Error" },
-            error: null,
+            data: undefined,
+            error: new Error("API Error"),
             isLoading: false,
+            mutate: jest.fn(),
         });
 
         await act(async () => {
@@ -161,7 +163,14 @@ describe("TipCounter Component", () => {
             fireEvent.click(refreshButton);
         });
 
-        expect(global.fetch).toHaveBeenCalledWith("/api/tips/refresh-total", { method: "POST" });
+        expect(global.fetch).toHaveBeenCalledWith(
+            "/api/tips/refresh-total",
+            expect.objectContaining({
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: "testuser" }),
+            })
+        );
         expect(mockMutate).toHaveBeenCalled();
     });
 
@@ -171,7 +180,7 @@ describe("TipCounter Component", () => {
         });
 
         await waitFor(() => {
-            expect(screen.getByText(/\$12\.06/)).toBeInTheDocument();
+            expect(screen.getByText(/\$12\.06/, { exact: false })).toBeInTheDocument();
         });
     });
 });

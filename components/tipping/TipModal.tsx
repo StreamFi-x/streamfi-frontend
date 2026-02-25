@@ -315,6 +315,52 @@ export function TipModal({
                 {recipientPublicKey}
               </p>
             </div>
+
+            {/* Amount Summary */}
+            {amount !== "" && parseFloat(amount) > 0 && (
+              <div className="space-y-2 p-3 bg-muted rounded-lg text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className="font-semibold">{amount} XLM</span>
+                </div>
+                {xlmPrice > 0 && !isLoadingPrice && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">USD Value:</span>
+                    <span className="font-semibold">≈ ${usdEquivalent}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Network Fee:</span>
+                  <span className="font-semibold">
+                    {fee.toFixed(7)} XLM
+                  </span>
+                </div>
+                <div className="border-t border-border pt-2 flex justify-between font-semibold">
+                  <span>Total:</span>
+                  <span>
+                    {(parseFloat(amount) + fee).toFixed(7)} XLM
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* State Messages */}
+            {isProcessing && (
+              <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                <p className="text-sm text-blue-500">{getStateMessage()}</p>
+              </div>
+            )}
+
+            {/* Error Message (validation or transaction error) */}
+            {error && (
+              <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm text-red-500">{error}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Fix #5 - Price fetch failure warning */}

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { TipButton } from "../TipButton";
 import { TipModal } from "../TipModal";
 import { TipConfirmation } from "../TipConfirmation";
@@ -93,8 +93,8 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
         />
       );
 
-      // Click tip button
-      const tipButton = screen.getByText("Send Tip");
+      // Click tip button (only TipButton is rendered, so one "Send Tip" button)
+      const tipButton = screen.getByRole("button", { name: "Send Tip" });
       fireEvent.click(tipButton);
 
       expect(modalOpen).toBe(true);
@@ -119,15 +119,15 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
         </>
       );
 
-      // Enter amount and submit
+      // Enter amount and submit (modal is open; scope to dialog to get submit button)
       await waitFor(() => {
-        expect(screen.getByText("Send Tip")).toBeInTheDocument();
+        expect(within(screen.getByTestId("dialog")).getByRole("button", { name: "Send Tip" })).toBeInTheDocument();
       });
 
       const input = screen.getByPlaceholderText("0.00");
       fireEvent.change(input, { target: { value: "5" } });
 
-      const submitButton = screen.getByText("Send Tip");
+      const submitButton = within(screen.getByTestId("dialog")).getByRole("button", { name: "Send Tip" });
       fireEvent.click(submitButton);
 
       // Wait for transaction to complete
@@ -156,7 +156,7 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
 
       // TipButton should still render (it's the parent component's responsibility
       // to hide it based on wallet connection)
-      expect(screen.getByText("Send Tip")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Send Tip" })).toBeInTheDocument();
     });
 
     it("should handle wallet disconnection during transaction", async () => {
@@ -182,7 +182,7 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
       const input = screen.getByPlaceholderText("0.00");
       fireEvent.change(input, { target: { value: "5" } });
 
-      const submitButton = screen.getByText("Send Tip");
+      const submitButton = within(screen.getByTestId("dialog")).getByRole("button", { name: "Send Tip" });
       fireEvent.click(submitButton);
 
       await waitFor(() => {
@@ -214,7 +214,7 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
         />
       );
 
-      expect(screen.queryByText("Send Tip")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Send Tip" })).not.toBeInTheDocument();
     });
 
     it("should handle missing sender public key gracefully", async () => {
@@ -232,7 +232,7 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
       const input = screen.getByPlaceholderText("0.00");
       fireEvent.change(input, { target: { value: "5" } });
 
-      const submitButton = screen.getByText("Send Tip");
+      const submitButton = within(screen.getByTestId("dialog")).getByRole("button", { name: "Send Tip" });
       fireEvent.click(submitButton);
 
       // Should show error about invalid sender address
@@ -290,7 +290,7 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
         />
       );
 
-      const button = screen.getByText("Send Tip");
+      const button = screen.getByRole("button", { name: "Send Tip" });
       fireEvent.click(button);
       fireEvent.click(button);
       fireEvent.click(button);
@@ -322,12 +322,12 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
       const input = screen.getByPlaceholderText("0.00");
       fireEvent.change(input, { target: { value: "5" } });
 
-      const submitButton = screen.getByText("Send Tip");
+      const submitButton = within(screen.getByTestId("dialog")).getByRole("button", { name: "Send Tip" });
       fireEvent.click(submitButton);
 
       // Cancel button should be disabled during processing
       await waitFor(() => {
-        const cancelButton = screen.getByText("Cancel");
+        const cancelButton = within(screen.getByTestId("dialog")).getByRole("button", { name: "Cancel" });
         expect(cancelButton).toBeDisabled();
       });
     });

@@ -105,18 +105,10 @@ export default function QuickActions() {
 
       <AnimatePresence>
         {isModalOpen && (
-          <motion.div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div
-              className="absolute inset-0 bg-black opacity-50"
-              onClick={() => setIsModalOpen(false)}
-            />
-            <motion.div className="bg-background p-6 rounded-md z-10">
-              <ConnectModal
-                isModalOpen={isModalOpen}
-                setIsModalOpen={setIsModalOpen}
-              />
-            </motion.div>
-          </motion.div>
+          <ConnectModal
+            isModalOpen={isModalOpen}
+            setIsModalOpen={setIsModalOpen}
+          />
         )}
       </AnimatePresence>
     </>
