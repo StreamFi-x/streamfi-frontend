@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { isValidStellarAddress } from "@/utils/stellar";
 
 export async function GET(
   req: Request,
@@ -9,11 +10,15 @@ export async function GET(
     const { wallet } = await params;
     console.log("API: Fetching user for wallet:", wallet);
 
-    // Normalize the wallet address to lowercase for consistent comparison
-    const normalizedWallet = wallet.toLowerCase();
+    if (!isValidStellarAddress(wallet)) {
+      return NextResponse.json(
+        { error: "Invalid wallet address. Must be a valid Stellar public key." },
+        { status: 400 }
+      );
+    }
 
     const result = await sql`
-      SELECT * FROM users WHERE LOWER(wallet) = ${normalizedWallet}
+      SELECT * FROM users WHERE wallet = ${wallet}
     `;
 
     console.log("API: Query result rows:", result.rowCount);

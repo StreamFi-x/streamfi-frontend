@@ -3,6 +3,7 @@ import { checkExistingTableDetail, validateEmail } from "@/utils/validators";
 import { sql } from "@vercel/postgres";
 import { sendWelcomeRegistrationEmail } from "@/utils/send-email";
 import { createMuxStream } from "@/lib/mux/server";
+import { isValidStellarAddress } from "@/utils/stellar";
 
 async function handler(req: Request) {
   try {
@@ -79,6 +80,13 @@ async function handler(req: Request) {
 
   if (!wallet) {
     return NextResponse.json({ error: "Wallet is required" }, { status: 400 });
+  }
+
+  if (!isValidStellarAddress(wallet)) {
+    return NextResponse.json(
+      { error: "Invalid wallet address. Must be a valid Stellar public key." },
+      { status: 400 }
+    );
   }
 
   if (!email) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getWalletOrDevDefault } from "@/lib/dev-mode";
+import { isValidStellarAddress } from "@/utils/stellar";
 
 /**
  * GET /api/streams/key
@@ -21,6 +22,13 @@ export async function GET(req: Request) {
       );
     }
 
+    if (!isValidStellarAddress(wallet)) {
+      return NextResponse.json(
+        { error: "Invalid wallet address. Must be a valid Stellar public key." },
+        { status: 400 }
+      );
+    }
+
     const userResult = await sql`
       SELECT
         id,
@@ -30,7 +38,7 @@ export async function GET(req: Request) {
         mux_playback_id,
         is_live
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE wallet = ${wallet}
     `;
 
     if (userResult.rows.length === 0) {

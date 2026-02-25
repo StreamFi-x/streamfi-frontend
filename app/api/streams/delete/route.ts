@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { deleteMuxStream } from "@/lib/mux/server";
+import { isValidStellarAddress } from "@/utils/stellar";
 
 export async function DELETE(req: Request) {
   try {
@@ -9,6 +10,13 @@ export async function DELETE(req: Request) {
     if (!wallet) {
       return NextResponse.json(
         { error: "Wallet is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidStellarAddress(wallet)) {
+      return NextResponse.json(
+        { error: "Invalid wallet address. Must be a valid Stellar public key." },
         { status: 400 }
       );
     }

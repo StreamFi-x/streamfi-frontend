@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createMuxStream } from "@/lib/mux/server";
 import { checkExistingTableDetail } from "@/utils/validators";
+import { isValidStellarAddress } from "@/utils/stellar";
 
 export async function POST(req: Request) {
   try {
@@ -20,6 +21,14 @@ export async function POST(req: Request) {
       console.log("❌ Validation failed: missing wallet or title");
       return NextResponse.json(
         { error: "Wallet and title are required" },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidStellarAddress(wallet)) {
+      console.log("❌ Validation failed: invalid Stellar address");
+      return NextResponse.json(
+        { error: "Invalid wallet address. Must be a valid Stellar public key." },
         { status: 400 }
       );
     }
@@ -54,7 +63,7 @@ export async function POST(req: Request) {
 
     console.log("🔍 Fetching user data...");
     const userResult = await sql`
-      SELECT id, username, creator, mux_stream_id FROM users WHERE LOWER(wallet) = LOWER(${wallet})
+      SELECT id, username, creator, mux_stream_id FROM users WHERE wallet = ${wallet}
     `;
 
     if (userResult.rows.length === 0) {
@@ -173,7 +182,7 @@ export async function POST(req: Request) {
           streamkey = ${muxStream.streamKey},
           creator = ${JSON.stringify(updatedCreator)},
           updated_at = CURRENT_TIMESTAMP
-        WHERE LOWER(wallet) = LOWER(${wallet})
+        WHERE wallet = ${wallet}
       `;
       console.log("✅ User updated successfully with stream data");
     } catch (dbError) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { isValidStellarAddress } from "@/utils/stellar";
 
 export async function GET(req: Request) {
   try {
@@ -9,6 +10,13 @@ export async function GET(req: Request) {
     if (!wallet) {
       return NextResponse.json(
         { error: "Wallet parameter required" },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidStellarAddress(wallet)) {
+      return NextResponse.json(
+        { error: "Invalid wallet address. Must be a valid Stellar public key." },
         { status: 400 }
       );
     }
@@ -24,7 +32,7 @@ export async function GET(req: Request) {
         is_live,
         creator
       FROM users 
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE wallet = ${wallet}
     `;
 
     if (result.rows.length === 0) {
