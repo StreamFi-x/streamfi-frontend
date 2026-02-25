@@ -59,6 +59,28 @@ export function getRecentRoutesFRecords(limit: number): RoutesFRecord[] {
     .slice(0, limit);
 }
 
+export function createRoutesFRecord(input: {
+  title: string;
+  description: string;
+  tags?: string[];
+}): RoutesFRecord {
+  if (!input.title?.trim() || !input.description?.trim()) {
+    throw new Error("invalid-payload");
+  }
+
+  const newRecord: RoutesFRecord = {
+    id: `rf-${Math.random().toString(36).slice(2, 10)}`,
+    title: input.title.trim(),
+    description: input.description.trim(),
+    tags: input.tags || [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  routesFRecords = [newRecord, ...routesFRecords];
+  return newRecord;
+}
+
 export function searchRoutesFRecords(params: {
   query?: string;
   tag?: string;
