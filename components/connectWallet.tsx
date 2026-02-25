@@ -2,183 +2,334 @@
 
 import type React from "react";
 
-import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { MdClose } from "react-icons/md";
-import { useConnect, useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
 interface ConnectModalProps {
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
 }
 
+interface WalletInfo {
+  id: string;
+  name: string;
+  icon?: string;
+  installUrl?: string;
+  description: string;
+}
+
+// Stellar wallet configurations
+const STELLAR_WALLETS: WalletInfo[] = [
+  {
+    id: "freighter",
+    name: "Freighter",
+    description: "Browser extension",
+    installUrl: "https://freighter.app/",
+  },
+  {
+    id: "xbull",
+    name: "xBull",
+    description: "Browser extension + PWA",
+    installUrl: "https://xbull.app/",
+  },
+  {
+    id: "albedo",
+    name: "Albedo",
+    description: "Web-based (no install needed)",
+    installUrl: "https://albedo.link/",
+  },
+  {
+    id: "lobstr",
+    name: "Lobstr",
+    description: "Mobile + web",
+    installUrl: "https://lobstr.co/",
+  },
+  {
+    id: "hana",
+    name: "Hana",
+    description: "Browser extension",
+    installUrl: "https://hanawallet.app/",
+  },
+  {
+    id: "hot",
+    name: "Hot Wallet",
+    description: "Browser extension",
+    installUrl: "https://hotwallet.app/",
+  },
+];
+
 export default function ConnectWalletModal({
   isModalOpen,
   setIsModalOpen,
 }: ConnectModalProps) {
-  const { connect, connectors } = useConnect();
-  const { isConnected, status } = useAccount();
+  const {
+    isConnected,
+    isLoading,
+    isConnecting,
+    connectWallet,
+    error: walletError,
+    kit,
+  } = useStellarWallet();
+  const [dismissed, setDismissed] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
+  const [connectingWalletId, setConnectingWalletId] = useState<string | null>(
+    null
+  );
+  const [walletAvailability, setWalletAvailability] = useState<
+    Record<string, boolean>
+  >({});
+  const hasOpened = useRef(false);
 
-  const [selectedWallet, setSelectedWallet] = useState(connectors?.[0] || null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
+  // Don't pre-check availability - let connection attempt determine it
+  // This avoids false negatives where wallet is installed but detection fails
+  useEffect(() => {
+    if (!isModalOpen) return;
+    
+    // Reset availability to all true - connection will determine actual availability
+    const availability: Record<string, boolean> = {};
+    for (const wallet of STELLAR_WALLETS) {
+      availability[wallet.id] = true;
+    }
+    setWalletAvailability(availability);
+  }, [isModalOpen]);
 
-  // Close modal when wallet connects successfully
   useEffect(() => {
     if (isConnected && isModalOpen) {
       setIsModalOpen(false);
-      setIsConnecting(false);
-      setConnectionError(null);
+      setDismissed(false);
+      setShowConfirm(false);
+      setSelectedWallet(null);
+      setConnectingWalletId(null);
+      hasOpened.current = false;
     }
   }, [isConnected, isModalOpen, setIsModalOpen]);
 
-  // Handle connection status changes
   useEffect(() => {
-    if (status === "connecting") {
-      setIsConnecting(true);
-      setConnectionError(null);
-    } else if (status === "disconnected" && isConnecting) {
-      // Braavos (and some wallets) briefly hit "disconnected" during the
-      // popup/handshake before landing on "connected". Debounce so that
-      // a transient disconnect doesn't look like a failure.
-      const timer = setTimeout(() => {
-        setIsConnecting(false);
-        setConnectionError("Connection failed. Please try again.");
-        console.log("[ConnectWalletModal] Disconnected, resetting state");
-      }, 2000);
-      return () => clearTimeout(timer);
+    if (hasOpened.current && !isLoading && !isConnecting && !isConnected) {
+      setDismissed(true);
+      hasOpened.current = false;
+      setConnectingWalletId(null);
     }
-  }, [status, isConnecting]);
+  }, [isLoading, isConnecting, isConnected]);
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      setDismissed(false);
+      setShowConfirm(false);
+      setSelectedWallet(null);
+      setConnectingWalletId(null);
+      hasOpened.current = false;
+    }
+  }, [isModalOpen]);
+
+  const handleWalletClick = async (walletId: string) => {
+    setDismissed(false);
+    setShowConfirm(false);
+    setSelectedWallet(walletId);
+    setConnectingWalletId(walletId);
+    hasOpened.current = true;
+    
+    try {
+      await connectWallet(walletId);
+    } catch (err) {
+      console.error("Wallet connection error:", err);
+      setConnectingWalletId(null);
+    }
+  };
+
+  const handleInstallClick = (wallet: WalletInfo) => {
+    if (wallet.installUrl) {
+      window.open(wallet.installUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const requestClose = () => {
+    if (isLoading || isConnecting) {
+      return;
+    }
+    if (!isConnected) {
+      setShowConfirm(true);
+    } else {
+      setIsModalOpen(false);
+    }
+  };
+
+  const confirmClose = () => {
+    setShowConfirm(false);
+    setIsModalOpen(false);
+  };
+
+  const cancelClose = () => {
+    setShowConfirm(false);
+  };
 
   const handleOverlayClick = () => {
-    if (!isConnecting) {
-      setIsModalOpen(false);
-      setConnectionError(null);
-    }
+    requestClose();
   };
 
   const handleModalClick = (e: React.MouseEvent) => {
     e.stopPropagation();
   };
 
-  const handleWalletClick = async (wallet: (typeof connectors)[0]) => {
-    if (isConnecting) {
-      return;
-    }
-
-    try {
-      setSelectedWallet(wallet);
-      setIsConnecting(true);
-      setConnectionError(null);
-
-      await connect({ connector: wallet });
-
-      // The AuthProvider will automatically detect and store the active connector
-    } catch (error) {
-      console.error("[ConnectWalletModal] Connection error:", error);
-      setConnectionError("Failed to connect wallet. Please try again.");
-      setIsConnecting(false);
-    }
-  };
-
-  const handleCloseModal = () => {
-    if (!isConnecting) {
-      setIsModalOpen(false);
-      setConnectionError(null);
-    }
-  };
-
   return (
     <div
-      className={`fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4 ${
+      className={`fixed inset-0 bg-black/40 z-[100] flex items-center justify-center px-4 ${
         isModalOpen ? "visible" : "hidden"
       }`}
       onClick={handleOverlayClick}
     >
       <div
-        className="relative w-full max-w-[329px] mx-auto bg-[#1D2027] rounded-[16px] py-4 px-[26px] min-h-[308px]"
+        className="relative w-full max-w-[400px] mx-auto bg-[#1D2027] rounded-[16px] py-4 px-[26px] min-h-[200px] flex flex-col"
         onClick={handleModalClick}
       >
-        {/* Close Button */}
         <button
           className={`absolute top-4 right-4 text-white hover:text-gray-300 transition-colors rounded-full bg-[#383838] w-[30px] h-[30px] justify-center items-center flex ${
-            isConnecting ? "opacity-50 cursor-not-allowed" : ""
+            isLoading || isConnecting ? "opacity-50 cursor-not-allowed" : ""
           }`}
-          onClick={handleCloseModal}
-          disabled={isConnecting}
+          onClick={requestClose}
+          disabled={isLoading || isConnecting}
         >
           <MdClose size={20} />
         </button>
 
-        {/* Title */}
-        <h2 className="text-white text-lg font-semibold mt-0.5 mb-2 text-center">
-          {isConnecting ? "Connecting..." : "Connect wallet"}
-        </h2>
-
-        {/* Subtitle */}
-        <p className="font-medium text-[14px] text-white mt-2 mb-[32px] text-center justify-center opacity-60">
-          {isConnecting
-            ? "Please approve the connection in your wallet"
-            : "Authenticate using your preferred wallet to access dApp features"}
-        </p>
-
-        {/* Connection Error */}
-        {connectionError && (
-          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-            <p className="text-red-400 text-sm text-center">
-              {connectionError}
+        {showConfirm ? (
+          <>
+            <h2 className="text-white text-lg font-semibold mb-2 text-center mt-2">
+              Leave without connecting?
+            </h2>
+            <p className="text-[14px] text-white/60 text-center mb-6">
+              You haven&apos;t selected a wallet yet. Are you sure you want to
+              close?
             </p>
-          </div>
-        )}
-
-        {/* Wallet List */}
-        <div className="flex flex-row gap-[7px] rounded-[20px] bg-[#FFFFFF1A] p-[10px] justify-center mb-4">
-          {connectors.map(wallet => (
-            <div key={wallet.id} onClick={() => handleWalletClick(wallet)}>
+            <div className="flex gap-3 w-full">
               <button
-                className={`w-[80px] h-[80px] bg-[#1D2027] rounded-[16px] flex items-center justify-center p-3 text-white transition-all duration-200 ${
-                  isConnecting && selectedWallet?.id === wallet.id
-                    ? "bg-[#393B3D] opacity-75 cursor-not-allowed animate-pulse"
-                    : isConnecting
-                      ? "opacity-50 cursor-not-allowed"
-                      : "hover:bg-[#393B3D] cursor-pointer"
-                }`}
-                disabled={isConnecting}
+                onClick={cancelClose}
+                className="flex-1 bg-white/10 hover:bg-white/20 text-white font-medium py-2.5 rounded-xl transition-colors text-sm"
               >
-                <Image
-                  src={
-                    typeof wallet.icon === "object"
-                      ? wallet.icon.dark || wallet.icon.light
-                      : wallet.icon
-                  }
-                  alt={wallet.name || "Unknown Wallet"}
-                  height={40}
-                  width={40}
-                  className="object-contain"
-                />
+                Go Back
+              </button>
+              <button
+                onClick={confirmClose}
+                className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium py-2.5 rounded-xl transition-colors text-sm"
+              >
+                Yes, Close
               </button>
             </div>
-          ))}
-        </div>
+          </>
+        ) : (
+          <>
+            <h2 className="text-white text-lg font-semibold mt-0.5 mb-2 text-center">
+              {isConnecting ? "Connecting..." : "Connect wallet"}
+            </h2>
 
-        {/* Loading indicator */}
-        {isConnecting && (
-          <div className="flex justify-center mb-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-          </div>
+            {dismissed && !isLoading && !isConnecting && !walletError && (
+              <div className="mb-4 p-3 bg-yellow-500/15 border border-yellow-500/30 rounded-lg w-full">
+                <p className="text-yellow-400 text-sm text-center">
+                  No wallet was selected. Please try again.
+                </p>
+              </div>
+            )}
+
+            {walletError && (
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg w-full">
+                <p className="text-red-400 text-sm text-center mb-2">
+                  {walletError}
+                </p>
+                {(walletError.includes("not installed") || 
+                  walletError.includes("not found") ||
+                  walletError.includes("extension")) && 
+                  selectedWallet && (
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const wallet = STELLAR_WALLETS.find(
+                          w => w.id === selectedWallet
+                        );
+                        if (wallet) handleInstallClick(wallet);
+                      }}
+                      className="text-red-400 text-xs underline hover:text-red-300"
+                    >
+                      Install {STELLAR_WALLETS.find(w => w.id === selectedWallet)?.name}
+                    </button>
+                    <p className="text-white/40 text-xs text-center">
+                      After installing, refresh the page and try again
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <p className="font-medium text-[14px] text-white mt-2 mb-4 text-center opacity-60">
+              {isConnecting
+                ? "Please approve the connection in your wallet"
+                : "Select a wallet to connect"}
+            </p>
+
+            {isConnecting && (
+              <div className="flex justify-center mb-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+              </div>
+            )}
+
+            {!isConnecting && !isConnected && (
+              <div className="space-y-2 mb-4 max-h-[400px] overflow-y-auto scrollbar-hide pr-1">
+                {STELLAR_WALLETS.map(wallet => {
+                  const isConnectingThis = connectingWalletId === wallet.id;
+
+                  return (
+                    <button
+                      key={wallet.id}
+                      onClick={() => {
+                        // Always try to connect - let the connection attempt determine if wallet is installed
+                        handleWalletClick(wallet.id);
+                      }}
+                      disabled={isConnectingThis}
+                      className={`w-full flex items-center justify-between p-4 rounded-xl transition-colors text-left ${
+                        isConnectingThis
+                          ? "bg-white/20 cursor-wait"
+                          : "bg-white/10 hover:bg-white/20 cursor-pointer"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                          <span className="text-white font-semibold text-sm">
+                            {wallet.name.charAt(0)}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-white font-medium text-sm">
+                              {wallet.name}
+                            </span>
+                          </div>
+                          <p className="text-white/50 text-xs mt-0.5">
+                            {wallet.description}
+                          </p>
+                        </div>
+                      </div>
+                      {isConnectingThis && (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <p className="text-[#FFFFFF99] font-[400] text-center text-xs mt-4">
+              By continuing, you agree to our{" "}
+              <a href="#" className="text-white underline underline-offset-1">
+                Terms of Service
+              </a>{" "}
+              and{" "}
+              <a href="#" className="text-white underline underline-offset-1">
+                Privacy policy
+              </a>
+            </p>
+          </>
         )}
-
-        {/* Terms */}
-        <p className="text-[#FFFFFF99] font-[400] text-center text-sm">
-          By continuing, you agree to our{" "}
-          <a href="#" className="text-white underline underline-offset-1">
-            Terms of Service
-          </a>{" "}
-          and{" "}
-          <a href="#" className="text-white underline underline-offset-1">
-            Privacy policy
-          </a>
-        </p>
       </div>
     </div>
   );

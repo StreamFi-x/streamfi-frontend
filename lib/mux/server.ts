@@ -22,17 +22,19 @@ export interface MuxStreamData {
   isActive?: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function createMuxStream(_streamData?: {
+export async function createMuxStream(streamData?: {
   name: string;
   record?: boolean;
 }) {
   try {
+    const record = streamData?.record === true;
     const liveStream = await mux.video.liveStreams.create({
       playback_policy: ["public"],
-      new_asset_settings: {
-        playback_policy: ["public"],
-      },
+      ...(record && {
+        new_asset_settings: {
+          playback_policy: ["public"],
+        },
+      }),
       reconnect_window: 60, // Allow reconnection within 60 seconds
       latency_mode: "low", // Low-latency streaming (~3-5s delay)
       max_continuous_duration: 43200, // 12 hours max

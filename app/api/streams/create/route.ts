@@ -47,14 +47,14 @@ export async function POST(req: Request) {
       wallet
     );
     if (!userExists) {
-      console.log("❌ User not found:", wallet);
+      console.log("User not found:", wallet);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-    console.log("✅ User found:", wallet);
+    console.log("User found:", wallet);
 
     console.log("🔍 Fetching user data...");
     const userResult = await sql`
-      SELECT id, username, creator, mux_stream_id FROM users WHERE LOWER(wallet) = LOWER(${wallet})
+      SELECT id, username, creator, mux_stream_id, enable_recording FROM users WHERE LOWER(wallet) = LOWER(${wallet})
     `;
 
     if (userResult.rows.length === 0) {
@@ -109,12 +109,13 @@ export async function POST(req: Request) {
     }
     console.log("✅ Mux credentials found");
 
-    console.log("🎬 Creating Mux stream...");
+    const enableRecording = user.enable_recording === true;
+    console.log("🎬 Creating Mux stream...", { enableRecording });
     let muxStream;
     try {
       muxStream = await createMuxStream({
         name: `${user.username} - ${title}`,
-        record: true,
+        record: enableRecording,
       });
       console.log("✅ Mux stream created successfully:", {
         id: muxStream?.id,
