@@ -55,14 +55,16 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const hasAttemptedAutoConnect = useRef(false);
 
-  const [kit] = useState(
-    () =>
-      new StellarWalletsKit({
-        selectedWalletId: FREIGHTER_ID,
-        network,
-        modules: allowAllModules(),
-      })
-  );
+  const [kit] = useState(() => {
+    if (typeof window === "undefined") {
+      return null as unknown as StellarWalletsKit;
+    }
+    return new StellarWalletsKit({
+      selectedWalletId: FREIGHTER_ID,
+      network,
+      modules: allowAllModules(),
+    });
+  });
 
   const isConnected = !!publicKey;
   const status = isConnecting

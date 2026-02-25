@@ -166,7 +166,7 @@ describe("TipModal", () => {
 
   describe("Transaction State Transitions", () => {
     it("should transition through states on successful transaction", async () => {
-      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue("mockXDR");
+      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue({} as any);
       (stellarPayments.submitTransaction as jest.Mock).mockResolvedValue({
         success: true,
         hash: "mockTxHash123",
@@ -214,7 +214,7 @@ describe("TipModal", () => {
     });
 
     it("should handle user rejection", async () => {
-      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue("mockXDR");
+      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue({} as any);
       (stellarPayments.submitTransaction as jest.Mock).mockRejectedValue(
         new Error("User declined")
       );
@@ -318,7 +318,7 @@ describe("TipModal", () => {
 
   describe("Success/Error States", () => {
     it("should display success state with transaction hash", async () => {
-      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue("mockXDR");
+      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue({} as any);
       (stellarPayments.submitTransaction as jest.Mock).mockResolvedValue({
         success: true,
         hash: "ABC123DEF456",
@@ -378,7 +378,7 @@ describe("TipModal", () => {
 
     it("should prevent closing during transaction processing", () => {
       (stellarPayments.buildTipTransaction as jest.Mock).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => { }) // Never resolves
       );
 
       render(<TipModal {...mockProps} />);

@@ -12,7 +12,7 @@ import ConnectModal from "../connectWallet";
 import ProfileModal from "./ProfileModal";
 import Avatar from "@/public/Images/user.png";
 import ProfileDropdown from "../ui/profileDropdown";
-import { useWallet } from "stellar-wallet-kit";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
 interface NavbarProps {
   onConnectWallet?: () => void;
@@ -26,13 +26,13 @@ type Category = {
   imageurl?: string;
 };
 
-export default function Navbar({}: NavbarProps) {
+export default function Navbar({ }: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { account, isConnected, disconnect } = useWallet();
+  const { publicKey, isConnected, disconnect } = useStellarWallet();
   const { user, isLoading: authLoading } = useAuth();
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -42,7 +42,7 @@ export default function Navbar({}: NavbarProps) {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
 
-  const publicKey = account?.publicKey;
+  const walletPublicKey = publicKey;
 
   // safe sessionStorage parse
   const getSessionData = useCallback(<T,>(key: string): T | null => {
@@ -172,16 +172,16 @@ export default function Navbar({}: NavbarProps) {
 
 
   // Function to check for cloudinary URL
-const ALLOWED_CLOUDINARY_HOST = "res.cloudinary.com"; // replace with Cloudinary domain
+  const ALLOWED_CLOUDINARY_HOST = "res.cloudinary.com"; // replace with Cloudinary domain
 
-function isCloudinaryUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname === ALLOWED_CLOUDINARY_HOST;
-  } catch {
-    return false;
+  function isCloudinaryUrl(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      return parsed.hostname === ALLOWED_CLOUDINARY_HOST;
+    } catch {
+      return false;
+    }
   }
-}
 
 
   const userAvatar = getAvatar();

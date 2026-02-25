@@ -78,7 +78,7 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
       };
 
       // Mock successful transaction
-      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue("mockXDR");
+      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue({} as any);
       (stellarPayments.submitTransaction as jest.Mock).mockResolvedValue({
         success: true,
         hash: "mockTxHash123",
