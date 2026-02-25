@@ -23,23 +23,27 @@ export function sanitizeString(input: string | null | undefined): string {
     do {
         previous = sanitized;
 
-        // 1. Remove script tags and their content (handling whitespace in closing tag)
+        // 1. Remove script tags and their content.
+        // Robust regex to handle variations in closing tags (e.g., </script bar>).
         sanitized = sanitized.replace(
-            /<script\b[^<]*(?:(?!<\/script\s*>)<[^<]*)*<\/script\s*>/gi,
+            /<script\b[\s\S]*?>[\s\S]*?<\/script[\s\S]*?>/gi,
             ""
         );
 
-        // 2. Remove all other HTML tags
-        sanitized = sanitized.replace(/<[^>]*>?/gm, "");
+        // 2. Remove all other HTML tags.
+        // Ensuring we don't use optional >? which can be vulnerable to backtracking.
+        sanitized = sanitized.replace(/<[^>]+>/g, "");
 
-        // 3. Specifically remove orphaned <script if it remains
+        // 3. Specifically remove orphaned <script tokens.
         sanitized = sanitized.replace(/<script/gi, "");
+
+        // 4. Remove all brackets to ensure no tags can be constructed.
+        sanitized = sanitized.replace(/[<>]/g, "");
     } while (sanitized !== previous);
 
-    // 4. Normalize whitespace (tabs, multiple spaces, multiple newlines)
+    // 5. Normalize whitespace
     sanitized = sanitized.replace(/\s+/g, " ");
 
-    // 5. Final trim
     return sanitized.trim();
 }
 

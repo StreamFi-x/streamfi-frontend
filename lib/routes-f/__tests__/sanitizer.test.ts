@@ -25,6 +25,10 @@ describe("Routes-F Sanitizer", () => {
             expect(sanitizeString("<<script>script>alert(1)</</script>script>")).toBe("alert(1)");
         });
 
+        it("should handle very malformed closing script tags", () => {
+            expect(sanitizeString("Text<script>alert(1)</script\t\n bar>More")).toBe("TextMore");
+        });
+
         it("should handle orphaned script starts", () => {
             expect(sanitizeString("<script alert(1)")).toBe("alert(1)");
         });
