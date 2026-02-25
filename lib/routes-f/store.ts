@@ -9,6 +9,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["guide", "getting-started"],
     createdAt: "2026-02-20T10:00:00.000Z",
     updatedAt: "2026-02-20T10:00:00.000Z",
+    status: "active",
     etag: `"2026-02-20T10:00:00.000Z"`,
   },
   {
@@ -18,6 +19,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["metrics", "performance"],
     createdAt: "2026-02-21T12:30:00.000Z",
     updatedAt: "2026-02-21T12:30:00.000Z",
+    status: "active",
     etag: `"2026-02-21T12:30:00.000Z"`,
   },
   {
@@ -27,6 +29,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["cache", "architecture"],
     createdAt: "2026-02-22T08:15:00.000Z",
     updatedAt: "2026-02-22T08:15:00.000Z",
+    status: "inactive",
     etag: `"2026-02-22T08:15:00.000Z"`,
   },
   {
@@ -36,6 +39,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["flags", "rollout"],
     createdAt: "2026-02-23T09:45:00.000Z",
     updatedAt: "2026-02-23T09:45:00.000Z",
+    status: "active",
     etag: `"2026-02-23T09:45:00.000Z"`,
   },
   {
@@ -45,6 +49,7 @@ let routesFRecords: RoutesFRecord[] = [
     tags: ["operations", "maintenance"],
     createdAt: "2026-02-24T01:05:00.000Z",
     updatedAt: "2026-02-24T01:05:00.000Z",
+    status: "active",
     etag: `"2026-02-24T01:05:00.000Z"`,
   },
 ];
@@ -96,8 +101,6 @@ let routesFJobs: RoutesFJob[] = [
   { id: "job-failed", status: "failed", error: "Something went wrong", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
 ];
 
-
-
 /* ============================= */
 /*            JOBS               */
 /* ============================= */
@@ -109,8 +112,6 @@ export function getRoutesFJob(id: string): RoutesFJob | undefined {
 export function __test__setRoutesFJobs(jobs: RoutesFJob[]) {
   routesFJobs = [...jobs];
 }
-
-
 
 /* ============================= */
 /*        ROUTES-F RECORDS      */
@@ -130,6 +131,44 @@ export function getRecentRoutesFRecords(limit: number): RoutesFRecord[] {
     .slice(0, limit);
 }
 
+/* ===== LIST (Cursor + Status Filter) ===== */
+
+export function listRoutesFRecords(params: {
+  limit: number;
+  cursor?: string;
+  status: string;
+}): { items: RoutesFRecord[]; total: number; nextCursor: string | null } {
+  const filtered = routesFRecords.filter(
+    (r) => (r.status || "active") === params.status
+  );
+
+  const sorted = [...filtered].sort((a, b) => {
+    const dateCmp = b.createdAt.localeCompare(a.createdAt);
+    if (dateCmp !== 0) return dateCmp;
+    return b.id.localeCompare(a.id);
+  });
+
+  let startIndex = 0;
+
+  if (params.cursor) {
+    const cursorIndex = sorted.findIndex((r) => r.id === params.cursor);
+    if (cursorIndex !== -1) {
+      startIndex = cursorIndex + 1;
+    }
+  }
+
+  const slice = sorted.slice(startIndex, startIndex + params.limit);
+
+  const nextCursor =
+    slice.length === params.limit && startIndex + params.limit < sorted.length
+      ? slice[slice.length - 1].id
+      : null;
+
+  return { items: slice, total: sorted.length, nextCursor };
+}
+
+/* ===== CRUD ===== */
+
 export function createRoutesFRecord(input: {
   title: string;
   description: string;
@@ -148,6 +187,7 @@ export function createRoutesFRecord(input: {
     tags: input.tags || [],
     createdAt: now,
     updatedAt: now,
+    status: "active",
     etag: `"${now}"`,
   };
 
@@ -198,8 +238,6 @@ export function deleteRoutesFRecord(id: string): boolean {
   return true;
 }
 
-
-
 /* ============================= */
 /*            SEARCH             */
 /* ============================= */
@@ -241,8 +279,6 @@ export function searchRoutesFRecords(params: {
     items: sorted.slice(0, params.limit),
   };
 }
-
-
 
 /* ============================= */
 /*     MAINTENANCE WINDOWS      */
@@ -305,8 +341,6 @@ export function clearMaintenanceWindows() {
   maintenanceWindows = [];
 }
 
-
-
 /* ============================= */
 /*           AUDIT TRAIL        */
 /* ============================= */
@@ -335,8 +369,6 @@ export function getAuditTrail(params: {
 
   return { items, nextCursor };
 }
-
-
 
 /* ============================= */
 /*        TEST HELPERS          */

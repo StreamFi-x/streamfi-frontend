@@ -5,6 +5,7 @@ export interface RoutesFRecord {
   tags: string[];
   createdAt: string;
   updatedAt?: string;
+  status?: string;
   etag?: string;
 }
 
@@ -48,5 +49,8 @@ export interface MetricsSnapshot {
   resetOnRestart: boolean;
   totals: Record<MetricsKey, number>;
   last24h: Record<MetricsKey, number>;
-  series: Array<{ hourStart: string; counts: Record<MetricsKey, number> }>;
+  series: Array<{
+    hourStart: string;
+    counts: Record<MetricsKey, number>;
+  }>;
 }
