@@ -41,17 +41,21 @@ export default function Sidebar() {
   }, []);
 
   const isRouteActive = (href: string) => {
-    if (href === "/" && pathname === "/explore") {return true;}
+    if (href === "/" && pathname === "/explore") {
+      return true;
+    }
     if (
       href === "/browse" &&
       (pathname === "/browse" || pathname.startsWith("/browse/"))
-    )
-      {return true;}
+    ) {
+      return true;
+    }
     if (
       href === "/explore/browse" &&
       (pathname === "/browse" || pathname.startsWith("/browse/"))
-    )
-      {return true;}
+    ) {
+      return true;
+    }
     return (
       pathname === `/explore${href}` || pathname.startsWith(`/explore${href}/`)
     );
