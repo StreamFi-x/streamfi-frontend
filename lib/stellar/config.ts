@@ -18,7 +18,23 @@ export function getHorizonUrl(network: StellarNetwork): string {
 }
 
 export function getNetworkPassphrase(network: StellarNetwork): string {
-    return network === "testnet"
-        ? Networks.TESTNET
-        : Networks.PUBLIC;
+    return network === "testnet" ? Networks.TESTNET : Networks.PUBLIC;
+}
+
+/**
+ * Get the link to the Stellar Explorer for a transaction or account
+ * @param type - Explorer type ('tx' or 'account')
+ * @param value - Transaction hash or Public Key
+ */
+export function getStellarExplorerUrl(
+    type: "tx" | "account",
+    value: string
+): string {
+    const network = getStellarNetwork();
+    const baseUrl =
+        network === "testnet"
+            ? "https://stellar.expert/explorer/testnet"
+            : "https://stellar.expert/explorer/public";
+
+    return `${baseUrl}/${type}/${value}`;
 }

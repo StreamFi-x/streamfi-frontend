@@ -32,9 +32,9 @@ CREATE TABLE IF NOT EXISTS users (
     emailVerified BOOLEAN DEFAULT FALSE,
     emailNotifications BOOLEAN DEFAULT TRUE,
     creator JSONB DEFAULT '{}',
-    total_tips_received VARCHAR(255) DEFAULT '0.0000000',
+    total_tips_received NUMERIC(20, 7) DEFAULT 0,
     total_tips_count INTEGER DEFAULT 0,
-    last_tip_at TIMESTAMP WITH TIME ZONE
+    last_tip_at TIMESTAMP
 );
 
 ALTER TABLE users

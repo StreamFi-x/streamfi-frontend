@@ -42,7 +42,10 @@ async function createUsersTable() {
         bio TEXT,
         socialLinks JSONB,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        total_tips_received NUMERIC(20, 7) DEFAULT 0,
+        total_tips_count INTEGER DEFAULT 0,
+        last_tip_at TIMESTAMP
       );
     `);
     console.log("Users table created or already exists");
