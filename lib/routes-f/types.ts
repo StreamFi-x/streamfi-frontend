@@ -16,12 +16,21 @@ export interface MaintenanceWindow {
   createdAt: string;
 }
 
+export interface AuditEvent {
+  id: string;
+  actor: string;
+  action: string;
+  target: string;
+  timestamp: string;
+}
+
 export type MetricsKey =
   | "flags"
   | "search"
   | "export"
   | "maintenance"
-  | "metrics";
+  | "metrics"
+  | "audit";
 
 export interface MetricsSnapshot {
   generatedAt: string;

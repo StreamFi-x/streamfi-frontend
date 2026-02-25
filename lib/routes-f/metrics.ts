@@ -6,6 +6,7 @@ const METRIC_KEYS: MetricsKey[] = [
   "export",
   "maintenance",
   "metrics",
+  "audit",
 ];
 
 const totals: Record<MetricsKey, number> = {
@@ -14,6 +15,7 @@ const totals: Record<MetricsKey, number> = {
   export: 0,
   maintenance: 0,
   metrics: 0,
+  audit: 0,
 };
 
 const eventTimestamps: Record<MetricsKey, number[]> = {
@@ -22,6 +24,7 @@ const eventTimestamps: Record<MetricsKey, number[]> = {
   export: [],
   maintenance: [],
   metrics: [],
+  audit: [],
 };
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
