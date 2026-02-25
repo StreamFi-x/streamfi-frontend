@@ -413,8 +413,8 @@ export function TipModal({
               </div>
             )}
 
-            {/* Error Message */}
-            {error && transactionState === "error" && (
+            {/* Error Message (validation or transaction error) */}
+            {error && (
               <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
                 <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                 <div className="flex-1">

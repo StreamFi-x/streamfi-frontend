@@ -63,8 +63,14 @@ describe("Stellar Payments", () => {
     validRecipientKey = recipientKp.publicKey();
   });
 
+  let consoleErrorSpy: jest.SpyInstance;
   beforeEach(() => {
     jest.clearAllMocks();
+    // Suppress expected console.error from payments.ts catch blocks (tests trigger error paths on purpose)
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    consoleErrorSpy?.mockRestore();
   });
 
   describe("buildTipTransaction", () => {
