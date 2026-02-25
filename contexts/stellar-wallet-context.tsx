@@ -33,7 +33,6 @@ interface StellarWalletContextType {
   isLoading: boolean;
   isConnecting: boolean;
   error: string | null;
-  kit: StellarWalletsKit;
 }
 
 const StellarWalletContext = createContext<
@@ -231,7 +230,6 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         isLoading: isConnecting,
         isConnecting,
         error,
-        kit,
       }}
     >
       {children}
