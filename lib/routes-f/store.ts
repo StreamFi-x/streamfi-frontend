@@ -133,6 +133,14 @@ export function updateRoutesFRecord(
   return updated;
 }
 
+export function deleteRoutesFRecord(id: string): boolean {
+  const index = routesFRecords.findIndex((r) => r.id === id);
+  if (index === -1) return false;
+
+  routesFRecords.splice(index, 1);
+  return true;
+}
+
 export function searchRoutesFRecords(params: {
   query?: string;
   tag?: string;

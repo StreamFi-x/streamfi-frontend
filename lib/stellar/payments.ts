@@ -190,3 +190,50 @@ export function isValidStellarPublicKey(publicKey: string): boolean {
 export function formatXLMAmount(amount: number): string {
   return amount.toFixed(7);
 }
+
+/**
+ * Calculate the fee estimate for a transaction in XLM
+ */
+export function calculateFeeEstimate(): number {
+  return (BASE_FEE as any) / 10000000;
+}
+
+/**
+ * Get the current XLM price in USD
+ */
+export async function getXLMPrice(): Promise<number> {
+  try {
+    const response = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=stellar&vs_currencies=usd"
+    );
+    const data = await response.json();
+    return data.stellar.usd;
+  } catch (error) {
+    console.error("Failed to fetch XLM price:", error);
+    return 0.12; // Fallback price
+  }
+}
+
+/**
+ * Check if the account has insufficient balance for the payment and fee
+ */
+export async function hasInsufficientBalance(
+  publicKey: string,
+  amount: string
+): Promise<boolean> {
+  try {
+    const network = getCurrentNetwork();
+    const server = getServer(network);
+    const account = await server.loadAccount(publicKey);
+    const nativeBalance = account.balances.find(b => b.asset_type === "native");
+    if (!nativeBalance) return true;
+
+    const balance = parseFloat(nativeBalance.balance);
+    const required = parseFloat(amount) + calculateFeeEstimate();
+    return balance < required;
+  } catch (error) {
+    // If account doesn't exist, it definitely has insufficient balance
+    console.error("Failed to check balance:", error);
+    return true;
+  }
+}

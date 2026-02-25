@@ -11,7 +11,7 @@ jest.mock("next/server", () => ({
     },
 }));
 
-import { GET, PATCH } from "../items/[id]/route";
+import { GET, PATCH, DELETE } from "../items/[id]/route";
 import {
     __test__setRoutesFRecords,
     getRoutesFRecords,
@@ -89,6 +89,50 @@ describe("PATCH /api/routes-f/items/[id]", () => {
         );
         const res = await PATCH(req, makeContext("rf-999"));
         expect(res.status).toBe(404);
+    });
+
+    describe("DELETE /api/routes-f/items/[id]", () => {
+        beforeEach(() => {
+            __test__setRoutesFRecords([
+                {
+                    id: "rf-1",
+                    title: "Test Record",
+                    description: "Initial",
+                    tags: ["test"],
+                    createdAt: "2026-02-22T00:00:00.000Z",
+                    updatedAt: "2026-02-22T00:00:00.000Z",
+                },
+            ]);
+        });
+
+        it("returns 204 when record is deleted", async () => {
+            const res = await DELETE(makeRequest("DELETE"), makeContext("rf-1"));
+            expect(res.status).toBe(204);
+
+            // Verify it's actually removed
+            const getRes = await GET(makeRequest("GET"), makeContext("rf-1"));
+            expect(getRes.status).toBe(404);
+        });
+
+        it("returns 404 when record is missing", async () => {
+            const res = await DELETE(makeRequest("DELETE"), makeContext("rf-999"));
+            expect(res.status).toBe(404);
+        });
+
+        it("returns 400 when ID format is invalid", async () => {
+            const res = await DELETE(makeRequest("DELETE"), makeContext("invalid-id"));
+            expect(res.status).toBe(400);
+        });
+
+        it("is idempotent-ish (second delete returns 404)", async () => {
+            // First delete
+            const res1 = await DELETE(makeRequest("DELETE"), makeContext("rf-1"));
+            expect(res1.status).toBe(204);
+
+            // Second delete
+            const res2 = await DELETE(makeRequest("DELETE"), makeContext("rf-1"));
+            expect(res2.status).toBe(404);
+        });
     });
 
     afterAll(() => {
