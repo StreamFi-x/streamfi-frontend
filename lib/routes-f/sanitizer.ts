@@ -19,32 +19,33 @@ export function sanitizeString(input: string | null | undefined): string {
     let sanitized = input;
     let previous;
 
-    // Loop to handle nested tags like <scr<script>ipt>
+    // Loop to handle nested tags like <scr<script>ipt>.
+    // We replace matched parts with a space (" ") instead of an empty string
+    // to prevent character "gluing", where stripping one tag creates another.
+    // This addresses the "Incomplete multi-character sanitization" security alert.
     do {
         previous = sanitized;
 
         // 1. Remove script tags and their content.
-        // Robust regex to handle variations in closing tags (e.g., </script bar>).
+        // The closing tag regex [^>]* handles cases like </script\t\n bar>
+        // as reported by the "Bad HTML filtering regexp" check.
         sanitized = sanitized.replace(
-            /<script\b[\s\S]*?>[\s\S]*?<\/script[\s\S]*?>/gi,
-            ""
+            /<script\b[^>]*>([\s\S]*?)<\/script[^>]*>/gi,
+            " "
         );
 
         // 2. Remove all other HTML tags.
-        // Ensuring we don't use optional >? which can be vulnerable to backtracking.
-        sanitized = sanitized.replace(/<[^>]+>/g, "");
+        sanitized = sanitized.replace(/<[^>]+>/g, " ");
 
         // 3. Specifically remove orphaned <script tokens.
-        sanitized = sanitized.replace(/<script/gi, "");
+        sanitized = sanitized.replace(/<script/gi, " ");
 
-        // 4. Remove all brackets to ensure no tags can be constructed.
-        sanitized = sanitized.replace(/[<>]/g, "");
+        // 4. Remove all remaining brackets to ensure no tags can be constructed.
+        sanitized = sanitized.replace(/[<>]/g, " ");
     } while (sanitized !== previous);
 
-    // 5. Normalize whitespace
-    sanitized = sanitized.replace(/\s+/g, " ");
-
-    return sanitized.trim();
+    // 5. Final normalization: collapse multiple spaces and trim.
+    return sanitized.replace(/\s+/g, " ").trim();
 }
 
 /**
