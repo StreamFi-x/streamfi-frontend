@@ -33,7 +33,7 @@ describe("GET /api/routes-f/items/[id]", () => {
 
     // Check for ETag header
     expect(response.headers.get("ETag")).toBeTruthy();
-    expect(response.headers.get("ETag")).toMatch(/^W\/"[a-zA-Z0-0=+/]{20}"/);
+    expect(response.headers.get("ETag")).toMatch(/^W\/"[a-zA-Z0-9+/=]{20}"$/);
   });
 
   it("returns 400 for an invalid ID format (non-numeric)", async () => {
