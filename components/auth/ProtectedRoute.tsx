@@ -15,7 +15,7 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter();
   const {
-    address,
+    publicKey,
     isConnected,
     isLoading: isStellarLoading,
   } = useStellarWallet();
@@ -56,7 +56,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         hasCompletedInitialCheck &&
         (autoConnectAttempted || !shouldAutoConnect || !lastWalletId)
       ) {
-        if (!isConnected || !address) {
+        if (!isConnected || !publicKey) {
           setShowWalletModal(true);
         } else {
           setShowWalletModal(false);
@@ -67,7 +67,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     checkAccess();
   }, [
     isConnected,
-    address,
+    publicKey,
     isStellarLoading,
     isInitializing,
     isWalletConnecting,
@@ -83,7 +83,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     if (
       hasCompletedInitialCheck &&
       !showWalletModal &&
-      (!isConnected || !address) &&
+      (!isConnected || !publicKey) &&
       (autoConnectAttempted || !shouldAutoConnect || !lastWalletId)
     ) {
       router.replace("/explore");
@@ -91,7 +91,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }, [
     showWalletModal,
     isConnected,
-    address,
+    publicKey,
     hasCompletedInitialCheck,
     autoConnectAttempted,
     router,
@@ -121,7 +121,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!isConnected || !address) {
+  if (!isConnected || !publicKey) {
     return null;
   }
 

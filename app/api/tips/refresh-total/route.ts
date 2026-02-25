@@ -57,7 +57,7 @@ export async function POST(request: Request) {
         let hasMore = true;
 
         while (hasMore) {
-            const { tips, nextCursor } = await fetchPaymentsReceived({
+            const { tips, nextCursor }: { tips: any[]; nextCursor: string | undefined } = await fetchPaymentsReceived({
                 publicKey: user.stellar_public_key,
                 limit: 200,
                 cursor

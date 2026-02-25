@@ -1,6 +1,74 @@
 import * as StellarSdk from "@stellar/stellar-sdk";
 import { getStellarNetwork, getHorizonUrl } from "./config";
 
+interface FetchPaymentsParams {
+    publicKey: string;
+    limit?: number;
+    cursor?: string;
+}
+
+interface TipRecord {
+    id: string;
+    sender: string;
+    amount: string;
+    asset: string;
+    txHash: string;
+    timestamp: string;
+    ledger: number;
+}
+
+interface FetchPaymentsResult {
+    tips: TipRecord[];
+    nextCursor: string | undefined;
+}
+
+/**
+ * Fetches incoming payments (tips) for a Stellar account with pagination support.
+ */
+export async function fetchPaymentsReceived(params: FetchPaymentsParams): Promise<FetchPaymentsResult> {
+    try {
+        const network = getStellarNetwork();
+        const server = new StellarSdk.Horizon.Server(getHorizonUrl(network));
+
+        const payments = await server
+            .payments()
+            .forAccount(params.publicKey)
+            .limit(params.limit || 200)
+            .cursor(params.cursor || "now")
+            .order("desc")
+            .call();
+
+        // Filter only incoming payments with XLM
+        const tips: TipRecord[] = payments.records
+            .filter((payment: any) => {
+                return (
+                    (payment.type === "payment" || payment.type === "path_payment_strict_receive") &&
+                    payment.to === params.publicKey &&
+                    payment.asset_type === "native"
+                );
+            })
+            .map((payment: any) => ({
+                id: payment.id,
+                sender: payment.from,
+                amount: payment.amount,
+                asset: "XLM",
+                txHash: payment.transaction_hash,
+                timestamp: payment.created_at,
+                ledger: payment.ledger,
+            }));
+
+        return {
+            tips,
+            nextCursor: payments.records.length > 0 
+                ? payments.records[payments.records.length - 1]?.paging_token 
+                : undefined,
+        };
+    } catch (error) {
+        console.error("Error fetching payments received:", error);
+        throw error;
+    }
+}
+
 /**
  * Fetches the total payment statistics for a Stellar account.
  * This looks for incoming payments (native XLM) and sums them up.

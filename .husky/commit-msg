@@ -1,10 +1,4 @@
 #!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
 
-# Run our custom commit-msg hook first for better error messages
-.git/hooks/commit-msg "$1"
-
-# If our custom hook passes, then run commitlint for additional validation
-if [ $? -eq 0 ]; then
-  npx --no -- commitlint --edit $1
-fi
-npx --no -- commitlint --edit \$1
+npx --no -- commitlint --edit "$1"
