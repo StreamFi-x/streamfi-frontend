@@ -7,7 +7,7 @@ export function useProfileModal(
   onNextStep: (step: "profile" | "verify" | "success") => void,
   refreshUser?: () => Promise<unknown>
 ) {
-  const { address } = useStellarWallet();
+  const { publicKey } = useStellarWallet();
   void refreshUser;
 
   const [displayName, setDisplayName] = useState("");
@@ -66,7 +66,7 @@ export function useProfileModal(
       const formData = {
         username: displayName,
         email: email,
-        wallet: address,
+        wallet: publicKey,
         bio: bio || undefined,
       };
 
@@ -81,8 +81,8 @@ export function useProfileModal(
       const result = await response.json();
 
       if (response.ok) {
-        sessionStorage.setItem("wallet", address ?? "");
-        localStorage.setItem("wallet", address ?? "");
+        sessionStorage.setItem("wallet", publicKey ?? "");
+        localStorage.setItem("wallet", publicKey ?? "");
         onNextStep("success");
       } else {
         setRegistrationError(result.error || "Registration failed");
@@ -98,7 +98,7 @@ export function useProfileModal(
     e.preventDefault();
     setCodeError("");
 
-    if (verificationCode.some(digit => !digit)) {
+    if (verificationCode.some((digit: string) => !digit)) {
       setCodeError("Please enter the complete verification code");
       return;
     }

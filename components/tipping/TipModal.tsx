@@ -77,11 +77,11 @@ export function TipModal({
       setIsLoadingPrice(true);
       setPriceFetchFailed(false);
       getXLMPrice()
-        .then((price) => {
+        .then((price: number) => {
           setXlmPrice(price);
           setPriceFetchFailed(false);
         })
-        .catch((err) => {
+        .catch((err: unknown) => {
           console.error("Failed to fetch XLM price:", err);
           setPriceFetchFailed(true);
         })
@@ -182,26 +182,27 @@ export function TipModal({
       }
 
       // Build transaction
-      const xdr = await buildTipTransaction(
-        senderPublicKey,
-        recipientPublicKey,
-        amount,
-        `Tip to @${recipientUsername}`
-      );
+      const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet" ? "mainnet" : "testnet";
+      const transaction = await buildTipTransaction({
+        sourcePublicKey: senderPublicKey,
+        destinationPublicKey: recipientPublicKey,
+        amount: amount,
+        network: network as "testnet" | "mainnet",
+      });
 
       // Sign and submit transaction
       setTransactionState("signing");
-      const result = await submitTransaction(xdr, senderPublicKey);
+      const result = await submitTransaction(transaction, network as "testnet" | "mainnet");
 
       if (result.success) {
         setTransactionState("success");
-        setTxHash(result.hash);
+        setTxHash(result.hash ?? null);
         // Call onSuccess callback if provided
-        if (onSuccess) {
+        if (onSuccess && result.hash) {
           onSuccess(result.hash, amount);
         }
       } else {
-        throw new Error("Transaction failed");
+        throw new Error(result.error || "Transaction failed");
       }
     } catch (err: unknown) {
       console.error("Transaction error:", err);
