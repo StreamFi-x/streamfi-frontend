@@ -1,44 +1,27 @@
 /**
- * Jest tests for Stellar payment utilities.
+ * Unit tests for Stellar payment utilities (lib/stellar/payments.ts).
  * Run with: npx jest lib/stellar/__tests__/payments.test.ts
  */
 
 import {
   buildTipTransaction,
   submitTransaction,
-  isValidStellarPublicKey,
-  formatXLMAmount,
-  getCurrentNetwork,
   hasInsufficientBalance,
   getXLMPrice,
   calculateFeeEstimate,
+  isValidStellarPublicKey,
+  formatXLMAmount,
+  getCurrentNetwork,
 } from "../payments";
 import { Keypair } from "@stellar/stellar-sdk";
 
-const TEST_NETWORK = "testnet" as const;
+const mockServerInstance = {
+  loadAccount: jest.fn(),
+  submitTransaction: jest.fn(),
+};
 
-function buildTipParams(
-  source: string,
-  destination: string,
-  amount: string,
-  network: "testnet" | "mainnet" = TEST_NETWORK
-) {
-  return { sourcePublicKey: source, destinationPublicKey: destination, amount, network };
-}
-
-// Shared mock instances so the module under test (which creates one server at load time) uses the same instance we configure.
-// Created inside jest.mock factory and attached to global so they exist when the module loads.
 jest.mock("@stellar/stellar-sdk", () => {
   const actual = jest.requireActual("@stellar/stellar-sdk");
-  const mockServerInstance = {
-    loadAccount: jest.fn(),
-    ledgers: jest.fn().mockReturnThis(),
-    order: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    call: jest.fn(),
-    submitTransaction: jest.fn(),
-  };
-  (global as any).__mockStellarServer = mockServerInstance;
   return {
     ...actual,
     Horizon: {
@@ -64,10 +47,6 @@ jest.mock("@creit.tech/stellar-wallets-kit", () => {
 });
 
 describe("Stellar Payments", () => {
-  const mockServerInstance = (global as any).__mockStellarServer;
-  const mockKitInstance = (global as any).__mockStellarKit;
-
-  // Valid Stellar keys (SDK validates format) for buildTipTransaction and submitTransaction
   let validSenderKey: string;
   let validRecipientKey: string;
   beforeAll(() => {
@@ -80,12 +59,21 @@ describe("Stellar Payments", () => {
   let consoleErrorSpy: jest.SpyInstance;
   beforeEach(() => {
     jest.clearAllMocks();
-    // Suppress expected console.error from payments.ts catch blocks (tests trigger error paths on purpose)
     consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
   });
   afterEach(() => {
     consoleErrorSpy?.mockRestore();
   });
+
+  function buildParams(overrides: Partial<{ amount: string; network: "testnet" | "mainnet" }> = {}) {
+    return {
+      sourcePublicKey: validSenderKey,
+      destinationPublicKey: validRecipientKey,
+      amount: "10",
+      network: "testnet" as const,
+      ...overrides,
+    };
+  }
 
   describe("buildTipTransaction", () => {
     beforeEach(() => {
@@ -97,30 +85,28 @@ describe("Stellar Payments", () => {
     });
 
     it("should build transaction with valid inputs", async () => {
-      const transaction = await buildTipTransaction(
-        buildTipParams(validSenderKey, validRecipientKey, "10")
-      );
+      const transaction = await buildTipTransaction(buildParams());
 
       expect(transaction).toBeDefined();
-      expect(transaction.operations).toBeDefined();
-      expect(transaction.operations.length).toBeGreaterThan(0);
+      expect(transaction.operations).toHaveLength(1);
+      expect(transaction.memo.value).toBe("StreamFi Tip");
     });
 
     it("should reject invalid amount (negative)", async () => {
       await expect(
-        buildTipTransaction(buildTipParams(validSenderKey, validRecipientKey, "-5"))
+        buildTipTransaction(buildParams({ amount: "-5" }))
       ).rejects.toThrow();
     });
 
     it("should reject invalid amount (zero)", async () => {
       await expect(
-        buildTipTransaction(buildTipParams(validSenderKey, validRecipientKey, "0"))
+        buildTipTransaction(buildParams({ amount: "0" }))
       ).rejects.toThrow();
     });
 
     it("should reject invalid amount (NaN)", async () => {
       await expect(
-        buildTipTransaction(buildTipParams(validSenderKey, validRecipientKey, "abc"))
+        buildTipTransaction(buildParams({ amount: "abc" }))
       ).rejects.toThrow();
     });
 
@@ -129,27 +115,21 @@ describe("Stellar Payments", () => {
         new Error("Account not found")
       );
 
-      await expect(
-        buildTipTransaction(buildTipParams(validSenderKey, validRecipientKey, "10"))
-      ).rejects.toThrow();
+      await expect(buildTipTransaction(buildParams())).rejects.toThrow();
+    });
+
+    it("should build transaction with custom amount", async () => {
+      const transaction = await buildTipTransaction(buildParams({ amount: "5.5" }));
+
+      expect(transaction).toBeDefined();
+      expect(transaction.operations).toHaveLength(1);
     });
 
     it("should build transaction with memo", async () => {
-      const transaction = await buildTipTransaction(
-        buildTipParams(validSenderKey, validRecipientKey, "10")
-      );
+      const transaction = await buildTipTransaction(buildParams());
 
       expect(transaction).toBeDefined();
       expect(transaction.memo).toBeDefined();
-    });
-
-    it("should handle transaction with valid amount only", async () => {
-      const transaction = await buildTipTransaction(
-        buildTipParams(validSenderKey, validRecipientKey, "10")
-      );
-
-      expect(transaction).toBeDefined();
-      expect(transaction.operations.length).toBeGreaterThan(0);
     });
   });
 
@@ -160,15 +140,13 @@ describe("Stellar Payments", () => {
         sequenceNumber: () => "123456",
         incrementSequenceNumber: jest.fn(),
       });
-      const transaction = await buildTipTransaction(
-        buildTipParams(validSenderKey, validRecipientKey, "1")
-      );
+      const transaction = await buildTipTransaction(buildParams({ amount: "1" }));
       mockServerInstance.submitTransaction.mockResolvedValue({
         hash: "ABC123",
         ledger: 12345,
       });
 
-      const result = await submitTransaction(transaction, TEST_NETWORK);
+      const result = await submitTransaction(transaction, "testnet");
 
       expect(result.success).toBe(true);
       expect(result.hash).toBe("ABC123");
@@ -181,14 +159,12 @@ describe("Stellar Payments", () => {
         sequenceNumber: () => "123456",
         incrementSequenceNumber: jest.fn(),
       });
-      const transaction = await buildTipTransaction(
-        buildTipParams(validSenderKey, validRecipientKey, "1")
-      );
+      const transaction = await buildTipTransaction(buildParams({ amount: "1" }));
       mockServerInstance.submitTransaction.mockRejectedValue(
         new Error("Transaction failed")
       );
 
-      const result = await submitTransaction(transaction, TEST_NETWORK);
+      const result = await submitTransaction(transaction, "testnet");
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
@@ -200,9 +176,7 @@ describe("Stellar Payments", () => {
         sequenceNumber: () => "123456",
         incrementSequenceNumber: jest.fn(),
       });
-      const transaction = await buildTipTransaction(
-        buildTipParams(validSenderKey, validRecipientKey, "1")
-      );
+      const transaction = await buildTipTransaction(buildParams({ amount: "1" }));
       mockServerInstance.submitTransaction.mockRejectedValue({
         response: {
           data: {
@@ -216,7 +190,7 @@ describe("Stellar Payments", () => {
         },
       });
 
-      const result = await submitTransaction(transaction, TEST_NETWORK);
+      const result = await submitTransaction(transaction, "testnet");
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Insufficient");
@@ -228,15 +202,7 @@ describe("Stellar Payments", () => {
 
     it("should return false when balance is sufficient", async () => {
       mockServerInstance.loadAccount.mockResolvedValue({
-        balances: [
-          { asset_type: "native", balance: "100.0000000" },
-        ],
-      });
-      mockServerInstance.ledgers.mockReturnThis();
-      mockServerInstance.order.mockReturnThis();
-      mockServerInstance.limit.mockReturnThis();
-      mockServerInstance.call.mockResolvedValue({
-        records: [{ base_reserve_in_stroops: 5000000 }],
+        balances: [{ asset_type: "native", balance: "100.0000000" }],
       });
 
       const result = await hasInsufficientBalance(mockPublicKey, "10");
@@ -246,15 +212,7 @@ describe("Stellar Payments", () => {
 
     it("should return true when balance is insufficient", async () => {
       mockServerInstance.loadAccount.mockResolvedValue({
-        balances: [
-          { asset_type: "native", balance: "1.0000000" },
-        ],
-      });
-      mockServerInstance.ledgers.mockReturnThis();
-      mockServerInstance.order.mockReturnThis();
-      mockServerInstance.limit.mockReturnThis();
-      mockServerInstance.call.mockResolvedValue({
-        records: [{ base_reserve_in_stroops: 5000000 }],
+        balances: [{ asset_type: "native", balance: "1.0000000" }],
       });
 
       const result = await hasInsufficientBalance(mockPublicKey, "100");
@@ -264,18 +222,10 @@ describe("Stellar Payments", () => {
 
     it("should consider transaction fees in calculation", async () => {
       mockServerInstance.loadAccount.mockResolvedValue({
-        balances: [
-          { asset_type: "native", balance: "10.0000000" },
-        ],
-      });
-      mockServerInstance.ledgers.mockReturnThis();
-      mockServerInstance.order.mockReturnThis();
-      mockServerInstance.limit.mockReturnThis();
-      mockServerInstance.call.mockResolvedValue({
-        records: [{ base_reserve_in_stroops: 5000000 }],
+        balances: [{ asset_type: "native", balance: "10.0000000" }],
       });
 
-      // Balance 10 XLM, amount 10 XLM: required = 10 + fee > 10, so insufficient
+      // 10 XLM balance - 10 XLM tip leaves only fee margin; required = 10 + fee > 10
       const result = await hasInsufficientBalance(mockPublicKey, "10");
 
       expect(result).toBe(true);
@@ -293,15 +243,7 @@ describe("Stellar Payments", () => {
 
     it("should handle missing native balance", async () => {
       mockServerInstance.loadAccount.mockResolvedValue({
-        balances: [
-          { asset_type: "credit_alphanum4", balance: "100.0000000" },
-        ],
-      });
-      mockServerInstance.ledgers.mockReturnThis();
-      mockServerInstance.order.mockReturnThis();
-      mockServerInstance.limit.mockReturnThis();
-      mockServerInstance.call.mockResolvedValue({
-        records: [{ base_reserve_in_stroops: 5000000 }],
+        balances: [{ asset_type: "credit_alphanum4", balance: "100.0000000" }],
       });
 
       const result = await hasInsufficientBalance(mockPublicKey, "10");
@@ -399,10 +341,11 @@ describe("Stellar Payments", () => {
       });
 
       const transaction = await buildTipTransaction(
-        buildTipParams(validSenderKey, validRecipientKey, "0.0000001")
+        buildParams({ amount: "0.0000001" })
       );
 
       expect(transaction).toBeDefined();
+      expect(transaction.operations).toHaveLength(1);
     });
 
     it("should handle very large amounts correctly", async () => {
@@ -413,10 +356,11 @@ describe("Stellar Payments", () => {
       });
 
       const transaction = await buildTipTransaction(
-        buildTipParams(validSenderKey, validRecipientKey, "9999")
+        buildParams({ amount: "9999" })
       );
 
       expect(transaction).toBeDefined();
+      expect(transaction.operations).toHaveLength(1);
     });
 
     it("should handle concurrent price fetches", async () => {
