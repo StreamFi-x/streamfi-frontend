@@ -40,7 +40,7 @@ export default function ProfileModal({
 
   // Router and wallet
   const router = useRouter();
-  const { address } = useStellarWallet();
+  const { publicKey } = useStellarWallet();
 
   // Verification code state
   const [verificationCode, setVerificationCode] = useState([
@@ -82,12 +82,12 @@ export default function ProfileModal({
       setIsLoading(true);
 
       try {
-        console.log("ProfileModal: Registering user with wallet:", address);
+        console.log("ProfileModal: Registering user with wallet:", publicKey);
 
         const formData = {
           username: displayName,
           email: email,
-          wallet: address,
+          wallet: publicKey,
           bio: bio || undefined,
         };
 
@@ -109,11 +109,11 @@ export default function ProfileModal({
           console.log("ProfileModal: Registration successful");
 
           // Store wallet and username in localStorage for persistence
-          localStorage.setItem("wallet", address || "");
+          localStorage.setItem("wallet", publicKey || "");
           localStorage.setItem("username", displayName);
 
           // Also store in sessionStorage for redundancy
-          sessionStorage.setItem("wallet", address || "");
+          sessionStorage.setItem("wallet", publicKey || "");
           sessionStorage.setItem("username", displayName);
 
           // Skip verification for now and go straight to success

@@ -1,12 +1,14 @@
 // hooks/useProfileModal.ts
 
-import React, { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
 export function useProfileModal(
-  onNextStep: (step: "profile" | "verify" | "success") => void
+  onNextStep: (step: "profile" | "verify" | "success") => void,
+  refreshUser?: () => Promise<unknown>
 ) {
-  const { address } = useStellarWallet();
+  const { publicKey } = useStellarWallet();
+  void refreshUser;
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -35,7 +37,7 @@ export function useProfileModal(
     setCodeError("");
   };
 
-  const handleProfileSubmit = async (e: React.FormEvent) => {
+  const handleProfileSubmit = async (e: FormEvent) => {
     e.preventDefault();
     resetErrors();
 
@@ -64,7 +66,7 @@ export function useProfileModal(
       const formData = {
         username: displayName,
         email: email,
-        wallet: address,
+        wallet: publicKey,
         bio: bio || undefined,
       };
 
@@ -79,24 +81,24 @@ export function useProfileModal(
       const result = await response.json();
 
       if (response.ok) {
-        sessionStorage.setItem("wallet", address ?? "");
-        localStorage.setItem("wallet", address ?? "");
+        sessionStorage.setItem("wallet", publicKey ?? "");
+        localStorage.setItem("wallet", publicKey ?? "");
         onNextStep("success");
       } else {
         setRegistrationError(result.error || "Registration failed");
       }
-    } catch (error) {
-      setRegistrationError(`An unexpected error occurred: ${error}`);
+    } catch {
+      setRegistrationError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleVerifySubmit = (e: React.FormEvent) => {
+  const handleVerifySubmit = (e: FormEvent) => {
     e.preventDefault();
     setCodeError("");
 
-    if (verificationCode.some(digit => !digit)) {
+    if (verificationCode.some((digit: string) => !digit)) {
       setCodeError("Please enter the complete verification code");
       return;
     }

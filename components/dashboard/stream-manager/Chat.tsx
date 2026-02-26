@@ -8,8 +8,8 @@ import { useStreamData } from "@/hooks/useStreamData";
 import { useChat } from "@/hooks/useChat";
 
 export default function Chat() {
-  const { address } = useStellarWallet();
-  const { streamData } = useStreamData(address ?? undefined);
+  const { publicKey: address } = useStellarWallet();
+  const { streamData } = useStreamData(address || undefined);
   const { messages, sendMessage, isSending, isLoading } = useChat(
     streamData?.playbackId,
     address ?? undefined,
@@ -163,3 +163,4 @@ export default function Chat() {
     </motion.div>
   );
 }
+

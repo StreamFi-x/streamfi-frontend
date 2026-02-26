@@ -32,7 +32,7 @@ const fetcher = async (url: string) => {
 };
 
 export default function Home() {
-  const { address } = useStellarWallet();
+  const { publicKey: address } = useStellarWallet();
 
   // Fetch live streams with 30-second polling
   const { data, isLoading } = useSWR<{ streams: LiveStream[] }>(
@@ -124,3 +124,4 @@ function formatViewCount(count: number): string {
   }
   return count.toString();
 }
+

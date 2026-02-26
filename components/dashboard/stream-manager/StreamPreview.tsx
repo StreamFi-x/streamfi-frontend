@@ -10,7 +10,7 @@ import { useStreamData } from "@/hooks/useStreamData";
 import { useChat } from "@/hooks/useChat";
 
 export default function StreamPreview() {
-  const { address } = useStellarWallet();
+  const { publicKey: address } = useStellarWallet();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChatOverlay, setShowChatOverlay] = useState(true);
   const [chatMessage, setChatMessage] = useState("");
@@ -344,3 +344,4 @@ function MonitorIcon({ size = 24, className = "" }) {
     </svg>
   );
 }
+

@@ -1,17 +1,16 @@
 "use client";
 
-import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Search, Settings, User, Wallet } from "lucide-react";
+import { useState, useEffect, type ElementType } from "react";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
-import { useState, useEffect } from "react";
 import ConnectModal from "../connectWallet";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface QuickActionItem {
-  icon: React.ElementType;
+  icon: ElementType;
   label: string;
   href: string;
   type: "link" | "action";
@@ -19,7 +18,7 @@ interface QuickActionItem {
 
 export default function QuickActions() {
   const pathname = usePathname();
-  const { address, isConnected } = useStellarWallet();
+  const { publicKey: address, isConnected } = useStellarWallet();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Use SWR hook for optimized data fetching with caching
@@ -30,21 +29,12 @@ export default function QuickActions() {
     setIsModalOpen(true);
   };
 
+  // Close modal automatically once the wallet connects
   useEffect(() => {
     if (isConnected) {
       setIsModalOpen(false);
     }
   }, [isConnected]);
-  // const allowedRoutes = [
-  //   "/explore",
-  //   "/settings",
-  //   "/browse",
-  //   username ? `/${username}` : "/profile",
-  // ];
-
-  // const shouldShowQuickActions = allowedRoutes.some(
-  //   (route) => pathname === route || pathname.startsWith(`${route}/`)
-  // );
 
   const excludedRoutes = ["/", "/api", "/admin", "/dashboard"];
 
@@ -55,6 +45,8 @@ export default function QuickActions() {
   if (!shouldShowQuickActions) {
     return null;
   }
+
+  // ✅ Conditional rendering: profile action when connected, connect action when not
   const quickActionItems: QuickActionItem[] = [
     { icon: Home, label: "Home", href: "/explore", type: "link" },
     { icon: Search, label: "Search", href: "/browse", type: "link" },
@@ -69,10 +61,6 @@ export default function QuickActions() {
       : { icon: Wallet, label: "Connect", href: "#", type: "action" },
   ];
 
-  if (!shouldShowQuickActions) {
-    return null;
-  }
-
   return (
     <>
       <motion.div
@@ -80,19 +68,20 @@ export default function QuickActions() {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="lg:hidden absolute bottom-0 left-0 right-0 z-[80]  backdrop-blur-lg border-t border-white/10"
+        className="lg:hidden absolute bottom-0 left-0 right-0 z-[80] backdrop-blur-lg border-t border-white/10"
       >
         <div className="flex items-center justify-around py-2 px-4 safe-area-pb">
           {quickActionItems.map((item, index) => {
             const isActive =
               item.type === "link" &&
               (pathname === item.href || pathname.startsWith(`${item.href}/`));
+
             if (item.type === "action") {
               return (
                 <button
                   key={`${item.label}-${index}`}
                   onClick={handleConnectWallet}
-                  className="flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200  hover:text-white hover:bg-[#2D2F31]/40"
+                  className="flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 hover:text-white hover:bg-[#2D2F31]/40"
                 >
                   <item.icon size={20} className="mb-1" />
                   <span className="text-xs font-medium">{item.label}</span>

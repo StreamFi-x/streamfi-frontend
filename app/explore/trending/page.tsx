@@ -51,7 +51,7 @@ const calculateTrendingScore = (stream: LiveStream): number => {
 
 export default function TrendingPage() {
   const router = useRouter();
-  const { address } = useStellarWallet();
+  const { publicKey: address } = useStellarWallet();
 
   // Fetch live streams with 20-second polling
   const { data, error, isLoading } = useSWR<{ streams: LiveStream[] }>(
@@ -310,3 +310,4 @@ function StreamCard({
     </motion.div>
   );
 }
+

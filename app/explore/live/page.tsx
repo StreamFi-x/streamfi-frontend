@@ -33,7 +33,7 @@ const fetcher = async (url: string) => {
 
 export default function LivePage() {
   const router = useRouter();
-  const { address } = useStellarWallet();
+  const { publicKey: address } = useStellarWallet();
 
   // Fetch live streams with 15-second polling
   const { data, error, isLoading } = useSWR<{ streams: LiveStream[] }>(
@@ -289,3 +289,4 @@ function StreamCard({
     </motion.div>
   );
 }
+

@@ -1,41 +1,54 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
+import { TipCounter } from "@/components/tipping";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import useSWR from "swr";
 
-import { useAuth } from "@/components/auth/auth-provider";
-import { TipHistory } from "@/components/tipping";
-import { Loader2 } from "lucide-react";
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-function DashboardHome() {
-  const { user, isLoading: authLoading } = useAuth();
+export default function DashboardHome() {
+  const { publicKey } = useStellarWallet();
+  const [username, setUsername] = useState<string | null>(null);
 
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="animate-spin text-purple-500" size={32} />
-      </div>
-    );
-  }
+  // 1. Try to get username from session storage
+  useEffect(() => {
+    const storedUsername = sessionStorage.getItem("username");
+    if (storedUsername) {
+      setUsername(storedUsername);
+    }
+  }, []);
 
-  if (!user?.username) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px] text-muted-foreground">
-        Please complete your profile to view tip history.
-      </div>
-    );
-  }
+  // 2. If no username, try to fetch user by wallet public key
+  const { data: userData } = useSWR(
+    !username && publicKey ? `/api/users/wallet/${publicKey}` : null,
+    fetcher
+  );
+
+  useEffect(() => {
+    if (userData?.user?.username) {
+      setUsername(userData.user.username);
+    }
+  }, [userData]);
+
+  const effectiveUsername = username || publicKey || "User";
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
-        <p className="text-muted-foreground mt-1">
-          Monitor your earnings and transaction history.
-        </p>
-      </div>
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
+      <header>
+        <h1 className="text-2xl font-bold text-foreground">Creator Dashboard</h1>
+        <p className="text-muted-foreground text-sm">Manage your tipping and earnings.</p>
+      </header>
 
-      <TipHistory username={user.username} />
+      <div className="w-full">
+        <TipCounter
+          username={effectiveUsername}
+          variant="large"
+          showRefreshButton={true}
+          autoRefresh={true}
+          refreshInterval={60000}
+        />
+      </div>
     </div>
   );
 }
-
-export default DashboardHome;

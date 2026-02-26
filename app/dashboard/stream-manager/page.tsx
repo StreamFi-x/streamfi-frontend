@@ -13,7 +13,7 @@ import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
 
 export default function StreamManagerPage() {
-  const { address } = useStellarWallet();
+  const { publicKey: address } = useStellarWallet();
   const [streamData, setStreamData] = useState({
     title: "",
     category: "",
@@ -252,3 +252,4 @@ const StatsCard: React.FC<{ title: string; value: number }> = ({
     <div className="text-xs text-muted-foreground">{title}</div>
   </motion.div>
 );
+

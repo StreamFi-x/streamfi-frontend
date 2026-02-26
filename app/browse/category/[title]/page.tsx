@@ -185,7 +185,7 @@ function CategoryHeroSkeleton() {
 export default function CategoryDetailPage() {
   const params = useParams();
   const title = params.title as string;
-  const { address } = useStellarWallet();
+  const { publicKey: address } = useStellarWallet();
 
   // State for category data
   const [categoryData, setCategoryData] = useState({
@@ -529,3 +529,4 @@ export default function CategoryDetailPage() {
     </div>
   );
 }
+

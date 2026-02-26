@@ -29,7 +29,7 @@
 
 ### Post-Migration Status
 
-StreamFi has completed its migration from StarkNet to Stellar for wallet authentication. The current state includes:
+StreamFi has completed its migration to Stellar for wallet authentication. The current state includes:
 
 **✅ Completed:**
 
