@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateRoutesFRecord } from "@/lib/routes-f/schema";
 import { withRoutesFLogging } from "@/lib/routes-f/logging";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 export async function POST(req: Request) {
   return withRoutesFLogging(req, async request => {
@@ -9,16 +10,13 @@ export async function POST(req: Request) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON payload" },
-        { status: 400 }
-      );
+      return jsonResponse({ error: "Invalid JSON payload" }, { status: 400 });
     }
 
     const result = validateRoutesFRecord(body);
 
     if (!result.isValid) {
-      return NextResponse.json(
+      return jsonResponse(
         {
           isValid: false,
           errors: result.errors,
@@ -28,7 +26,7 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json(
+    return jsonResponse(
       {
         isValid: true,
         errors: [],

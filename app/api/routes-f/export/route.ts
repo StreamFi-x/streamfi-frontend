@@ -8,6 +8,7 @@ import {
 import { recordMetric } from "@/lib/routes-f/metrics";
 import { getRoutesFRecords } from "@/lib/routes-f/store";
 import { applyRateLimitHeaders, checkRateLimit } from "@/lib/routes-f/rate-limit";
+import { wrapRoutesFJson } from "@/lib/routes-f/version";
 
 const CSV_HEADERS = [
   "id",
@@ -55,7 +56,12 @@ export async function GET(req: Request) {
   if (!limiter.allowed) {
     headers.set("Retry-After", String(limiter.retryAfterSeconds));
     return new Response(
-      JSON.stringify({ error: "Rate limit exceeded", policy: limiter.policy }),
+      JSON.stringify(
+        wrapRoutesFJson({
+          error: "Rate limit exceeded",
+          policy: limiter.policy,
+        })
+      ),
       {
         status: 429,
         headers: {
@@ -98,7 +104,7 @@ export async function GET(req: Request) {
     body = recordsToCsv(records);
     contentType = "text/csv";
   } else {
-    body = JSON.stringify(records);
+    body = JSON.stringify(wrapRoutesFJson({ data: records }));
     contentType = "application/json";
   }
 

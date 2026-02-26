@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { defineSchema, parseRequestBody } from "../_lib/schema";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 const accountSchema = defineSchema({
   wallet: { type: "string", minLength: 3, maxLength: 120 },
@@ -15,7 +15,7 @@ export async function PATCH(request: Request) {
 
   const { wallet, displayName, notificationsEnabled } = parsed.data;
 
-  return NextResponse.json(
+  return jsonResponse(
     {
       ok: true,
       endpoint: "routes-f/account",

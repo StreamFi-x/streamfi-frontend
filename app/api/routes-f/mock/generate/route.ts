@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { withRoutesFLogging } from "@/lib/routes-f/logging";
 import { withPayloadGuard } from "@/lib/routes-f/payload-guard";
 import { generateMockData } from "@/lib/routes-f/mock-generator";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 const MAX_COUNT = 500;
 const MIN_COUNT = 1;
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
                         body = JSON.parse(text);
                     }
                 } catch {
-                    return NextResponse.json(
+                    return jsonResponse(
                         { error: "Invalid JSON payload" },
                         { status: 400 }
                     );
@@ -38,14 +39,14 @@ export async function POST(req: Request) {
                 let count = body.count !== undefined ? Number(body.count) : DEFAULT_COUNT;
 
                 if (isNaN(count) || !Number.isInteger(count)) {
-                    return NextResponse.json(
+                    return jsonResponse(
                         { error: "count must be an integer" },
                         { status: 400 }
                     );
                 }
 
                 if (count < MIN_COUNT || count > MAX_COUNT) {
-                    return NextResponse.json(
+                    return jsonResponse(
                         { error: `count must be between ${MIN_COUNT} and ${MAX_COUNT}` },
                         { status: 400 }
                     );
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
 
                 const data = generateMockData(seed, count, profileType);
 
-                return NextResponse.json({
+                return jsonResponse({
                     metadata: {
                         seed,
                         count,

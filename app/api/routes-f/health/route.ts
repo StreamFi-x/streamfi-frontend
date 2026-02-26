@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { withRoutesFLogging } from "@/lib/routes-f/logging";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 function getVersionInfo() {
   return (
@@ -18,7 +18,7 @@ export async function GET(req: Request) {
       timestamp: new Date().toISOString(),
     };
 
-    return NextResponse.json(payload, {
+    return jsonResponse(payload, {
       status: 200,
       headers: {
         "Cache-Control": "no-store",

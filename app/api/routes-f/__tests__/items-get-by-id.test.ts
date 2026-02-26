@@ -3,11 +3,11 @@
  */
 jest.mock("next/server", () => ({
   NextResponse: {
-    json: (body: unknown, init?: ResponseInit) =>
-      new Response(JSON.stringify(body), {
-        ...init,
-        headers: { "Content-Type": "application/json", ...init?.headers },
-      }),
+    json: (body: unknown, init?: ResponseInit) => {
+      const headers = new Headers(init?.headers);
+      headers.set("Content-Type", "application/json");
+      return new Response(JSON.stringify(body), { ...init, headers });
+    },
   },
 }));
 

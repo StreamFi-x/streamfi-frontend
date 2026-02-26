@@ -28,11 +28,15 @@ describe("GET /api/routes-f/export", () => {
     __test__resetCache();
   });
 
-  it("returns JSON by default", async () => {
+  it("returns JSON by default with apiVersion and data", async () => {
     const res = await GET(makeRequest());
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("application/json");
     expect(res.headers.get("Content-Disposition")).toContain("routes-f-export.json");
+    const body = await res.json();
+    expect(body.apiVersion).toBeDefined();
+    expect(body.data).toBeDefined();
+    expect(Array.isArray(body.data)).toBe(true);
   });
 
   it("returns CSV when requested", async () => {

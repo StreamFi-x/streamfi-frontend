@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { wrapRoutesFJson } from "@/lib/routes-f/version";
 
 export const ROUTES_F_ERROR_CODES = {
   BAD_REQUEST: "BAD_REQUEST",
@@ -66,5 +67,7 @@ export function normalizeRoutesFError(error: unknown): {
 
 export function routesFErrorResponse(error: unknown): Response {
   const normalized = normalizeRoutesFError(error);
-  return NextResponse.json(normalized.body, { status: normalized.status });
+  return NextResponse.json(wrapRoutesFJson(normalized.body), {
+    status: normalized.status,
+  });
 }

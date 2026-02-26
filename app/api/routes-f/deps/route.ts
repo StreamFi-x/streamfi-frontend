@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { runWithCircuitBreaker } from "@/lib/routes-f/circuit-breaker";
 import { checkDependencies, getDependencyKeys } from "@/lib/routes-f/deps";
 import { withRoutesFLogging } from "@/lib/routes-f/logging";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 const CIRCUIT_KEY = "routes-f/deps";
 
@@ -19,11 +20,11 @@ export async function GET(req: Request) {
     });
 
     if (result.ok) {
-      return NextResponse.json(result.value, { status: 200 });
+      return jsonResponse(result.value, { status: 200 });
     }
 
     if (result.shortCircuited) {
-      return NextResponse.json(
+      return jsonResponse(
         {
           healthy: false,
           deps: getDependencyKeys().map(key => ({
@@ -40,7 +41,7 @@ export async function GET(req: Request) {
       );
     }
 
-    return NextResponse.json(
+    return jsonResponse(
       {
         healthy: false,
         deps: getDependencyKeys().map(key => ({

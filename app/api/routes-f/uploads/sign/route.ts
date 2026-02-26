@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withRoutesFLogging } from "@/lib/routes-f/logging";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 const ALLOWED_FILE_TYPES = new Set([
   "video/mp4",
@@ -43,19 +44,19 @@ export async function POST(req: Request) {
     try {
       body = (await request.json()) as UploadSignBody;
     } catch {
-      return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+      return jsonResponse({ error: "Invalid JSON payload" }, { status: 400 });
     }
 
     const validationError = validateUploadBody(body);
     if (validationError) {
-      return NextResponse.json({ error: validationError }, { status: 400 });
+      return jsonResponse({ error: validationError }, { status: 400 });
     }
 
     const now = Date.now();
     const expiresAt = new Date(now + SIGNED_URL_TTL_SECONDS * 1000).toISOString();
     const encodedName = encodeURIComponent(String(body.fileName));
 
-    return NextResponse.json(
+    return jsonResponse(
       {
         url: `https://uploads.streamfi.local/mock/${encodedName}?token=stub-signature`,
         method: "PUT",

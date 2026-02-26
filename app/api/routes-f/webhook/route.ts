@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { withRoutesFLogging, hashPayload } from "@/lib/routes-f/logging";
+import { jsonResponse } from "@/lib/routes-f/version";
 
-const ROUTES_F_WEBHOOK_SECRET =
-  process.env.ROUTES_F_WEBHOOK_SECRET || "";
+function getWebhookSecret(): string {
+  return process.env.ROUTES_F_WEBHOOK_SECRET || "";
+}
 
 const webhookStore: Array<{
   receivedAt: string;
@@ -21,7 +23,8 @@ function timingSafeEqual(a: string, b: string) {
 }
 
 function isValidSignature(signatureHeader: string | null, body: string) {
-  if (!ROUTES_F_WEBHOOK_SECRET) {
+  const secret = getWebhookSecret();
+  if (!secret) {
     return false;
   }
   if (!signatureHeader) {
@@ -33,7 +36,7 @@ function isValidSignature(signatureHeader: string | null, body: string) {
     : signatureHeader;
 
   const expected = crypto
-    .createHmac("sha256", ROUTES_F_WEBHOOK_SECRET)
+    .createHmac("sha256", secret)
     .update(body)
     .digest("hex");
 
@@ -46,7 +49,7 @@ export async function POST(req: Request) {
     const signature = request.headers.get("x-signature");
 
     if (!isValidSignature(signature, bodyText)) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+      return jsonResponse({ error: "Invalid signature" }, { status: 401 });
     }
 
     let payload: unknown = null;
@@ -75,6 +78,6 @@ export async function POST(req: Request) {
       stored: true,
     });
 
-    return NextResponse.json({ received: true }, { status: 200 });
+    return jsonResponse({ received: true }, { status: 200 });
   });
 }
