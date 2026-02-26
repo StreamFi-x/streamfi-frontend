@@ -87,7 +87,7 @@ export default function StreamSettings() {
           <div className="flex-1 overflow-y-auto scrollbar-hide bg-background p-3">
             <div className="mb-3">
               <div className="text-xs text-muted-foreground mb-1">
-                STRK (Starknet) Address
+                Stellar Address
               </div>
               <div className="flex items-center bg-secondary rounded-md p-2 border border-border">
                 <div className="flex-1 text-[10px] font-mono truncate text-muted-foreground">

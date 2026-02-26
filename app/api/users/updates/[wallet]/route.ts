@@ -14,10 +14,11 @@ export async function PUT(
 ) {
   try {
     const { wallet } = await params;
+    const normalizedWallet = wallet.toLowerCase();
 
-    // Stellar public keys are uppercase; use exact match
+    // Fetching current user data
     const existingResult = await sql`
-      SELECT * FROM users WHERE wallet = ${wallet}
+      SELECT * FROM users WHERE LOWER(wallet) = LOWER(${normalizedWallet})
     `;
     const user = existingResult.rows[0];
     if (!user) {
@@ -33,6 +34,11 @@ export async function PUT(
     const emailVerified = formData.get("emailVerified") ?? user.emailVerified;
     const emailNotifications =
       formData.get("emailNotifications") ?? user.emailNotifications;
+    const enableRecordingRaw = formData.get("enable_recording");
+    const enableRecording =
+      enableRecordingRaw !== null && enableRecordingRaw !== undefined
+        ? String(enableRecordingRaw) === "true"
+        : user.enable_recording;
 
     // Social links - Use lowercase column name to match database
     let processedSocialLinks = user.sociallinks;
@@ -110,7 +116,7 @@ export async function PUT(
 
     if (email && email !== user.email) {
       const emailExists = await sql`
-        SELECT id FROM users WHERE email = ${email} AND wallet != ${wallet}
+        SELECT id FROM users WHERE email = ${email} AND wallet != ${normalizedWallet}
       `;
       if (emailExists.rows.length > 0) {
         return NextResponse.json(
@@ -123,7 +129,7 @@ export async function PUT(
     // Username uniqueness
     if (username && username !== user.username) {
       const usernameExists = await sql`
-        SELECT id FROM users WHERE username = ${username} AND wallet != ${wallet}
+        SELECT id FROM users WHERE username = ${username} AND wallet != ${normalizedWallet}
       `;
       if (usernameExists.rows.length > 0) {
         return NextResponse.json(
@@ -155,7 +161,7 @@ export async function PUT(
       }
     }
 
-    // Prepare SQL update - Use lowercase column name
+    // Prepare SQL update - Use lowercase column name for Postgres
     const updatedUser = await sql`
       UPDATE users SET
         username = ${username},
@@ -167,9 +173,10 @@ export async function PUT(
         emailverified = ${emailVerified},
         emailnotifications = ${emailNotifications},
         creator = ${creator ? JSON.stringify(creator) : user.creator},
+        enable_recording = ${enableRecording},
         updated_at = CURRENT_TIMESTAMP
-      WHERE wallet = ${wallet}
-      RETURNING id, username, email, streamkey, avatar, bio, sociallinks, emailverified, emailnotifications, creator, wallet, created_at, updated_at
+      WHERE LOWER(wallet) = LOWER(${normalizedWallet})
+      RETURNING id, username, email, streamkey, avatar, bio, sociallinks, emailverified, emailnotifications, creator, wallet, enable_recording, created_at, updated_at
     `;
 
     return NextResponse.json({

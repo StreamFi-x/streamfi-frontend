@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "setup-db": "node scripts/setup-db.cjs",
+    "setup-db": "node scripts/setup-db.js",
     "update-schema": "node scripts/updateUserSchema.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -27,7 +27,7 @@
     "predev": "npm run type-check"
   },
   "dependencies": {
-    "@creit.tech/stellar-wallets-kit": "^1.5.0",
+    "@creit.tech/stellar-wallets-kit": "^1.9.5",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fontsource/inter": "^5.1.1",
@@ -56,7 +56,7 @@
     "dotenv": "^16.4.7",
     "embla-carousel-react": "^8.5.2",
     "formidable": "^3.5.4",
-    "framer-motion": "^12.5.0",
+    "framer-motion": "^12.34.3",
     "hls.js": "^1.6.5",
     "input-otp": "^1.4.2",
     "lucide": "^0.475.0",
@@ -74,9 +74,10 @@
     "react-icons": "^5.5.0",
     "sharp": "^0.33.5",
     "sonner": "^2.0.2",
+    "stellar-wallet-kit": "^2.0.7",
     "swiper": "^12.1.2",
     "swr": "^2.4.0",
-    "tailwind-merge": "^3.0.2",
+    "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^11.1.0",
     "zod": "^3.25.74"
@@ -102,6 +103,7 @@
     "@types/jest": "^30.0.0",
     "@types/jsdom": "^27.0.0",
     "@types/mongoose": "^5.11.96",
+    "@types/next": "^8.0.7",
     "@types/node": "^20",
     "@types/nodemailer": "^6.4.17",
     "@types/nprogress": "^0.2.3",
@@ -120,6 +122,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.1.6",
     "husky": "^9.1.7",
+    "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.0.4",
     "lint-staged": "^16.1.5",
     "msw": "^2.12.10",
@@ -127,7 +130,8 @@
     "prettier": "^3.6.2",
     "tailwindcss": "^3.4.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "whatwg-fetch": "^3.6.20"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

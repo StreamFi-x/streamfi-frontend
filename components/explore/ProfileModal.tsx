@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
 import { MdClose } from "react-icons/md";
 import { useRouter } from "next/navigation";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import SimpleLoader from "@/components/ui/loader/simple-loader";
 
 interface ProfileModalProps {
@@ -40,7 +40,7 @@ export default function ProfileModal({
 
   // Router and wallet
   const router = useRouter();
-  const { address } = useAccount();
+  const { publicKey } = useStellarWallet();
 
   // Verification code state
   const [verificationCode, setVerificationCode] = useState([
@@ -82,12 +82,12 @@ export default function ProfileModal({
       setIsLoading(true);
 
       try {
-        console.log("ProfileModal: Registering user with wallet:", address);
+        console.log("ProfileModal: Registering user with wallet:", publicKey);
 
         const formData = {
           username: displayName,
           email: email,
-          wallet: address,
+          wallet: publicKey,
           bio: bio || undefined,
         };
 
@@ -109,11 +109,11 @@ export default function ProfileModal({
           console.log("ProfileModal: Registration successful");
 
           // Store wallet and username in localStorage for persistence
-          localStorage.setItem("wallet", address || "");
+          localStorage.setItem("wallet", publicKey || "");
           localStorage.setItem("username", displayName);
 
           // Also store in sessionStorage for redundancy
-          sessionStorage.setItem("wallet", address || "");
+          sessionStorage.setItem("wallet", publicKey || "");
           sessionStorage.setItem("username", displayName);
 
           // Skip verification for now and go straight to success
@@ -169,7 +169,9 @@ export default function ProfileModal({
     setIsProfileModalOpen(false);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

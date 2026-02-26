@@ -33,8 +33,16 @@ const makeRequest = (method: string, body?: object, search?: string) =>
 
 const sqlMock = sql as unknown as jest.Mock;
 
+let consoleErrorSpy: jest.SpyInstance;
+
 describe("POST /api/streams/chat", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    consoleErrorSpy?.mockRestore();
+  });
 
   it("returns 400 when wallet is missing", async () => {
     const req = makeRequest("POST", { playbackId: "pb1", content: "hello" });
@@ -179,7 +187,13 @@ describe("POST /api/streams/chat", () => {
 });
 
 describe("GET /api/streams/chat", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    consoleErrorSpy?.mockRestore();
+  });
 
   it("returns 400 when playbackId is missing", async () => {
     const req = makeRequest("GET", undefined, "");
@@ -250,7 +264,13 @@ describe("GET /api/streams/chat", () => {
 });
 
 describe("DELETE /api/streams/chat", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    consoleErrorSpy?.mockRestore();
+  });
 
   it("returns 400 when messageId is missing", async () => {
     const req = makeRequest("DELETE", { moderatorWallet: "0xABC" });

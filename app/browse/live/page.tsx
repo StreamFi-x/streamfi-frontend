@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,7 @@ const fetcher = async (url: string) => {
 };
 
 export default function LivePage() {
-  const { address } = useAccount();
+  const { publicKey: address } = useStellarWallet();
   const searchParams = useSearchParams();
   const selectedCategory = searchParams.get("category");
   const [selectedLanguage, setSelectedLanguage] = useState("all");
@@ -250,3 +250,4 @@ export default function LivePage() {
     </div>
   );
 }
+

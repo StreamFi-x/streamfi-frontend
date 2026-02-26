@@ -4,13 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, X, Send, MessageCircle } from "lucide-react";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import MuxPlayer from "@mux/mux-player-react";
 import { useStreamData } from "@/hooks/useStreamData";
 import { useChat } from "@/hooks/useChat";
 
 export default function StreamPreview() {
-  const { address } = useAccount();
+  const { publicKey: address } = useStellarWallet();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChatOverlay, setShowChatOverlay] = useState(true);
   const [chatMessage, setChatMessage] = useState("");
@@ -21,10 +21,10 @@ export default function StreamPreview() {
   const overlayInputRef = useRef<HTMLInputElement>(null);
 
   // Use optimized SWR hook for data fetching with caching
-  const { streamData, isLoading } = useStreamData(address);
+  const { streamData, isLoading } = useStreamData(address || undefined);
   const { messages, sendMessage, isSending } = useChat(
     streamData?.playbackId,
-    address,
+    address || undefined,
     streamData?.isLive ?? false
   );
 
@@ -344,3 +344,4 @@ function MonitorIcon({ size = 24, className = "" }) {
     </svg>
   );
 }
+

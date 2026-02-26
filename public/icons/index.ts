@@ -7,6 +7,7 @@ import VerifySuccess from "./verify-success.svg";
 import Pfp1 from "./Recommend pfps.svg";
 import Pfp2 from "./Recommend pfps (1).svg";
 import Pfp3 from "./Recommend pfps (2).svg";
+import Avatar from './avatar.svg'
 export {
   CommunityIcon,
   MoneyLink,
@@ -17,4 +18,5 @@ export {
   Pfp3,
   StreamfiLogoShort,
   StreamfiLogoLight,
+  Avatar
 };

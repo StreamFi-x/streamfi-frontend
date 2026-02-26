@@ -3,10 +3,10 @@ import { sql } from "@vercel/postgres";
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ wallet: string }> }
+  { params }: { params: Promise<{ publicKey: string }> }
 ) {
   try {
-    const { wallet } = await params;
+    const { publicKey: wallet } = await params;
     console.log("API: Fetching user for wallet:", wallet);
 
     // Stellar public keys are uppercase; use exact match
