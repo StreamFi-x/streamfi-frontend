@@ -12,7 +12,7 @@ export default function Chat() {
   const { streamData } = useStreamData(address || undefined);
   const { messages, sendMessage, isSending, isLoading } = useChat(
     streamData?.playbackId,
-    address || undefined,
+    address ?? undefined,
     streamData?.isLive ?? false
   );
 

@@ -18,11 +18,12 @@ interface QuickActionItem {
 
 export default function QuickActions() {
   const pathname = usePathname();
-  const { publicKey, isConnected } = useStellarWallet();
+  const { publicKey: address, isConnected } = useStellarWallet();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { user } = useUserProfile(publicKey || undefined);
-  const username = user?.username as string;
+  // Use SWR hook for optimized data fetching with caching
+  const { user } = useUserProfile(address ?? undefined);
+  const username = user?.username || "";
 
   const handleConnectWallet = () => {
     setIsModalOpen(true);
@@ -50,7 +51,7 @@ export default function QuickActions() {
     { icon: Home, label: "Home", href: "/explore", type: "link" },
     { icon: Search, label: "Search", href: "/browse", type: "link" },
     { icon: Settings, label: "Settings", href: "/settings", type: "link" },
-    isConnected && publicKey
+    isConnected && address
       ? {
           icon: User,
           label: "Profile",
@@ -108,10 +109,19 @@ export default function QuickActions() {
 
       <AnimatePresence>
         {isModalOpen && (
-          <ConnectModal
-            isModalOpen={isModalOpen}
-            setIsModalOpen={setIsModalOpen}
-          />
+          <motion.div className="fixed inset-0 z-50 flex items-center justify-center">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black opacity-50"
+              onClick={() => setIsModalOpen(false)}
+            />
+            <motion.div className="bg-background p-6 rounded-md z-10">
+              <ConnectModal
+                isModalOpen={isModalOpen}
+                setIsModalOpen={setIsModalOpen}
+              />
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </>
