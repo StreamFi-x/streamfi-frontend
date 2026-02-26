@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { listRoutesFRecords, createRoutesFRecord } from "@/lib/routes-f/store";
 import { withIdempotency } from "@/lib/routes-f/idempotency";
 import { withPayloadGuard } from "@/lib/routes-f/payload-guard";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 /**
  * GET /api/routes-f
@@ -21,12 +22,9 @@ export async function GET(req: Request) {
 
   try {
     const result = listRoutesFRecords({ limit, cursor, status });
-    return NextResponse.json(result, { status: 200 });
+    return jsonResponse(result, { status: 200 });
   } catch {
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    return jsonResponse({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
@@ -42,10 +40,7 @@ export async function POST(req: Request) {
       try {
         body = await request.json();
       } catch {
-        return NextResponse.json(
-          { error: "Invalid JSON" },
-          { status: 400 }
-        );
+        return jsonResponse({ error: "Invalid JSON" }, { status: 400 });
       }
 
       try {
@@ -63,13 +58,13 @@ export async function POST(req: Request) {
         const headers = new Headers();
         headers.set("Location", location);
 
-        return NextResponse.json(newRecord, {
+        return jsonResponse(newRecord, {
           status: 201,
           headers,
         });
       } catch (error: any) {
         if (error?.message === "invalid-payload") {
-          return NextResponse.json(
+          return jsonResponse(
             {
               error: "Unprocessable Entity",
               message: "Missing title or description",
@@ -78,7 +73,7 @@ export async function POST(req: Request) {
           );
         }
 
-        return NextResponse.json(
+        return jsonResponse(
           { error: "Internal Server Error" },
           { status: 500 }
         );

@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { getRoutesFJob } from "@/lib/routes-f/store";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 export async function GET(
     req: Request,
@@ -11,8 +11,8 @@ export async function GET(
     const job = getRoutesFJob(id);
 
     if (!job) {
-        return NextResponse.json({ error: "Not Found" }, { status: 404 });
+        return jsonResponse({ error: "Not Found" }, { status: 404 });
     }
 
-    return NextResponse.json(job, { status: 200 });
+    return jsonResponse(job, { status: 200 });
 }

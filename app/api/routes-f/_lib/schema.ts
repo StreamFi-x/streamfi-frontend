@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { wrapRoutesFJson } from "@/lib/routes-f/version";
 
 type StringField = {
   type: "string";
@@ -153,7 +154,10 @@ export async function parseRequestBody<S extends Schema>(
   } catch {
     return {
       ok: false,
-      response: NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }),
+      response: NextResponse.json(
+        wrapRoutesFJson({ error: "Invalid JSON body" }),
+        { status: 400 }
+      ),
     };
   }
 
@@ -162,7 +166,10 @@ export async function parseRequestBody<S extends Schema>(
     return {
       ok: false,
       response: NextResponse.json(
-        { error: parsed.error.message, details: parsed.error.details ?? [] },
+        wrapRoutesFJson({
+          error: parsed.error.message,
+          details: parsed.error.details ?? [],
+        }),
         { status: 400 }
       ),
     };

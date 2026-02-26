@@ -18,8 +18,7 @@ interface WalletInfo {
   installUrl?: string;
   description: string;
 }
-
-// Stellar wallet configurations
+ 
 const STELLAR_WALLETS: WalletInfo[] = [
   {
     id: "freighter",

@@ -5,6 +5,7 @@ import {
 } from "@/lib/routes-f/store";
 import { recordMetric } from "@/lib/routes-f/metrics";
 import { applyRateLimitHeaders, checkRateLimit } from "@/lib/routes-f/rate-limit";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 export async function GET(req: Request) {
   const limiter = checkRateLimit({
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
 
   if (!limiter.allowed) {
     headers.set("Retry-After", String(limiter.retryAfterSeconds));
-    return NextResponse.json(
+    return jsonResponse(
       { error: "Rate limit exceeded", policy: limiter.policy },
       { status: 429, headers }
     );
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
 
   recordMetric("maintenance");
   const windows = getMaintenanceWindows();
-  return NextResponse.json({ windows }, { headers });
+  return jsonResponse({ windows }, { headers });
 }
 
 export async function POST(req: Request) {
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
 
   if (!limiter.allowed) {
     headers.set("Retry-After", String(limiter.retryAfterSeconds));
-    return NextResponse.json(
+    return jsonResponse(
       { error: "Rate limit exceeded", policy: limiter.policy },
       { status: 429, headers }
     );
@@ -49,14 +50,14 @@ export async function POST(req: Request) {
   try {
     payload = await req.json();
   } catch {
-    return NextResponse.json(
+    return jsonResponse(
       { error: "Invalid JSON payload" },
       { status: 400, headers }
     );
   }
 
   if (!payload.start || !payload.end) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: "start and end are required" },
       { status: 400, headers }
     );
@@ -69,23 +70,23 @@ export async function POST(req: Request) {
       reason: payload.reason,
     });
     recordMetric("maintenance");
-    return NextResponse.json({ window }, { status: 201, headers });
+    return jsonResponse({ window }, { status: 201, headers });
   } catch (error) {
     if (error instanceof Error) {
       if (error.message === "overlap") {
-        return NextResponse.json(
+        return jsonResponse(
           { error: "Maintenance window overlaps existing window" },
           { status: 409, headers }
         );
       }
       if (error.message === "invalid-time") {
-        return NextResponse.json(
+        return jsonResponse(
           { error: "start and end must be valid ISO timestamps" },
           { status: 400, headers }
         );
       }
       if (error.message === "invalid-range") {
-        return NextResponse.json(
+        return jsonResponse(
           { error: "start must be before end" },
           { status: 400, headers }
         );
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json(
+  return jsonResponse(
     { error: "Failed to create maintenance window" },
     { status: 500, headers }
   );

@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
 import {
   getActivityLimitConfig,
   getDailyActivitySummary,
 } from "@/lib/routes-f/activity";
 import { withRoutesFLogging } from "@/lib/routes-f/logging";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 export async function GET(req: Request) {
   return withRoutesFLogging(req, async request => {
@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     const summary = getDailyActivitySummary({ days: daysParam });
     const limits = getActivityLimitConfig();
 
-    return NextResponse.json(
+    return jsonResponse(
       {
         days: summary.days,
         totalCount: summary.totalCount,

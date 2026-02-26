@@ -629,10 +629,7 @@ const ViewStream = ({
                                 onTipClick={tipModalState.openTipModal}
                                 variant="outline"
                                 className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-gray-600"
-                              >
-                                <Gift className="h-4 w-4 mr-2" />
-                                Send Tip
-                              </TipButton>
+                              />
                             ) : (
                               <Button
                                 variant="outline"

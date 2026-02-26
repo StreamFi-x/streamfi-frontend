@@ -6,10 +6,13 @@ import { useTipModal } from "@/hooks/useTipModal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-interface TipButtonProps {
+export interface TipButtonProps {
   recipientUsername: string;
   recipientPublicKey: string;
-  variant?: "primary" | "secondary" | "icon-only";
+  variant?: "primary" | "secondary" | "icon-only" | "outline";
+  size?: "default" | "sm" | "lg" | "icon";
+  showIcon?: boolean;
+  disabled?: boolean;
   className?: string;
   onTipClick?: () => void;
 }
@@ -22,13 +25,16 @@ export function TipButton({
   recipientUsername,
   recipientPublicKey,
   variant = "primary",
+  size,
+  showIcon = true,
+  disabled: disabledProp,
   className,
   onTipClick,
 }: TipButtonProps) {
   const { isConnected, isConnecting, connect } = useStellarWallet();
   const { openTipModal } = useTipModal();
 
-  const isDisabled = !recipientPublicKey;
+  const isDisabled = !recipientPublicKey || disabledProp === true;
 
   const handleClick = async () => {
     if (!isConnected) {
@@ -41,12 +47,15 @@ export function TipButton({
     }
   };
 
+  const showLabel = variant !== "icon-only";
+  const iconClass = cn("h-4 w-4", showLabel && "mr-2");
+
   const getButtonContent = () => {
     if (isConnecting) {
       return (
         <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          {variant !== "icon-only" && "Connecting..."}
+          {showIcon && <Loader2 className={iconClass + " animate-spin"} />}
+          {showLabel && "Connecting..."}
         </>
       );
     }
@@ -54,22 +63,28 @@ export function TipButton({
     if (!isConnected) {
       return (
         <>
-          <Gift className={cn("h-4 w-4", variant !== "icon-only" && "mr-2")} />
-          {variant !== "icon-only" && "Connect Wallet"}
+          {showIcon && <Gift className={iconClass} />}
+          {showLabel && "Connect Wallet"}
         </>
       );
     }
 
     return (
       <>
-        <Gift className={cn("h-4 w-4", variant !== "icon-only" && "mr-2")} />
-        {variant !== "icon-only" && "Send Tip"}
+        {showIcon && <Gift className={iconClass} />}
+        {showLabel && "Send Tip"}
       </>
     );
   };
 
-  const buttonVariant = variant === "icon-only" ? "outline" : variant === "secondary" ? "secondary" : "default";
-  const buttonSize = variant === "icon-only" ? "icon" : "default";
+  const buttonVariant =
+    variant === "icon-only" || variant === "outline"
+      ? "outline"
+      : variant === "secondary"
+        ? "secondary"
+        : "default";
+  const buttonSize =
+    size ?? (variant === "icon-only" ? "icon" : "default");
 
   return (
     <Button
