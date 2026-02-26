@@ -181,6 +181,22 @@ export function TipCounter({
     };
 
     if (isLoading) return <TipCounterSkeleton variant={variant} />;
+    if (error) {
+        return (
+            <TipCounterError
+                message={error.message || "Failed to load tips"}
+                onRetry={() => revalidate()}
+            />
+        );
+    }
+    if (!data || typeof (data as TipStatistics).totalCount === "undefined") {
+        return (
+            <TipCounterError
+                message={(data as { error?: string })?.error || "Failed to load tips"}
+                onRetry={() => revalidate()}
+            />
+        );
+    }
     const stats: TipStatistics = data;
     const isZero = parseInt(stats.totalCount.toString()) === 0 && parseFloat(stats.totalReceived) === 0;
     const hasReachedMilestone = parseFloat(stats.totalReceived) >= 1.0;

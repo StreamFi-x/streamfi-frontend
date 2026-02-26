@@ -18,16 +18,17 @@ interface QuickActionItem {
 
 export default function QuickActions() {
   const pathname = usePathname();
-  const { address, isConnected } = useStellarWallet();
+  const { publicKey, isConnected } = useStellarWallet();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { user } = useUserProfile(address || undefined);
-  const username = user?.username || "";
+  const { user } = useUserProfile(publicKey || undefined);
+  const username = user?.username as string;
 
   const handleConnectWallet = () => {
     setIsModalOpen(true);
   };
 
+  // Close modal automatically once the wallet connects
   useEffect(() => {
     if (isConnected) {
       setIsModalOpen(false);
@@ -44,17 +45,18 @@ export default function QuickActions() {
     return null;
   }
 
+  // ✅ Conditional rendering: profile action when connected, connect action when not
   const quickActionItems: QuickActionItem[] = [
     { icon: Home, label: "Home", href: "/explore", type: "link" },
     { icon: Search, label: "Search", href: "/browse", type: "link" },
     { icon: Settings, label: "Settings", href: "/settings", type: "link" },
-    isConnected && address
+    isConnected && publicKey
       ? {
-        icon: User,
-        label: "Profile",
-        href: username ? `/${username}` : "/profile",
-        type: "link",
-      }
+          icon: User,
+          label: "Profile",
+          href: username ? `/${username}` : "/profile",
+          type: "link",
+        }
       : { icon: Wallet, label: "Connect", href: "#", type: "action" },
   ];
 
@@ -90,10 +92,11 @@ export default function QuickActions() {
               <Link
                 key={`${item.label}-${index}`}
                 href={item.href}
-                className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 ${isActive
-                  ? "text-foreground bg-background"
-                  : "text-white/60 hover:text-white hover:bg-[#2D2F31]/40"
-                  }`}
+                className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 ${
+                  isActive
+                    ? "text-foreground bg-background"
+                    : "text-white/60 hover:text-white hover:bg-[#2D2F31]/40"
+                }`}
               >
                 <item.icon size={20} className="mb-1" />
                 <span className="text-xs font-medium">{item.label}</span>
@@ -105,18 +108,10 @@ export default function QuickActions() {
 
       <AnimatePresence>
         {isModalOpen && (
-          <motion.div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div
-              className="absolute inset-0 bg-black opacity-50"
-              onClick={() => setIsModalOpen(false)}
-            />
-            <motion.div className="bg-background p-6 rounded-md z-10">
-              <ConnectModal
-                isModalOpen={isModalOpen}
-                setIsModalOpen={setIsModalOpen}
-              />
-            </motion.div>
-          </motion.div>
+          <ConnectModal
+            isModalOpen={isModalOpen}
+            setIsModalOpen={setIsModalOpen}
+          />
         )}
       </AnimatePresence>
     </>
