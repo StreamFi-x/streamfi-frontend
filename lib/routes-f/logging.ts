@@ -22,11 +22,15 @@ export function cloneRequestWithId(req: Request, requestId: string): Request {
   return new Request(req, { headers });
 }
 
-export function addRequestIdHeader(response: Response, requestId: string): Response {
+export async function addRequestIdHeader(
+  response: Response,
+  requestId: string
+): Promise<Response> {
+  const body = await response.text();
   const headers = new Headers(response.headers);
   headers.set(REQUEST_ID_HEADER, requestId);
 
-  return new Response(response.body, {
+  return new Response(body, {
     status: response.status,
     statusText: response.statusText,
     headers,
