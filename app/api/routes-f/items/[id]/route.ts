@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRoutesFRecordById, updateRoutesFRecord, deleteRoutesFRecord } from "@/lib/routes-f/store";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 export async function DELETE(
     req: Request,
@@ -10,7 +11,7 @@ export async function DELETE(
 
     // Validate ID format (must start with rf-)
     if (!id.startsWith("rf-")) {
-        return NextResponse.json(
+        return jsonResponse(
             { error: "Bad Request", message: "Invalid ID format" },
             { status: 400 }
         );
@@ -19,7 +20,7 @@ export async function DELETE(
     const deleted = deleteRoutesFRecord(id);
 
     if (!deleted) {
-        return NextResponse.json(
+        return jsonResponse(
             { error: "Not Found", message: "Item not found" },
             { status: 404 }
         );
@@ -38,7 +39,7 @@ export async function PATCH(
 
     const ifMatch = req.headers.get("if-match");
     if (!ifMatch) {
-        return NextResponse.json(
+        return jsonResponse(
             { error: "Precondition Required", message: "If-Match header is missing" },
             { status: 428 }
         );
@@ -48,14 +49,14 @@ export async function PATCH(
     try {
         updates = await req.json();
     } catch (error) {
-        return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+        return jsonResponse({ error: "Invalid JSON body" }, { status: 400 });
     }
 
     try {
         const updated = updateRoutesFRecord(id, updates, ifMatch);
 
         if (!updated) {
-            return NextResponse.json({ error: "Not Found" }, { status: 404 });
+            return jsonResponse({ error: "Not Found" }, { status: 404 });
         }
 
         const headers = new Headers();
@@ -63,15 +64,15 @@ export async function PATCH(
             headers.set("ETag", updated.etag);
         }
 
-        return NextResponse.json(updated, { status: 200, headers });
+        return jsonResponse(updated, { status: 200, headers });
     } catch (e: any) {
         if (e.message === "ETAG_MISMATCH") {
-            return NextResponse.json(
+            return jsonResponse(
                 { error: "Precondition Failed", message: "ETag mismatch" },
                 { status: 412 }
             );
         }
-        return NextResponse.json(
+        return jsonResponse(
             { error: "Internal Server Error" },
             { status: 500 }
         );
@@ -86,11 +87,11 @@ export async function GET(
     const id = (resolvedParams.id || "").trim();
 
     if (id.length === 0) {
-        return NextResponse.json({ error: "Not Found" }, { status: 404 });
+        return jsonResponse({ error: "Not Found" }, { status: 404 });
     }
 
     if (!id.startsWith("rf-")) {
-        return NextResponse.json(
+        return jsonResponse(
             { error: "Bad Request", message: "Invalid ID format" },
             { status: 400 }
         );
@@ -98,12 +99,12 @@ export async function GET(
 
     const record = getRoutesFRecordById(id);
     if (!record) {
-        return NextResponse.json({ error: "Not Found" }, { status: 404 });
+        return jsonResponse({ error: "Not Found" }, { status: 404 });
     }
 
     const headers = new Headers();
     const etag = record.etag || `"${record.updatedAt || record.createdAt}"`;
     headers.set("ETag", etag);
 
-    return NextResponse.json(record, { status: 200, headers });
+    return jsonResponse(record, { status: 200, headers });
 }

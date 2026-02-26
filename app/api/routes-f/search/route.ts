@@ -12,6 +12,7 @@ import {
   searchRoutesFRecords,
 } from "@/lib/routes-f/store";
 import { applyRateLimitHeaders, checkRateLimit } from "@/lib/routes-f/rate-limit";
+import { wrapRoutesFJson } from "@/lib/routes-f/version";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -28,7 +29,7 @@ export async function GET(req: Request) {
   if (!limiter.allowed) {
     headers.set("Retry-After", String(limiter.retryAfterSeconds));
     return NextResponse.json(
-      { error: "Rate limit exceeded", policy: limiter.policy },
+      wrapRoutesFJson({ error: "Rate limit exceeded", policy: limiter.policy }),
       { status: 429, headers }
     );
   }
@@ -67,7 +68,9 @@ export async function GET(req: Request) {
           return { total: recent.length, items: recent };
         })();
 
-  const body = JSON.stringify({ total: result.total, items: result.items });
+  const body = JSON.stringify(
+    wrapRoutesFJson({ total: result.total, items: result.items })
+  );
 
   if (cacheEnabled) {
     setCachedEntry(cacheKey, body, "application/json");

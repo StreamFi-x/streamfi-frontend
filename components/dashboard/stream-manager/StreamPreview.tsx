@@ -21,10 +21,10 @@ export default function StreamPreview() {
   const overlayInputRef = useRef<HTMLInputElement>(null);
 
   // Use optimized SWR hook for data fetching with caching
-  const { streamData, isLoading } = useStreamData(address || undefined);
+  const { streamData, isLoading } = useStreamData(address ?? undefined);
   const { messages, sendMessage, isSending } = useChat(
     streamData?.playbackId,
-    address || undefined,
+    address ?? undefined,
     streamData?.isLive ?? false
   );
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getMetricsSnapshot, recordMetric } from "@/lib/routes-f/metrics";
 import { applyRateLimitHeaders, checkRateLimit } from "@/lib/routes-f/rate-limit";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 export async function GET(req: Request) {
   const limiter = checkRateLimit({
@@ -13,7 +14,7 @@ export async function GET(req: Request) {
 
   if (!limiter.allowed) {
     headers.set("Retry-After", String(limiter.retryAfterSeconds));
-    return NextResponse.json(
+    return jsonResponse(
       {
         error: "Rate limit exceeded",
         policy: limiter.policy,
@@ -24,5 +25,5 @@ export async function GET(req: Request) {
 
   recordMetric("metrics");
   const snapshot = getMetricsSnapshot();
-  return NextResponse.json(snapshot, { headers });
+  return jsonResponse(snapshot, { headers });
 }

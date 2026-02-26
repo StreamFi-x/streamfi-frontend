@@ -1,16 +1,16 @@
-import { NextResponse } from "next/server";
 import {
   ROUTES_F_PREFERENCES_DEFAULTS,
   mergePreferences,
   validatePreferences,
 } from "@/lib/routes-f/preferences";
 import { withRoutesFLogging } from "@/lib/routes-f/logging";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 const MOCK_USER_ID = "routes-f-user-001";
 
 export async function GET(req: Request) {
   return withRoutesFLogging(req, async () => {
-    return NextResponse.json(
+    return jsonResponse(
       {
         userId: MOCK_USER_ID,
         preferences: ROUTES_F_PREFERENCES_DEFAULTS,
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Invalid JSON payload" },
         { status: 400 }
       );
@@ -35,12 +35,12 @@ export async function POST(req: Request) {
 
     const validation = validatePreferences(body);
     if (!validation.isValid) {
-      return NextResponse.json({ error: validation.error }, { status: 400 });
+      return jsonResponse({ error: validation.error }, { status: 400 });
     }
 
     const updated = mergePreferences(body as Partial<typeof ROUTES_F_PREFERENCES_DEFAULTS>);
 
-    return NextResponse.json(
+    return jsonResponse(
       {
         userId: MOCK_USER_ID,
         preferences: updated,

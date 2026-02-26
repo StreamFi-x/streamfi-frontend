@@ -3,6 +3,7 @@ import {
   isValidRoutesFJobType,
   ROUTES_F_JOB_TYPES,
 } from "../_lib/jobs";
+import { jsonResponse } from "@/lib/routes-f/version";
 
 type JobRequestBody = {
   type?: unknown;
@@ -15,11 +16,11 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as JobRequestBody;
   } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    return jsonResponse({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   if (!isValidRoutesFJobType(body.type)) {
-    return Response.json(
+    return jsonResponse(
       {
         error: "Invalid job type",
         details: { allowedTypes: ROUTES_F_JOB_TYPES },
@@ -29,12 +30,12 @@ export async function POST(request: Request) {
   }
 
   if (!body.payload || typeof body.payload !== "object" || Array.isArray(body.payload)) {
-    return Response.json({ error: "payload must be an object" }, { status: 400 });
+    return jsonResponse({ error: "payload must be an object" }, { status: 400 });
   }
 
   const job = enqueueRoutesFJob(body.type, body.payload as Record<string, unknown>);
 
-  return Response.json(
+  return jsonResponse(
     {
       jobId: job.id,
       status: job.status,

@@ -38,6 +38,43 @@ const makeRawRequest = (method: string, path: string, rawBody: string, headers?:
     body: rawBody,
   });
 
+describe("Routes-F response version", () => {
+  it("health response includes apiVersion", async () => {
+    const res = await healthGET(makeRequest("GET", "/api/routes-f/health"));
+    const body = await res.json();
+    expect(body.apiVersion).toBeDefined();
+    expect(body.apiVersion).toBe("1");
+  });
+
+  it("validate success response includes apiVersion", async () => {
+    const res = await validatePOST(
+      makeRequest("POST", "/api/routes-f/validate", {
+        name: "Route Alpha",
+        path: "/alpha",
+        method: "GET",
+      })
+    );
+    const body = await res.json();
+    expect(body.apiVersion).toBe("1");
+  });
+
+  it("validate error response includes apiVersion", async () => {
+    const res = await validatePOST(
+      makeRequest("POST", "/api/routes-f/validate", { path: "x", method: "INVALID" })
+    );
+    const body = await res.json();
+    expect(body.apiVersion).toBe("1");
+  });
+
+  it("preferences GET response includes apiVersion", async () => {
+    const res = await preferencesGET(
+      makeRequest("GET", "/api/routes-f/preferences")
+    );
+    const body = await res.json();
+    expect(body.apiVersion).toBe("1");
+  });
+});
+
 describe("GET /api/routes-f/health", () => {
   it("returns ok status with no-store cache control", async () => {
     const res = await healthGET(makeRequest("GET", "/api/routes-f/health"));
