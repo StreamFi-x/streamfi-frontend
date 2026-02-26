@@ -44,8 +44,13 @@ export async function GET(req: Request) {
     );
   }
 
+  const safeDelay = Math.min(
+    Math.max(requestedDelay, MIN_DELAY_MS),
+    MAX_DELAY_MS
+  );
+
   const startTime = Date.now();
-  await new Promise((resolve) => setTimeout(resolve, requestedDelay));
+  await new Promise(resolve => setTimeout(resolve, safeDelay));
   const actualDelay = Date.now() - startTime;
 
   return NextResponse.json(
