@@ -31,7 +31,7 @@ export async function GET(req: Request) {
         is_live,
         enable_recording
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE wallet = ${wallet}
     `;
 
     if (userResult.rows.length === 0) {

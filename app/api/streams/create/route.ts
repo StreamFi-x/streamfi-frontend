@@ -174,7 +174,7 @@ export async function POST(req: Request) {
           streamkey = ${muxStream.streamKey},
           creator = ${JSON.stringify(updatedCreator)},
           updated_at = CURRENT_TIMESTAMP
-        WHERE LOWER(wallet) = LOWER(${wallet})
+        WHERE wallet = ${wallet}
       `;
       console.log("✅ User updated successfully with stream data");
     } catch (dbError) {

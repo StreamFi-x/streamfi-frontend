@@ -50,18 +50,19 @@ describe("TipButton", () => {
       expect(icon).toBeInTheDocument();
     });
 
-    it("should not render icon when showIcon is false", () => {
-      const { container } = render(<TipButton {...mockProps} showIcon={false} />);
-
-      const icon = container.querySelector("svg");
-      expect(icon).not.toBeInTheDocument();
-    });
-
-    it("should have correct title attribute", () => {
-      render(<TipButton {...mockProps} />);
+    it("should render icon-only variant without label text when connected", () => {
+      render(<TipButton {...mockProps} variant="icon-only" />);
 
       const button = screen.getByTestId("tip-button");
-      expect(button).toHaveAttribute("title", "Send a tip to testuser");
+      expect(button).toBeInTheDocument();
+      expect(button).toHaveAttribute("aria-label", "Send tip to testuser");
+    });
+
+    it("should have correct title attribute when recipient has no public key", () => {
+      render(<TipButton {...mockProps} recipientPublicKey="" />);
+
+      const button = screen.getByTestId("tip-button");
+      expect(button).toHaveAttribute("title", "Recipient has no Stellar public key");
     });
   });
 
@@ -120,8 +121,8 @@ describe("TipButton", () => {
       expect(stopPropagationSpy).toHaveBeenCalled();
     });
 
-    it("should not call onTipClick when disabled", () => {
-      render(<TipButton {...mockProps} disabled={true} />);
+    it("should not call onTipClick when disabled (no recipient public key)", () => {
+      render(<TipButton {...mockProps} recipientPublicKey="" />);
 
       const button = screen.getByTestId("tip-button");
       expect(button).toBeDisabled();
@@ -143,8 +144,8 @@ describe("TipButton", () => {
       expect(button).toBeInTheDocument();
     });
 
-    it("should forward size prop", () => {
-      render(<TipButton {...mockProps} size="sm" />);
+    it("should render with secondary variant", () => {
+      render(<TipButton {...mockProps} variant="secondary" />);
 
       const button = screen.getByTestId("tip-button");
       expect(button).toBeInTheDocument();
