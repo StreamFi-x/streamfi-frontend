@@ -80,10 +80,23 @@ export function TipModal({
 
   // Fix #5 - Fetch XLM price with failure tracking
   useEffect(() => {
+    let isMounted = true;
+    
     if (isOpen) {
       setIsLoadingPrice(true);
       setPriceFetchFailed(false);
       getXLMPrice()
+        .then((price) => {
+          if (isMounted) {
+            setXlmPrice(price);
+            setPriceFetchFailed(false);
+          }
+        })
+        .catch((err) => {
+          if (isMounted) {
+            console.error("Failed to fetch XLM price:", err);
+            setPriceFetchFailed(true);
+          }
         .then((price: number) => {
           setXlmPrice(price);
           setPriceFetchFailed(false);
@@ -92,8 +105,16 @@ export function TipModal({
           console.error("Failed to fetch XLM price:", err);
           setPriceFetchFailed(true);
         })
-        .finally(() => setIsLoadingPrice(false));
+        .finally(() => {
+          if (isMounted) {
+            setIsLoadingPrice(false);
+          }
+        });
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen]);
 
   // Reset state when modal closes
