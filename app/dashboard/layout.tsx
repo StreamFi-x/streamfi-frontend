@@ -20,7 +20,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           />
           <motion.main
-            className="flex-1 overflow-hidden"
+            className="flex-1 overflow-y-auto"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}

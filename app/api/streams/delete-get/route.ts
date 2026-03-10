@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     const userResult = await sql`
       SELECT id, username, mux_stream_id, is_live
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE wallet = ${wallet}
     `;
 
     if (userResult.rows.length === 0) {
@@ -74,7 +74,7 @@ export async function GET(req: Request) {
         current_viewers = 0,
         stream_started_at = NULL,
         updated_at = CURRENT_TIMESTAMP
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE wallet = ${wallet}
     `;
 
     console.log("✅ Force delete completed!");

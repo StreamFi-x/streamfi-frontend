@@ -1,50 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { checkExistingTableDetail, validateEmail } from "@/utils/validators";
 import { sql } from "@vercel/postgres";
 import { sendWelcomeRegistrationEmail } from "@/utils/send-email";
 import { createMuxStream } from "@/lib/mux/server";
+import { createRateLimiter } from "@/lib/rate-limit";
 
-async function handler(req: Request) {
-  try {
-    const tableCheck = await sql`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public'
-      ORDER BY table_name;
-    `;
-    console.log(
-      "Available tables:",
-      tableCheck.rows.map(row => row.table_name)
+// Registration creates a Mux stream + DB write — strict limit to prevent abuse
+const isRateLimited = createRateLimiter(60 * 60 * 1000, 5); // 5 per hour per IP
+
+async function handler(req: NextRequest) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+
+  if (await isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": "3600" } }
     );
-  } catch (err) {
-    console.error("Table check error:", err);
   }
-
-  try {
-    const result = await sql`SELECT current_database(), current_schema()`;
-    console.log("Connected to:", result.rows[0]);
-  } catch (err) {
-    console.error("Connection diagnostic error:", err);
-  }
-
-  // Ensure the users table exists with all required fields
-  await sql`
-    CREATE TABLE IF NOT EXISTS users (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      wallet VARCHAR(255) UNIQUE NOT NULL,
-      username VARCHAR(255) UNIQUE NOT NULL,
-      email VARCHAR(255) UNIQUE NOT NULL,
-      streamkey VARCHAR(255),
-      avatar VARCHAR(255),
-      bio TEXT,
-      socialLinks JSONB DEFAULT '[]',
-      emailVerified BOOLEAN DEFAULT FALSE,
-      emailNotifications BOOLEAN DEFAULT TRUE,
-      creator JSONB DEFAULT '{"streamTitle":"", "tags":[], "category":"", "payout":"", "thumbnail":""}',
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-  `;
 
   if (req.method !== "POST") {
     return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
@@ -53,7 +28,7 @@ async function handler(req: Request) {
   const requestBody = await req.json();
   const {
     email,
-    username,
+    username: rawUsername,
     wallet,
     socialLinks = [],
     emailNotifications = true,
@@ -66,7 +41,9 @@ async function handler(req: Request) {
     },
   } = requestBody;
 
-  // Basic validation
+  // Normalize to lowercase — prevents case-variant duplicates across auth methods
+  const username = rawUsername ? String(rawUsername).trim().toLowerCase() : "";
+
   if (!username) {
     return NextResponse.json(
       { error: "Username is required" },
@@ -90,24 +67,22 @@ async function handler(req: Request) {
   }
 
   try {
-    // Check for existing records
     const userEmailExist = await checkExistingTableDetail(
       "users",
       "email",
       email
     );
-
-    const usernameExist = await checkExistingTableDetail(
-      "users",
-      "username",
-      username
-    );
-
     const userWalletExist = await checkExistingTableDetail(
       "users",
       "wallet",
       wallet
     );
+    // Case-insensitive username check — username is stored lowercase but guard against
+    // any legacy mixed-case rows that may exist
+    const { rows: usernameRows } = await sql`
+      SELECT id FROM users WHERE LOWER(username) = ${username} LIMIT 1
+    `;
+    const usernameExist = usernameRows.length > 0;
 
     if (userEmailExist) {
       return NextResponse.json(
@@ -130,24 +105,29 @@ async function handler(req: Request) {
       );
     }
 
-    // Create Mux stream automatically for the new user
-    console.log(`🎬 Creating Mux stream for user: ${username}`);
-    let muxStream;
-    try {
-      muxStream = await createMuxStream({
-        name: `${username}'s Stream`,
-        record: true,
-      });
-      console.log(`✅ Mux stream created: ${muxStream.id}`);
-    } catch (muxError) {
-      console.error("❌ Failed to create Mux stream:", muxError);
-      return NextResponse.json(
-        { error: "Failed to create streaming account" },
-        { status: 500 }
+    // Try to provision Mux stream, but do not block registration if unavailable.
+    const hasMuxCredentials =
+      !!process.env.MUX_TOKEN_ID && !!process.env.MUX_TOKEN_SECRET;
+
+    let muxStream: Awaited<ReturnType<typeof createMuxStream>> | null = null;
+
+    if (hasMuxCredentials) {
+      console.log(`[register] Creating Mux stream for user: ${username}`);
+      try {
+        muxStream = await createMuxStream({
+          name: `${username}'s Stream`,
+          record: true,
+        });
+        console.log(`[register] Mux stream created: ${muxStream.id}`);
+      } catch (muxError) {
+        console.error("[register] Failed to create Mux stream:", muxError);
+      }
+    } else {
+      console.warn(
+        "[register] Mux credentials missing. Skipping stream provisioning."
       );
     }
 
-    // Insert the new user with all fields including Mux stream data
     await sql`
       INSERT INTO users (
         email,
@@ -158,7 +138,8 @@ async function handler(req: Request) {
         creator,
         mux_stream_id,
         mux_playback_id,
-        streamkey
+        streamkey,
+        avatar
       )
       VALUES (
         ${email},
@@ -167,23 +148,23 @@ async function handler(req: Request) {
         ${JSON.stringify(socialLinks)},
         ${emailNotifications},
         ${JSON.stringify(creator)},
-        ${muxStream.id},
-        ${muxStream.playbackId},
-        ${muxStream.streamKey}
+        ${muxStream?.id ?? null},
+        ${muxStream?.playbackId ?? null},
+        ${muxStream?.streamKey ?? null},
+        '/Images/user.png'
       )
     `;
 
-    console.log(`✅ User registered with stream key: ${username}`);
+    console.log(`[register] User registered: ${username}`);
 
     await sendWelcomeRegistrationEmail(email, username);
 
     return NextResponse.json(
       {
         message: "User registration success",
-        streamCreated: true,
+        streamCreated: !!muxStream,
         streamData: {
-          rtmpUrl: muxStream.rtmpUrl,
-          // Don't return stream key in response for security
+          rtmpUrl: muxStream?.rtmpUrl ?? null,
         },
       },
       { status: 200 }

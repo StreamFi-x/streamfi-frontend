@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { BellDot, Dot } from "lucide-react";
+import { BellDot } from "lucide-react";
 
 interface BannerProps {
   username: string;
@@ -23,19 +23,27 @@ const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
         <div className="bg-card p-4 sm:p-8 w-full max-w-sm xl:max-w-md rounded-md">
           {isLive ? (
             <>
-              <div className="flex items-center justify-start mb-2">
-                <span className="flex items-center bg-red-600 text-white text-xs px-2 py-1 rounded-lg font-semibold">
-                  <Dot size={20} className="text-white" />
-                  Live
+              <div className="flex items-center justify-start">
+                <span className="bg-tertiary text-foreground text-xs px-2 py-1 rounded-sm">
+                  ONLINE
                 </span>
               </div>
-              <h2 className="text-foreground text-base sm:text-xl font-medium mb-6">
-                {username} is streaming
-                <br />
-                {streamTitle}
+              <h2 className="text-foreground text-base sm:text-xl font-medium">
+                {username} is live
+                {streamTitle && (
+                  <>
+                    <br />
+                    <span className="text-muted-foreground text-sm font-normal">
+                      {streamTitle}
+                    </span>
+                  </>
+                )}
               </h2>
+              <p className="text-muted-foreground text-[10px] sm:text-xs mb-3">
+                {username} is currently streaming live
+              </p>
               <Link href={`/${username}/watch`}>
-                <Button className="text-highlight font-semibold text-xs bg-transparent p-0">
+                <Button className="flex items-center gap-1 py-1 bg-highlight hover:bg-highlight/80 text-primary-foreground text-[8px] sm:text-[10px]">
                   Watch Now
                 </Button>
               </Link>

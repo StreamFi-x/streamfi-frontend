@@ -41,6 +41,7 @@ export async function GET() {
       "emailverified",
       "emailnotifications",
       "creator",
+      "notifications",
     ];
 
     const missingUserColumns = requiredUserColumns.filter(
@@ -61,7 +62,8 @@ export async function GET() {
           ADD COLUMN IF NOT EXISTS stream_started_at TIMESTAMP WITH TIME ZONE,
           ADD COLUMN IF NOT EXISTS emailverified BOOLEAN DEFAULT FALSE,
           ADD COLUMN IF NOT EXISTS emailnotifications BOOLEAN DEFAULT TRUE,
-          ADD COLUMN IF NOT EXISTS creator JSONB DEFAULT '{}'
+          ADD COLUMN IF NOT EXISTS creator JSONB DEFAULT '{}',
+          ADD COLUMN IF NOT EXISTS notifications JSONB[] DEFAULT ARRAY[]::JSONB[]
         `;
         results.push(
           `✅ Added ${missingUserColumns.length} missing columns to users table`
@@ -168,6 +170,99 @@ export async function GET() {
     } catch {
       skipped.push("⏭️ Index idx_users_livepeer already exists or failed");
     }
+
+    try {
+      await sql`CREATE INDEX IF NOT EXISTS idx_users_is_live ON users(current_viewers DESC) WHERE is_live = true`;
+      results.push("✅ Created/verified index: idx_users_is_live");
+    } catch {
+      skipped.push("⏭️ Index idx_users_is_live already exists or failed");
+    }
+
+    try {
+      await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users (email)`;
+      results.push("✅ Created/verified index: idx_users_email");
+    } catch {
+      skipped.push("⏭️ Index idx_users_email already exists or failed");
+    }
+
+    try {
+      await sql`CREATE INDEX IF NOT EXISTS idx_users_privy_id ON users (privy_id)`;
+      results.push("✅ Created/verified index: idx_users_privy_id");
+    } catch {
+      skipped.push("⏭️ Index idx_users_privy_id already exists or failed");
+    }
+
+    try {
+      // Functional index for case-insensitive username lookups (profile pages, follow, search)
+      await sql`CREATE INDEX IF NOT EXISTS idx_users_username_lower ON users (LOWER(username))`;
+      results.push("✅ Created/verified index: idx_users_username_lower");
+    } catch {
+      skipped.push(
+        "⏭️ Index idx_users_username_lower already exists or failed"
+      );
+    }
+
+    try {
+      // pg_trgm enables fast ILIKE '%term%' queries (search-username endpoint)
+      await sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`;
+      results.push("✅ Created/verified extension: pg_trgm");
+    } catch {
+      skipped.push("⏭️ pg_trgm extension already exists or unavailable");
+    }
+
+    try {
+      await sql`CREATE INDEX IF NOT EXISTS idx_users_username_trgm ON users USING GIN (username gin_trgm_ops)`;
+      results.push("✅ Created/verified index: idx_users_username_trgm");
+    } catch {
+      skipped.push("⏭️ Index idx_users_username_trgm already exists or failed");
+    }
+
+    // ── user_follows join table ───────────────────────────────────────────────
+    if (!existingTables.includes("user_follows")) {
+      try {
+        await sql`
+          CREATE TABLE user_follows (
+            follower_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            followee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (follower_id, followee_id)
+          )
+        `;
+        results.push("✅ Created table: user_follows");
+      } catch (e) {
+        results.push(
+          `❌ Failed to create user_follows: ${e instanceof Error ? e.message : e}`
+        );
+      }
+    } else {
+      skipped.push("⏭️ Table 'user_follows' already exists");
+    }
+
+    try {
+      await sql`CREATE INDEX IF NOT EXISTS idx_user_follows_followee ON user_follows (followee_id)`;
+      results.push("✅ Created/verified index: idx_user_follows_followee");
+    } catch {
+      skipped.push(
+        "⏭️ Index idx_user_follows_followee already exists or failed"
+      );
+    }
+
+    // Backfill user_follows from the legacy following UUID[] arrays.
+    // Safe to re-run (ON CONFLICT DO NOTHING).
+    try {
+      await sql`
+        INSERT INTO user_follows (follower_id, followee_id)
+        SELECT u.id, unnest(u.following)
+        FROM   users u
+        WHERE  u.following IS NOT NULL
+          AND  array_length(u.following, 1) > 0
+        ON CONFLICT DO NOTHING
+      `;
+      results.push("✅ Backfilled user_follows from legacy following arrays");
+    } catch (e) {
+      results.push(`❌ Backfill failed: ${e instanceof Error ? e.message : e}`);
+    }
+
     const finalTablesResult = await sql`
       SELECT table_name 
       FROM information_schema.tables 

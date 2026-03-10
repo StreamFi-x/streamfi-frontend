@@ -1,7 +1,22 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { createRateLimiter } from "@/lib/rate-limit";
 
-export async function POST(req: Request) {
+// 30 messages per minute per IP prevents chat spam
+const isRateLimited = createRateLimiter(60_000, 30);
+
+export async function POST(req: NextRequest) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+
+  if (await isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": "60" } }
+    );
+  }
   try {
     const {
       wallet,

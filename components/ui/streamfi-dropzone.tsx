@@ -37,6 +37,7 @@ export const StreamFiDropzone = ({
   className,
   dropzoneOptions = {},
   isPending = false,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   fallbackText = "US",
   uploadText = "Upload a new avatar",
   hintText = "Please select an image smaller than 10mb",

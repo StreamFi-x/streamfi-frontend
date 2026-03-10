@@ -2,7 +2,8 @@
 -- Run this SQL script to significantly improve query performance
 
 -- Index on wallet for faster user lookups (most common query)
-CREATE INDEX IF NOT EXISTS idx_users_wallet ON users(LOWER(wallet));
+-- Stellar public keys are uppercase; use exact match, not LOWER(wallet)
+CREATE INDEX IF NOT EXISTS idx_users_wallet ON users(wallet);
 
 -- Index on mux_stream_id for webhook lookups
 CREATE INDEX IF NOT EXISTS idx_users_mux_stream_id ON users(mux_stream_id);
@@ -14,7 +15,7 @@ CREATE INDEX IF NOT EXISTS idx_users_mux_playback_id ON users(mux_playback_id);
 CREATE INDEX IF NOT EXISTS idx_users_is_live ON users(is_live) WHERE is_live = true;
 
 -- Composite index for common stream queries
-CREATE INDEX IF NOT EXISTS idx_users_wallet_live ON users(LOWER(wallet), is_live);
+CREATE INDEX IF NOT EXISTS idx_users_wallet_live ON users(wallet, is_live);
 
 -- Index on stream_sessions for faster session lookups
 CREATE INDEX IF NOT EXISTS idx_stream_sessions_user_id ON stream_sessions(user_id);

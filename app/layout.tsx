@@ -48,7 +48,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="bg-transparent">
-      <body className="antialiased">
+      <body className="antialiased" suppressHydrationWarning>
         <Providers>
           <SidebarWrapper>{children}</SidebarWrapper>
           <Toaster position="top-right" closeButton />

@@ -46,3 +46,5 @@ package-lock.json
 
 
 dev
+bun.*
+bun.lock

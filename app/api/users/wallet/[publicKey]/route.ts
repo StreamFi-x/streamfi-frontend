@@ -3,17 +3,15 @@ import { sql } from "@vercel/postgres";
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ wallet: string }> }
+  { params }: { params: Promise<{ publicKey: string }> }
 ) {
   try {
-    const { wallet } = await params;
+    const { publicKey: wallet } = await params;
     console.log("API: Fetching user for wallet:", wallet);
 
-    // Normalize the wallet address to lowercase for consistent comparison
-    const normalizedWallet = wallet.toLowerCase();
-
+    // Stellar public keys are uppercase; use exact match
     const result = await sql`
-      SELECT * FROM users WHERE LOWER(wallet) = ${normalizedWallet}
+      SELECT * FROM users WHERE wallet = ${wallet}
     `;
 
     console.log("API: Query result rows:", result.rowCount);

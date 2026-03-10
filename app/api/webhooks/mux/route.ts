@@ -137,6 +137,101 @@ export async function POST(req: Request) {
         console.log(`🗑️ Stream deleted: ${streamId}`);
         break;
 
+      case "video.asset.ready": {
+        const assetId = event.data?.id;
+        const playbackIds = event.data?.playback_ids as
+          | Array<{ id?: string }>
+          | undefined;
+        const playbackId = Array.isArray(playbackIds)
+          ? playbackIds[0]?.id
+          : undefined;
+        const duration =
+          event.data?.duration !== null && event.data?.duration !== undefined
+            ? Math.round(event.data.duration)
+            : null;
+        const liveStreamId =
+          event.data?.live_stream_id ?? event.data?.live_stream?.id;
+
+        if (!assetId || !playbackId) {
+          console.error(
+            "❌ video.asset.ready missing asset id or playback_id",
+            event.data
+          );
+          break;
+        }
+
+        try {
+          let userId: string | null = null;
+          let streamSessionId: string | null = null;
+          let sessionTitle: string | null = "Stream Recording";
+
+          if (liveStreamId) {
+            const userResult = await sql`
+              SELECT id, mux_playback_id, creator FROM users WHERE mux_stream_id = ${liveStreamId}
+            `;
+            if (userResult.rows.length > 0) {
+              const u = userResult.rows[0];
+              userId = u.id;
+              sessionTitle =
+                u.creator?.streamTitle ?? u.creator?.title ?? sessionTitle;
+              const sessionResult = await sql`
+                SELECT id FROM stream_sessions
+                WHERE user_id = ${u.id} AND ended_at IS NOT NULL
+                ORDER BY ended_at DESC LIMIT 1
+              `;
+              if (sessionResult.rows.length > 0) {
+                streamSessionId = sessionResult.rows[0].id;
+              }
+            }
+          }
+
+          if (!userId) {
+            console.warn(
+              "⚠️ video.asset.ready: could not resolve user for asset",
+              assetId
+            );
+            break;
+          }
+
+          await sql`
+            INSERT INTO stream_recordings (
+              user_id, stream_session_id, mux_asset_id, playback_id, title, duration, status
+            )
+            VALUES (
+              ${userId},
+              ${streamSessionId},
+              ${assetId},
+              ${playbackId},
+              ${sessionTitle},
+              ${duration ?? 0},
+              'ready'
+            )
+            ON CONFLICT (mux_asset_id) DO UPDATE SET
+              status = 'ready',
+              duration = COALESCE(EXCLUDED.duration, stream_recordings.duration)
+          `;
+          console.log(`✅ Stream recording saved: ${assetId}`);
+        } catch (recErr) {
+          console.error("❌ Failed to save stream recording:", recErr);
+        }
+        break;
+      }
+
+      case "video.asset.errored": {
+        const erroredAssetId = event.data?.id;
+        if (erroredAssetId) {
+          try {
+            await sql`
+              UPDATE stream_recordings SET status = 'error' WHERE mux_asset_id = ${erroredAssetId}
+            `;
+            console.log(`✅ Marked recording as error: ${erroredAssetId}`);
+          } catch (updateErr) {
+            console.error("❌ Failed to update recording status:", updateErr);
+          }
+        }
+        break;
+      }
+
       default:
         console.log(`ℹ️ Unhandled event type: ${event.type}`);
     }

@@ -28,9 +28,10 @@ export async function GET(req: Request) {
         streamkey,
         mux_stream_id,
         mux_playback_id,
-        is_live
+        is_live,
+        enable_recording
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE wallet = ${wallet}
     `;
 
     if (userResult.rows.length === 0) {
@@ -45,6 +46,7 @@ export async function GET(req: Request) {
           message: "No stream key found",
           hasStream: false,
           streamKey: null,
+          enableRecording: user.enable_recording === true,
         },
         { status: 200 }
       );
@@ -60,6 +62,7 @@ export async function GET(req: Request) {
           playbackId: user.mux_playback_id,
           rtmpUrl: "rtmp://global-live.mux.com:5222/app",
           isLive: user.is_live || false,
+          enableRecording: user.enable_recording === true,
         },
       },
       { status: 200 }

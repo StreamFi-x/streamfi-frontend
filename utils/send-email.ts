@@ -84,9 +84,13 @@ export async function sendWelcomeEmail(email: string, name: string) {
 
   // Cloudinary URLs
   const cloudName = "dwjnkuvqv";
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/streamfi_pu5tfp.png`;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const twitterIconUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/x_ha8udb.png`;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const discordIconUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/discord_sekzwp.png`;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const facebookIconUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/facebook_cdmnek.png`;
 
   // Generate a unique message ID for this email

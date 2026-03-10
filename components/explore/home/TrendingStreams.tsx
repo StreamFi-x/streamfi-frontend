@@ -20,9 +20,15 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
   const easeInOut: Easing = "easeInOut";
 
   const getInitialCount = () => {
-    if (typeof window === "undefined") {return 4;}
-    if (window.innerWidth < 640) {return 2;} // Mobile: 2 cards
-    if (window.innerWidth < 1024) {return 3;} // Tablet: 3 cards
+    if (typeof window === "undefined") {
+      return 4;
+    }
+    if (window.innerWidth < 640) {
+      return 2;
+    } // Mobile: 2 cards
+    if (window.innerWidth < 1024) {
+      return 3;
+    } // Tablet: 3 cards
     return 4; // Desktop: 4 cards
   };
 
@@ -105,7 +111,9 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
   };
 
   const handleToggle = async () => {
-    if (isTransitioning) {return;}
+    if (isTransitioning) {
+      return;
+    }
 
     setIsTransitioning(true);
 
@@ -171,7 +179,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
                   <Image
                     width={500}
                     height={300}
-                    src={stream.thumbnail || "/placeholder.svg"}
+                    src={stream.thumbnail || "/Images/user.png"}
                     alt={stream.title}
                     className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
                   />
@@ -201,7 +209,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
                       <Image
                         width={300}
                         height={300}
-                        src={stream.streamer.logo || "/placeholder.svg"}
+                        src={stream.streamer.logo || "/Images/user.png"}
                         alt={stream.streamer.name}
                         className="w-full h-full object-cover"
                       />

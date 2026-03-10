@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Eye } from "lucide-react";
-// import { useRouter } from "next/navigation";
 interface StreamCardProps {
   id: string;
   title: string;
@@ -23,7 +23,7 @@ const StreamCard = ({
   viewCount,
   isLive,
 }: StreamCardProps) => {
-  // const route = useRouter();
+  const router = useRouter();
   return (
     <Link href={`/${username}/watch?v=${id}`}>
       <div className="group cursor-pointer rounded-lg overflow-hidden transition-colors">
@@ -82,12 +82,16 @@ const StreamCard = ({
             </div>
             <div className="flex flex-col truncate">
               {" "}
-              <a
-                href={`/${username}`}
-                className="text-xs hover:underline text-gray-400 font-medium"
+              <span
+                onClick={e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  router.push(`/${username}`);
+                }}
+                className="text-xs hover:underline text-gray-400 font-medium cursor-pointer"
               >
                 {username}
-              </a>
+              </span>
             </div>
           </div>
           <h3 className="text-sm font-semibold mb-1 truncate w-full line-clamp-2">

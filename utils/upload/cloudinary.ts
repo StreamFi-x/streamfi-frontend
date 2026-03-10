@@ -141,6 +141,37 @@ export async function uploadImage(source: string, folder: string = "avatars") {
 }
 
 /**
+ * Uploads a Buffer directly to Cloudinary via upload_stream — no disk I/O.
+ * Rejects after `timeoutMs` (default 10 s) so a slow Cloudinary response
+ * never hangs the API route.
+ */
+export async function uploadImageFromBuffer(
+  buffer: Buffer,
+  folder: string = "avatars",
+  timeoutMs: number = 10_000
+): Promise<{ public_id: string; secure_url: string }> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("Cloudinary upload timed out")),
+      timeoutMs
+    );
+
+    const stream = cloudinary.uploader.upload_stream(
+      { folder },
+      (error, result) => {
+        clearTimeout(timer);
+        if (error || !result) {
+          return reject(error ?? new Error("No result from Cloudinary"));
+        }
+        resolve({ public_id: result.public_id, secure_url: result.secure_url });
+      }
+    );
+
+    stream.end(buffer);
+  });
+}
+
+/**
  * Deletes an image from Cloudinary
  * @param {string} publicId - Public ID of the image to delete
  * @returns {Promise<void>}

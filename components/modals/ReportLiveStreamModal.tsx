@@ -56,7 +56,9 @@ export default function ReportLiveStreamModal({
   }, [isOpen]);
 
   const handleSubmit = () => {
-    if (!selectedReason) return;
+    if (!selectedReason) {
+      return;
+    }
 
     console.log("Report submitted:", {
       username,

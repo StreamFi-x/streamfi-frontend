@@ -1,9 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createMuxStream } from "@/lib/mux/server";
 import { checkExistingTableDetail } from "@/utils/validators";
+import { createRateLimiter } from "@/lib/rate-limit";
 
-export async function POST(req: Request) {
+// Stream creation calls Mux API + DB — limit per IP to prevent quota exhaustion
+const isRateLimited = createRateLimiter(60 * 60 * 1000, 10); // 10 per hour per IP
+
+export async function POST(req: NextRequest) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+
+  if (await isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": "3600" } }
+    );
+  }
   try {
     const { wallet, title, description, category, tags } = await req.json();
 
@@ -47,14 +62,14 @@ export async function POST(req: Request) {
       wallet
     );
     if (!userExists) {
-      console.log("❌ User not found:", wallet);
+      console.log("User not found:", wallet);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-    console.log("✅ User found:", wallet);
+    console.log("User found:", wallet);
 
     console.log("🔍 Fetching user data...");
     const userResult = await sql`
-      SELECT id, username, creator, mux_stream_id FROM users WHERE LOWER(wallet) = LOWER(${wallet})
+      SELECT id, username, creator, mux_stream_id, enable_recording FROM users WHERE LOWER(wallet) = LOWER(${wallet})
     `;
 
     if (userResult.rows.length === 0) {
@@ -109,12 +124,13 @@ export async function POST(req: Request) {
     }
     console.log("✅ Mux credentials found");
 
-    console.log("🎬 Creating Mux stream...");
+    const enableRecording = user.enable_recording === true;
+    console.log("🎬 Creating Mux stream...", { enableRecording });
     let muxStream;
     try {
       muxStream = await createMuxStream({
         name: `${user.username} - ${title}`,
-        record: true,
+        record: enableRecording,
       });
       console.log("✅ Mux stream created successfully:", {
         id: muxStream?.id,
@@ -173,7 +189,7 @@ export async function POST(req: Request) {
           streamkey = ${muxStream.streamKey},
           creator = ${JSON.stringify(updatedCreator)},
           updated_at = CURRENT_TIMESTAMP
-        WHERE LOWER(wallet) = LOWER(${wallet})
+        WHERE wallet = ${wallet}
       `;
       console.log("✅ User updated successfully with stream data");
     } catch (dbError) {

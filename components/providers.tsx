@@ -1,57 +1,56 @@
 "use client";
+
 import type React from "react";
 import { SWRConfig } from "swr";
-import { sepolia, mainnet } from "@starknet-react/chains";
-import {
-  StarknetConfig,
-  publicProvider,
-  argent,
-  braavos,
-  useInjectedConnectors,
-  voyager,
-} from "@starknet-react/core";
+import { PrivyProvider } from "@privy-io/react-auth";
 import { AuthProvider } from "./auth/auth-provider";
-
 import { ThemeProvider } from "@/contexts/theme-context";
+import { StellarWalletProvider } from "@/contexts/stellar-wallet-context";
 
-// Create a stable cache instance outside the component to ensure proper cache sharing
 const swrCache = new Map();
 
+const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
+
+if (!PRIVY_APP_ID) {
+  throw new Error(
+    "NEXT_PUBLIC_PRIVY_APP_ID is not set. Check your .env.local file."
+  );
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
-  const { connectors } = useInjectedConnectors({
-    // Recommended connectors for StarkNet
-
-    recommended: [argent(), braavos()],
-    // Include all injected connectors
-    includeRecommended: "always",
-    // Order of connectors
-
-    order: "alphabetical",
-  });
-
   return (
     <SWRConfig
       value={{
-        // Global SWR configuration for optimal performance
-        dedupingInterval: 10000, // Deduplicate requests within 10 seconds
-        revalidateOnFocus: false, // Don't refetch on window focus
-        revalidateOnReconnect: true, // Refetch on network reconnect
-        shouldRetryOnError: false, // Don't retry on error by default
-        // Use stable cache instance for proper cache sharing across all components
+        dedupingInterval: 10000,
+        revalidateOnFocus: false,
+        revalidateOnReconnect: true,
+        shouldRetryOnError: false,
         provider: () => swrCache,
       }}
     >
-      <StarknetConfig
-        chains={[mainnet, sepolia]}
-        provider={publicProvider()}
-        connectors={connectors}
-        explorer={voyager}
-        autoConnect={true}
+      <PrivyProvider
+        appId={PRIVY_APP_ID}
+        config={{
+          // Only allow Google login — no email/SMS magic links, no wallets via Privy
+          loginMethods: ["google"],
+          appearance: {
+            theme: "dark",
+            accentColor: "#ac39f2",
+            logo: "/Images/streamFiLogo.svg",
+          },
+          // Never create embedded wallets through Privy — we manage Stellar custodial wallets ourselves
+          embeddedWallets: {
+            ethereum: { createOnLogin: "off" },
+            solana: { createOnLogin: "off" },
+          },
+        }}
       >
-        <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
-        </ThemeProvider>
-      </StarknetConfig>
+        <StellarWalletProvider>
+          <ThemeProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </ThemeProvider>
+        </StellarWalletProvider>
+      </PrivyProvider>
     </SWRConfig>
   );
 }

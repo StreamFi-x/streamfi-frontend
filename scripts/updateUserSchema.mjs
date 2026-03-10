@@ -72,6 +72,7 @@ async function updateSchema() {
 }
 
 // Example of the new schema structure (for documentation purposes)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const exampleUser = {
   id: "uuid-here",
   wallet: "0x123...",

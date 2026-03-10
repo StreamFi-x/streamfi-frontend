@@ -4,6 +4,7 @@ import type React from "react";
 import { useState, useEffect, useCallback } from "react";
 import { Check, ChevronDown, X, AlertTriangle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -73,7 +74,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }) => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#1C1C1C] border-none shadow-xl rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+              className="bg-modal border border-border shadow-xl rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
               <div className="p-6">
@@ -156,28 +157,42 @@ const VerifyEmailModal: React.FC<{
   } | null>(null);
 
   const handleCodeChange = (index: number, value: string) => {
-    if (value.length <= 1) {
-      const newCode = [...code];
-      newCode[index] = value;
-      setCode(newCode);
-
-      // Auto-focus next input
-      if (value && index < 5) {
-        const nextInput = document.getElementById(`code-${index + 1}`);
-        if (nextInput) {
-          nextInput.focus();
-        }
-      }
+    const digit = value.replace(/\D/g, "").slice(-1);
+    const newCode = [...code];
+    newCode[index] = digit;
+    setCode(newCode);
+    if (digit && index < 5) {
+      document.getElementById(`code-${index + 1}`)?.focus();
     }
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
     if (e.key === "Backspace" && !code[index] && index > 0) {
-      const prevInput = document.getElementById(`code-${index - 1}`);
-      if (prevInput) {
-        prevInput.focus();
-      }
+      document.getElementById(`code-${index - 1}`)?.focus();
     }
+  };
+
+  // Paste — distribute digits across all boxes starting from the pasted box
+  const handlePaste = (
+    e: React.ClipboardEvent<HTMLInputElement>,
+    startIndex: number
+  ) => {
+    e.preventDefault();
+    const digits = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6 - startIndex);
+    if (!digits) {
+      return;
+    }
+    const newCode = [...code];
+    digits.split("").forEach((char, i) => {
+      newCode[startIndex + i] = char;
+    });
+    setCode(newCode);
+    document
+      .getElementById(`code-${Math.min(startIndex + digits.length, 5)}`)
+      ?.focus();
   };
 
   const handleSubmit = async () => {
@@ -301,7 +316,7 @@ const VerifyEmailModal: React.FC<{
             Verify Your Email
           </h3>
 
-          <p className="text-[#FFFFFF80] mb-7 text-sm">
+          <p className="text-muted-foreground mb-7 text-sm">
             Enter the 6-digit code sent to{" "}
             <strong className="text-foreground">
               {email || "cassandra@gmail.com."}
@@ -323,9 +338,13 @@ const VerifyEmailModal: React.FC<{
                 placeholder={focusedIndex === index ? "-" : ""}
                 onChange={e => handleCodeChange(index, e.target.value)}
                 onKeyDown={e => handleKeyDown(index, e)}
-                onFocus={() => setFocusedIndex(index)}
+                onPaste={e => handlePaste(e, index)}
+                onFocus={e => {
+                  setFocusedIndex(index);
+                  e.target.select();
+                }}
                 onBlur={() => setFocusedIndex(null)}
-                className="bg-[#151515] border-none w-12 h-12 text-center text-lg font-semibold rounded-lg focus:border-highlight focus:ring-1 focus:ring-highlight focus:ring-opacity-20 outline-none transition-colors text-foreground"
+                className="bg-input border border-border w-12 h-12 text-center text-lg font-semibold rounded-lg focus:border-highlight focus:ring-1 focus:ring-highlight focus:ring-opacity-20 outline-none transition-colors text-foreground caret-foreground"
                 disabled={isLoading}
               />
             ))}
@@ -346,11 +365,11 @@ const VerifyEmailModal: React.FC<{
             )}
           </button>
 
-          <div className="text-[#FFFFFF80] mt-5 text-sm">
+          <div className="text-muted-foreground mt-5 text-sm">
             Didn&apos;t receive a code?{" "}
             <button
               onClick={handleResendCode}
-              className="text-foreground hover:text-gray-300 font-medium underline"
+              className="text-foreground hover:text-foreground/70 font-medium underline"
               disabled={isLoading}
             >
               Resend
@@ -500,6 +519,12 @@ const Checkbox: React.FC<CheckboxProps> = ({
 };
 
 const PrivacySecurityPage: React.FC = () => {
+  // Reactive Privy session — updates via both sessionStorage restore and
+  // the "privy-wallet-set" event, so it works even if createSession() is
+  // still in-flight when this page mounts.
+  const { privyWallet } = useStellarWallet();
+  const isPrivyUser = !!privyWallet;
+
   // State management for all settings
   const [settings, setSettings] = useState({
     twoFactorEnabled: false,
@@ -516,8 +541,16 @@ const PrivacySecurityPage: React.FC = () => {
     message: string;
   } | null>(null);
 
-  // Replace the user object with one that gets email from localStorage
   const [userEmail, setUserEmail] = useState("");
+
+  // Custodial wallet export state (only shown for Privy/Google users)
+  const [exportedKey, setExportedKey] = useState<string | null>(null);
+  const [keyRevealed, setKeyRevealed] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [keyCopied, setKeyCopied] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [decryptionFailed, setDecryptionFailed] = useState(false);
 
   // Handle all setting changes
   const updateSetting = useCallback(
@@ -530,7 +563,8 @@ const PrivacySecurityPage: React.FC = () => {
     []
   );
 
-  // Add useEffect to get user data from sessionStorage
+  // Load email and email-verified status from sessionStorage (wallet users).
+  // For Privy users we fall back to privyWallet.email in the render below.
   useEffect(() => {
     try {
       const userData = sessionStorage.getItem("userData");
@@ -539,16 +573,81 @@ const PrivacySecurityPage: React.FC = () => {
         if (parsedUserData.email) {
           setUserEmail(parsedUserData.email);
         }
-
-        // Check if email is verified
         if (parsedUserData.emailverified) {
           updateSetting("emailVerified", true);
         }
       }
     } catch {
-      // Error handling for parsing user data
+      // ignore parse errors
     }
   }, [updateSetting]);
+
+  const handleExportKey = async () => {
+    setIsExporting(true);
+    setExportError(null);
+    setDecryptionFailed(false);
+    try {
+      const res = await fetch("/api/auth/export-key", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        // Detect key-mismatch (encryption key rotated after wallet was created)
+        if (
+          data.error?.includes("decrypt") ||
+          data.error?.includes("contact support")
+        ) {
+          setDecryptionFailed(true);
+          setExportError(
+            "Your wallet was encrypted with a different key. Regenerate your wallet to fix this."
+          );
+        } else {
+          setExportError(data.error ?? "Failed to export key");
+        }
+        return;
+      }
+      setExportedKey(data.secretKey);
+      setKeyRevealed(false); // start blurred
+    } catch {
+      setExportError("Network error — please try again");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleRegenerateWallet = async () => {
+    setIsRegenerating(true);
+    setExportError(null);
+    setDecryptionFailed(false);
+    try {
+      const res = await fetch("/api/auth/regenerate-wallet", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setExportError(data.error ?? "Failed to regenerate wallet");
+        return;
+      }
+      // Key re-generated — now export it immediately
+      await handleExportKey();
+    } catch {
+      setExportError("Network error — please try again");
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  const handleCopyKey = () => {
+    if (!exportedKey) {
+      return;
+    }
+    navigator.clipboard.writeText(exportedKey).then(() => {
+      setKeyCopied(true);
+      setTimeout(() => setKeyCopied(false), 2000);
+    });
+  };
 
   const showFeedback = (
     type: "success" | "error" | "warning",
@@ -673,7 +772,7 @@ const PrivacySecurityPage: React.FC = () => {
               </p>
               <div className="bg-input flex w-full justify-between px-3 py-4 items-center gap-2 rounded">
                 <span className="text-muted-foreground">
-                  {userEmail || `No email found`}
+                  {userEmail || privyWallet?.email || "No email found"}
                 </span>
                 {settings.emailVerified ? (
                   <Check className="w-4 h-4 text-green-500" />
@@ -749,6 +848,108 @@ const PrivacySecurityPage: React.FC = () => {
             onChange={toggleActivityStatus}
           />
         </SectionCard>
+
+        {/* Custodial Wallet Export — only visible to Google/Privy users */}
+        {isPrivyUser && (
+          <SectionCard>
+            <h2 className="text-highlight text-xl font-medium mb-2">
+              Stellar Wallet
+            </h2>
+            <p className="text-muted-foreground text-sm mb-4">
+              Your account uses a StreamFi-managed Stellar wallet. You can
+              export your private key to self-custody your funds using any
+              Stellar wallet (e.g. Freighter, Lobstr).
+            </p>
+
+            <div className="rounded-md border border-yellow-600/40 bg-yellow-900/20 px-4 py-3 text-xs text-yellow-300 mb-4 flex gap-2 items-start">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span>
+                <strong>Keep your private key secret.</strong> Anyone with it
+                has full control of your wallet. Store it securely offline —
+                StreamFi cannot recover it if lost.
+              </span>
+            </div>
+
+            {!exportedKey ? (
+              <button
+                onClick={handleExportKey}
+                disabled={isExporting}
+                className="bg-highlight hover:bg-highlight/80 disabled:opacity-50 text-white px-5 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+              >
+                {isExporting ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : null}
+                {isExporting ? "Fetching key..." : "Export Private Key"}
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div className="relative">
+                  <code
+                    className={`block w-full break-all bg-input border border-border rounded-md px-4 py-3 text-xs font-mono text-green-600 dark:text-green-400 transition-all ${keyRevealed ? "" : "blur-sm select-none"}`}
+                  >
+                    {exportedKey}
+                  </code>
+                  {!keyRevealed && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <button
+                        onClick={() => setKeyRevealed(true)}
+                        className="bg-background/80 border border-border px-4 py-2 rounded-md text-sm text-foreground hover:bg-surface-hover"
+                      >
+                        Click to reveal
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  {keyRevealed && (
+                    <button
+                      onClick={handleCopyKey}
+                      className="text-sm border border-border px-4 py-2 rounded-md hover:bg-surface-hover text-foreground"
+                    >
+                      {keyCopied ? "Copied!" : "Copy"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setExportedKey(null);
+                      setKeyRevealed(false);
+                    }}
+                    className="text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    Hide
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {exportError && (
+              <div className="mt-3 space-y-2">
+                <p className="text-red-400 text-xs">{exportError}</p>
+                {decryptionFailed && (
+                  <div className="rounded-md border border-orange-600/40 bg-orange-900/20 px-4 py-3 text-xs text-orange-300 space-y-2">
+                    <p>
+                      <strong>
+                        ⚠️ This will generate a NEW Stellar wallet address.
+                      </strong>{" "}
+                      Only proceed if you have no funds on your current
+                      custodial address.
+                    </p>
+                    <button
+                      onClick={handleRegenerateWallet}
+                      disabled={isRegenerating}
+                      className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-md text-xs font-medium flex items-center gap-2"
+                    >
+                      {isRegenerating ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : null}
+                      {isRegenerating ? "Regenerating..." : "Regenerate Wallet"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </SectionCard>
+        )}
 
         {/* Save Changes Button */}
         <div className="flex justify-end mb-8">

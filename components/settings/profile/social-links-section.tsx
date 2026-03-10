@@ -70,7 +70,7 @@ export function SocialLinksSection({
       case "instagram":
         return (
           <Image
-            src={InstagramIcon || "/placeholder.svg"}
+            src={InstagramIcon || "/Images/user.png"}
             alt="Instagram"
             width={20}
             height={20}
@@ -79,7 +79,7 @@ export function SocialLinksSection({
       case "twitter":
         return (
           <Image
-            src={TwitterIcon || "/placeholder.svg"}
+            src={TwitterIcon || "/Images/user.png"}
             alt="X (Twitter)"
             width={20}
             height={20}
@@ -88,7 +88,7 @@ export function SocialLinksSection({
       case "facebook":
         return (
           <Image
-            src={FacebookIcon || "/placeholder.svg"}
+            src={FacebookIcon || "/Images/user.png"}
             alt="Facebook"
             width={20}
             height={20}
@@ -97,7 +97,7 @@ export function SocialLinksSection({
       case "youtube":
         return (
           <Image
-            src={YoutubeIcon || "/placeholder.svg"}
+            src={YoutubeIcon || "/Images/user.png"}
             alt="YouTube"
             width={20}
             height={20}
@@ -106,7 +106,7 @@ export function SocialLinksSection({
       case "telegram":
         return (
           <Image
-            src={TelegramIcon || "/placeholder.svg"}
+            src={TelegramIcon || "/Images/user.png"}
             alt="Telegram"
             width={20}
             height={20}
@@ -115,7 +115,7 @@ export function SocialLinksSection({
       case "discord":
         return (
           <Image
-            src={DiscordIcon || "/placeholder.svg"}
+            src={DiscordIcon || "/Images/user.png"}
             alt="Discord"
             width={20}
             height={20}
@@ -124,7 +124,7 @@ export function SocialLinksSection({
       case "tiktok":
         return (
           <Image
-            src={TikTokIcon || "/placeholder.svg"}
+            src={TikTokIcon || "/Images/user.png"}
             alt="TikTok"
             width={20}
             height={20}
@@ -140,20 +140,32 @@ export function SocialLinksSection({
   };
 
   const detectPlatformFromUrl = (url: string): Platform | null => {
-    if (!url) return null;
+    if (!url) {
+      return null;
+    }
 
     const domain = url.toLowerCase();
-    if (domain.includes("instagram")) return "instagram";
-    if (domain.includes("twitter") || domain.includes("x.com"))
+    if (domain.includes("instagram")) {
+      return "instagram";
+    }
+    if (domain.includes("twitter") || domain.includes("x.com")) {
       return "twitter";
-    if (domain.includes("facebook") || domain.includes("fb.com"))
+    }
+    if (domain.includes("facebook") || domain.includes("fb.com")) {
       return "facebook";
-    if (domain.includes("youtube") || domain.includes("youtu.be"))
+    }
+    if (domain.includes("youtube") || domain.includes("youtu.be")) {
       return "youtube";
-    if (domain.includes("telegram") || domain.includes("t.me"))
+    }
+    if (domain.includes("telegram") || domain.includes("t.me")) {
       return "telegram";
-    if (domain.includes("discord")) return "discord";
-    if (domain.includes("tiktok")) return "tiktok";
+    }
+    if (domain.includes("discord")) {
+      return "discord";
+    }
+    if (domain.includes("tiktok")) {
+      return "tiktok";
+    }
     return "other";
   };
 
@@ -217,7 +229,9 @@ export function SocialLinksSection({
   const handleUpdateLink = () => {
     const { editingLink, editingTitle, editingIndex } = editState;
 
-    if (editingIndex === null) return;
+    if (editingIndex === null) {
+      return;
+    }
 
     const validatedLink = validateAndIdentifyLink(editingLink, editingTitle);
 
@@ -261,7 +275,9 @@ export function SocialLinksSection({
   const handleCancelEdit = () => {
     const { editingIndex } = editState;
 
-    if (editingIndex === null) return;
+    if (editingIndex === null) {
+      return;
+    }
 
     const newLinks = [...socialLinks];
     newLinks[editingIndex] = { ...newLinks[editingIndex], isEditing: false };

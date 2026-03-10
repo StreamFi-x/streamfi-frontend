@@ -44,7 +44,7 @@ export function ProfileHeader({ avatar, onAvatarClick }: ProfileHeaderProps) {
             />
           ) : (
             <Image
-              src={avatarSrc || "/placeholder.svg"}
+              src={avatarSrc || "/Images/user.png"}
               alt="Profile Avatar"
               fill
               className="object-cover"

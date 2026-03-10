@@ -32,6 +32,7 @@ export async function GET(
         u.creator,
         u.socialLinks,
         u.created_at,
+        (SELECT COUNT(*)::int FROM user_follows WHERE followee_id = u.id) AS follower_count,
         -- Get latest session data
         ss.id as session_id,
         ss.started_at as session_started_at,
@@ -69,6 +70,7 @@ export async function GET(
         bio: streamData.bio,
         socialLinks: streamData.socialLinks,
         memberSince: streamData.created_at,
+        followerCount: streamData.follower_count ?? 0,
       },
       stream: {
         streamId: streamData.mux_stream_id,
@@ -104,7 +106,13 @@ export async function GET(
         : null,
     };
 
-    return NextResponse.json({ streamData: responseData }, { status: 200 });
+    return NextResponse.json(
+      { streamData: responseData },
+      {
+        status: 200,
+        headers: { "Cache-Control": "private, max-age=10" },
+      }
+    );
   } catch (error) {
     console.error("Get stream error:", error);
     return NextResponse.json(

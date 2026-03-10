@@ -67,7 +67,7 @@ export function FileUpload({ onFileSelect, selectedFile }: FileUploadProps) {
         <div className="relative">
           <div className="relative group">
             <Image
-              src={imageUrl || "/placeholder.svg"}
+              src={imageUrl || "/Images/user.png"}
               alt="Preview"
               width={400}
               height={192}

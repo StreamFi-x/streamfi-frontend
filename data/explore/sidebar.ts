@@ -1,6 +1,5 @@
-import { Home, TrendingUp, Clock, Radio, Heart } from "lucide-react";
+import { Home, TrendingUp, Clock, Radio, Heart, Flame } from "lucide-react";
 import { Bell, Mail, MessageSquare, UserPlus, AtSign } from "lucide-react";
-import LocalFireDepartmentOutlinedIcon from "@mui/icons-material/LocalFireDepartmentOutlined";
 
 export const sidebarVariants = {
   open: {
@@ -29,7 +28,7 @@ export const overlayVariants = {
 export const navItems = [
   { icon: Home, label: "Home", href: "/" },
   {
-    icon: LocalFireDepartmentOutlinedIcon,
+    icon: Flame,
     label: "Browse",
     href: "/explore/browse",
   },

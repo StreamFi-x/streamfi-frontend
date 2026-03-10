@@ -1,6 +1,3 @@
-import Banner from "@/components/shared/profile/Banner";
-import ProfileHeader from "@/components/shared/profile/ProfileHeader";
-import TabsNavigation from "@/components/shared/profile/TabsNavigation";
 import AboutSection from "@/components/shared/profile/AboutSection";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -11,12 +8,16 @@ interface ChannelAboutProps {
   streamTitle?: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const OwnerAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
   // const { username } = params;
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userExists, setUserExists] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isFollowing, setIsFollowing] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [followLoading, setFollowLoading] = useState(false);
 
   const loggedInUsername =
@@ -37,7 +38,7 @@ const OwnerAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
         console.log("Fetched user data:", data.user);
         console.log("User data:", data.user?.username);
         console.log("Logged in username:", loggedInUsername);
-      } catch (error) {
+      } catch {
         toast.error("Failed to fetch user data");
         setUserExists(false);
       } finally {
@@ -49,6 +50,7 @@ const OwnerAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
   }, [username, loggedInUsername]);
 
   // Follow handler
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleFollow = async () => {
     if (!loggedInUsername) {
       toast.error("You must be logged in to follow users.");
@@ -79,7 +81,7 @@ const OwnerAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
       } else {
         toast.error(result.error || "Failed to follow");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network error while following");
     } finally {
       setFollowLoading(false);
@@ -87,6 +89,7 @@ const OwnerAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
   };
 
   // Handle unfollow
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleUnfollow = async () => {
     if (!loggedInUsername) {
       toast.error("You must be logged in to unfollow users.");
@@ -119,7 +122,7 @@ const OwnerAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
       } else {
         toast.error(result.error || "Failed to unfollow");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network error while unfollowing");
     } finally {
       setFollowLoading(false);

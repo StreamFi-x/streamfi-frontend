@@ -2,17 +2,18 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { StreamfiLogoLight, StreamfiLogoShort } from "@/public/icons";
-import { Search, Bell, ChevronDown } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
+import NotificationBell from "@/components/shared/NotificationBell";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import type { SearchResult } from "@/types/explore";
-import { useAccount, useDisconnect } from "@starknet-react/core";
 import { useAuth } from "@/components/auth/auth-provider";
 import ConnectModal from "../connectWallet";
 import ProfileModal from "./ProfileModal";
-import { Avatar } from "@/public/Images";
+import Avatar from "@/public/Images/user.png";
 import ProfileDropdown from "../ui/profileDropdown";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
 interface NavbarProps {
   onConnectWallet?: () => void;
@@ -30,179 +31,158 @@ export default function Navbar({}: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { address, isConnected } = useAccount();
+  const { publicKey, isConnected, disconnect, privyWallet } =
+    useStellarWallet();
   const { user, isLoading: authLoading } = useAuth();
-  const { disconnect } = useDisconnect();
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
   const [connectStep, setConnectStep] = useState<
     "profile" | "verify" | "success"
   >("profile");
+  // Always start as loading — check sessionStorage in useEffect to avoid SSR/client mismatch
   const [isLoading, setIsLoading] = useState(true);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  // Prevent auth UI from rendering until after hydration (avoids SSR/localStorage mismatch)
+  const [mounted, setMounted] = useState(false);
 
-  // Get display name from user data or fallback to address
-  const getDisplayName = useCallback(() => {
-    if (user?.username) {
-      return user.username;
+  // Authenticated = Freighter wallet connected OR Privy (Google) session active
+  const isAuthenticated = isConnected || !!privyWallet;
+
+  // safe sessionStorage parse
+  const getSessionData = useCallback(<T,>(key: string): T | null => {
+    if (typeof window === "undefined") {
+      return null;
     }
-
-    if (typeof window !== "undefined") {
-      // ✅ prevents SSR error
-      try {
-        const userData = sessionStorage.getItem("userData");
-        if (userData) {
-          const parsedUser = JSON.parse(userData);
-          if (parsedUser.username) {
-            return parsedUser.username;
-          }
-        }
-      } catch (error) {
-        console.error("Error parsing user data from sessionStorage:", error);
-      }
-    }
-
-    if (address) {
-      return `${address.substring(0, 6)}...${address.slice(-4)}`;
-    }
-
-    return "Unknown User";
-  }, [user?.username, address]);
-
-  // Returns either the placeholder, username, or sliced address
-  const renderDisplayName = () => {
-    // Show loading pulse while fetching user info
-    if (isLoading) {
-      return (
-        <>
-          <div className="w-24 h-6 animate-pulse bg-gray-400 rounded hidden sm:block" />
-          <div className="w-5 h-5 rounded-full bg-gray-400 ml-3 animate-pulse inline-flex" />
-        </>
-      );
-    }
-
-    // Try to get username from auth context
-    if (user?.username) {
-      return user.username;
-    }
-
-    // Try to get username from sessionStorage
     try {
-      const storedData = sessionStorage.getItem("userData");
-      if (storedData) {
-        const parsedUser = JSON.parse(storedData);
-        if (parsedUser.username) {
-          return parsedUser.username;
-        }
-      }
-    } catch (err) {
-      console.error("Error reading userData from sessionStorage:", err);
+      const data = sessionStorage.getItem(key);
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  //  display name — privy user takes priority, then wallet user, then truncated key
+  const getDisplayName = useCallback(() => {
+    if (privyWallet?.username) {
+      return privyWallet.username;
+    }
+    if (privyWallet?.displayName) {
+      return privyWallet.displayName;
+    }
+    if (user?.username) {
+      return user.username;
     }
 
-    // Fallback to sliced address
-    if (address) {
-      return `${address.substring(0, 6)}...${address.slice(-4)}`;
+    const storedUser = getSessionData<{ username?: string }>("userData");
+    if (storedUser?.username) {
+      return storedUser.username;
     }
 
-    // If all else fails
+    // Fallback: privy_user in sessionStorage (page refresh before event fires)
+    const privyStored = getSessionData<{ username?: string }>("privy_user");
+    if (privyStored?.username) {
+      return privyStored.username;
+    }
+
+    if (publicKey) {
+      return `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}`;
+    }
+
     return "Unknown User";
-  };
+  }, [privyWallet, user?.username, publicKey, getSessionData]);
 
+  // avatar logic — privy user takes priority
   const getAvatar = useCallback(() => {
+    if (privyWallet?.avatar) {
+      return privyWallet.avatar;
+    }
     if (user?.avatar) {
       return user.avatar;
     }
 
-    if (typeof window !== "undefined") {
-      try {
-        const userData = sessionStorage.getItem("userData");
-        if (userData) {
-          const parsedUser = JSON.parse(userData);
-          if (parsedUser.avatar) {
-            return parsedUser.avatar;
-          }
-        }
-      } catch (error) {
-        console.error("Error parsing user data from sessionStorage:", error);
-      }
+    const storedUser = getSessionData<{ avatar?: string }>("userData");
+    if (storedUser?.avatar) {
+      return storedUser.avatar;
     }
 
     return Avatar;
-  }, [user?.avatar]);
+  }, [privyWallet, user?.avatar, getSessionData]);
 
   const handleCloseProfileModal = () => {
     setProfileModalOpen(false);
-    setHasCheckedProfile(true); // Prevent modal from showing again
+    setHasCheckedProfile(true);
   };
 
   const handleNextStep = (step: "profile" | "verify" | "success") => {
     setConnectStep(step);
   };
 
-  // Reset profile check flag when wallet address changes
+  // Mark as mounted after hydration and resolve initial loading state from sessionStorage
   useEffect(() => {
-    setHasCheckedProfile(false);
-  }, [address]);
+    setMounted(true);
+    const hasPrivySession = !!sessionStorage.getItem("privy_user");
+    if (hasPrivySession) {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
+    setHasCheckedProfile(false);
+  }, [publicKey]);
+
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
       if (
-        searchInputRef.current &&
-        !searchInputRef.current.contains(event.target as Node) &&
-        searchDropdownRef.current &&
-        !searchDropdownRef.current.contains(event.target as Node)
+        !target.closest(".profile-dropdown-container") &&
+        !target.closest(".avatar-container") &&
+        !target.closest("#search-input") &&
+        !target.closest("#search-dropdown")
       ) {
+        setIsProfileDropdownOpen(false);
         setIsSearchDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Autofocus input on mount
+  // Autofocus search input
   useEffect(() => {
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
+    searchInputRef.current?.focus();
   }, []);
 
-  // Fetch live search results
+  // Search results fetch with debounce
   useEffect(() => {
-    if (searchQuery.trim() === "") {
+    if (!searchQuery.trim()) {
       setSearchResults([]);
       return;
     }
 
-    const fetchResults = async () => {
+    const timeout = setTimeout(async () => {
       try {
         const res = await fetch(
           `/api/category?title=${encodeURIComponent(searchQuery)}`
         );
         const data = await res.json();
-
         const normalizedResults = (data.categories ?? []).map(
           (cat: Category) => ({
             id: cat.id,
             title: cat.title,
-            image: cat.imageurl || "/placeholder.svg",
-            type: "category", // static label
+            image: cat.imageurl || "/Images/user.png",
+            type: "category",
           })
         );
-
         setSearchResults(normalizedResults);
-      } catch (error) {
-        console.error("Search fetch error:", error);
+      } catch {
         setSearchResults([]);
       }
-    };
+    }, 300);
 
-    const debounce = setTimeout(fetchResults, 300);
-    return () => clearTimeout(debounce);
+    return () => clearTimeout(timeout);
   }, [searchQuery]);
 
   const handleConnectWallet = () => {
@@ -213,89 +193,64 @@ export default function Navbar({}: NavbarProps) {
     }
   };
 
-  // Toggle profile dropdown
-  const toggleProfileDropdown = () => {
+  const toggleProfileDropdown = () =>
     setIsProfileDropdownOpen(!isProfileDropdownOpen);
-  };
 
-  // Close dropdown when clicking outside
+  // Profile modal logic — only for Freighter wallet users (Privy users use /onboarding page)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (
-        !target.closest(".profile-dropdown-container") &&
-        !target.closest(".avatar-container")
-      ) {
-        setIsProfileDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  // Profile check: show modal only for new users (no profile in DB)
-  useEffect(() => {
-    // Wait for auth to finish loading
     if (authLoading) {
       return;
     }
-
-    // Not connected — just stop the loading indicator
-    if (!isConnected || !address) {
+    if (!isConnected || !publicKey || hasCheckedProfile || !!privyWallet) {
       setIsLoading(false);
       return;
     }
 
-    // Already checked for this address
-    if (hasCheckedProfile) {
-      setIsLoading(false);
-      return;
-    }
-
-    // Auth finished loading — now check user status
     setHasCheckedProfile(true);
 
     if (!user) {
-      // New user (no profile in DB) — show registration modal
       setProfileModalOpen(true);
     } else {
-      // Existing user — store data, do NOT show modal
       sessionStorage.setItem("userData", JSON.stringify(user));
       sessionStorage.setItem("username", user.username);
     }
 
     setIsLoading(false);
-  }, [isConnected, address, authLoading, user, hasCheckedProfile]);
+  }, [isConnected, publicKey, authLoading, user, hasCheckedProfile]);
 
-  // Close modal automatically when wallet is connected
   useEffect(() => {
     if (isConnected) {
       setIsModalOpen(false);
     }
   }, [isConnected]);
 
+  // Function to check for cloudinary URL
+  const ALLOWED_CLOUDINARY_HOST = "res.cloudinary.com"; // replace with Cloudinary domain
+
+  function isCloudinaryUrl(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      return parsed.hostname === ALLOWED_CLOUDINARY_HOST;
+    } catch {
+      return false;
+    }
+  }
+
   const userAvatar = getAvatar();
   const displayName = getDisplayName();
-  const truncatedDisplayName =
-    displayName.length > 12 ? displayName.substring(0, 12) : displayName;
 
   return (
     <>
-      <header
-        className={`h-20 flex items-center justify-between px-4 border-b-[0.5px] border-border bg-sidebar z-50`}
-      >
+      <header className="h-20 flex items-center justify-between px-4 border-b-[0.5px] border-border bg-sidebar z-50">
         <div className="flex items-center gap-4">
           <Link href="/explore" className="flex items-center gap-2">
             <Image
-              src={StreamfiLogoLight || "/placeholder.svg"}
+              src={StreamfiLogoLight || "/Images/user.png"}
               alt="Streamfi Logo"
               className="dark:hidden"
             />
             <Image
-              src={StreamfiLogoShort || "/placeholder.svg"}
+              src={StreamfiLogoShort || "/Images/user.png"}
               alt="Streamfi Logo"
               className="hidden dark:block"
             />
@@ -305,6 +260,7 @@ export default function Navbar({}: NavbarProps) {
         <div className="hidden md:block flex-1 items-center max-w-xl mx-4 relative">
           <div className="relative">
             <input
+              id="search-input"
               ref={searchInputRef}
               type="text"
               placeholder="Search"
@@ -313,12 +269,10 @@ export default function Navbar({}: NavbarProps) {
                 setSearchQuery(e.target.value);
                 setIsSearchDropdownOpen(true);
               }}
-              onFocus={() => {
-                if (searchResults.length > 0) {
-                  setIsSearchDropdownOpen(true);
-                }
-              }}
-              className={`w-full bg-input rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:ring-1 focus:ring-highlight focus:outline-none`}
+              onFocus={() =>
+                searchResults.length && setIsSearchDropdownOpen(true)
+              }
+              className="w-full bg-input rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:ring-1 focus:ring-highlight"
             />
             <Search
               className="absolute left-3 top-[47%] transform -translate-y-1/2 text-gray-400"
@@ -329,21 +283,22 @@ export default function Navbar({}: NavbarProps) {
           <AnimatePresence>
             {isSearchDropdownOpen && searchResults.length > 0 && (
               <motion.div
+                id="search-dropdown"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className={`absolute top-full left-0 right-0 mt-2 bg-dropdown border border-border shadow-lg rounded-md z-20`}
+                className="absolute top-full left-0 right-0 mt-2 bg-dropdown border border-border shadow-lg rounded-md z-20"
               >
                 <div className="p-2">
                   {searchResults.map(result => (
                     <Link
                       key={result.id}
-                      className={`flex items-center gap-3 p-2 hover:bg-surface-hover rounded-md cursor-pointer relative z-30`}
+                      className="flex items-center gap-3 p-2 hover:bg-surface-hover rounded-md cursor-pointer"
                       href={`/browse/${result.type}/${result.title.toLowerCase()}`}
                     >
                       <div className="w-10 h-10 rounded bg-gray-700 overflow-hidden">
                         <Image
-                          src={result.image || "/placeholder.svg"}
+                          src={result.image || "/Images/user.png"}
                           alt={result.title}
                           className="w-full h-full object-cover"
                           width={40}
@@ -352,12 +307,10 @@ export default function Navbar({}: NavbarProps) {
                         />
                       </div>
                       <div>
-                        <div className={`text-sm font-medium text-foreground`}>
+                        <div className="text-sm font-medium text-foreground">
                           {result.title}
                         </div>
-                        <div
-                          className={`text-xs text-muted-foreground capitalize`}
-                        >
+                        <div className="text-xs text-muted-foreground capitalize">
                           {result.type}
                         </div>
                       </div>
@@ -370,39 +323,23 @@ export default function Navbar({}: NavbarProps) {
         </div>
 
         <div className="flex items-center gap-4">
-          {isConnected && address && (
+          {!mounted ? (
+            <div className="w-24 h-9 animate-pulse bg-muted rounded-md" />
+          ) : isAuthenticated ? (
             <>
-              {/* Bell icon - only show when not loading */}
-              {!isLoading && (
-                <button>
-                  <Bell className={`text-foreground w-4 h-4 `} />
-                </button>
-              )}
-
-              {/* Avatar with dropdown */}
+              {!isLoading && <NotificationBell />}
               <div className="relative avatar-container">
                 <div
-                  className={`cursor-pointer flex gap-[10px] font-medium items-center text-[14px] text-white`}
+                  className="cursor-pointer flex gap-[10px] font-medium items-center text-[14px] text-white"
                   onClick={toggleProfileDropdown}
                 >
-                  {isLoading ? (
-                    // Skeletons while loading
+                  {!isLoading ? (
                     <>
-                      <div className="w-16 h-8 animate-pulse bg-muted rounded-md hidden sm:block" />
-                      <div className="w-8 h-8 rounded-full bg-muted animate-pulse inline-flex" />
-                    </>
-                  ) : (
-                    <>
-                      {/* Display name with fixed width to prevent layout shift */}
-                      <span
-                        className={`text-foreground hidden sm:flex  justify-end truncate`}
-                      >
-                        {renderDisplayName()}
+                      <span className="text-foreground hidden sm:flex truncate max-w-[140px]">
+                        {displayName}
                       </span>
-
-                      {/* Avatar */}
                       {typeof userAvatar === "string" &&
-                      userAvatar.includes("cloudinary.com") ? (
+                      isCloudinaryUrl(userAvatar) ? (
                         <img
                           src={userAvatar}
                           alt="Avatar"
@@ -418,36 +355,31 @@ export default function Navbar({}: NavbarProps) {
                         />
                       )}
                     </>
+                  ) : (
+                    <div className="w-16 h-8 animate-pulse bg-muted hidden sm:block" />
                   )}
-
-                  <ChevronDown
-                    className={`text-foreground w-4 h-4 sm:hidden mt-0.5`}
-                  />
+                  <ChevronDown className="text-foreground w-4 h-4 sm:hidden mt-0.5" />
                 </div>
 
-                {/* Render ProfileDropdown with AnimatePresence */}
                 <AnimatePresence>
                   {isProfileDropdownOpen && (
                     <div className="absolute top-full -right-2 sm:right-0 mt-2 profile-dropdown-container z-50">
                       <ProfileDropdown
-                        username={truncatedDisplayName}
+                        username={displayName}
                         avatar={`${userAvatar}`}
-                        onLinkClick={() => {
-                          setTimeout(() => {
-                            toggleProfileDropdown();
-                          }, 400);
-                        }}
+                        onLinkClick={() =>
+                          setTimeout(toggleProfileDropdown, 400)
+                        }
                       />
                     </div>
                   )}
                 </AnimatePresence>
               </div>
             </>
-          )}
-          {!isConnected && (
+          ) : (
             <button
               onClick={handleConnectWallet}
-              className={`bg-highlight hover:bg-highlight/80 text-background px-4 py-3 rounded-md text-sm font-medium`}
+              className="bg-highlight hover:bg-highlight/80 text-background px-4 py-3 rounded-md text-sm font-medium"
             >
               Connect Wallet
             </button>
@@ -455,25 +387,12 @@ export default function Navbar({}: NavbarProps) {
         </div>
       </header>
 
-      {/* Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <motion.div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* Backdrop */}
-            <div
-              className={`absolute inset-0 bg-overlay`}
-              onClick={() => setIsModalOpen(false)}
-            />
-            {/* Modal Content */}
-            <motion.div
-              className={`bg-modal border border-border shadow-xl rounded-lg p-6 z-10`}
-            >
-              <ConnectModal
-                isModalOpen={isModalOpen}
-                setIsModalOpen={setIsModalOpen}
-              />
-            </motion.div>
-          </motion.div>
+          <ConnectModal
+            isModalOpen={isModalOpen}
+            setIsModalOpen={setIsModalOpen}
+          />
         )}
         {profileModalOpen && (
           <ProfileModal
@@ -485,8 +404,6 @@ export default function Navbar({}: NavbarProps) {
           />
         )}
       </AnimatePresence>
-
-      {/* {isLoading && <SimpleLoader />} */}
     </>
   );
 }

@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import CustomizeChannelButton from "./CustomizeChannelButton";
+import { TipButton } from "@/components/tipping";
 
 interface ProfileHeaderProps {
   username: string;
@@ -12,6 +13,9 @@ interface ProfileHeaderProps {
   onFollow: () => void;
   onUnfollow: () => void;
   followLoading: boolean;
+  stellarPublicKey?: string;
+  userStellarPublicKey?: string;
+  onTipClick?: () => void;
 }
 
 const ProfileHeader = ({
@@ -23,6 +27,9 @@ const ProfileHeader = ({
   onFollow,
   onUnfollow,
   followLoading,
+  stellarPublicKey,
+  userStellarPublicKey,
+  onTipClick,
 }: ProfileHeaderProps) => {
   return (
     <div className="flex items-center justify-between px-4 py-2.5 sm:px-6 sm:py-4">
@@ -70,6 +77,19 @@ const ProfileHeader = ({
                   ? "Unfollow"
                   : "Follow"}
             </Button>
+            {/* Stellar Tip Button */}
+            {stellarPublicKey &&
+            userStellarPublicKey &&
+            userStellarPublicKey !== stellarPublicKey &&
+            onTipClick ? (
+              <TipButton
+                recipientUsername={username}
+                recipientPublicKey={stellarPublicKey}
+                onTipClick={onTipClick}
+                variant="outline"
+                className="bg-transparent border border-border hover:bg-surface-hover text-foreground"
+              />
+            ) : null}
             <Button className="bg-transparent border border-border hover:bg-surface-hover text-foreground">
               Subscribe
             </Button>

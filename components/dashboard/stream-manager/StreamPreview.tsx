@@ -4,13 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, X, Send, MessageCircle } from "lucide-react";
-import { useAccount } from "@starknet-react/core";
-import MuxPlayer from "@mux/mux-player-react";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import MuxPlayer from "@/components/MuxPlayerLazy";
 import { useStreamData } from "@/hooks/useStreamData";
 import { useChat } from "@/hooks/useChat";
 
 export default function StreamPreview() {
-  const { address } = useAccount();
+  const { publicKey, privyWallet } = useStellarWallet();
+  const address = publicKey || privyWallet?.wallet || null;
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChatOverlay, setShowChatOverlay] = useState(true);
   const [chatMessage, setChatMessage] = useState("");
@@ -21,10 +22,10 @@ export default function StreamPreview() {
   const overlayInputRef = useRef<HTMLInputElement>(null);
 
   // Use optimized SWR hook for data fetching with caching
-  const { streamData, isLoading } = useStreamData(address);
+  const { streamData, isLoading } = useStreamData(address ?? undefined);
   const { messages, sendMessage, isSending } = useChat(
     streamData?.playbackId,
-    address,
+    address ?? undefined,
     streamData?.isLive ?? false
   );
 
@@ -237,7 +238,7 @@ export default function StreamPreview() {
 
   return (
     <motion.div
-      className="h-full flex flex-col rounded-md w-full max-w-xl overflow-hidden relative"
+      className="h-full flex flex-col rounded-md w-full overflow-hidden relative"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
@@ -254,21 +255,18 @@ export default function StreamPreview() {
         </div>
       </div>
 
-      <div
-        className="flex-1 max-w-xl w-full bg-black relative"
-        id="video-container"
-      >
+      <div className="flex-1 w-full bg-black relative" id="video-container">
         {isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-white text-center">
               <div className="text-lg">Loading stream...</div>
             </div>
           </div>
-        ) : streamData?.playbackId ? (
+        ) : streamData?.playbackId && streamData?.isLive ? (
           <>
             <MuxPlayer
               playbackId={streamData.playbackId}
-              streamType="ll-live:dvr"
+              streamType="live:dvr"
               autoPlay="muted"
               metadata={{
                 video_id: streamData.playbackId,
@@ -277,30 +275,33 @@ export default function StreamPreview() {
               }}
               primaryColor="#ac39f2"
               secondaryColor="#000000"
-              maxResolution="1080p"
-              minResolution="480p"
               preload="auto"
               className="w-full h-full"
             />
             <div className="absolute top-4 left-4 z-10 pointer-events-none">
-              {streamData.isLive ? (
-                <div className="bg-red-600 px-3 py-1 text-xs font-semibold rounded text-white flex items-center gap-2">
-                  <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
-                  LIVE
-                </div>
-              ) : (
-                <div className="bg-gray-600 px-3 py-1 text-xs font-semibold rounded text-white">
-                  OFFLINE
-                </div>
-              )}
+              <div className="bg-red-600 px-3 py-1 text-xs font-semibold rounded text-white flex items-center gap-2">
+                <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                LIVE
+              </div>
             </div>
           </>
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
+        ) : streamData?.playbackId ? (
+          <div className="absolute inset-0">
             <img
               src="/Images/stream-preview.png"
               alt="Stream preview"
-              className="object-cover"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute top-4 left-4 bg-gray-600 px-3 py-1 text-xs font-semibold rounded text-white">
+              OFFLINE
+            </div>
+          </div>
+        ) : (
+          <div className="absolute inset-0">
+            <img
+              src="/Images/stream-preview.png"
+              alt="Stream preview"
+              className="w-full h-full object-cover"
             />
             <div className="absolute top-4 left-4 bg-gray-600 px-3 py-1 text-xs font-semibold rounded text-white">
               NO STREAM

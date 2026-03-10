@@ -4,7 +4,7 @@ import type React from "react";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { useAuth } from "./auth-provider";
 import ConnectWalletModal from "@/components/connectWallet";
 
@@ -13,77 +13,128 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const router = useRouter()
-  const { address, isConnected, status } = useAccount()
-  const { isInitializing, isWalletConnecting } = useAuth()
-  const [showWalletModal, setShowWalletModal] = useState(false)
-  const [hasCompletedInitialCheck, setHasCompletedInitialCheck] = useState(false)
-  const [autoConnectAttempted, setAutoConnectAttempted] = useState(false)
+  const router = useRouter();
+  const {
+    publicKey,
+    isConnected,
+    isLoading: isStellarLoading,
+    privyWallet,
+  } = useStellarWallet();
+  const { isInitializing, isWalletConnecting } = useAuth();
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [hasCompletedInitialCheck, setHasCompletedInitialCheck] =
+    useState(false);
+  const [autoConnectAttempted, setAutoConnectAttempted] = useState(false);
+
+  // Authenticated = Freighter wallet connected OR Privy (Google) session active
+  const isAuthenticated = isConnected || !!privyWallet;
 
   useEffect(() => {
     const checkAccess = () => {
-      // Don't do anything while the auth system is initializing or wallet is connecting
+      // Privy users are always authenticated — skip all wallet checks
+      if (privyWallet) {
+        setHasCompletedInitialCheck(true);
+        setShowWalletModal(false);
+        return;
+      }
+
       if (isInitializing || isWalletConnecting) {
         return;
       }
 
-      // Mark that we've completed the initial check
       if (!hasCompletedInitialCheck) {
         setHasCompletedInitialCheck(true);
       }
 
-      // Check if auto-connect is enabled and we should wait for it
-      const shouldAutoConnect = localStorage.getItem("starknet_auto_connect") === "true"
-      const lastWalletId = localStorage.getItem("starknet_last_wallet")
+      const shouldAutoConnect =
+        localStorage.getItem("stellar_auto_connect") === "true";
+      const lastWalletId = localStorage.getItem("stellar_last_wallet");
 
-      // If auto-connect is enabled and we haven't attempted it yet, wait a bit longer
-      if (shouldAutoConnect && lastWalletId && !autoConnectAttempted && status === "disconnected") {
-        // Set a timeout to give auto-connect more time
+      if (
+        shouldAutoConnect &&
+        lastWalletId &&
+        !autoConnectAttempted &&
+        !isConnected &&
+        !isStellarLoading
+      ) {
         setTimeout(() => {
-          setAutoConnectAttempted(true)
-        }, 3000) // Wait 3 seconds for auto-connect
-        return
+          setAutoConnectAttempted(true);
+        }, 3000);
+        return;
       }
 
-      // Only after initialization is complete and auto-connect has been attempted, check wallet connection
-      if (hasCompletedInitialCheck && (autoConnectAttempted || !shouldAutoConnect || !lastWalletId)) {
-        if (!isConnected || !address) {
-          setShowWalletModal(true)
+      if (
+        hasCompletedInitialCheck &&
+        (autoConnectAttempted || !shouldAutoConnect || !lastWalletId)
+      ) {
+        if (!isConnected || !publicKey) {
+          setShowWalletModal(true);
         } else {
-          setShowWalletModal(false) // Ensure modal is closed if wallet connects
+          setShowWalletModal(false);
         }
       }
     };
 
-    checkAccess()
-  }, [isConnected, address, status, isInitializing, isWalletConnecting, hasCompletedInitialCheck, autoConnectAttempted])
+    checkAccess();
+  }, [
+    isConnected,
+    publicKey,
+    isStellarLoading,
+    isInitializing,
+    isWalletConnecting,
+    hasCompletedInitialCheck,
+    autoConnectAttempted,
+    privyWallet,
+  ]);
 
-  // Handle redirection only if modal closes AND wallet is NOT connected AND auto-connect has been attempted
   useEffect(() => {
-    const shouldAutoConnect = localStorage.getItem("starknet_auto_connect") === "true"
-    const lastWalletId = localStorage.getItem("starknet_last_wallet")
-    
-    if (hasCompletedInitialCheck && !showWalletModal && (!isConnected || !address) && 
-        (autoConnectAttempted || !shouldAutoConnect || !lastWalletId)) {
-      router.replace("/explore")
+    // Never redirect Privy users
+    if (privyWallet) {
+      return;
     }
-  }, [showWalletModal, isConnected, address, hasCompletedInitialCheck, autoConnectAttempted, router])
 
-  // Show loading state during initialization or wallet connection
+    const shouldAutoConnect =
+      localStorage.getItem("stellar_auto_connect") === "true";
+    const lastWalletId = localStorage.getItem("stellar_last_wallet");
+
+    if (
+      hasCompletedInitialCheck &&
+      !showWalletModal &&
+      (!isConnected || !publicKey) &&
+      (autoConnectAttempted || !shouldAutoConnect || !lastWalletId)
+    ) {
+      router.replace("/explore");
+    }
+  }, [
+    showWalletModal,
+    isConnected,
+    publicKey,
+    hasCompletedInitialCheck,
+    autoConnectAttempted,
+    privyWallet,
+    router,
+  ]);
+
+  // Privy users: render immediately — no loading screen needed
+  if (privyWallet) {
+    return <>{children}</>;
+  }
+
   if (isInitializing || isWalletConnecting || !hasCompletedInitialCheck) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl mb-4">Loading...</h2>
           <p className="text-gray-400">
-            {isInitializing ? "Initializing application..." : "Connecting wallet..."}
+            {isInitializing
+              ? "Initializing application..."
+              : "Connecting wallet..."}
           </p>
         </div>
       </div>
     );
   }
 
-  // Show wallet connect modal if needed (only after initialization is complete)
   if (showWalletModal) {
     return (
       <ConnectWalletModal
@@ -93,8 +144,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // Only render children if wallet is connected
-  if (!isConnected || !address) {
+  if (!isAuthenticated) {
     return null;
   }
 

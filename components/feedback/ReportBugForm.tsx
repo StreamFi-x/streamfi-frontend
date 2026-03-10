@@ -27,8 +27,6 @@ import {
 import { FeedbackHeader } from "./FeedbackHeader";
 import { FileUpload } from "./FileUpload";
 
-import { cn } from "@/lib/utils";
-
 const formSchema = z.object({
   feedbackType: z.string().min(1, {
     message: "Please select a feedback type.",

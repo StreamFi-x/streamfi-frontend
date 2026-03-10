@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 
 interface TabsNavigationProps {
@@ -9,6 +10,11 @@ interface TabsNavigationProps {
 
 const TabsNavigation = ({ username }: TabsNavigationProps) => {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const tabs = [
     { name: "Home", path: `/${username}` },
@@ -23,6 +29,9 @@ const TabsNavigation = ({ username }: TabsNavigationProps) => {
   ];
 
   const isActive = (path: string) => {
+    if (!mounted) {
+      return false;
+    }
     if (path === `/${username}`) {
       return pathname === `/${username}`;
     }

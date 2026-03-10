@@ -1,22 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
+import { verifySession } from "@/lib/auth/verify-session";
+import { writeNotification } from "@/lib/notifications";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Verify the caller is logged in
+  const session = await verifySession(req);
+  if (!session.ok) {
+    return session.response;
+  }
+
   try {
-    const { wallet } = await req.json();
-
-    if (!wallet) {
-      return NextResponse.json(
-        { error: "Wallet is required" },
-        { status: 400 }
-      );
-    }
-
     const userResult = await sql`
       SELECT id, username, mux_stream_id, is_live, mux_playback_id
       FROM users
-      WHERE wallet = ${wallet} AND mux_stream_id IS NOT NULL
+      WHERE id = ${session.userId} AND mux_stream_id IS NOT NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -68,6 +67,20 @@ export async function POST(req: Request) {
       console.error("Failed to create stream session record:", sessionError);
     }
 
+    // Fire-and-forget live notifications to all followers via join table
+    sql`SELECT follower_id FROM user_follows WHERE followee_id = ${updatedUser.id}`
+      .then(({ rows }) => {
+        for (const { follower_id } of rows) {
+          writeNotification(
+            follower_id,
+            "live",
+            `${updatedUser.username} is live!`,
+            `${updatedUser.username} just started streaming`
+          ).catch(() => {});
+        }
+      })
+      .catch(() => {});
+
     return NextResponse.json(
       {
         message: "Stream started successfully",
@@ -90,21 +103,17 @@ export async function POST(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
+  const session = await verifySession(req);
+  if (!session.ok) {
+    return session.response;
+  }
+
   try {
-    const { wallet } = await req.json();
-
-    if (!wallet) {
-      return NextResponse.json(
-        { error: "Wallet is required" },
-        { status: 400 }
-      );
-    }
-
     const userResult = await sql`
       SELECT id, mux_stream_id, is_live
       FROM users
-      WHERE wallet = ${wallet}
+      WHERE id = ${session.userId}
     `;
 
     if (userResult.rows.length === 0) {

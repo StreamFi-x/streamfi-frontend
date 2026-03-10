@@ -15,36 +15,37 @@ interface CategoryCardProps {
 function CategoryCard({ category }: CategoryCardProps) {
   const { title, imageUrl, viewers, tags } = category;
   return (
-    <Link href={`/browse/category/${encodeURIComponent(title)}`} passHref>
-      <main className="h-[300px] flex flex-col gap-2 cursor-pointer group">
-        <div className="relative w-full h-[250px] rounded group-hover:brightness-75 transition-all duration-200">
+    <Link href={`/browse/category/${encodeURIComponent(title)}`}>
+      <div className="flex flex-col gap-2 cursor-pointer group">
+        <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden">
           <Image
             src={imageUrl || "/Images/placeholder.jpg"}
             alt={title}
-            layout="fill"
-            objectFit="cover"
-            className="rounded"
+            fill
+            className="object-cover group-hover:brightness-75 transition-all duration-200"
           />
         </div>
-        <article className="flex flex-col gap-1">
-          <h3 className="font-semibold text-base ">{title}</h3>
-          {viewers && (
-            <p className="text-white/50 font-medium text-xs">
-              {viewers?.toLocaleString()} watching
+        <div className="flex flex-col gap-1 px-0.5">
+          <h3 className="font-semibold text-sm text-foreground truncate">
+            {title}
+          </h3>
+          {viewers !== null && viewers !== undefined && viewers > 0 && (
+            <p className="text-muted-foreground text-xs">
+              {viewers.toLocaleString()} watching
             </p>
           )}
-          <main className="flex gap-2 ">
+          <div className="flex flex-wrap gap-1">
             {(tags ?? []).slice(0, 2).map(tag => (
-              <div
+              <span
                 key={tag}
-                className="px-2 py-0.5 bg-black/10 text-sm font-medium rounded"
+                className="px-2 py-0.5 bg-muted text-muted-foreground text-xs font-medium rounded"
               >
                 {tag}
-              </div>
+              </span>
             ))}
-          </main>
-        </article>
-      </main>
+          </div>
+        </div>
+      </div>
     </Link>
   );
 }

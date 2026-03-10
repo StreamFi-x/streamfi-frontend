@@ -1,7 +1,5 @@
-import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { withCorsResponse } from "@/lib/with-cors-response";
-import { resolve } from "path/posix";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);

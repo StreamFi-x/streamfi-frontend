@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import type { ReactNode } from "react";
 import Image from "next/image";
 import {
@@ -13,7 +14,7 @@ import { motion, easeInOut, easeOut } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useAccount, useDisconnect } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
 import { Flag } from "lucide-react";
 
@@ -55,7 +56,7 @@ const MenuItem = ({ icon, label, route, onClick }: MenuItemProps) => {
     <Link
       href={route || "#"}
       className="flex items-center px-4 py-3 cursor-pointer hover:bg-surface-hover text-foreground"
-      onClick={e => {
+      onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault();
         onClick({ icon, label, route, mobile: true });
       }}
@@ -96,7 +97,7 @@ interface UserProfileProps {
 const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
   return (
     <div
-      className="px-3 py-2 sm:p-4 flex items-center space-x-3 sm:space-x-3 cursor-pointer border-b border-border text-foreground"
+      className="px-3 py-2 sm:p-4 flex items-center space-x-3 sm:space-x-3 cursor-pointer border-b border-border text-foreground overflow-hidden"
       onClick={onClick}
     >
       <div className="relative w-9 h-9 rounded-full 0 overflow-hidden">
@@ -111,7 +112,7 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
             alt="User avatar"
             // sizes="40px"
             className="object-cover rounded-full"
-            onError={e => {
+            onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
               // If image fails to load, replace with placeholder
               const target = e.target as HTMLImageElement;
               target.src = "/Images/user.png";
@@ -127,7 +128,9 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
           />
         )}
       </div>
-      <span className="text-foreground font-medium sm:text-lg">{name}</span>
+      <span className="text-foreground font-medium sm:text-lg truncate min-w-0">
+        {name}
+      </span>
     </div>
   );
 };
@@ -142,8 +145,7 @@ interface UserDropdownProps {
 const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
   const router = useRouter();
   const userAvatar = avatar;
-  const { disconnect } = useDisconnect();
-  const { isConnected } = useAccount();
+  const { disconnect, isConnected } = useStellarWallet();
   const userName = username;
   const { logout } = useAuth(); // Use our auth context for logout
 
@@ -248,7 +250,7 @@ const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
 
   return (
     <motion.div
-      className="relative sm:w-52 w-40 z-50"
+      className="relative sm:w-64 w-52 z-50"
       initial="hidden"
       animate="visible"
       exit="hidden"

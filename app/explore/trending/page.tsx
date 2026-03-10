@@ -4,7 +4,7 @@ import React from "react";
 import { Eye } from "lucide-react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useAccount } from "@starknet-react/core";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import useSWR from "swr";
 import Image from "next/image";
 
@@ -51,7 +51,7 @@ const calculateTrendingScore = (stream: LiveStream): number => {
 
 export default function TrendingPage() {
   const router = useRouter();
-  const { address } = useAccount();
+  const { publicKey: address } = useStellarWallet();
 
   // Fetch live streams with 20-second polling
   const { data, error, isLoading } = useSWR<{ streams: LiveStream[] }>(
@@ -244,7 +244,7 @@ function StreamCard({
           <Image
             width={500}
             height={300}
-            src={stream.thumbnail || "/placeholder.svg"}
+            src={stream.thumbnail || "/Images/user.png"}
             alt={stream.title}
             className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
           />
@@ -275,7 +275,7 @@ function StreamCard({
               <Image
                 width={300}
                 height={300}
-                src={stream.avatar || "/placeholder.svg"}
+                src={stream.avatar || "/Images/user.png"}
                 alt={stream.username}
                 className="w-full h-full object-cover"
               />
