@@ -43,7 +43,7 @@ const ConnectionItem: React.FC<ConnectionItemProps> = ({
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 relative">
           <Image
-            src={icon || "/placeholder.svg"}
+            src={icon || "/Images/user.png"}
             alt={name}
             width={54}
             height={50}

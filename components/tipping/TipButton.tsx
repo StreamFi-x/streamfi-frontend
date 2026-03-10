@@ -10,6 +10,9 @@ export interface TipButtonProps {
   recipientUsername: string;
   recipientPublicKey: string;
   variant?: "primary" | "secondary" | "icon-only" | "outline";
+  size?: "default" | "sm" | "lg" | "icon";
+  showIcon?: boolean;
+  disabled?: boolean;
   className?: string;
   onTipClick?: () => void;
 }
@@ -76,7 +79,7 @@ export function TipButton({
 
   const buttonVariant =
     variant === "icon-only" || variant === "outline" ? "outline" : variant === "secondary" ? "secondary" : "default";
-  const buttonSize = variant === "icon-only" ? "icon" : "default";
+  const buttonSize = size ?? (variant === "icon-only" ? "icon" : "default");
 
   return (
     <Button

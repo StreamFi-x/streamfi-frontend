@@ -90,24 +90,17 @@ export function LiveStreams({
       return;
     }
 
-    console.log("Stream object:", stream);
-    console.log("Stream streamer:", stream.streamer);
-
-    const username =
-      stream.streamer?.username ||
-      stream.streamer?.name ||
-      stream.username ||
-      stream.user?.username ||
-      stream.user?.name;
-
-    console.log("Extracted username:", username);
+    // Only accept string values to prevent [object Object] URLs
+    const username = [
+      stream.streamer?.username,
+      stream.streamer?.name,
+      stream.username,
+      stream.user?.username,
+      stream.user?.name,
+    ].find((v): v is string => typeof v === "string" && v.length > 0);
 
     if (username) {
-      const urlUsername = username.toLowerCase().replace(/\s+/g, "");
-      console.log("Navigating to:", `/${urlUsername}`);
-      router.push(`/${urlUsername}`);
-    } else {
-      console.warn("No username found in stream data:", stream);
+      router.push(`/${username.toLowerCase().replace(/\s+/g, "")}`);
     }
   };
 
@@ -177,7 +170,7 @@ export function LiveStreams({
                   <Image
                     width={500}
                     height={300}
-                    src={stream.thumbnail || "/placeholder.svg"}
+                    src={stream.thumbnail || "/Images/user.png"}
                     alt={stream.title}
                     className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
                   />
@@ -207,7 +200,7 @@ export function LiveStreams({
                       <Image
                         width={300}
                         height={300}
-                        src={stream.streamer.logo || "/placeholder.svg"}
+                        src={stream.streamer.logo || "/Images/user.png"}
                         alt={stream.streamer.name}
                         className="w-full h-full object-cover"
                       />

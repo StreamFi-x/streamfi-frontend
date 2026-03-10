@@ -10,6 +10,8 @@ import Link from "next/link";
 interface AboutSectionProps {
   username: string;
   followers: string[] | null;
+  /** Pre-computed follower count from SQL array_length — preferred over followers.length */
+  followerCount?: number;
   bio?: string;
   socialLinks?: {
     twitter?: string;
@@ -22,6 +24,7 @@ interface AboutSectionProps {
 const AboutSection = ({
   username,
   followers,
+  followerCount,
   bio,
   socialLinks,
   isOwner,
@@ -47,7 +50,7 @@ const AboutSection = ({
           </h2>
           <span className="text-muted-foreground text-sm mr-4">
             <span className="text-highlight">
-              {followers ? followers?.length : "0"}
+              {followerCount ?? (followers ? followers.length : 0)}
             </span>{" "}
             followers
           </span>

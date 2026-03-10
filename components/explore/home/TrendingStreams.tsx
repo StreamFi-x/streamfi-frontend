@@ -171,7 +171,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
                   <Image
                     width={500}
                     height={300}
-                    src={stream.thumbnail || "/placeholder.svg"}
+                    src={stream.thumbnail || "/Images/user.png"}
                     alt={stream.title}
                     className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
                   />
@@ -201,7 +201,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
                       <Image
                         width={300}
                         height={300}
-                        src={stream.streamer.logo || "/placeholder.svg"}
+                        src={stream.streamer.logo || "/Images/user.png"}
                         alt={stream.streamer.name}
                         className="w-full h-full object-cover"
                       />

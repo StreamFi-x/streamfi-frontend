@@ -1,133 +1,106 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Settings, X, Copy } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Settings, X, Copy, Check, ExternalLink } from "lucide-react";
+import Link from "next/link";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { getStellarExplorerUrl } from "@/lib/stellar/config";
 
 export default function StreamSettings() {
-  const router = useRouter();
+  const { publicKey, privyWallet } = useStellarWallet();
+  const walletAddress = publicKey || privyWallet?.wallet || null;
   const [isMinimized, setIsMinimized] = useState(false);
-  const [connectedWalletAddress, setConnectedWalletAddress] =
-    useState<string>("");
+  const [copied, setCopied] = useState(false);
 
-  // Get connected wallet address from localStorage or context
-  useEffect(() => {
-    const storedAddress =
-      localStorage.getItem("wallet") ||
-      localStorage.getItem("connectedWallet") ||
-      "0x05889c1d2a5f8f47e125e339af3af05d50a";
-    setConnectedWalletAddress(storedAddress);
-  }, []);
-
-  const walletAddresses = {
-    strk: connectedWalletAddress, // Use the actual connected wallet address
-    usdt: "TGHuV8w3ucP4QX9wTm2cvF9qAZ4r5cTo8K3mN", // Random USDT address
+  const copyAddress = () => {
+    if (!walletAddress) return;
+    navigator.clipboard.writeText(walletAddress);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        // Show a small tooltip or notification
-        alert("Copied to clipboard!");
-      })
-      .catch(err => {
-        console.error("Failed to copy: ", err);
-      });
-  };
+  const explorerUrl = walletAddress
+    ? getStellarExplorerUrl("account", walletAddress)
+    : null;
 
-  const handleEditSettings = () => {
-    router.push("/dashboard/payout");
-  };
+  if (isMinimized) {
+    return (
+      <div className="bg-card border border-border rounded-xl px-4 py-3">
+        <button
+          onClick={() => setIsMinimized(false)}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
+        >
+          <Settings className="w-4 h-4" />
+          <span>Show Tip Wallet</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <AnimatePresence mode="wait">
-      {isMinimized ? (
-        <motion.div
-          key="minimized"
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="p-2"
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Settings className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-semibold text-foreground">Tip Wallet</span>
+        </div>
+        <button
+          onClick={() => setIsMinimized(true)}
+          className="p-1 hover:bg-muted rounded-md transition-colors"
         >
-          <button
-            onClick={() => setIsMinimized(false)}
-            className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Settings size={18} />
-            <span>Show Stream Settings</span>
-          </button>
-        </motion.div>
-      ) : (
-        <motion.div
-          key="expanded"
-          className="flex flex-col h-full rounded-md overflow-hidden"
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-        >
-          <div className="bg-card p-2 flex justify-between items-center border-b border-border">
-            <div className="flex items-center">
-              <Settings size={18} className="mr-2 text-foreground" />
-              <span className="text-foreground">Stream Settings</span>
-            </div>
-            <div className="flex space-x-2">
-              <button
-                className="p-1 hover:bg-surface-hover rounded-md transition-colors"
-                onClick={() => setIsMinimized(true)}
-              >
-                <X size={18} className="text-muted-foreground" />
-              </button>
-            </div>
-          </div>
+          <X className="w-4 h-4 text-muted-foreground" />
+        </button>
+      </div>
 
-          <div className="flex-1 overflow-y-auto scrollbar-hide bg-background p-3">
-            <div className="mb-3">
-              <div className="text-xs text-muted-foreground mb-1">
+      <div className="p-4 space-y-3">
+        {walletAddress ? (
+          <>
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
                 Stellar Address
-              </div>
-              <div className="flex items-center bg-secondary rounded-md p-2 border border-border">
-                <div className="flex-1 text-[10px] font-mono truncate text-muted-foreground">
-                  {walletAddresses.strk}
-                </div>
+              </p>
+              <div className="flex items-center gap-1.5 bg-secondary border border-border rounded-lg px-3 py-2">
+                <p className="flex-1 text-[11px] font-mono truncate text-foreground">
+                  {walletAddress}
+                </p>
                 <button
-                  onClick={() => copyToClipboard(walletAddresses.strk)}
-                  className="p-1 hover:bg-surface-hover rounded-md transition-colors ml-2"
+                  onClick={copyAddress}
+                  className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Copy address"
                 >
-                  <Copy size={16} className="text-muted-foreground" />
+                  {copied ? (
+                    <Check className="w-3.5 h-3.5 text-green-500" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
                 </button>
+                {explorerUrl && (
+                  <a
+                    href={explorerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 text-muted-foreground hover:text-highlight transition-colors"
+                    aria-label="View on Stellar Expert"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
               </div>
             </div>
 
-            <div className="mb-4">
-              <div className="text-xs text-muted-foreground mb-1">
-                USDT (Tether) Address
-              </div>
-              <div className="flex items-center bg-secondary rounded-md p-2 border border-border">
-                <div className="flex-1 text-[10px] font-mono truncate text-muted-foreground">
-                  {walletAddresses.usdt}
-                </div>
-                <button
-                  onClick={() => copyToClipboard(walletAddresses.usdt)}
-                  className="p-1 hover:bg-surface-hover rounded-md transition-colors ml-2"
-                >
-                  <Copy size={16} className="text-muted-foreground" />
-                </button>
-              </div>
-            </div>
-
-            <button
-              onClick={handleEditSettings}
-              className="w-full py-2 bg-highlight hover:bg-highlight/80 text-primary-foreground text-xs rounded-md transition-colors"
+            <Link
+              href="/dashboard/payout"
+              className="block w-full text-center py-2 text-xs font-semibold bg-highlight/10 hover:bg-highlight/20 text-highlight rounded-lg transition-colors"
             >
-              Edit Stream Settings
-            </button>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+              View Wallet &amp; Earnings →
+            </Link>
+          </>
+        ) : (
+          <p className="text-xs text-muted-foreground text-center py-2">
+            No wallet connected
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

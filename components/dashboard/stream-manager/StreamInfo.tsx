@@ -65,7 +65,7 @@ export default function StreamInfo({ data, onEditClick }: StreamInfoProps) {
             <div className="flex mb-3">
               <div className="w-12 h-12 rounded-md overflow-hidden mr-3">
                 <img
-                  src={thumbnail || "/placeholder.svg"}
+                  src={thumbnail || "/Images/user.png"}
                   alt="Stream thumbnail"
                   className="w-full h-full object-cover"
                 />

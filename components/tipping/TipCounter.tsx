@@ -26,6 +26,8 @@ export interface TipCounterProps {
     autoRefresh?: boolean;
     refreshInterval?: number;
     className?: string;
+    /** Override the wallet address displayed — use when you already have the correct address from context */
+    walletAddress?: string;
 }
 
 export interface TipStatistics {
@@ -118,7 +120,8 @@ export function TipCounter({
     showRefreshButton = false,
     autoRefresh = false,
     refreshInterval = 30000,
-    className
+    className,
+    walletAddress: walletAddressOverride,
 }: TipCounterProps) {
     const [xlmPrice, setXlmPrice] = useState<number | null>(null);
     const [copied, setCopied] = useState(false);
@@ -139,10 +142,10 @@ export function TipCounter({
 
     const fetchPrice = useCallback(async () => {
         try {
-            const res = await fetch("https://api.coinbase.com/v2/prices/XLM-USD/spot");
+            const res = await fetch("/api/prices/xlm");
             if (!res.ok) throw new Error("Price fetch failed");
             const json = await res.json();
-            setXlmPrice(parseFloat(json.data.amount));
+            setXlmPrice(json.price);
         } catch (err) {
             console.error("Failed to fetch XLM price", err);
             // Fallback price if API fails (approximate current value)
@@ -366,12 +369,12 @@ export function TipCounter({
                         </div>
 
                         <button
-                            onClick={() => handleCopy(stats.stellarPublicKey)}
+                            onClick={() => handleCopy(walletAddressOverride ?? stats.stellarPublicKey)}
                             aria-label="Copy public key"
                             className="flex items-center justify-center gap-2 px-4 py-2.5 bg-background border border-border hover:border-highlight/30 hover:bg-highlight/5 rounded-xl transition-all group/copy"
                         >
                             <span className="text-xs font-mono text-muted-foreground group-hover/copy:text-foreground">
-                                {stats.stellarPublicKey.slice(0, 8)}...{stats.stellarPublicKey.slice(-8)}
+                                {(walletAddressOverride ?? stats.stellarPublicKey).slice(0, 8)}...{(walletAddressOverride ?? stats.stellarPublicKey).slice(-8)}
                             </span>
                             {copied ? (
                                 <Check className="w-4 h-4 text-green-500" />
@@ -439,7 +442,7 @@ export function TipCounter({
                     {formatCount(stats.totalCount)} Tips
                 </div>
                 <button
-                    onClick={() => handleCopy(stats.stellarPublicKey)}
+                    onClick={() => handleCopy(walletAddressOverride ?? stats.stellarPublicKey)}
                     className="flex items-center gap-1 text-muted-foreground hover:text-highlight transition-colors"
                 >
                     {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}

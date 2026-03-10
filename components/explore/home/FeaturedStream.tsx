@@ -3,7 +3,7 @@
 import { Play, Pause, Volume2, VolumeX, Maximize } from "lucide-react";
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import MuxPlayer from "@mux/mux-player-react";
+import MuxPlayer from "@/components/MuxPlayerLazy";
 import type { FeaturedStreamProps } from "@/types/explore/home";
 
 export function FeaturedStream({ stream }: FeaturedStreamProps) {
@@ -101,7 +101,7 @@ export function FeaturedStream({ stream }: FeaturedStreamProps) {
       {stream.streamerThumbnail && (
         <div className="absolute top-4 right-4 w-16 h-16 rounded-md overflow-hidden border-2 border-purple-500 z-30">
           <img
-            src={stream.streamerThumbnail || "/placeholder.svg"}
+            src={stream.streamerThumbnail || "/Images/user.png"}
             alt="Streamer"
             className="w-full h-full object-cover"
           />

@@ -5,13 +5,12 @@ import Link from "next/link";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import {
   HomeIcon as House,
-  LinkIcon,
   Settings,
   BarChartIcon as ChartColumnDecreasing,
   ArrowLeftToLine,
   Video,
+  Coins,
 } from "lucide-react";
-import { LiaCoinsSolid } from "react-icons/lia";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -32,18 +31,13 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       path: "/dashboard/stream-manager",
     },
     {
-      name: "Stream URL",
-      icon: <LinkIcon size={24} />,
-      path: "/dashboard/stream-url",
-    },
-    {
       name: "Recordings",
       icon: <Video size={24} />,
       path: "/dashboard/recordings",
     },
     {
-      name: "Payout",
-      icon: <LiaCoinsSolid size={24} />,
+      name: "Wallet/Payout",
+      icon: <Coins size={24} />,
       path: "/dashboard/payout",
     },
     {

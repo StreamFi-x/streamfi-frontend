@@ -21,6 +21,9 @@ import {
   getXLMPrice,
   calculateFeeEstimate,
 } from "@/lib/stellar/payments";
+import { TransactionBuilder, Networks } from "@stellar/stellar-sdk";
+import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { TipConfirmation } from "./TipConfirmation";
 
 interface TipModalProps {
@@ -73,6 +76,7 @@ export function TipModal({
     code?: string;
   } | null>(null);
 
+  const { kit } = useStellarWallet();
   const fee = calculateFeeEstimate();
   const usdEquivalent = xlmPrice && amount
     ? (parseFloat(amount) * xlmPrice).toFixed(2)
@@ -199,9 +203,19 @@ export function TipModal({
         network: network as "testnet" | "mainnet",
       });
 
-      // Sign and submit transaction
+      // Sign transaction with connected wallet
       setTransactionState("signing");
-      const result = await submitTransaction(transaction, network as "testnet" | "mainnet");
+      const walletNetwork = network === "mainnet" ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
+      const { signedTxXdr } = await kit.signTransaction(transaction.toXDR(), {
+        networkPassphrase: walletNetwork,
+        address: senderPublicKey,
+      });
+      const networkPassphrase = network === "mainnet" ? Networks.PUBLIC : Networks.TESTNET;
+      const signedTransaction = TransactionBuilder.fromXDR(signedTxXdr, networkPassphrase);
+
+      // Submit signed transaction
+      setTransactionState("submitting");
+      const result = await submitTransaction(signedTransaction as any, network as "testnet" | "mainnet");
 
       if (result.success) {
         setTransactionState("success");

@@ -8,9 +8,28 @@ export async function GET(
   try {
     const { username } = await params;
     const normalizedUsername = username.toLowerCase();
+    const { searchParams } = new URL(req.url);
+    const viewerUsername = searchParams.get("viewer_username") ?? "";
 
     const result = await sql`
-      SELECT * FROM users WHERE LOWER(username) = ${normalizedUsername}
+      SELECT
+        u.id, u.username, u.wallet, u.avatar, u.bio,
+        u.sociallinks, u.emailverified, u.emailnotifications,
+        u.creator, u.auth_type, u.privy_id,
+        u.is_live, u.mux_playback_id, u.current_viewers,
+        u.stream_started_at, u.total_views,
+        u.total_tips_received, u.total_tips_count, u.last_tip_at,
+        u.created_at, u.updated_at,
+        (SELECT COUNT(*)::int FROM user_follows WHERE followee_id = u.id) AS follower_count,
+        (SELECT COUNT(*)::int FROM user_follows WHERE follower_id = u.id) AS following_count,
+        EXISTS(
+          SELECT 1 FROM user_follows uf
+          JOIN users viewer ON viewer.id = uf.follower_id
+          WHERE LOWER(viewer.username) = LOWER(${viewerUsername})
+            AND uf.followee_id = u.id
+        ) AS is_following
+      FROM users u
+      WHERE LOWER(u.username) = ${normalizedUsername}
     `;
 
     const user = result.rows[0];
@@ -19,7 +38,13 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ user });
+    // Strip internal/private fields before sending to any client
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { privy_id, email, ...publicUser } = user;
+
+    return NextResponse.json({ user: publicUser }, {
+      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
+    });
   } catch (error) {
     console.error("API: Fetch user error:", error);
     return NextResponse.json(

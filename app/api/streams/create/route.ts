@@ -1,9 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createMuxStream } from "@/lib/mux/server";
 import { checkExistingTableDetail } from "@/utils/validators";
+import { createRateLimiter } from "@/lib/rate-limit";
 
-export async function POST(req: Request) {
+// Stream creation calls Mux API + DB — limit per IP to prevent quota exhaustion
+const isRateLimited = createRateLimiter(60 * 60 * 1000, 10); // 10 per hour per IP
+
+export async function POST(req: NextRequest) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+
+  if (await isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": "3600" } }
+    );
+  }
   try {
     const { wallet, title, description, category, tags } = await req.json();
 

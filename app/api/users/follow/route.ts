@@ -1,85 +1,86 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { verifySession } from "@/lib/auth/verify-session";
+import { createRateLimiter } from "@/lib/rate-limit";
+import { writeNotification } from "@/lib/notifications";
+
+// 30 follow/unfollow actions per IP per minute
+const isRateLimited = createRateLimiter(60_000, 30);
 
 export async function POST(req: NextRequest) {
-  const { callerUsername, receiverUsername, action } = await req.json();
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
 
-  if (
-    !callerUsername ||
-    !receiverUsername ||
-    !["follow", "unfollow"].includes(action)
-  ) {
+  if (await isRateLimited(ip)) {
     return NextResponse.json(
-      {
-        error:
-          "callerUsername, receiverUsername, and valid action are required",
-      },
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": "60" } }
+    );
+  }
+
+  // Determine caller from server-side session — never trust client-supplied identity.
+  // This prevents stale sessionStorage on account switch from acting as the wrong user.
+  const session = await verifySession(req);
+  if (!session.ok) return session.response;
+
+  const { receiverUsername, action } = await req.json();
+
+  if (!receiverUsername || !["follow", "unfollow"].includes(action)) {
+    return NextResponse.json(
+      { error: "receiverUsername and valid action are required" },
       { status: 400 }
     );
   }
 
-  if (callerUsername === receiverUsername) {
-    return NextResponse.json(
-      { error: "You cannot follow or unfollow yourself." },
-      { status: 400 }
-    );
-  }
+  const callerId = session.userId;
 
   try {
-    // Fetch user UUIDs by username
-    const { rows: callerRows } =
-      await sql`SELECT id FROM users WHERE username = ${callerUsername}`;
-    const { rows: receiverRows } =
-      await sql`SELECT id FROM users WHERE username = ${receiverUsername}`;
+    const [{ rows: receiverRows }, { rows: callerRows }] = await Promise.all([
+      sql`SELECT id FROM users WHERE LOWER(username) = ${receiverUsername.toLowerCase()}`,
+      sql`SELECT username FROM users WHERE id = ${callerId}`,
+    ]);
 
-    if (callerRows.length === 0 || receiverRows.length === 0) {
+    if (receiverRows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const callerId = callerRows[0].id;
     const receiverId = receiverRows[0].id;
+    const callerUsername: string = callerRows[0]?.username ?? "Someone";
+
+    // UUID-level self-follow guard — unambiguous regardless of username casing
+    if (callerId === receiverId) {
+      return NextResponse.json(
+        { error: "You cannot follow or unfollow yourself." },
+        { status: 400 }
+      );
+    }
 
     if (action === "follow") {
-      // Add receiver to caller's following
       await sql`
-        UPDATE users
-        SET following = ARRAY(
-          SELECT DISTINCT unnest(COALESCE(following, '{}'))::UUID
-          UNION SELECT ${receiverId}::UUID
-        )
-        WHERE id = ${callerId}
+        INSERT INTO user_follows (follower_id, followee_id)
+        VALUES (${callerId}, ${receiverId})
+        ON CONFLICT DO NOTHING
       `;
 
-      // Add caller to receiver's followers
-      await sql`
-        UPDATE users
-        SET followers = ARRAY(
-          SELECT DISTINCT unnest(COALESCE(followers, '{}'))::UUID
-          UNION SELECT ${callerId}::UUID
-        )
-        WHERE id = ${receiverId}
-      `;
+      // Write notification — awaited so it completes before response is sent
+      try {
+        await writeNotification(
+          receiverId,
+          "follow",
+          "New follower",
+          `${callerUsername} started following you`
+        );
+      } catch (notifErr) {
+        console.error("[follow] notification write failed:", notifErr);
+      }
 
       return NextResponse.json({ message: "Followed successfully" });
     } else {
-      // Remove receiver from caller's following
       await sql`
-        UPDATE users
-        SET following = ARRAY(
-          SELECT unnest(COALESCE(following, '{}'))::UUID
-          EXCEPT SELECT ${receiverId}::UUID
-        )
-        WHERE id = ${callerId}
-      `;
-
-      // Remove caller from receiver's followers
-      await sql`
-        UPDATE users
-        SET followers = ARRAY(
-          SELECT unnest(COALESCE(followers, '{}'))::UUID
-          EXCEPT SELECT ${callerId}::UUID
-        )
-        WHERE id = ${receiverId}
+        DELETE FROM user_follows
+        WHERE follower_id = ${callerId} AND followee_id = ${receiverId}
       `;
 
       return NextResponse.json({ message: "Unfollowed successfully" });

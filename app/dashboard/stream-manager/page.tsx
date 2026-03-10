@@ -1,9 +1,9 @@
 "use client";
 
 import type React from "react";
-
 import { useState, useEffect } from "react";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { useStreamData } from "@/hooks/useStreamData";
 import StreamPreview from "@/components/dashboard/stream-manager/StreamPreview";
 import ActivityFeed from "@/components/dashboard/stream-manager/ActivityFeed";
 import Chat from "@/components/dashboard/stream-manager/Chat";
@@ -11,9 +11,15 @@ import StreamInfo from "@/components/dashboard/stream-manager/StreamInfo";
 import StreamSettings from "@/components/dashboard/stream-manager/StreamSettings";
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
+import { Users, UserPlus, Coins, Timer } from "lucide-react";
 
 export default function StreamManagerPage() {
-  const { publicKey: address } = useStellarWallet();
+  const { publicKey, privyWallet } = useStellarWallet();
+  const address = publicKey || privyWallet?.wallet || null;
+  const { streamData: liveStreamData } = useStreamData(address ?? undefined);
+  const isLive = liveStreamData?.isLive ?? false;
+
+  const [username, setUsername] = useState<string | null>(null);
   const [streamData, setStreamData] = useState({
     title: "",
     category: "",
@@ -23,19 +29,32 @@ export default function StreamManagerPage() {
   });
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-
   const [isStreamInfoModalOpen, setIsStreamInfoModalOpen] = useState(false);
   const [streamSession, setStreamSession] = useState("00:00:00");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Fetch stream data on mount
-  useEffect(() => {
-    const fetchStreamData = async () => {
-      if (!address) {
-        setIsLoadingData(false);
-        return;
-      }
+  // Format seconds into HH:MM:SS
+  const formatElapsed = (startedAt: string | null, live: boolean): string => {
+    if (!live || !startedAt) return "00:00:00";
+    const elapsed = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000));
+    const h = Math.floor(elapsed / 3600);
+    const m = Math.floor((elapsed % 3600) / 60);
+    const s = elapsed % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
 
+  // Resolve username
+  useEffect(() => {
+    const stored = sessionStorage.getItem("username");
+    if (stored) { setUsername(stored); return; }
+    if (privyWallet?.username) setUsername(privyWallet.username);
+  }, [privyWallet]);
+
+  // Fetch stream data
+  useEffect(() => {
+    if (!address) { setIsLoadingData(false); return; }
+
+    const fetchStreamData = async () => {
       try {
         const response = await fetch(`/api/streams/${address}`);
         if (response.ok) {
@@ -60,41 +79,19 @@ export default function StreamManagerPage() {
     fetchStreamData();
   }, [address]);
 
-  // Update stream timer
+  // Session timer — recalculates every second from the server-provided startedAt.
+  // Resets cleanly when the stream goes offline or startedAt changes.
   useEffect(() => {
+    const startedAt = liveStreamData?.startedAt ?? null;
+    const live = isLive;
+    setStreamSession(formatElapsed(startedAt, live));
+    if (!live || !startedAt) return;
     const timer = setInterval(() => {
-      setStreamSession(prev => {
-        try {
-          const [hours, minutes, seconds] = prev.split(":").map(Number);
-          if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
-            throw new Error();
-          }
-
-          let newSeconds = seconds + 1;
-          let newMinutes = minutes;
-          let newHours = hours;
-
-          if (newSeconds >= 60) {
-            newSeconds = 0;
-            newMinutes += 1;
-          }
-
-          if (newMinutes >= 60) {
-            newMinutes = 0;
-            newHours += 1;
-          }
-
-          return `${newHours.toString().padStart(2, "0")}:${newMinutes
-            .toString()
-            .padStart(2, "0")}:${newSeconds.toString().padStart(2, "0")}`;
-        } catch {
-          return "00:00:00"; // Reset to default on error
-        }
-      });
+      setStreamSession(formatElapsed(startedAt, true));
     }, 1000);
-
     return () => clearInterval(timer);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLive, liveStreamData?.startedAt]);
 
   interface StreamInfoUpdate {
     title?: string;
@@ -105,19 +102,12 @@ export default function StreamManagerPage() {
   }
 
   const handleStreamInfoUpdate = async (newData: StreamInfoUpdate) => {
-    if (!address) {
-      showToast("Wallet not connected");
-      return;
-    }
-
+    if (!address) { showToast("Wallet not connected"); return; }
     setIsSaving(true);
-
     try {
       const response = await fetch("/api/streams/update", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           wallet: address,
           title: newData.title,
@@ -127,7 +117,6 @@ export default function StreamManagerPage() {
           thumbnail: newData.thumbnail,
         }),
       });
-
       if (response.ok) {
         const result = await response.json();
         setStreamData({
@@ -138,13 +127,12 @@ export default function StreamManagerPage() {
           thumbnail: result.streamData.thumbnail || null,
         });
         setIsStreamInfoModalOpen(false);
-        showToast("Stream info updated successfully!");
+        showToast("Stream info updated!");
       } else {
-        const error = await response.json();
-        showToast(error.error || "Failed to update stream info");
+        const err = await response.json();
+        showToast(err.error || "Failed to update stream info");
       }
-    } catch (error) {
-      console.error("Error updating stream info:", error);
+    } catch {
       showToast("Failed to update stream info");
     } finally {
       setIsSaving(false);
@@ -157,99 +145,97 @@ export default function StreamManagerPage() {
   };
 
   return (
-    <>
-      <div className="flex flex-col h-screen bg-secondary text-foreground">
-        {/* Stats Bar */}
-        <div className="flex justify-between items-center px-2 border-b border-border">
-          <div className="flex space-x-4 ">
-            <StatsCard title="Viewers" value={0} />
-            <StatsCard title="New followers" value={0} />
-            <StatsCard title="Donations" value={0} />
-          </div>
-          <div className="text-muted-foreground">
-            <span>Stream Session: </span>
-            <span className="font-mono">{streamSession}</span>
-          </div>
+    <div className="flex flex-col bg-secondary text-foreground">
+      {/* Stats Bar */}
+      <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 border-b border-border bg-card">
+        <div className="flex items-center gap-2">
+          <StatsChip icon={<Users className="w-3.5 h-3.5" />} label="Viewers" value={liveStreamData?.currentViewers ?? 0} />
+          <StatsChip icon={<UserPlus className="w-3.5 h-3.5" />} label="Followers" value={liveStreamData?.followerCount ?? 0} />
+          <StatsChip icon={<Coins className="w-3.5 h-3.5" />} label="Tips" value={0} />
         </div>
-
-        {/* Main Content */}
-        <div className="flex flex-1 overflow-hidden">
-          {/* Main Grid Layout */}
-          <div className="grid grid-cols-12 gap-2 w-full p-2">
-            {/* Stream Preview - Takes up 8 columns on large screens, full width on small */}
-            <div className="col-span-10 lg:col-span-6 h-full w-full">
-              <div className="h-[calc(100vh-13rem)] lg:h-[calc(100vh-20rem)]">
-                <StreamPreview />
-              </div>
-              <div className="h-44 mt-2">
-                <ActivityFeed />
-              </div>
-            </div>
-
-            {/* Chat - Takes up 2 columns on large screens */}
-            <div className="col-span-12 lg:col-span-3 h-[calc(100vh-9rem)]">
-              <Chat />
-            </div>
-
-            {/* Stream Info & Settings - Takes up 2 columns on large screens */}
-            <div className="col-span-12 lg:col-span-3 flex flex-col gap-2 h-[calc(100vh-8rem)]">
-              {/* Stream Info - Dynamic height based on content */}
-              <div>
-                <StreamInfo
-                  data={{
-                    ...streamData,
-                    thumbnail: streamData.thumbnail || undefined,
-                  }}
-                  onEditClick={() => setIsStreamInfoModalOpen(true)}
-                />
-              </div>
-
-              {/* Stream Settings - Dynamic height based on content */}
-              <div>
-                <StreamSettings />
-              </div>
-            </div>
-          </div>
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground font-mono">
+          <Timer className="w-4 h-4" />
+          <span>{streamSession}</span>
         </div>
-
-        {/* Stream Info Modal */}
-        {isStreamInfoModalOpen && !isLoadingData && (
-          <StreamInfoModal
-            initialData={streamData}
-            onClose={() => setIsStreamInfoModalOpen(false)}
-            onSave={handleStreamInfoUpdate}
-            isSaving={isSaving}
-          />
-        )}
-
-        {/* Toast Notification */}
-        {toastMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50"
-          >
-            {toastMessage}
-          </motion.div>
-        )}
       </div>
-    </>
+
+      {/* Main content grid */}
+      <div className="grid grid-cols-12 gap-3 p-3">
+        {/* Left column: Stream preview + Activity feed */}
+        <div className="col-span-12 lg:col-span-7 flex flex-col gap-3">
+          <div className="aspect-video w-full shrink-0">
+            <StreamPreview />
+          </div>
+          <div className="flex-1 min-h-0">
+            <ActivityFeed
+              sessionTime={streamSession}
+              viewerCount={liveStreamData?.currentViewers ?? 0}
+              username={username}
+              isLive={isLive}
+            />
+          </div>
+        </div>
+
+        {/* Right column: Chat + Stream info + Tip wallet */}
+        <div className="col-span-12 lg:col-span-5 flex flex-col gap-3">
+          <div className="h-96">
+            <Chat />
+          </div>
+          <StreamInfo
+            data={{
+              ...streamData,
+              thumbnail: streamData.thumbnail || undefined,
+            }}
+            onEditClick={() => setIsStreamInfoModalOpen(true)}
+          />
+          <StreamSettings />
+        </div>
+      </div>
+
+      {/* Stream Info Modal */}
+      {isStreamInfoModalOpen && !isLoadingData && (
+        <StreamInfoModal
+          initialData={streamData}
+          onClose={() => setIsStreamInfoModalOpen(false)}
+          onSave={handleStreamInfoUpdate}
+          isSaving={isSaving}
+        />
+      )}
+
+      {/* Toast */}
+      {toastMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: 50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 50, scale: 0.9 }}
+          className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm font-medium"
+        >
+          {toastMessage}
+        </motion.div>
+      )}
+    </div>
   );
 }
 
-const StatsCard: React.FC<{ title: string; value: number }> = ({
-  title,
+function StatsChip({
+  icon,
+  label,
   value,
-}) => (
-  <motion.div
-    className="bg-card px-4 py-1.5 rounded-md text-center border border-border"
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.3 }}
-  >
-    <div className="text-xl font-bold text-foreground">{value}</div>
-    <div className="text-xs text-muted-foreground">{title}</div>
-  </motion.div>
-);
-
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+}) {
+  return (
+    <motion.div
+      className="flex items-center gap-2 bg-secondary border border-border px-3 py-1.5 rounded-lg"
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="text-muted-foreground">{icon}</div>
+      <span className="text-sm font-bold text-foreground">{value}</span>
+      <span className="text-xs text-muted-foreground hidden sm:block">{label}</span>
+    </motion.div>
+  );
+}

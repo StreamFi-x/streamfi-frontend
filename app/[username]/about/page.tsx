@@ -1,15 +1,14 @@
 "use client";
-import AboutSection from "@/components/shared/profile/AboutSection";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { toast } from "sonner";
+import AboutSection from "@/components/shared/profile/AboutSection";
+
 interface PageProps {
-  params: {
-    username: string;
-  };
+  params: Promise<{ username: string }>;
 }
 
 const AboutPage = ({ params }: PageProps) => {
-  const { username } = params;
+  const { username } = use(params);
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userExists, setUserExists] = useState(true);
@@ -25,9 +24,6 @@ const AboutPage = ({ params }: PageProps) => {
         }
         const data = await response.json();
         setUserData(data.user);
-        console.log("Fetched user data:", data.user);
-        console.log("User data:", data.user?.username);
-        // console.log("Logged in username:", loggedInUsername);
       } catch (error) {
         toast.error("Failed to fetch user data");
         setUserExists(false);
@@ -39,9 +35,8 @@ const AboutPage = ({ params }: PageProps) => {
     fetchUserData();
   }, [username]);
 
-  const currentUser = sessionStorage.getItem("username");
-  // Mock function to check if current user is the owner of this profile
-  const isOwner = currentUser === username;
+  const isOwner =
+    typeof window !== "undefined" && sessionStorage.getItem("username") === username;
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -53,7 +48,8 @@ const AboutPage = ({ params }: PageProps) => {
     <>
       <AboutSection
         username={userData.username}
-        followers={userData.followers}
+        followers={null}
+        followerCount={userData.follower_count ?? 0}
         bio={userData.bio}
         socialLinks={userData.socialLinks}
         isOwner={isOwner}

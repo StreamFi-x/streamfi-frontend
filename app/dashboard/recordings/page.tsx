@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
-import MuxPlayer from "@mux/mux-player-react";
+import MuxPlayer from "@/components/MuxPlayerLazy";
 
 interface Recording {
   id: string;
@@ -35,20 +35,21 @@ function formatDate(iso: string | null): string {
 }
 
 export default function RecordingsPage() {
-  const { publicKey } = useStellarWallet();
+  const { publicKey, privyWallet } = useStellarWallet();
+  const walletAddress = publicKey || privyWallet?.wallet || null;
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!publicKey) {
+    if (!walletAddress) {
       setLoading(false);
       return;
     }
     const fetchRecordings = async () => {
       try {
-        const res = await fetch(`/api/streams/recordings/${publicKey}`);
+        const res = await fetch(`/api/streams/recordings/${walletAddress}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to fetch");
         setRecordings(data.recordings ?? []);

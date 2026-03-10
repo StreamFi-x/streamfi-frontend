@@ -2,216 +2,138 @@
 
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { toast } from "sonner";
-import Section from "@/components/layout/Section";
+
+const avatars = [
+  "/Images/waitlist1.png",
+  "/Images/waitlist2.png",
+  "/Images/waitlist3.png",
+  "/Images/waitlist4.png",
+];
 
 interface WaitlistProps {
   initialCount?: number;
   onSubmit?: (email: string) => Promise<void>;
 }
 
-const Waitlist: React.FC<WaitlistProps> = ({
-  initialCount = 3000,
-  onSubmit,
-}) => {
-  const [email, setEmail] = useState<string>("");
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
-  const [emailTouched, setEmailTouched] = useState<boolean>(false);
-  const [emailError, setEmailError] = useState<string>("");
-  const [showError, setShowError] = useState<boolean>(false);
-  const [showErrorStyling, setShowErrorStyling] = useState<boolean>(false);
+export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProps) {
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [showError, setShowError] = useState(false);
+  const [showErrorStyling, setShowErrorStyling] = useState(false);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const sectionRef = useRef<HTMLElement>(null);
 
-  const avatars: string[] = [
-    "/Images/waitlist1.png",
-    "/Images/waitlist2.png",
-    "/Images/waitlist3.png",
-    "/Images/waitlist4.png",
-  ];
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.querySelectorAll<HTMLElement>(".reveal").forEach((el, i) => {
+              setTimeout(() => el.classList.add("visible"), i * 100);
+            });
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+    if (sectionRef.current) observer.observe(sectionRef.current);
+    return () => observer.disconnect();
+  }, []);
 
-  // Validate email whenever it changes, but only show errors if the field has been touched
+  const validateEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+
   useEffect(() => {
     if (!emailTouched) return;
-
     let error = "";
-    if (!email) {
-      error = "Email is required";
-    } else if (!validateEmail(email)) {
-      error = "Please enter a valid email address";
-    }
-
+    if (!email) error = "Email is required";
+    else if (!validateEmail(email)) error = "Please enter a valid email address";
     setEmailError(error);
-
-    // Show error if there is one
     if (error) {
       setShowError(true);
       setShowErrorStyling(true);
-
-      // Clear any existing timeout
-      if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current);
-      }
-
-      // Set timeout to hide error after 3 seconds
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
       errorTimeoutRef.current = setTimeout(() => {
         setShowError(false);
         setShowErrorStyling(false);
       }, 3000);
     }
-
     return () => {
-      // Clean up timeout on unmount or when email changes
-      if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current);
-      }
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
     };
   }, [email, emailTouched]);
 
-  // Custom email validation function
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Mark email as touched to trigger validation
     setEmailTouched(true);
-
-    // Validate email before submission
     if (!email || !validateEmail(email)) {
-      const error = email
-        ? "Please enter a valid email address"
-        : "Email is required";
+      const error = email ? "Please enter a valid email address" : "Email is required";
       setEmailError(error);
       setShowError(true);
       setShowErrorStyling(true);
-
-      // Clear any existing timeout
-      if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current);
-      }
-
-      // Set timeout to hide error after 3 seconds
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
       errorTimeoutRef.current = setTimeout(() => {
         setShowError(false);
         setShowErrorStyling(false);
       }, 3000);
-
       return;
     }
-
     setIsSubmitting(true);
-
     try {
       if (onSubmit) {
-        // Use the provided onSubmit handler if available
         await onSubmit(email);
       } else {
-        console.log("Submitting to waitlist API:", email);
-
-        // Call our API endpoint with better error handling
         const response = await fetch("/api/waitlist/subscribe", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email }),
         });
-
-        console.log("API response status:", response.status);
-
-        // Get response data with error handling
         let data;
-        let responseText = "";
-
+        const text = await response.text();
         try {
-          // First try to get the response as text (to help debug HTML errors)
-          responseText = await response.text();
-
-          // Then try to parse as JSON
-          try {
-            data = JSON.parse(responseText);
-            console.log("API response data:", data);
-          } catch (jsonError) {
-            console.error("Failed to parse response as JSON:", jsonError);
-            console.log(
-              "Response text (first 200 chars):",
-              responseText.substring(0, 200)
-            );
-            throw new Error("Server returned an invalid response format");
-          }
-        } catch (responseError) {
-          console.error("Error getting response:", responseError);
-          throw new Error("Failed to process server response");
+          data = JSON.parse(text);
+        } catch {
+          throw new Error("Server returned an invalid response format");
         }
-
         if (!response.ok) {
-          let errorMessage = data?.error || "Failed to join waitlist";
-
-          // Enhanced error handling
-          if (response.status === 429) {
-            errorMessage = "Too many attempts. Please try again later.";
-          } else if (response.status === 400) {
-            errorMessage = data?.error || "Invalid email format";
-          } else if (response.status === 500) {
-            errorMessage = "Server error. Our team has been notified.";
-            console.error(
-              "Server error details:",
-              data?.details || "No details provided"
-            );
-          }
-
-          throw new Error(errorMessage);
+          let msg = data?.error || "Failed to join waitlist";
+          if (response.status === 429) msg = "Too many attempts. Please try again later.";
+          else if (response.status === 400) msg = data?.error || "Invalid email format";
+          else if (response.status === 500) msg = "Server error. Our team has been notified.";
+          throw new Error(msg);
         }
-
-        // Check for already subscribed
         if (data?.alreadySubscribed) {
           toast.info("You're already on our waitlist!", {
             description: "We'll notify you when StreamFi launches.",
             duration: 5000,
           });
-
           setIsSubmitted(true);
           setEmail("");
           setEmailTouched(false);
           setShowError(false);
           setShowErrorStyling(false);
-
-          setTimeout(() => {
-            setIsSubmitted(false);
-          }, 3000);
-
+          setTimeout(() => setIsSubmitted(false), 3000);
           setIsSubmitting(false);
           return;
         }
       }
-
-      // Show success toast
       toast.success("You've been added to the waitlist!", {
         description: "We'll notify you when StreamFi launches.",
         duration: 5000,
       });
-
       setIsSubmitted(true);
       setEmail("");
       setEmailTouched(false);
       setShowError(false);
       setShowErrorStyling(false);
-
-      setTimeout(() => {
-        setIsSubmitted(false);
-      }, 3000);
+      setTimeout(() => setIsSubmitted(false), 3000);
     } catch (error) {
-      console.error("Error submitting email:", error);
-      // Show error toast with specific message if available
       toast.error("Failed to join the waitlist", {
-        description:
-          error instanceof Error ? error.message : "Please try again later.",
+        description: error instanceof Error ? error.message : "Please try again later.",
       });
     } finally {
       setIsSubmitting(false);
@@ -219,127 +141,92 @@ const Waitlist: React.FC<WaitlistProps> = ({
   };
 
   return (
-    <Section
-      id="waitlist"
-      className="relative flex flex-col items-center justify-center text-white"
-      wrapperClassName="bg-gradient-to-b from-transparent to-background-2"
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="text-center mb-8"
-      >
-        <h1 className="font-pp-neue font-extrabold text-2xl sm:text-4xl xl:text-5xl text-white mb-4 max-w-5xl">
-          Join the Revolution: Own Your Stream, Own Your Earnings
-        </h1>
+    <section id="waitlist" className="py-24 px-4 relative overflow-hidden" ref={sectionRef}>
+      {/* Large glow */}
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse at center, rgba(124,58,237,0.12), rgba(59,130,246,0.04) 50%, transparent 70%)",
+        }}
+      />
 
-        <p className="text-white/80 font-normal max-w-2xl mx-auto">
-          Sign up for early access and be among the first to explore
-          StreamFi&apos;s decentralized streaming platform. Get exclusive perks,
-          early feature access, and shape the future of streaming!
+      <div className="max-w-3xl mx-auto relative z-10 text-center">
+        {/* Badge */}
+        <div className="reveal inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 text-xs font-medium mb-8">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+          Early Access, Limited Spots
+        </div>
+
+        {/* Headline */}
+        <h2 className="reveal reveal-delay-1 font-pp-neue font-extrabold text-4xl sm:text-5xl md:text-6xl text-white leading-tight mb-5">
+          Join the Revolution.
+          <br />
+          <span className="text-gradient-purple">Own the Future.</span>
+        </h2>
+
+        <p className="reveal reveal-delay-2 text-white/50 text-base max-w-xl mx-auto leading-relaxed mb-10">
+          Sign up for early access and be among the first to explore StreamFi&apos;s decentralized
+          streaming platform. Get exclusive perks, early feature access, and shape the future
+          of streaming.
         </p>
-      </motion.div>
 
-      <motion.form
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.2 }}
-        onSubmit={handleSubmit}
-        className="flex flex-col w-full max-w-2xl mx-auto mb-6 relative z-20"
-      >
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center w-full">
-          <div className="w-full md:max-w-md relative">
+        {/* Form */}
+        <form
+          onSubmit={handleSubmit}
+          className="reveal reveal-delay-3 flex flex-col sm:flex-row gap-3 max-w-lg mx-auto mb-8"
+        >
+          <div className="relative flex-1">
             <input
               type="text"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               onBlur={() => setEmailTouched(true)}
-              placeholder="Enter your email"
-              className={`w-full py-3 px-4 bg-[#272526] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-300 ${
+              placeholder="Enter your email address"
+              className={`w-full py-3.5 px-4 bg-white/[0.06] border rounded-xl text-white text-sm placeholder-white/30 focus:outline-none focus:ring-2 transition-all duration-200 ${
                 showErrorStyling
-                  ? "focus:ring-red-500 border border-red-500"
-                  : "focus:ring-purple-500"
+                  ? "border-red-500/50 focus:ring-red-500/30"
+                  : "border-white/10 focus:ring-purple-500/30 focus:border-purple-500/40"
               }`}
             />
-            <AnimatePresence>
-              {emailError && emailTouched && showError && (
-                <motion.p
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="text-red-500 text-sm mt-1 absolute"
-                >
-                  {emailError}
-                </motion.p>
-              )}
-            </AnimatePresence>
+            {emailError && emailTouched && showError && (
+              <p className="absolute -bottom-5 left-0 text-red-400 text-xs">{emailError}</p>
+            )}
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.98 }}
+          <button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full sm:w-[11rem] text-center py-3 px-6 bg-[#5A189A] hover:bg-purple-700 rounded-lg text-white font-medium transition-colors duration-300 ${
-              isSubmitting ? "opacity-70 cursor-not-allowed" : ""
-            }`}
+            className={`flex-shrink-0 px-6 py-3.5 text-sm font-semibold rounded-xl transition-all duration-200 ${
+              isSubmitted
+                ? "bg-green-600 text-white"
+                : "bg-white text-[#07060f] hover:bg-white/90 active:scale-95"
+            } disabled:opacity-60 disabled:cursor-not-allowed`}
           >
-            {isSubmitting
-              ? "Joining..."
-              : isSubmitted
-                ? "Joined!"
-                : "Join the Waitlist"}
-          </motion.button>
-        </div>
-      </motion.form>
+            {isSubmitting ? "Joining…" : isSubmitted ? "✓ Joined!" : "Join the Waitlist"}
+          </button>
+        </form>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.4 }}
-        className="flex flex-col sm:flex-row items-center justify-center gap-2 text-gray-300"
-      >
-        <div className="flex -space-x-2">
-          {avatars.map((avatar, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.6 + index * 0.1 }}
-            >
+        {/* Social proof */}
+        <div className="reveal reveal-delay-4 flex items-center justify-center gap-3">
+          <div className="flex -space-x-2">
+            {avatars.map((src, i) => (
               <Image
-                src={avatar || "/placeholder.svg"}
-                alt={`User ${index + 1}`}
+                key={i}
+                src={src}
+                alt=""
                 width={32}
                 height={32}
-                className="w-8 h-8 md:text-base text-[8px] rounded-full border-2 border-gray-800"
+                className="w-8 h-8 rounded-full border-2 border-[#07060f] object-cover"
               />
-            </motion.div>
-          ))}
+            ))}
+          </div>
+          <p className="text-sm text-white/40">
+            <span className="text-white/70 font-medium">{initialCount.toLocaleString()}+</span>{" "}
+            creators and viewers already joined
+          </p>
         </div>
-        <span>{initialCount}+ creators and viewers Joined!</span>
-      </motion.div>
-
-      <div className="flex justify-center pointer-events-none overflow-hidden opacity-20">
-        <p
-          className="text-[4rem] md:text-[12rem] font-extrabold p-0 m-0"
-          style={{
-            color: "rgba(255, 255, 255, 0.1)",
-            WebkitTextStroke: "0.8px #f1f1f1",
-            textShadow: "2px 2px 4px rgba(0, 0, 0, 0.5)",
-          }}
-        >
-          Waitlist
-        </p>
       </div>
-
-      <div
-        className="absolute bottom-0 inset-0 bg-[url('/Images/waitlist.png')] bg-cover bg-center opacity-20 pointer-events-none"
-        style={{ bottom: "-24px" }}
-      ></div>
-    </Section>
+    </section>
   );
-};
-
-export default Waitlist;
+}

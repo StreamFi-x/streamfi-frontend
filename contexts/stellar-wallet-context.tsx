@@ -21,6 +21,16 @@ const network =
     ? WalletNetwork.PUBLIC
     : WalletNetwork.TESTNET;
 
+interface PrivySessionUser {
+  id: string;
+  privyId: string;
+  username: string | null;
+  email: string | null;
+  avatar: string | null;
+  wallet: string | null;
+  displayName: string | null;
+}
+
 interface StellarWalletContextType {
   kit: StellarWalletsKit;
   address: string | null;
@@ -33,6 +43,8 @@ interface StellarWalletContextType {
   isLoading: boolean;
   isConnecting: boolean;
   error: string | null;
+  /** Privy-authenticated user (Google login). Null if signed in via Stellar wallet only. */
+  privyWallet: PrivySessionUser | null;
 }
 
 const StellarWalletContext = createContext<
@@ -50,10 +62,36 @@ export const useStellarWallet = () => {
 };
 
 export function StellarWalletProvider({ children }: { children: ReactNode }) {
-  const [publicKey, setPublicKey] = useState<string | null>(null);
+  // Restore the address immediately from localStorage so all wallet types
+  // (including Lobstr/WalletConnect) appear connected on page reload without
+  // waiting for the async wallet SDK to re-establish its session.
+  const [publicKey, setPublicKey] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const autoConnect = localStorage.getItem("stellar_auto_connect") === "true";
+    const cachedAddress = localStorage.getItem("stellar_address");
+    return autoConnect && cachedAddress ? cachedAddress : null;
+  });
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [privyWallet, setPrivyWallet] = useState<PrivySessionUser | null>(null);
   const hasAttemptedAutoConnect = useRef(false);
+
+  // Listen for successful Privy session creation (dispatched by auth-provider)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ user: PrivySessionUser }>).detail;
+      if (detail?.user) setPrivyWallet(detail.user);
+    };
+    window.addEventListener("privy-wallet-set", handler);
+
+    // Restore from sessionStorage for page refreshes
+    const stored = sessionStorage.getItem("privy_user");
+    if (stored) {
+      try { setPrivyWallet(JSON.parse(stored)); } catch { /* ignore */ }
+    }
+
+    return () => window.removeEventListener("privy-wallet-set", handler);
+  }, []);
 
   const [kit] = useState(() => {
     if (typeof window === "undefined") {
@@ -82,6 +120,11 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
           kit.setWallet(wallet.id);
           const { address } = await kit.getAddress();
           setPublicKey(address);
+          localStorage.setItem("stellar_address", address);
+          // A fresh wallet-connect session must not inherit a previous Privy identity
+          sessionStorage.removeItem("privy_user");
+          sessionStorage.removeItem("username");
+          setPrivyWallet(null);
           localStorage.setItem("stellar_last_wallet", wallet.id);
           localStorage.setItem("stellar_auto_connect", "true");
           setIsConnecting(false);
@@ -115,6 +158,11 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
       
       if (result && result.address) {
         setPublicKey(result.address);
+        localStorage.setItem("stellar_address", result.address);
+        // A fresh wallet-connect session must not inherit a previous Privy identity
+        sessionStorage.removeItem("privy_user");
+        sessionStorage.removeItem("username");
+        setPrivyWallet(null);
         localStorage.setItem("stellar_last_wallet", walletId);
         localStorage.setItem("stellar_auto_connect", "true");
       } else {
@@ -162,6 +210,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
 
   const disconnect = useCallback(() => {
     setPublicKey(null);
+    localStorage.removeItem("stellar_address");
     localStorage.removeItem("stellar_last_wallet");
     localStorage.removeItem("stellar_auto_connect");
   }, []);
@@ -230,6 +279,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         isLoading: isConnecting,
         isConnecting,
         error,
+        privyWallet,
       }}
     >
       {children}

@@ -1,4 +1,5 @@
 "use client";
+
 import CategoryCard from "@/components/category/CategoryCard";
 import { BrowsePageSkeleton } from "@/components/skeletons/skeletons/browsePageSkeleton";
 import { EmptyState } from "@/components/skeletons/EmptyState";
@@ -9,7 +10,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@radix-ui/react-select";
+} from "@/components/ui/select";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useSearchParams } from "next/navigation";
@@ -19,7 +20,7 @@ type Category = {
   id: string;
   title: string;
   imageUrl?: string;
-  viewer?: number;
+  viewers?: number;
   tags: string[];
 };
 
@@ -43,16 +44,23 @@ export default function BrowseCategoryPage() {
         setLoading(true);
         setError(null);
         const response = await fetch("/api/category");
-        if (!response.ok) {
-          throw new Error("Failed to fetch categories");
-        }
+        if (!response.ok) throw new Error("Failed to fetch categories");
         const data = await response.json();
-        console.log(data.categories);
-        setCategories(data.categories || []);
-      } catch (error) {
-        console.error(error);
+        // API returns lowercase `imageurl` — normalize to `imageUrl` for CategoryCard.
+        // Filter out example.com placeholder URLs that aren't real images.
+        setCategories(
+          (data.categories || []).map((c: Record<string, unknown>) => {
+            const raw = c.imageurl as string | undefined;
+            return {
+              ...c,
+              imageUrl:
+                raw && !raw.includes("example.com") ? raw : undefined,
+            };
+          })
+        );
+      } catch (err) {
         setError(
-          error instanceof Error ? error.message : "Failed to fetch categories"
+          err instanceof Error ? err.message : "Failed to fetch categories"
         );
       } finally {
         setLoading(false);
@@ -61,30 +69,24 @@ export default function BrowseCategoryPage() {
     fetchCategories();
   }, []);
 
-  // Filter categories based on search query and selected category
   const filteredCategories = categories.filter(category => {
-    // Filter by selected category tag
     const matchesCategory =
       !selectedCategory ||
       category.title.toLowerCase() === selectedCategory.toLowerCase() ||
-      category?.tags?.some(
+      category.tags?.some(
         tag => tag.toLowerCase() === selectedCategory.toLowerCase()
       );
 
-    // Filter by search query
     const matchesSearch =
       searchQuery === "" ||
       category.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      category?.tags?.some(tag =>
+      category.tags?.some(tag =>
         tag.toLowerCase().includes(searchQuery.toLowerCase())
       );
 
     return matchesCategory && matchesSearch;
   });
 
-  // Show loading state
-
-  // Show error state
   if (error) {
     return (
       <EmptyState
@@ -98,24 +100,25 @@ export default function BrowseCategoryPage() {
   }
 
   return (
-    <div className="">
-      <div className="flex flex-col sm:flex-row gap-6 items-center justify-between  rounded-lg">
-        <div className="flex-1 max-w-xl">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <Input
-              placeholder="Search tags"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="pl-12 pr-4 py-3 border-gray-300   placeholder-gray-400"
-            />
-          </div>
+    <div className="space-y-4">
+      {/* Search + Sort — stacked on mobile, inline on sm+ */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search categories..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="pl-10 pr-4"
+          />
         </div>
 
-        <div className="flex items-center space-x-3 ml-auto">
-          <span className="text-sm text-gray-400 font-medium">Sort by:</span>
+        <div className="flex items-center gap-2 sm:shrink-0">
+          <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">
+            Sort by
+          </span>
           <Select value={selectedSort} onValueChange={setSelectedSort}>
-            <SelectTrigger className="w-64 bg-[#222222] text-white border border-gray-600">
+            <SelectTrigger className="w-full sm:w-52">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -131,14 +134,15 @@ export default function BrowseCategoryPage() {
 
       {loading && <BrowsePageSkeleton type="categories" count={15} />}
 
-      {/* Categories Grid */}
-      {filteredCategories.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 py-4 gap-2">
+      {!loading && filteredCategories.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {filteredCategories.map(category => (
             <CategoryCard key={category.id} category={category} />
           ))}
         </div>
-      ) : (
+      )}
+
+      {!loading && filteredCategories.length === 0 && (
         <EmptyState
           title="No categories found"
           description={

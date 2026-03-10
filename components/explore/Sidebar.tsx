@@ -1,16 +1,69 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navItems, recommendedUsers } from "@/data/explore/sidebar";
+import { navItems } from "@/data/explore/sidebar";
 import Image from "next/image";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import useSWR from "swr";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+
+const fetcher = (url: string) => fetch(url).then(r => r.json());
+
+interface SidebarUser {
+  username: string;
+  avatar: string | null;
+  is_live?: boolean;
+  current_viewers?: number;
+  follower_count?: number;
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Current user identity (for following list)
+  const { address, privyWallet } = useStellarWallet();
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem("username");
+    if (stored) { setCurrentUsername(stored); return; }
+    if (privyWallet?.username) setCurrentUsername(privyWallet.username);
+  }, [privyWallet]);
+
+  // Recommended: live streams first, fallback to top users
+  const { data: liveData } = useSWR("/api/streams/live", fetcher, { refreshInterval: 30000 });
+  const liveStreams: SidebarUser[] = (liveData?.streams ?? []).slice(0, 5).map((s: { username: string; avatar: string | null; viewerCount: number }) => ({
+    username: s.username,
+    avatar: s.avatar,
+    is_live: true,
+    current_viewers: s.viewerCount,
+  }));
+
+  const { data: topData } = useSWR(
+    liveStreams.length === 0 ? "/api/users/top?limit=5" : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+  const recommendedList: SidebarUser[] = (liveStreams.length > 0
+    ? liveStreams
+    : (topData?.users ?? [])
+  ).filter(u => u.username !== currentUsername);
+
+  // Following: current user's followed accounts
+  const { data: followingData } = useSWR(
+    currentUsername ? `/api/users/${currentUsername}/following` : null,
+    fetcher,
+    { refreshInterval: 60000 }
+  );
+  const followingList: SidebarUser[] = (followingData?.following ?? []).map((u: { username: string; avatar: string | null; is_live?: boolean }) => ({
+    username: u.username,
+    avatar: u.avatar,
+    is_live: u.is_live ?? false,
+  }));
 
   // Helper function to render avatar images (handles Cloudinary URLs)
   const renderAvatar = (avatarUrl: string, alt: string) => {
@@ -22,7 +75,7 @@ export default function Sidebar() {
     }
     return (
       <Image
-        src={avatarUrl || "/placeholder.svg"}
+        src={avatarUrl || "/Images/user.png"}
         alt={alt}
         className="w-full h-full object-cover"
         width={32}
@@ -305,9 +358,11 @@ export default function Sidebar() {
           recommended
         </motion.h3>
         <div className="space-y-1">
-          {recommendedUsers.map((user, index) => (
+          {recommendedList.length === 0 ? (
+            <p className="text-[10px] text-muted-foreground px-2 py-1">No streamers yet</p>
+          ) : recommendedList.map((user, index) => (
             <motion.div
-              key={user.name}
+              key={user.username}
               variants={itemVariants}
               custom={index}
               whileHover="hover"
@@ -316,15 +371,15 @@ export default function Sidebar() {
             >
               <motion.div variants={navItemVariants}>
                 <Link
-                  href="#"
+                  href={`/${user.username}`}
                   className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-surface-hover"
                 >
                   <motion.div
                     variants={avatarVariants}
                     className="relative w-8 h-8 rounded-full bg-tertiary overflow-hidden"
                   >
-                    {renderAvatar(user.avatar, user.name)}
-                    {user.status.toLowerCase().includes("watching") && (
+                    {renderAvatar(user.avatar ?? "/Images/user.png", user.username)}
+                    {user.is_live && (
                       <motion.div
                         variants={liveIndicatorVariants}
                         animate="animate"
@@ -341,7 +396,7 @@ export default function Sidebar() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05, duration: 0.3 }}
                     >
-                      {user.name}
+                      {user.username}
                     </motion.div>
                     <motion.div
                       className="text-[10px] text-muted-foreground"
@@ -349,7 +404,11 @@ export default function Sidebar() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 + 0.1, duration: 0.3 }}
                     >
-                      {user.status}
+                      {user.is_live
+                        ? `${(user.current_viewers ?? 0).toLocaleString()} watching`
+                        : user.follower_count != null
+                          ? `${user.follower_count.toLocaleString()} followers`
+                          : "Offline"}
                     </motion.div>
                   </div>
                 </Link>
@@ -383,9 +442,13 @@ export default function Sidebar() {
           FOLLOWING
         </motion.h3>
         <div className="space-y-1">
-          {recommendedUsers.map((user, index) => (
+          {!currentUsername ? (
+            <p className="text-[10px] text-muted-foreground px-2 py-1">Sign in to see following</p>
+          ) : followingList.length === 0 ? (
+            <p className="text-[10px] text-muted-foreground px-2 py-1">Not following anyone yet</p>
+          ) : followingList.map((user, index) => (
             <motion.div
-              key={`following-${user.name}`}
+              key={`following-${user.username}`}
               variants={itemVariants}
               custom={index}
               whileHover="hover"
@@ -394,15 +457,15 @@ export default function Sidebar() {
             >
               <motion.div variants={navItemVariants}>
                 <Link
-                  href="#"
-                  className={`flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-surface-hover`}
+                  href={`/${user.username}`}
+                  className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-surface-hover"
                 >
                   <motion.div
                     variants={avatarVariants}
                     className="relative w-8 h-8 rounded-full bg-tertiary overflow-hidden"
                   >
-                    {renderAvatar(user.avatar, user.name)}
-                    {user.name !== "Guraissay" && (
+                    {renderAvatar(user.avatar ?? "/Images/user.png", user.username)}
+                    {user.is_live && (
                       <motion.div
                         variants={liveIndicatorVariants}
                         animate="animate"
@@ -419,7 +482,7 @@ export default function Sidebar() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05, duration: 0.3 }}
                     >
-                      {user.name}
+                      {user.username}
                     </motion.div>
                     <motion.div
                       className="text-[10px] text-muted-foreground"
@@ -427,11 +490,7 @@ export default function Sidebar() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 + 0.1, duration: 0.3 }}
                     >
-                      {user.name === "Zyn"
-                        ? "100K Followers"
-                        : user.name === "monki"
-                          ? "3.7K followers"
-                          : "520K followers"}
+                      {user.is_live ? "Live now" : "Offline"}
                     </motion.div>
                   </div>
                 </Link>
@@ -547,24 +606,20 @@ export default function Sidebar() {
       />
 
       <motion.div className="flex flex-col items-center gap-3">
-        {recommendedUsers.map((user, index) => (
+        {recommendedList.map((user, index) => (
           <motion.div
-            key={user.name}
+            key={user.username}
             initial={{ opacity: 0, scale: 0.5, rotate: -10 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            transition={{
-              delay: 0.6 + index * 0.1,
-              duration: 0.4,
-              ease: customEase,
-            }}
+            transition={{ delay: 0.6 + index * 0.1, duration: 0.4, ease: customEase }}
             whileHover={{ scale: 1.15, rotate: 5, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Link href="#" className="relative" title={user.name}>
+            <Link href={`/${user.username}`} className="relative" title={user.username}>
               <div className="w-9 h-9 rounded-full bg-tertiary overflow-hidden shadow-lg">
-                {renderAvatar(user.avatar, user.name)}
+                {renderAvatar(user.avatar ?? "/Images/user.png", user.username)}
               </div>
-              {user.status.toLowerCase().includes("watching") && (
+              {user.is_live && (
                 <motion.div
                   variants={liveIndicatorVariants}
                   animate="animate"
@@ -586,24 +641,20 @@ export default function Sidebar() {
       />
 
       <motion.div className="flex flex-col items-center gap-3">
-        {recommendedUsers.map((user, index) => (
+        {followingList.map((user, index) => (
           <motion.div
-            key={`following-${user.name}`}
+            key={`following-${user.username}`}
             initial={{ opacity: 0, scale: 0.5, rotate: 10 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            transition={{
-              delay: 0.9 + index * 0.1,
-              duration: 0.4,
-              ease: customEase,
-            }}
+            transition={{ delay: 0.9 + index * 0.1, duration: 0.4, ease: customEase }}
             whileHover={{ scale: 1.15, rotate: -5, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Link href="#" className="relative" title={user.name}>
+            <Link href={`/${user.username}`} className="relative" title={user.username}>
               <div className="w-9 h-9 rounded-full bg-tertiary overflow-hidden shadow-lg">
-                {renderAvatar(user.avatar, user.name)}
+                {renderAvatar(user.avatar ?? "/Images/user.png", user.username)}
               </div>
-              {user.name !== "Guraissay" && (
+              {user.is_live && (
                 <motion.div
                   variants={liveIndicatorVariants}
                   animate="animate"

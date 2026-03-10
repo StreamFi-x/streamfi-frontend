@@ -244,7 +244,7 @@ function StreamCard({
           <Image
             width={500}
             height={300}
-            src={stream.thumbnail || "/placeholder.svg"}
+            src={stream.thumbnail || "/Images/user.png"}
             alt={stream.title}
             className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
           />
@@ -275,7 +275,7 @@ function StreamCard({
               <Image
                 width={300}
                 height={300}
-                src={stream.avatar || "/placeholder.svg"}
+                src={stream.avatar || "/Images/user.png"}
                 alt={stream.username}
                 className="w-full h-full object-cover"
               />

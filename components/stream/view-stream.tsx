@@ -17,27 +17,38 @@ import {
   Flag,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import { JSX, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
-import { FaDiscord, FaFacebook } from "react-icons/fa";
+const DiscordIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
+  </svg>
+);
+const FacebookIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+  </svg>
+);
 import StreamInfoModal from "../dashboard/common/StreamInfoModal";
 import DashboardScreenGuard from "../explore/DashboardScreenGuard";
 import { Button } from "../ui/button";
 import ChatSection from "./chat-section";
 import { ViewStreamSkeleton } from "../skeletons/ViewStreamSkeleton";
-import MuxPlayer from "@mux/mux-player-react";
+import MuxPlayer from "@/components/MuxPlayerLazy";
 import ReportLiveStreamModal from "../modals/ReportLiveStreamModal";
 import { useChat } from "@/hooks/useChat";
 import { TipButton, TipModalContainer } from "@/components/tipping";
 import { useTipModal } from "@/hooks/useTipModal";
+import { toast } from "sonner";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,
   instagram: <Instagram className="h-4 w-4" />,
-  discord: <FaDiscord className="h-4 w-4" />,
-  facebook: <FaFacebook className="h-4 w-4" />,
+  discord: <DiscordIcon className="h-4 w-4" />,
+  facebook: <FacebookIcon className="h-4 w-4" />,
 };
 
 interface ViewStreamProps {
@@ -46,6 +57,11 @@ interface ViewStreamProps {
   onStatusChange?: (isLive: boolean) => void;
   isOwner?: boolean;
   userData?: any;
+  isFollowing?: boolean;
+  followerCount?: number;
+  onFollow?: () => void;
+  onUnfollow?: () => void;
+  followLoading?: boolean;
 }
 
 // Mock API function to fetch stream data (fallback)
@@ -184,12 +200,45 @@ const TippingModal = ({
   ) : null;
 };
 
+interface PastRecording {
+  id: string;
+  playback_id: string;
+  title: string | null;
+  duration: number | null;
+  created_at: string;
+  stream_date: string | null;
+}
+
+function formatRecDuration(seconds: number | null): string {
+  if (!seconds) return "";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function recTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) return `${Math.floor(days / 7)} week${Math.floor(days / 7) > 1 ? "s" : ""} ago`;
+  if (days < 365) return `${Math.floor(days / 30)} month${Math.floor(days / 30) > 1 ? "s" : ""} ago`;
+  return `${Math.floor(days / 365)} year${Math.floor(days / 365) > 1 ? "s" : ""} ago`;
+}
+
 const ViewStream = ({
   username,
   isLive: initialIsLive,
   onStatusChange,
   isOwner = false,
   userData,
+  isFollowing = false,
+  onFollow,
+  onUnfollow,
+  followLoading = false,
 }: ViewStreamProps) => {
   const [isLive, setIsLive] = useState(initialIsLive);
   const [streamData, setStreamData] = useState<any>(null);
@@ -205,9 +254,13 @@ const ViewStream = ({
   const [showStreamInfoModal, setShowStreamInfoModal] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [isSavingStreamInfo, setIsSavingStreamInfo] = useState(false);
+  const [recordings, setRecordings] = useState<PastRecording[]>([]);
 
   // Use custom hooks for Stellar wallet and tip modal state
-  const { publicKey: stellarPublicKey, isConnected } = useStellarWallet();
+  const { publicKey, privyWallet } = useStellarWallet();
+  // address covers both native Stellar wallet and Privy-embedded wallet
+  const address = publicKey || privyWallet?.wallet || null;
   const tipModalState = useTipModal();
 
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -218,7 +271,7 @@ const ViewStream = ({
     messages: chatMessages,
     sendMessage,
     isSending,
-  } = useChat(userData?.playbackId, stellarPublicKey, isLive);
+  } = useChat(userData?.playbackId, address, isLive);
 
   // Stable refs so the native keydown listener always reads current values
   const chatOverlayMessageRef = useRef(chatOverlayMessage);
@@ -276,6 +329,14 @@ const ViewStream = ({
 
     getStreamData();
   }, [username, onStatusChange, userData, initialIsLive]);
+
+  // Fetch past recordings for this streamer
+  useEffect(() => {
+    fetch(`/api/streams/recordings?username=${encodeURIComponent(username)}&limit=6`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.recordings) setRecordings(data.recordings); })
+      .catch(() => {});
+  }, [username]);
 
   // Handle fullscreen change event
   useEffect(() => {
@@ -346,15 +407,45 @@ const ViewStream = ({
     setShowChat(!showChat);
   };
 
-  // Handle stream info save
-  const handleSaveStreamInfo = (data: any) => {
-    setStreamData({
-      ...streamData,
-      title: data.title,
-      bio: data.description,
-      tags: data.tags,
-    });
-    setShowStreamInfoModal(false);
+  // Handle stream info save — persists to DB then updates local state
+  const handleSaveStreamInfo = async (data: any) => {
+    if (!address) {
+      toast.error("Not authenticated");
+      return;
+    }
+    setIsSavingStreamInfo(true);
+    try {
+      const formData = new FormData();
+      formData.append(
+        "creator",
+        JSON.stringify({
+          title: data.title,
+          description: data.description,
+          category: data.category,
+          tags: data.tags,
+        })
+      );
+      const res = await fetch(`/api/users/updates/${address}`, {
+        method: "PUT",
+        body: formData,
+      });
+      if (res.ok) {
+        setStreamData({
+          ...streamData,
+          title: data.title,
+          bio: data.description,
+          tags: data.tags,
+        });
+        toast.success("Stream info updated");
+      } else {
+        toast.error("Failed to save stream info");
+      }
+    } catch {
+      toast.error("Failed to save stream info");
+    } finally {
+      setIsSavingStreamInfo(false);
+      setShowStreamInfoModal(false);
+    }
   };
 
   if (loading) {
@@ -382,7 +473,7 @@ const ViewStream = ({
             {/* Video player container - modified for fullscreen layout */}
             <div
               ref={videoContainerRef}
-              className={`relative bg-black group ${isFullscreen ? "flex h-screen" : "aspect-video"}`}
+              className={`relative bg-black overflow-hidden group ${isFullscreen ? "flex h-screen" : "aspect-video"}`}
             >
               {/* Video content area */}
               <div
@@ -391,7 +482,7 @@ const ViewStream = ({
                 {isLive && userData?.playbackId ? (
                   <MuxPlayer
                     playbackId={userData.playbackId}
-                    streamType="ll-live:dvr"
+                    streamType="live:dvr"
                     autoPlay="muted"
                     metadata={{
                       video_id: userData.playbackId,
@@ -520,7 +611,7 @@ const ViewStream = ({
 
                         {/* Input */}
                         <div className="p-3 bg-black/50 backdrop-blur-md border-t border-white/10">
-                          {isConnected ? (
+                          {!!address ? (
                             <div className="flex items-center gap-2">
                               <input
                                 ref={overlayInputRef}
@@ -607,7 +698,7 @@ const ViewStream = ({
                           <Button
                             // onClick={() => setShowStreamInfoModal(true)}
                             variant="outline"
-                            onClick={() => setShowTipModal(true)}
+                            onClick={() => setShowStreamInfoModal(true)}
                             className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-none"
                           >
                             <Edit3 className="h-4 w-4 mr-2" />
@@ -617,12 +708,18 @@ const ViewStream = ({
                           <>
                             <Button
                               variant="outline"
-                              className="bg-purple-600 hover:bg-purple-700 text-white border-none"
+                              className={
+                                isFollowing
+                                  ? "bg-gray-700 hover:bg-gray-600 text-white border-none"
+                                  : "bg-purple-600 hover:bg-purple-700 text-white border-none"
+                              }
+                              onClick={isFollowing ? onUnfollow : onFollow}
+                              disabled={followLoading}
                             >
-                              Follow
+                              {followLoading ? "…" : isFollowing ? "Unfollow" : "Follow"}
                             </Button>
                             {/* Stellar Tip Button */}
-                            {streamData.starknetAddress && stellarPublicKey && stellarPublicKey !== streamData.starknetAddress ? (
+                            {streamData.starknetAddress && publicKey && publicKey !== streamData.starknetAddress ? (
                               <TipButton
                                 recipientUsername={username}
                                 recipientPublicKey={streamData.starknetAddress}
@@ -635,7 +732,7 @@ const ViewStream = ({
                                 variant="outline"
                                 className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-gray-600"
                                 disabled
-                                title={!stellarPublicKey ? "Connect Stellar wallet to tip" : !streamData.starknetAddress ? "Streamer hasn't set up Stellar wallet" : "Cannot tip yourself"}
+                                title={!publicKey ? "Connect Stellar wallet to tip" : !streamData.starknetAddress ? "Streamer hasn't set up Stellar wallet" : "Cannot tip yourself"}
                               >
                                 <Gift className="h-4 w-4 mr-2" />
                                 Send Tip
@@ -707,30 +804,51 @@ const ViewStream = ({
                 </div>
 
                 {/* Past streams */}
-                <div className="p-4">
-                  <h3 className="font-medium mb-4">Past Streams</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {/* Past streams would be populated here */}
-                    <div className="bg-background bg-[#] rounded-md overflow-hidden">
-                      <div className="aspect-video relative">
-                        <Image
-                          src="/Images/explore/home/trending-streams/img1.png"
-                          alt="Past stream"
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <div className="p-3">
-                        <h4 className="text- text-sm font-medium truncate">
-                          Previous Stream Highlight
-                        </h4>
-                        <p className="text-gray-400 text-xs mt-1">
-                          2 days ago • 45K views
-                        </p>
-                      </div>
+                {recordings.length > 0 && (
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-medium">Past Streams</h3>
+                      <Link
+                        href={`/${username}/clips`}
+                        className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                      >
+                        View all
+                      </Link>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {recordings.map(rec => {
+                        const thumb = `https://image.mux.com/${rec.playback_id}/thumbnail.jpg?width=480&time=5`;
+                        const title = rec.title ?? `Stream — ${recTimeAgo(rec.stream_date ?? rec.created_at)}`;
+                        return (
+                          <Link
+                            key={rec.id}
+                            href={`/${username}/clips/${rec.id}`}
+                            className="group bg-background rounded-md overflow-hidden hover:ring-1 hover:ring-purple-500/50 transition-all block"
+                          >
+                            <div className="aspect-video relative bg-black overflow-hidden">
+                              <img
+                                src={thumb}
+                                alt={title}
+                                className="w-full h-full object-cover"
+                              />
+                              {rec.duration && (
+                                <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-xs px-1 py-0.5 rounded font-mono">
+                                  {formatRecDuration(rec.duration)}
+                                </span>
+                              )}
+                            </div>
+                            <div className="p-2">
+                              <h4 className="text-sm font-medium truncate text-foreground">{title}</h4>
+                              <p className="text-gray-400 text-xs mt-0.5">
+                                {recTimeAgo(rec.stream_date ?? rec.created_at)}
+                              </p>
+                            </div>
+                          </Link>
+                        );
+                      })}
                     </div>
                   </div>
-                </div>
+                )}
               </>
             )}
           </div>
@@ -748,7 +866,7 @@ const ViewStream = ({
                 className="border border-border h-full border-l"
                 onToggleChat={toggleChat}
                 showChat={showChat}
-                isWalletConnected={isConnected}
+                isWalletConnected={!!address}
                 isSending={isSending}
               />
             </div>
@@ -779,6 +897,8 @@ const ViewStream = ({
           }}
           onClose={() => setShowStreamInfoModal(false)}
           onSave={handleSaveStreamInfo}
+          isSaving={isSavingStreamInfo}
+          dashboardHref="/dashboard/stream-manager"
         />
       )}
 
@@ -807,9 +927,9 @@ const ViewStream = ({
         isModalOpen={tipModalState.showTipModal}
         onModalClose={tipModalState.closeTipModal}
         recipientUsername={username}
-        recipientPublicKey={streamData?.starknetAddress || ""}
+        recipientPublicKey={streamData?.stellarAddress || ""}
         recipientAvatar={streamData?.avatarUrl}
-        senderPublicKey={stellarPublicKey}
+        senderPublicKey={publicKey}
         onSuccess={tipModalState.showSuccess}
         onError={tipModalState.showError}
         confirmationState={tipModalState.tipConfirmation}

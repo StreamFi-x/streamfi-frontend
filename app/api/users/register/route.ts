@@ -1,60 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { checkExistingTableDetail, validateEmail } from "@/utils/validators";
 import { sql } from "@vercel/postgres";
 import { sendWelcomeRegistrationEmail } from "@/utils/send-email";
 import { createMuxStream } from "@/lib/mux/server";
+import { createRateLimiter } from "@/lib/rate-limit";
 
-async function handler(req: Request) {
-  try {
-    const tableCheck = await sql`
-      SELECT table_name
-      FROM information_schema.tables
-      WHERE table_schema = 'public'
-      ORDER BY table_name;
-    `;
-    console.log(
-      "Available tables:",
-      tableCheck.rows.map(row => row.table_name)
+// Registration creates a Mux stream + DB write — strict limit to prevent abuse
+const isRateLimited = createRateLimiter(60 * 60 * 1000, 5); // 5 per hour per IP
+
+async function handler(req: NextRequest) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+
+  if (await isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": "3600" } }
     );
-  } catch (err) {
-    console.error("Table check error:", err);
   }
-
-  try {
-    const result = await sql`SELECT current_database(), current_schema()`;
-    console.log("Connected to:", result.rows[0]);
-  } catch (err) {
-    console.error("Connection diagnostic error:", err);
-  }
-
-  // Ensure users table and streaming columns exist.
-  await sql`
-    CREATE TABLE IF NOT EXISTS users (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      wallet VARCHAR(255) UNIQUE NOT NULL,
-      username VARCHAR(255) UNIQUE NOT NULL,
-      email VARCHAR(255) UNIQUE NOT NULL,
-      streamkey VARCHAR(255),
-      avatar VARCHAR(255),
-      bio TEXT,
-      socialLinks JSONB DEFAULT '[]',
-      emailVerified BOOLEAN DEFAULT FALSE,
-      emailNotifications BOOLEAN DEFAULT TRUE,
-      creator JSONB DEFAULT '{"streamTitle":"", "tags":[], "category":"", "payout":"", "thumbnail":""}',
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      total_tips_received NUMERIC(20, 7) DEFAULT 0,
-      total_tips_count INTEGER DEFAULT 0,
-      last_tip_at TIMESTAMP
-    )
-  `;
-
-  await sql`
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS mux_stream_id VARCHAR(255)
-  `;
-  await sql`
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS mux_playback_id VARCHAR(255)
-  `;
 
   if (req.method !== "POST") {
     return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
@@ -63,7 +28,7 @@ async function handler(req: Request) {
   const requestBody = await req.json();
   const {
     email,
-    username,
+    username: rawUsername,
     wallet,
     socialLinks = [],
     emailNotifications = true,
@@ -75,6 +40,9 @@ async function handler(req: Request) {
       thumbnail: "",
     },
   } = requestBody;
+
+  // Normalize to lowercase — prevents case-variant duplicates across auth methods
+  const username = rawUsername ? String(rawUsername).trim().toLowerCase() : "";
 
   if (!username) {
     return NextResponse.json({ error: "Username is required" }, { status: 400 });
@@ -94,8 +62,13 @@ async function handler(req: Request) {
 
   try {
     const userEmailExist = await checkExistingTableDetail("users", "email", email);
-    const usernameExist = await checkExistingTableDetail("users", "username", username);
     const userWalletExist = await checkExistingTableDetail("users", "wallet", wallet);
+    // Case-insensitive username check — username is stored lowercase but guard against
+    // any legacy mixed-case rows that may exist
+    const { rows: usernameRows } = await sql`
+      SELECT id FROM users WHERE LOWER(username) = ${username} LIMIT 1
+    `;
+    const usernameExist = usernameRows.length > 0;
 
     if (userEmailExist) {
       return NextResponse.json({ error: "Email already exist" }, { status: 400 });
@@ -145,7 +118,8 @@ async function handler(req: Request) {
         creator,
         mux_stream_id,
         mux_playback_id,
-        streamkey
+        streamkey,
+        avatar
       )
       VALUES (
         ${email},
@@ -156,7 +130,8 @@ async function handler(req: Request) {
         ${JSON.stringify(creator)},
         ${muxStream?.id ?? null},
         ${muxStream?.playbackId ?? null},
-        ${muxStream?.streamKey ?? null}
+        ${muxStream?.streamKey ?? null},
+        '/Images/user.png'
       )
     `;
 

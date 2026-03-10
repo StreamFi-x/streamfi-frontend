@@ -1,55 +1,47 @@
 "use client";
 
+import { use, useState, useEffect } from "react";
+import { toast } from "sonner";
 import StreamCard from "@/components/shared/profile/StreamCard";
 
-import { useState, useEffect } from "react";
-import { toast } from "sonner"; // or your preferred toast lib
-
 interface PageProps {
-  params: {
-    username: string;
-  };
+  params: Promise<{ username: string }>;
 }
 
 const ProfilePage = ({ params }: PageProps) => {
-  const { username } = params;
+  const { username } = use(params);
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userExists, setUserExists] = useState(true);
 
-  const loggedInUsername =
-    typeof window !== "undefined" ? sessionStorage.getItem("username") : null;
-  console.log(loggedInUsername);
-  // Fetch user data with polling for live status updates
   useEffect(() => {
     let isInitialLoad = true;
 
     const fetchUserData = async () => {
       try {
-        if (isInitialLoad) {
-          setLoading(true);
-        }
+        if (isInitialLoad) setLoading(true);
 
-        // Add timestamp to prevent caching
         const response = await fetch(`/api/users/${username}?t=${Date.now()}`);
 
+        // Only mark as not-found for an explicit 404 — not for server errors or
+        // network timeouts, which are transient and should not show "User not found".
         if (response.status === 404) {
           setUserExists(false);
           return;
         }
 
+        if (!response.ok) {
+          // Server error (500, timeout, etc.) — keep showing existing data if we
+          // have it, or show a toast on the initial load. Don't set userExists=false.
+          if (isInitialLoad) toast.error("Failed to load profile. Retrying…");
+          return;
+        }
+
         const data = await response.json();
         setUserData(data.user);
-
-        if (isInitialLoad) {
-          console.log("Fetched user data:", data.user);
-          console.log("User is_live:", data.user?.is_live);
-        }
       } catch {
-        if (isInitialLoad) {
-          toast.error("Failed to fetch user data");
-        }
-        setUserExists(false);
+        // Network failure — same as above, transient, don't show "User not found".
+        if (isInitialLoad) toast.error("Failed to load profile. Retrying…");
       } finally {
         if (isInitialLoad) {
           setLoading(false);
@@ -59,33 +51,22 @@ const ProfilePage = ({ params }: PageProps) => {
     };
 
     fetchUserData();
-
-    // Poll every 10 seconds to update live status
-    const interval = setInterval(fetchUserData, 10000);
-
+    // Poll every 30s instead of 10s — profile data doesn't change that frequently.
+    const interval = setInterval(fetchUserData, 30000);
     return () => clearInterval(interval);
   }, [username]);
 
-  // Follow handler
+  if (loading) return <div>Loading...</div>;
+  if (!userExists) return <div>User not found</div>;
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-  if (!userExists) {
-    return <div>User not found</div>;
-  }
-
-  // For now, display current live stream if user is live
   const recentStreams =
-    userData && userData.is_live
+    userData?.is_live
       ? [
           {
             id: userData.id,
             title: userData.creator?.title || `${username}'s Live Stream`,
             thumbnailUrl:
-              userData.creator?.thumbnail ||
-              userData.avatar ||
-              "/placeholder.svg",
+              userData.creator?.thumbnail || userData.avatar || "/Images/user.png",
             username,
             category: userData.creator?.category || "Live",
             tags: userData.creator?.tags || ["live"],
@@ -95,13 +76,12 @@ const ProfilePage = ({ params }: PageProps) => {
         ]
       : [];
 
-  // Placeholder for clips - would need a separate API endpoint for past streams/clips
   const popularClips: any[] = [];
 
   return (
     <>
       <section className="mb-8">
-        <h2 className={`text-foreground text-xl font-medium mb-4`}>
+        <h2 className="text-foreground text-xl font-medium mb-4">
           {userData?.is_live ? "Live Now" : "Recent Streams"}
         </h2>
         {recentStreams.length > 0 ? (
@@ -119,9 +99,7 @@ const ProfilePage = ({ params }: PageProps) => {
       </section>
 
       <section>
-        <h2 className={`text-foreground text-xl font-medium mb-4`}>
-          Popular Clips
-        </h2>
+        <h2 className="text-foreground text-xl font-medium mb-4">Popular Clips</h2>
         {popularClips.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {popularClips.map(clip => (

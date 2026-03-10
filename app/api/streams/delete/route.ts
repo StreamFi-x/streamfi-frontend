@@ -1,22 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { deleteMuxStream } from "@/lib/mux/server";
+import { verifySession } from "@/lib/auth/verify-session";
 
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
+  // Verify caller is authenticated — identity comes from the server-side session
+  // cookie, NOT from client-supplied body fields.
+  const session = await verifySession(req);
+  if (!session.ok) return session.response;
+
   try {
-    const { wallet } = await req.json();
-
-    if (!wallet) {
-      return NextResponse.json(
-        { error: "Wallet is required" },
-        { status: 400 }
-      );
-    }
-
     const userResult = await sql`
       SELECT id, username, mux_stream_id, is_live
       FROM users
-      WHERE wallet = ${wallet}
+      WHERE id = ${session.userId}
     `;
 
     if (userResult.rows.length === 0) {
@@ -35,8 +32,7 @@ export async function DELETE(req: Request) {
     if (user.is_live) {
       return NextResponse.json(
         {
-          error:
-            "Cannot delete stream while live. Please stop the stream first.",
+          error: "Cannot delete stream while live. Please stop the stream first.",
         },
         { status: 409 }
       );
@@ -46,7 +42,7 @@ export async function DELETE(req: Request) {
       await deleteMuxStream(user.mux_stream_id);
     } catch (muxError) {
       console.error("Mux deletion failed:", muxError);
-      // Continue even if Mux deletion fails
+      // Continue even if Mux deletion fails — we still clean up our DB record
     }
 
     try {
@@ -68,7 +64,7 @@ export async function DELETE(req: Request) {
         current_viewers = 0,
         stream_started_at = NULL,
         updated_at = CURRENT_TIMESTAMP
-      WHERE wallet = ${wallet}
+      WHERE id = ${session.userId}
     `;
 
     return NextResponse.json(

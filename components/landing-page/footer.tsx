@@ -1,90 +1,143 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { Mail } from "lucide-react";
 import { Logo } from "@/public/Images";
-import Section from "@/components/layout/Section";
+
+const links = {
+  product: [
+    { name: "Explore Streams", href: "/explore" },
+    { name: "Go Live", href: "/explore" },
+    { name: "Dashboard", href: "/dashboard/home" },
+    { name: "Recordings", href: "/dashboard/recordings" },
+  ],
+  community: [
+    { name: "Twitter / X", href: "https://x.com/_streamfi", external: true },
+    { name: "Discord", href: "https://discord.gg/jPhndJFC", external: true },
+    { name: "Telegram", href: "https://t.me/+slCXibBFWF05NDQ0", external: true },
+  ],
+  legal: [
+    { name: "Terms of Service", href: "/terms" },
+    { name: "Privacy Policy", href: "/privacy" },
+  ],
+};
 
 export default function Footer() {
-  const footerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        staggerChildren: 0.2,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0 },
-  };
+  const year = new Date().getFullYear();
 
   return (
-    <div className="bg-background-2">
-      {" "}
-      <motion.footer
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        variants={footerVariants}
-      >
-        <Section
-          id="footer"
-          className="flex flex-col md:flex-row justify-between items-center gap-y-4"
-        >
-          <motion.div className="mb-4 md:mb-0" variants={itemVariants}>
-            <Link href="/" className="flex items-center">
-              <Image
-                src={Logo || "/placeholder.svg"}
-                alt="Streamfi logo"
-                width={128}
-                height={50}
-              />
+    <footer className="border-t border-white/[0.07]">
+      <div className="max-w-6xl mx-auto px-4 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-14">
+          {/* Brand */}
+          <div className="lg:col-span-1">
+            <Link href="/" className="inline-block mb-5">
+              <Image src={Logo} alt="StreamFi" width={120} height={38} />
             </Link>
-          </motion.div>
-
-          <motion.div
-            className="flex flex-col items-center justify-center text-center mb-4 md:mb-0"
-            variants={itemVariants}
-          >
-            <div className="flex items-center gap-2 text-white text-sm">
-              <Link
-                href="/terms"
-                className="hover:text-gray-300 transition-colors"
-              >
-                Terms of Service
-              </Link>
-              <span className="text-white">|</span>
-              <Link
-                href="/privacy"
-                className="hover:text-gray-300 transition-colors"
-              >
-                Privacy Policy
-              </Link>
+            <p className="text-white/35 text-sm leading-relaxed mb-6 max-w-xs">
+              The creator-first live streaming platform. Own your stream, own your earnings,
+              powered by Web3.
+            </p>
+            {/* Social icons */}
+            <div className="flex items-center gap-2">
+              {[
+                { href: "https://x.com/_streamfi", src: "/Images/x.png", label: "X" },
+                { href: "https://discord.gg/jPhndJFC", src: "/Images/discord.svg", label: "Discord" },
+                { href: "https://t.me/+slCXibBFWF05NDQ0", src: "/Images/Telegram.png", label: "Telegram" },
+              ].map((s) => (
+                <a
+                  key={s.label}
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-8 h-8 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-white/15 transition-all duration-200"
+                  aria-label={s.label}
+                >
+                  <Image src={s.src} alt={s.label} width={14} height={14} className="opacity-55 w-[14px] h-[14px] object-contain" />
+                </a>
+              ))}
             </div>
+          </div>
 
-            <div className="mt-1 text-gray-400 text-xs">
-              Copyright © {new Date().getFullYear()}. All Rights Reserved.
-            </div>
-          </motion.div>
+          {/* Product */}
+          <div>
+            <h3 className="text-white/40 text-[10px] font-semibold uppercase tracking-[0.12em] mb-5">
+              Product
+            </h3>
+            <ul className="space-y-3">
+              {links.product.map((l) => (
+                <li key={l.name}>
+                  <Link
+                    href={l.href}
+                    className="text-white/45 hover:text-white/80 text-sm transition-colors duration-200"
+                  >
+                    {l.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-          <motion.div variants={itemVariants}>
-            <Link
+          {/* Community */}
+          <div>
+            <h3 className="text-white/40 text-[10px] font-semibold uppercase tracking-[0.12em] mb-5">
+              Community
+            </h3>
+            <ul className="space-y-3">
+              {links.community.map((l) => (
+                <li key={l.name}>
+                  <a
+                    href={l.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-white/45 hover:text-white/80 text-sm transition-colors duration-200"
+                  >
+                    {l.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Legal + Contact */}
+          <div>
+            <h3 className="text-white/40 text-[10px] font-semibold uppercase tracking-[0.12em] mb-5">
+              Legal
+            </h3>
+            <ul className="space-y-3 mb-6">
+              {links.legal.map((l) => (
+                <li key={l.name}>
+                  <Link
+                    href={l.href}
+                    className="text-white/45 hover:text-white/80 text-sm transition-colors duration-200"
+                  >
+                    {l.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <a
               href="mailto:streamfi25@gmail.com"
-              className="flex items-center gap-2 text-white hover:text-gray-300 transition-colors"
+              className="inline-flex items-center gap-2 text-white/45 hover:text-white/80 text-sm transition-colors duration-200"
             >
-              <Mail size={18} />
-              <span>Contact Us</span>
-            </Link>
-          </motion.div>
-        </Section>
-      </motion.footer>
-    </div>
+              <Mail className="w-3.5 h-3.5" />
+              Contact Us
+            </a>
+          </div>
+        </div>
+
+        {/* Bottom bar */}
+        <div className="pt-8 border-t border-white/[0.07] flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-white/25 text-xs">
+            © {year} StreamFi. All rights reserved.
+          </p>
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-white/25 text-xs">All systems operational</span>
+          </div>
+        </div>
+      </div>
+    </footer>
   );
 }

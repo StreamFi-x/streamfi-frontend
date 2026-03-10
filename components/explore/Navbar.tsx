@@ -2,7 +2,8 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { StreamfiLogoLight, StreamfiLogoShort } from "@/public/icons";
-import { Search, Bell, ChevronDown } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
+import NotificationBell from "@/components/shared/NotificationBell";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,17 +33,23 @@ export default function Navbar({ }: NavbarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { publicKey, isConnected, disconnect } = useStellarWallet();
+  const { publicKey, isConnected, disconnect, privyWallet } = useStellarWallet();
   const { user, isLoading: authLoading } = useAuth();
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
   const [connectStep, setConnectStep] = useState<"profile" | "verify" | "success">("profile");
+  // Always start as loading — check sessionStorage in useEffect to avoid SSR/client mismatch
   const [isLoading, setIsLoading] = useState(true);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  // Prevent auth UI from rendering until after hydration (avoids SSR/localStorage mismatch)
+  const [mounted, setMounted] = useState(false);
 
 
   const walletPublicKey = publicKey;
+
+  // Authenticated = Freighter wallet connected OR Privy (Google) session active
+  const isAuthenticated = isConnected || !!privyWallet;
 
   // safe sessionStorage parse
   const getSessionData = useCallback(<T,>(key: string): T | null => {
@@ -55,27 +62,34 @@ export default function Navbar({ }: NavbarProps) {
     }
   }, []);
 
-  //  display name
+  //  display name — privy user takes priority, then wallet user, then truncated key
   const getDisplayName = useCallback(() => {
+    if (privyWallet?.username) return privyWallet.username;
+    if (privyWallet?.displayName) return privyWallet.displayName;
     if (user?.username) return user.username;
 
     const storedUser = getSessionData<{ username?: string }>("userData");
     if (storedUser?.username) return storedUser.username;
 
+    // Fallback: privy_user in sessionStorage (page refresh before event fires)
+    const privyStored = getSessionData<{ username?: string }>("privy_user");
+    if (privyStored?.username) return privyStored.username;
+
     if (publicKey) return `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}`;
 
     return "Unknown User";
-  }, [user?.username, publicKey, getSessionData]);
+  }, [privyWallet, user?.username, publicKey, getSessionData]);
 
-  // avatar logic
+  // avatar logic — privy user takes priority
   const getAvatar = useCallback(() => {
+    if (privyWallet?.avatar) return privyWallet.avatar;
     if (user?.avatar) return user.avatar;
 
     const storedUser = getSessionData<{ avatar?: string }>("userData");
     if (storedUser?.avatar) return storedUser.avatar;
 
     return Avatar;
-  }, [user?.avatar, getSessionData]);
+  }, [privyWallet, user?.avatar, getSessionData]);
 
   const handleCloseProfileModal = () => {
     setProfileModalOpen(false);
@@ -85,6 +99,13 @@ export default function Navbar({ }: NavbarProps) {
   const handleNextStep = (step: "profile" | "verify" | "success") => {
     setConnectStep(step);
   };
+
+  // Mark as mounted after hydration and resolve initial loading state from sessionStorage
+  useEffect(() => {
+    setMounted(true);
+    const hasPrivySession = !!sessionStorage.getItem("privy_user");
+    if (hasPrivySession) setIsLoading(false);
+  }, []);
 
   useEffect(() => {
     setHasCheckedProfile(false);
@@ -127,7 +148,7 @@ export default function Navbar({ }: NavbarProps) {
         const normalizedResults = (data.categories ?? []).map((cat: Category) => ({
           id: cat.id,
           title: cat.title,
-          image: cat.imageurl || "/placeholder.svg",
+          image: cat.imageurl || "/Images/user.png",
           type: "category",
         }));
         setSearchResults(normalizedResults);
@@ -146,10 +167,10 @@ export default function Navbar({ }: NavbarProps) {
 
   const toggleProfileDropdown = () => setIsProfileDropdownOpen(!isProfileDropdownOpen);
 
-  // Profile modal logic
+  // Profile modal logic — only for Freighter wallet users (Privy users use /onboarding page)
   useEffect(() => {
     if (authLoading) return;
-    if (!isConnected || !publicKey || hasCheckedProfile) {
+    if (!isConnected || !publicKey || hasCheckedProfile || !!privyWallet) {
       setIsLoading(false);
       return;
     }
@@ -186,7 +207,6 @@ export default function Navbar({ }: NavbarProps) {
 
   const userAvatar = getAvatar();
   const displayName = getDisplayName();
-  const truncatedDisplayName = displayName.length > 12 ? displayName.slice(0, 12) : displayName;
 
 
 
@@ -195,8 +215,8 @@ export default function Navbar({ }: NavbarProps) {
       <header className="h-20 flex items-center justify-between px-4 border-b-[0.5px] border-border bg-sidebar z-50">
         <div className="flex items-center gap-4">
           <Link href="/explore" className="flex items-center gap-2">
-            <Image src={StreamfiLogoLight || "/placeholder.svg"} alt="Streamfi Logo" className="dark:hidden" />
-            <Image src={StreamfiLogoShort || "/placeholder.svg"} alt="Streamfi Logo" className="hidden dark:block" />
+            <Image src={StreamfiLogoLight || "/Images/user.png"} alt="Streamfi Logo" className="dark:hidden" />
+            <Image src={StreamfiLogoShort || "/Images/user.png"} alt="Streamfi Logo" className="hidden dark:block" />
           </Link>
         </div>
 
@@ -236,7 +256,7 @@ export default function Navbar({ }: NavbarProps) {
                     >
                       <div className="w-10 h-10 rounded bg-gray-700 overflow-hidden">
                         <Image
-                          src={result.image || "/placeholder.svg"}
+                          src={result.image || "/Images/user.png"}
                           alt={result.title}
                           className="w-full h-full object-cover"
                           width={40}
@@ -257,14 +277,16 @@ export default function Navbar({ }: NavbarProps) {
         </div>
 
         <div className="flex items-center gap-4">
-          {isConnected && publicKey ? (
+          {!mounted ? (
+            <div className="w-24 h-9 animate-pulse bg-muted rounded-md" />
+          ) : isAuthenticated ? (
             <>
-              {!isLoading && <button><Bell className="text-foreground w-4 h-4" /></button>}
+              {!isLoading && <NotificationBell />}
               <div className="relative avatar-container">
                 <div className="cursor-pointer flex gap-[10px] font-medium items-center text-[14px] text-white" onClick={toggleProfileDropdown}>
                   {!isLoading ? (
                     <>
-                      <span className="text-foreground hidden sm:flex truncate">{displayName}</span>
+                      <span className="text-foreground hidden sm:flex truncate max-w-[140px]">{displayName}</span>
                       {typeof userAvatar === "string" && isCloudinaryUrl(userAvatar) ? (
                         <img src={userAvatar} alt="Avatar" className="w-8 h-8 sm:w-6 sm:h-6 rounded-full object-cover" />
                       ) : (
@@ -280,7 +302,7 @@ export default function Navbar({ }: NavbarProps) {
                 <AnimatePresence>
                   {isProfileDropdownOpen && (
                     <div className="absolute top-full -right-2 sm:right-0 mt-2 profile-dropdown-container z-50">
-                      <ProfileDropdown username={truncatedDisplayName} avatar={`${userAvatar}`} onLinkClick={() => setTimeout(toggleProfileDropdown, 400)} />
+                      <ProfileDropdown username={displayName} avatar={`${userAvatar}`} onLinkClick={() => setTimeout(toggleProfileDropdown, 400)} />
                     </div>
                   )}
                 </AnimatePresence>

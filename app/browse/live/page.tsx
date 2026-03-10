@@ -155,7 +155,7 @@ export default function LivePage() {
       processedStreams.map(stream => ({
         id: stream.id,
         title: stream.title,
-        thumbnailUrl: stream.thumbnail || "/placeholder.svg",
+        thumbnailUrl: stream.thumbnail || "/Images/user.png",
         username: stream.username,
         category: stream.category || "General",
         tags: stream.tags,
@@ -166,51 +166,57 @@ export default function LivePage() {
   );
 
   return (
-    <div className="space-y-8">
-      {/* Secondary Filters */}
-      <div className="flex flex-col sm:flex-row gap-6 items-center rounded-lg">
-        <div className="flex items-center space-x-3">
-          <span className="text-sm text-gray-400 font-medium">Filter by:</span>
-          <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Language" />
-            </SelectTrigger>
-            <SelectContent>
-              {languageOptions.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className="space-y-6">
+      {/* Filters */}
+      <div className="flex flex-col gap-3">
+        {/* Search — full width */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search streams, tags, categories..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="pl-10 pr-4"
+          />
         </div>
 
-        <div className="flex-1 max-w-xl">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <Input
-              placeholder="Search streams, tags, categories..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="pl-12 pr-4 py-3 border-gray-300 placeholder-gray-400"
-            />
+        {/* Filter + Sort — 2-col on mobile, inline on sm+ */}
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center sm:gap-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+            <span className="text-xs text-muted-foreground font-medium sm:whitespace-nowrap">
+              Filter by
+            </span>
+            <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue placeholder="Language" />
+              </SelectTrigger>
+              <SelectContent>
+                {languageOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </div>
 
-        <div className="flex items-center space-x-3 ml-auto">
-          <span className="text-sm text-gray-400 font-medium">Sort by:</span>
-          <Select value={selectedSort} onValueChange={setSelectedSort}>
-            <SelectTrigger className="w-64 border border-gray-200">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              {sortOptions.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2 sm:ml-auto">
+            <span className="text-xs text-muted-foreground font-medium sm:whitespace-nowrap">
+              Sort by
+            </span>
+            <Select value={selectedSort} onValueChange={setSelectedSort}>
+              <SelectTrigger className="w-full sm:w-56">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                {sortOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 

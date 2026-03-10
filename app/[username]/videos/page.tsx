@@ -1,26 +1,20 @@
 "use client";
-import { useState, useEffect } from "react";
+import { use, useState, useEffect } from "react";
 import { notFound } from "next/navigation";
 import StreamCard from "@/components/shared/profile/StreamCard";
 import EmptyState from "@/components/shared/profile/EmptyState";
 
 interface PageProps {
-  params: {
-    username: string;
-  };
+  params: Promise<{ username: string }>;
 }
 
-// Mock function to fetch videos
-const fetchVideos = async (username: string) => {
-  // Simulate API call delay
+const fetchVideos = async (_username: string) => {
   await new Promise(resolve => setTimeout(resolve, 500));
-
-  // For demo purposes, return empty array to show empty state
   return [];
 };
 
 const VideosPage = ({ params }: PageProps) => {
-  const { username } = params;
+  const { username } = use(params);
   const [videos, setVideos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
