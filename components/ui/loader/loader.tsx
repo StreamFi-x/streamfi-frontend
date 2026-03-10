@@ -15,7 +15,7 @@ export default function NProgressProvider({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+    if (timerRef.current) {clearTimeout(timerRef.current);}
 
     NProgress.configure({
       showSpinner: false,
@@ -32,7 +32,7 @@ export default function NProgressProvider({
     }, 500);
 
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (timerRef.current) {clearTimeout(timerRef.current);}
       NProgress.done(); // Ensures progress bar ends if the component unmounts
     };
   }, [pathname, searchParams]);

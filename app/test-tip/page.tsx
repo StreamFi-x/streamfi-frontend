@@ -71,7 +71,7 @@ export default function TestTipPage() {
                 className="w-full px-3 py-2 border rounded-md bg-background"
               />
               <p className="text-xs text-muted-foreground">
-                Enter the recipient's Stellar public key
+                Enter the recipient&apos;s Stellar public key
               </p>
             </div>
 
@@ -105,7 +105,7 @@ export default function TestTipPage() {
               <li>Ensure you have a funded testnet account</li>
               <li>Enter your public key as the sender</li>
               <li>Enter a valid recipient public key</li>
-              <li>Click "Open Tip Modal" to test the component</li>
+              <li>Click &quot;Open Tip Modal&quot; to test the component</li>
             </ol>
           </div>
 
@@ -119,8 +119,8 @@ export default function TestTipPage() {
                 URL
               </li>
               <li>
-                <code>NEXT_PUBLIC_STELLAR_NETWORK</code> - "public" or
-                "testnet"
+                <code>NEXT_PUBLIC_STELLAR_NETWORK</code> - &quot;public&quot; or
+                &quot;testnet&quot;
               </li>
             </ul>
           </div>

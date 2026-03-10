@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   CheckCircle2,
   XCircle,
-  ArrowRight,
   RotateCcw,
   Copy,
   Check,
@@ -24,7 +23,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getStellarExplorerUrl } from "@/lib/stellar/config";
-import { cn } from "@/lib/utils";
 
 interface TipConfirmationProps {
   isOpen: boolean;
@@ -101,7 +99,7 @@ export function TipConfirmation({
                   Tip Sent Successfully!
                 </DialogTitle>
                 <DialogDescription className="text-center text-base">
-                  You've successfully tipped <strong>{amount} XLM</strong> to <strong>@{recipientUsername}</strong>.
+                  You&apos;ve successfully tipped <strong>{amount} XLM</strong> to <strong>@{recipientUsername}</strong>.
                 </DialogDescription>
               </DialogHeader>
 

@@ -25,13 +25,13 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Current user identity (for following list)
-  const { address, privyWallet } = useStellarWallet();
+  const { privyWallet } = useStellarWallet();
   const [currentUsername, setCurrentUsername] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("username");
     if (stored) { setCurrentUsername(stored); return; }
-    if (privyWallet?.username) setCurrentUsername(privyWallet.username);
+    if (privyWallet?.username) {setCurrentUsername(privyWallet.username);}
   }, [privyWallet]);
 
   // Recommended: live streams first, fallback to top users
@@ -406,7 +406,7 @@ export default function Sidebar() {
                     >
                       {user.is_live
                         ? `${(user.current_viewers ?? 0).toLocaleString()} watching`
-                        : user.follower_count != null
+                        : user.follower_count !== null && user.follower_count !== undefined
                           ? `${user.follower_count.toLocaleString()} followers`
                           : "Offline"}
                     </motion.div>

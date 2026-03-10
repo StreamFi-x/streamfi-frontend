@@ -7,7 +7,7 @@ import { writeNotification } from "@/lib/notifications";
 export async function POST(req: NextRequest) {
   // Verify the caller is logged in
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   try {
     const userResult = await sql`
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   try {
     const userResult = await sql`

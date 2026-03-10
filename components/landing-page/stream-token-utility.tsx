@@ -70,7 +70,7 @@ export default function StreamTokenUtility() {
       },
       { threshold: 0.08 }
     );
-    if (sectionRef.current) observer.observe(sectionRef.current);
+    if (sectionRef.current) {observer.observe(sectionRef.current);}
     return () => observer.disconnect();
   }, []);
 

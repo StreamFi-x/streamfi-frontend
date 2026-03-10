@@ -19,7 +19,7 @@ const ProfilePage = ({ params }: PageProps) => {
 
     const fetchUserData = async () => {
       try {
-        if (isInitialLoad) setLoading(true);
+        if (isInitialLoad) {setLoading(true);}
 
         const response = await fetch(`/api/users/${username}?t=${Date.now()}`);
 
@@ -33,7 +33,7 @@ const ProfilePage = ({ params }: PageProps) => {
         if (!response.ok) {
           // Server error (500, timeout, etc.) — keep showing existing data if we
           // have it, or show a toast on the initial load. Don't set userExists=false.
-          if (isInitialLoad) toast.error("Failed to load profile. Retrying…");
+          if (isInitialLoad) {toast.error("Failed to load profile. Retrying…");}
           return;
         }
 
@@ -41,7 +41,7 @@ const ProfilePage = ({ params }: PageProps) => {
         setUserData(data.user);
       } catch {
         // Network failure — same as above, transient, don't show "User not found".
-        if (isInitialLoad) toast.error("Failed to load profile. Retrying…");
+        if (isInitialLoad) {toast.error("Failed to load profile. Retrying…");}
       } finally {
         if (isInitialLoad) {
           setLoading(false);
@@ -56,8 +56,8 @@ const ProfilePage = ({ params }: PageProps) => {
     return () => clearInterval(interval);
   }, [username]);
 
-  if (loading) return <div>Loading...</div>;
-  if (!userExists) return <div>User not found</div>;
+  if (loading) {return <div>Loading...</div>;}
+  if (!userExists) {return <div>User not found</div>;}
 
   const recentStreams =
     userData?.is_live

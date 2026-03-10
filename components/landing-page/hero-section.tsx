@@ -9,7 +9,7 @@ export default function HeroSection() {
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!glowRef.current) return;
+      if (!glowRef.current) {return;}
       const x = (e.clientX / window.innerWidth - 0.5) * 60;
       const y = (e.clientY / window.innerHeight - 0.5) * 40;
       glowRef.current.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;

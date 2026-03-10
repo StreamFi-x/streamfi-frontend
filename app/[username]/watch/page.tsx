@@ -49,7 +49,7 @@ const WatchPage = ({ params }: PageProps) => {
 
     const fetchUserData = async () => {
       try {
-        if (isInitialLoad) setLoading(true);
+        if (isInitialLoad) {setLoading(true);}
 
         const viewerParam = loggedInUsername
           ? `?viewer_username=${encodeURIComponent(loggedInUsername)}&t=${Date.now()}`
@@ -62,7 +62,7 @@ const WatchPage = ({ params }: PageProps) => {
         }
 
         if (!response.ok) {
-          if (isInitialLoad) toast.error("Failed to load stream");
+          if (isInitialLoad) {toast.error("Failed to load stream");}
           return;
         }
 
@@ -71,7 +71,7 @@ const WatchPage = ({ params }: PageProps) => {
         setIsFollowing(!!data.user.is_following);
       } catch (error) {
         console.error("Failed to fetch user data:", error);
-        if (isInitialLoad) toast.error("Failed to load stream");
+        if (isInitialLoad) {toast.error("Failed to load stream");}
       } finally {
         if (isInitialLoad) {
           setLoading(false);
@@ -87,8 +87,8 @@ const WatchPage = ({ params }: PageProps) => {
 
   // Register viewer once when stream goes live; guard against re-registration on every poll
   useEffect(() => {
-    if (!userData?.mux_playback_id || !userData?.is_live) return;
-    if (viewerRegistered.current) return;
+    if (!userData?.mux_playback_id || !userData?.is_live) {return;}
+    if (viewerRegistered.current) {return;}
 
     viewerRegistered.current = true;
     const sessionId = crypto.randomUUID();
@@ -109,7 +109,7 @@ const WatchPage = ({ params }: PageProps) => {
   // Deregister viewer when leaving the page
   useEffect(() => {
     return () => {
-      if (!viewerSessionId.current) return;
+      if (!viewerSessionId.current) {return;}
       const id = viewerSessionId.current;
       const pid = viewerPlaybackId.current;
       fetch("/api/streams/viewers", {
@@ -179,8 +179,8 @@ const WatchPage = ({ params }: PageProps) => {
     }
   };
 
-  if (loading) return <ViewStreamSkeleton />;
-  if (notFound404 || !userData) return notFound();
+  if (loading) {return <ViewStreamSkeleton />;}
+  if (notFound404 || !userData) {return notFound();}
 
   const isOwner = loggedInUsername?.toLowerCase() === username.toLowerCase();
 

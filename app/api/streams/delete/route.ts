@@ -7,7 +7,7 @@ export async function DELETE(req: NextRequest) {
   // Verify caller is authenticated — identity comes from the server-side session
   // cookie, NOT from client-supplied body fields.
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   try {
     const userResult = await sql`

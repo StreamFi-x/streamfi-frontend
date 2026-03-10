@@ -19,11 +19,6 @@ const ChannelHome = ({
   avatarUrl,
 }: ChannelHomeProps) => {
   // Mock data - would be fetched from API in a real implementation
-  // const userData = {
-  //   username,
-  //   followers: 2000,
-  //   avatarUrl: avatarUrl || "/Images/user.png",
-  // };
 
   const recentStreams = [
     {
@@ -92,6 +87,7 @@ const ChannelHome = ({
   ];
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userExists, setUserExists] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
@@ -114,7 +110,7 @@ const ChannelHome = ({
         console.log("Fetched user data:", data.user);
         console.log("User data:", data.user?.username);
         console.log("Logged in username:", loggedInUsername);
-      } catch (error) {
+      } catch {
         toast.error("Failed to fetch user data");
         setUserExists(false);
       } finally {
@@ -156,7 +152,7 @@ const ChannelHome = ({
       } else {
         toast.error(result.error || "Failed to follow");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network error while following");
     } finally {
       setFollowLoading(false);
@@ -196,7 +192,7 @@ const ChannelHome = ({
       } else {
         toast.error(result.error || "Failed to unfollow");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network error while unfollowing");
     } finally {
       setFollowLoading(false);
@@ -213,7 +209,7 @@ const ChannelHome = ({
       <ProfileHeader
         username={userData.username}
         followers={userData.followers}
-        avatarUrl={userData.avatarUrl}
+        avatarUrl={avatarUrl || userData.avatarUrl}
         isOwner={true}
         isFollowing={isFollowing}
         onFollow={handleFollow}

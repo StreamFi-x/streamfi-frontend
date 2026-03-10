@@ -21,7 +21,7 @@ function getStellarExplorerUrl(txHash: string) {
 }
 
 function truncateAddress(address: string) {
-  if (!address) return "";
+  if (!address) {return "";}
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
 }
 
@@ -88,7 +88,7 @@ export function TipHistory({ username }: TipHistoryProps) {
         body: JSON.stringify({ username }),
       });
 
-      if (!response.ok) throw new Error("Refresh failed");
+      if (!response.ok) {throw new Error("Refresh failed");}
 
       toast.success("Tip totals refreshed!");
       await fetchTipHistory();
@@ -106,7 +106,7 @@ export function TipHistory({ username }: TipHistoryProps) {
   };
 
   const loadMore = () => {
-    if (nextCursor) fetchTipHistory(nextCursor);
+    if (nextCursor) {fetchTipHistory(nextCursor);}
   };
 
   return (

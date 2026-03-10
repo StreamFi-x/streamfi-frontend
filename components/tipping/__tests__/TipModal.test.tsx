@@ -113,6 +113,7 @@ describe("TipModal", () => {
       render(<TipModal {...mockProps} />);
 
       const input = screen.getByPlaceholderText("0.00");
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const submitButton = screen.getByRole("button", { name: "Send Tip" });
 
       fireEvent.change(input, { target: { value: "-5" } });

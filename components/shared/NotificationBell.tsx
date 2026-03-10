@@ -17,16 +17,16 @@ interface Notification {
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) {return "just now";}
+  if (minutes < 60) {return `${minutes}m ago`;}
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) {return `${hours}h ago`;}
   return `${Math.floor(hours / 24)}d ago`;
 }
 
 function NotificationIcon({ type }: { type: string }) {
-  if (type === "follow") return <UserPlus size={14} className="text-highlight" />;
-  if (type === "live") return <Radio size={14} className="text-red-500" />;
+  if (type === "follow") {return <UserPlus size={14} className="text-highlight" />;}
+  if (type === "live") {return <Radio size={14} className="text-red-500" />;}
   return <Bell size={14} className="text-muted-foreground" />;
 }
 
@@ -41,7 +41,7 @@ export default function NotificationBell() {
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await fetch("/api/users/notifications", { credentials: "include" });
-      if (!res.ok) return;
+      if (!res.ok) {return;}
       const data = await res.json();
       setNotifications(data.notifications ?? []);
       setUnreadCount(data.unreadCount ?? 0);
@@ -52,7 +52,7 @@ export default function NotificationBell() {
 
   // Only poll when authenticated — avoids noisy 401s for logged-out users
   useEffect(() => {
-    if (!authenticated) return;
+    if (!authenticated) {return;}
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30_000);
     return () => clearInterval(interval);

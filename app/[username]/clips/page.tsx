@@ -21,22 +21,22 @@ interface Recording {
 }
 
 function formatDuration(seconds: number | null): string {
-  if (!seconds) return "";
+  if (!seconds) {return "";}
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  if (h > 0) {return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;}
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / 86400000);
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) return `${Math.floor(days / 7)} week${Math.floor(days / 7) > 1 ? "s" : ""} ago`;
-  if (days < 365) return `${Math.floor(days / 30)} month${Math.floor(days / 30) > 1 ? "s" : ""} ago`;
+  if (days === 0) {return "Today";}
+  if (days === 1) {return "Yesterday";}
+  if (days < 7) {return `${days} days ago`;}
+  if (days < 30) {return `${Math.floor(days / 7)} week${Math.floor(days / 7) > 1 ? "s" : ""} ago`;}
+  if (days < 365) {return `${Math.floor(days / 30)} month${Math.floor(days / 30) > 1 ? "s" : ""} ago`;}
   return `${Math.floor(days / 365)} year${Math.floor(days / 365) > 1 ? "s" : ""} ago`;
 }
 
@@ -47,9 +47,9 @@ function RecordingCard({ rec, onClick }: { rec: Recording; onClick: () => void }
 
   useEffect(() => {
     const el = cardRef.current;
-    if (!el) return;
+    if (!el) {return;}
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setInView(true); },
+      ([entry]) => { if (entry.isIntersecting) {setInView(true);} },
       { rootMargin: "100px" }
     );
     observer.observe(el);
@@ -157,7 +157,7 @@ const ClipsPage = ({ params }: PageProps) => {
           setNotFound404(true);
           return;
         }
-        if (!res.ok) throw new Error("Failed to fetch");
+        if (!res.ok) {throw new Error("Failed to fetch");}
         const data = await res.json();
         setRecordings(data.recordings ?? []);
       } catch {
@@ -170,7 +170,7 @@ const ClipsPage = ({ params }: PageProps) => {
     fetchRecordings();
   }, [username]);
 
-  if (notFound404) return notFound();
+  if (notFound404) {return notFound();}
 
   return (
     <div className="bg-secondary min-h-screen p-6">

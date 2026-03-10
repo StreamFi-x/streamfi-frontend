@@ -65,7 +65,7 @@ export default function Benefits() {
       },
       { threshold: 0.08 }
     );
-    if (sectionRef.current) observer.observe(sectionRef.current);
+    if (sectionRef.current) {observer.observe(sectionRef.current);}
     return () => observer.disconnect();
   }, []);
 
@@ -109,7 +109,7 @@ function BentoCard({
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = cardRef.current;
-    if (!el) return;
+    if (!el) {return;}
     const rect = el.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -120,7 +120,7 @@ function BentoCard({
 
   const handleMouseLeave = () => {
     const el = cardRef.current;
-    if (el) el.style.setProperty("--glow-opacity", "0");
+    if (el) {el.style.setProperty("--glow-opacity", "0");}
   };
 
   return (

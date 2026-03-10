@@ -6,7 +6,7 @@ import { writeNotification } from "@/lib/notifications";
 // ─── GET — fetch caller's notifications ──────────────────────────────────────
 export async function GET(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   try {
     const { rows } = await sql`
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 // ─── PATCH — mark all as read for caller ─────────────────────────────────────
 export async function PATCH(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   try {
     await sql`

@@ -9,9 +9,6 @@ import {
   hasInsufficientBalance,
   getXLMPrice,
   calculateFeeEstimate,
-  isValidStellarPublicKey,
-  formatXLMAmount,
-  getCurrentNetwork,
 } from "../payments";
 import { Keypair } from "@stellar/stellar-sdk";
 

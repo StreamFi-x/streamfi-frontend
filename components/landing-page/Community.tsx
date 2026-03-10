@@ -6,7 +6,7 @@ import Image from "next/image";
 function useCountUp(end: number, duration: number, active: boolean) {
   const [count, setCount] = useState(0);
   useEffect(() => {
-    if (!active) return;
+    if (!active) {return;}
     let start = 0;
     const increment = end / (duration / 16);
     const timer = setInterval(() => {
@@ -78,7 +78,7 @@ export default function Community() {
       },
       { threshold: 0.15 }
     );
-    if (sectionRef.current) observer.observe(sectionRef.current);
+    if (sectionRef.current) {observer.observe(sectionRef.current);}
     return () => observer.disconnect();
   }, []);
 

@@ -89,7 +89,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   useEffect(() => {
     // Never redirect Privy users
-    if (privyWallet) return;
+    if (privyWallet) {return;}
 
     const shouldAutoConnect =
       localStorage.getItem("stellar_auto_connect") === "true";

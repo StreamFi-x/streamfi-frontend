@@ -57,9 +57,9 @@ function encryptSecret(plaintext: string): string {
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,30}$/;
 
 function validateUsername(username: string): string | null {
-  if (!username?.trim()) return "Username is required";
+  if (!username?.trim()) {return "Username is required";}
   if (!USERNAME_RE.test(username))
-    return "Username must be 3–30 characters: letters, numbers, underscores only";
+    {return "Username must be 3–30 characters: letters, numbers, underscores only";}
   return null;
 }
 
@@ -68,7 +68,7 @@ function validateUsername(username: string): string | null {
 export async function POST(req: NextRequest) {
   // 1. Verify the Privy session cookie — identity comes from the server, never the body
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   // Only Privy users go through this flow
   if (!session.privyId) {

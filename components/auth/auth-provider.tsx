@@ -75,15 +75,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // When Privy authenticates a user, exchange their short-lived JWT for a
   // server-verified HttpOnly session cookie. We do this once per login.
   useEffect(() => {
-    if (!privyReady || !privyAuthenticated || !privyUser) return;
-    if (privySessionCreated.current) return;
+    if (!privyReady || !privyAuthenticated || !privyUser) {return;}
+    if (privySessionCreated.current) {return;}
 
     const createSession = async () => {
       try {
         // getAccessToken returns the Privy JWT — we send it to our server
         // which verifies it with Privy's SDK before issuing our own cookie.
         const token = await getAccessToken();
-        if (!token) return;
+        if (!token) {return;}
 
         const res = await fetch("/api/auth/session", {
           method: "POST",
@@ -220,7 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear Privy session cookie server-side
     void fetch("/api/auth/session", { method: "DELETE", credentials: "include" });
     // Sign out of Privy
-    if (privyAuthenticated) void privyLogout();
+    if (privyAuthenticated) {void privyLogout();}
     privySessionCreated.current = false;
     // Reset session refs so a re-login always gets a fresh cookie POST
     walletSessionRef.current = null;
@@ -342,12 +342,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const sessionWallet = sessionStorage.getItem("wallet");
     const walletAddress = address || storedWallet || sessionWallet;
 
-    if (!walletAddress || !isConnected) return;
+    if (!walletAddress || !isConnected) {return;}
 
     // Hard rate-limit: regardless of how many times this is called (activity
     // events fire on every mousemove/keydown/scroll) only POST when at least
     // SESSION_REFRESH_INTERVAL has elapsed since the last successful POST.
-    if (Date.now() - lastRefreshedRef.current < SESSION_REFRESH_INTERVAL) return;
+    if (Date.now() - lastRefreshedRef.current < SESSION_REFRESH_INTERVAL) {return;}
 
     void setSessionCookies(walletAddress);
   }, [address, isConnected]);

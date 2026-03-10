@@ -35,7 +35,7 @@ export default function StreamManagerPage() {
 
   // Format seconds into HH:MM:SS
   const formatElapsed = (startedAt: string | null, live: boolean): string => {
-    if (!live || !startedAt) return "00:00:00";
+    if (!live || !startedAt) {return "00:00:00";}
     const elapsed = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000));
     const h = Math.floor(elapsed / 3600);
     const m = Math.floor((elapsed % 3600) / 60);
@@ -47,7 +47,7 @@ export default function StreamManagerPage() {
   useEffect(() => {
     const stored = sessionStorage.getItem("username");
     if (stored) { setUsername(stored); return; }
-    if (privyWallet?.username) setUsername(privyWallet.username);
+    if (privyWallet?.username) {setUsername(privyWallet.username);}
   }, [privyWallet]);
 
   // Fetch stream data
@@ -85,12 +85,12 @@ export default function StreamManagerPage() {
     const startedAt = liveStreamData?.startedAt ?? null;
     const live = isLive;
     setStreamSession(formatElapsed(startedAt, live));
-    if (!live || !startedAt) return;
+    if (!live || !startedAt) {return;}
     const timer = setInterval(() => {
       setStreamSession(formatElapsed(startedAt, true));
     }, 1000);
     return () => clearInterval(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [isLive, liveStreamData?.startedAt]);
 
   interface StreamInfoUpdate {

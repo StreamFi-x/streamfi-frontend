@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   // Determine caller from server-side session — never trust client-supplied identity.
   // This prevents stale sessionStorage on account switch from acting as the wrong user.
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   const { receiverUsername, action } = await req.json();
 

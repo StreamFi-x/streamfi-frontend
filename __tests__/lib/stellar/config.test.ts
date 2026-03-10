@@ -1,4 +1,4 @@
-import { getStellarNetwork, getHorizonUrl, getNetworkPassphrase, StellarNetwork } from "@/lib/stellar/config";
+import { getStellarNetwork, getHorizonUrl, getNetworkPassphrase } from "@/lib/stellar/config";
 import { Networks } from "@stellar/stellar-sdk";
 
 describe("Stellar Network Configuration", () => {

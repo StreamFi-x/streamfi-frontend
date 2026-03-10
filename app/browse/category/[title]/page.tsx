@@ -46,7 +46,7 @@ interface CategoryData {
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
-  if (!res.ok) throw new Error("Failed to fetch");
+  if (!res.ok) {throw new Error("Failed to fetch");}
   return res.json();
 };
 
@@ -102,9 +102,9 @@ export default function CategoryDetailPage() {
       try {
         setLoading(true);
         const res = await fetch(`/api/category/${encodeURIComponent(title)}`);
-        if (!res.ok) throw new Error("Not found");
+        if (!res.ok) {throw new Error("Not found");}
         const json = await res.json();
-        if (!json.success || !json.category) throw new Error("Invalid response");
+        if (!json.success || !json.category) {throw new Error("Invalid response");}
         const c = json.category;
         setCategoryData({
           id: c.id,
@@ -145,7 +145,7 @@ export default function CategoryDetailPage() {
   ];
 
   const categoryFilteredStreams = useMemo(() => {
-    if (!categoryData) return [];
+    if (!categoryData) {return [];}
     const streams = data?.streams || [];
     return streams.filter(stream => {
       const matchesCategory =

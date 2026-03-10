@@ -31,7 +31,6 @@ export default function Navbar({ }: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { publicKey, isConnected, disconnect, privyWallet } = useStellarWallet();
   const { user, isLoading: authLoading } = useAuth();
@@ -46,14 +45,12 @@ export default function Navbar({ }: NavbarProps) {
   const [mounted, setMounted] = useState(false);
 
 
-  const walletPublicKey = publicKey;
-
   // Authenticated = Freighter wallet connected OR Privy (Google) session active
   const isAuthenticated = isConnected || !!privyWallet;
 
   // safe sessionStorage parse
   const getSessionData = useCallback(<T,>(key: string): T | null => {
-    if (typeof window === "undefined") return null;
+    if (typeof window === "undefined") {return null;}
     try {
       const data = sessionStorage.getItem(key);
       return data ? JSON.parse(data) : null;
@@ -64,29 +61,29 @@ export default function Navbar({ }: NavbarProps) {
 
   //  display name — privy user takes priority, then wallet user, then truncated key
   const getDisplayName = useCallback(() => {
-    if (privyWallet?.username) return privyWallet.username;
-    if (privyWallet?.displayName) return privyWallet.displayName;
-    if (user?.username) return user.username;
+    if (privyWallet?.username) {return privyWallet.username;}
+    if (privyWallet?.displayName) {return privyWallet.displayName;}
+    if (user?.username) {return user.username;}
 
     const storedUser = getSessionData<{ username?: string }>("userData");
-    if (storedUser?.username) return storedUser.username;
+    if (storedUser?.username) {return storedUser.username;}
 
     // Fallback: privy_user in sessionStorage (page refresh before event fires)
     const privyStored = getSessionData<{ username?: string }>("privy_user");
-    if (privyStored?.username) return privyStored.username;
+    if (privyStored?.username) {return privyStored.username;}
 
-    if (publicKey) return `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}`;
+    if (publicKey) {return `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}`;}
 
     return "Unknown User";
   }, [privyWallet, user?.username, publicKey, getSessionData]);
 
   // avatar logic — privy user takes priority
   const getAvatar = useCallback(() => {
-    if (privyWallet?.avatar) return privyWallet.avatar;
-    if (user?.avatar) return user.avatar;
+    if (privyWallet?.avatar) {return privyWallet.avatar;}
+    if (user?.avatar) {return user.avatar;}
 
     const storedUser = getSessionData<{ avatar?: string }>("userData");
-    if (storedUser?.avatar) return storedUser.avatar;
+    if (storedUser?.avatar) {return storedUser.avatar;}
 
     return Avatar;
   }, [privyWallet, user?.avatar, getSessionData]);
@@ -104,7 +101,7 @@ export default function Navbar({ }: NavbarProps) {
   useEffect(() => {
     setMounted(true);
     const hasPrivySession = !!sessionStorage.getItem("privy_user");
-    if (hasPrivySession) setIsLoading(false);
+    if (hasPrivySession) {setIsLoading(false);}
   }, []);
 
   useEffect(() => {
@@ -161,15 +158,15 @@ export default function Navbar({ }: NavbarProps) {
   }, [searchQuery]);
 
   const handleConnectWallet = () => {
-    if (isConnected) disconnect();
-    else setIsModalOpen(true);
+    if (isConnected) {disconnect();}
+    else {setIsModalOpen(true);}
   };
 
   const toggleProfileDropdown = () => setIsProfileDropdownOpen(!isProfileDropdownOpen);
 
   // Profile modal logic — only for Freighter wallet users (Privy users use /onboarding page)
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading) {return;}
     if (!isConnected || !publicKey || hasCheckedProfile || !!privyWallet) {
       setIsLoading(false);
       return;
@@ -177,7 +174,7 @@ export default function Navbar({ }: NavbarProps) {
 
     setHasCheckedProfile(true);
 
-    if (!user) setProfileModalOpen(true);
+    if (!user) {setProfileModalOpen(true);}
     else {
       sessionStorage.setItem("userData", JSON.stringify(user));
       sessionStorage.setItem("username", user.username);
@@ -187,7 +184,7 @@ export default function Navbar({ }: NavbarProps) {
   }, [isConnected, publicKey, authLoading, user, hasCheckedProfile]);
 
   useEffect(() => {
-    if (isConnected) setIsModalOpen(false);
+    if (isConnected) {setIsModalOpen(false);}
   }, [isConnected]);
 
 

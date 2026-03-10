@@ -67,7 +67,7 @@ export default function StreamInfoModal({
 
   const handleAddTag = () => {
     const trimmed = newTag.trim();
-    if (!trimmed || tags.length >= 4 || tags.includes(trimmed)) return;
+    if (!trimmed || tags.length >= 4 || tags.includes(trimmed)) {return;}
     setTags([...tags, trimmed]);
     setNewTag("");
   };
@@ -88,7 +88,7 @@ export default function StreamInfoModal({
     }
     const reader = new FileReader();
     reader.onload = e => {
-      if (e.target?.result) setThumbnailPreview(e.target.result as string);
+      if (e.target?.result) {setThumbnailPreview(e.target.result as string);}
     };
     reader.readAsDataURL(file);
     setThumbnailFile(file);
@@ -96,7 +96,7 @@ export default function StreamInfoModal({
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) processFile(file);
+    if (file) {processFile(file);}
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -108,7 +108,7 @@ export default function StreamInfoModal({
     e.preventDefault();
     e.stopPropagation();
     const file = e.dataTransfer.files?.[0];
-    if (file) processFile(file);
+    if (file) {processFile(file);}
   };
 
   const onSubmit = (data: StreamInfoFormData) => {
@@ -119,7 +119,7 @@ export default function StreamInfoModal({
     <AnimatePresence>
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-        onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+        onClick={e => { if (e.target === e.currentTarget) {onClose();} }}
       >
         <motion.div
           className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-xl"

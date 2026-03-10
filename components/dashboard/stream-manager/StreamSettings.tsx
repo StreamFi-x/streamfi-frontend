@@ -13,7 +13,7 @@ export default function StreamSettings() {
   const [copied, setCopied] = useState(false);
 
   const copyAddress = () => {
-    if (!walletAddress) return;
+    if (!walletAddress) {return;}
     navigator.clipboard.writeText(walletAddress);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

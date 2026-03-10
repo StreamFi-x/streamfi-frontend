@@ -3,17 +3,7 @@ import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { fetchPaymentsReceived } from '@/lib/stellar/horizon';
 
-interface RefreshTotalRequest {
-    username: string;
-}
 
-interface RefreshTotalResponse {
-    username: string;
-    totalReceived: string;
-    totalCount: number;
-    lastTipAt: string | null;
-    refreshedAt: string;
-}
 
 export async function POST(request: Request) {
     try {

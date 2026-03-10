@@ -13,19 +13,9 @@ interface ChannelAboutProps {
 
 const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
   // Mock data - would be fetched from API in a real implementation
-  // const userData = {
-  //   username,
-  //   followers: 2000,
-  //   avatarUrl: "/placeholder.svg?height=64&width=64",
-  //   bio: "Chidinma Cassandra is a seasoned product designer that has been designing didigtal products and creating seamless experiences for users intercating with blockchain and web 3 products. Chidinma Cassandra is a seasoned product designer that has been designing didigtal products and creating seamless experiences for users intercating with blockchain and web 3 products",
-  //   socialLinks: {
-  //     twitter: "https://twitter.com/kassinma",
-  //     instagram: "https://instagram.com/kass_dinma",
-  //     discord: "https://discord.gg/kassinma",
-  //   },
-  // };
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userExists, setUserExists] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
@@ -48,7 +38,7 @@ const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
         console.log("Fetched user data:", data.user);
         console.log("User data:", data.user?.username);
         console.log("Logged in username:", loggedInUsername);
-      } catch (error) {
+      } catch {
         toast.error("Failed to fetch user data");
         setUserExists(false);
       } finally {
@@ -90,7 +80,7 @@ const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
       } else {
         toast.error(result.error || "Failed to follow");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network error while following");
     } finally {
       setFollowLoading(false);
@@ -130,7 +120,7 @@ const ChannelAbout = ({ username, isLive, streamTitle }: ChannelAboutProps) => {
       } else {
         toast.error(result.error || "Failed to unfollow");
       }
-    } catch (error) {
+    } catch {
       toast.error("Network error while unfollowing");
     } finally {
       setFollowLoading(false);

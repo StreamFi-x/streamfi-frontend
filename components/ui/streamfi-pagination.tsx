@@ -1,4 +1,3 @@
-import page from "@/app/explore/trending/page";
 import {
   PaginationContent,
   PaginationEllipsis,
@@ -26,13 +25,13 @@ const Pagination = ({
   showPrevNext,
   className,
 }: PaginationProps) => {
-  if (totalPages <= 1) return null;
+  if (totalPages <= 1) {return null;}
 
   const getVisiblePages = () => {
     const pages = [];
     const halfVisible = Math.ceil(maxVisiblePages / 2);
     let startPage = Math.max(1, currentPage - halfVisible);
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
     if (endPage - startPage + 1 < maxVisiblePages) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
@@ -47,12 +46,12 @@ const Pagination = ({
 
     // Middle pages
     for (let i = startPage; i <= endPage; i++) {
-      if (i > 0 && i <= totalPages) pages.push(i);
+      if (i > 0 && i <= totalPages) {pages.push(i);}
     }
 
     // Always show last page
     if (endPage < totalPages) {
-      if (endPage < totalPages - 1) pages.push("ellipsis-end");
+      if (endPage < totalPages - 1) {pages.push("ellipsis-end");}
       pages.push(totalPages);
     }
 
@@ -70,7 +69,7 @@ const Pagination = ({
               href="#"
               onClick={e => {
                 e.preventDefault();
-                if (currentPage > 1) onPageChange(currentPage - 1);
+                if (currentPage > 1) {onPageChange(currentPage - 1);}
               }}
               aria-disabled={currentPage <= 1}
               className={
@@ -108,7 +107,7 @@ const Pagination = ({
               href="#"
               onClick={e => {
                 e.preventDefault();
-                if (currentPage < totalPages) onPageChange(currentPage + 1);
+                if (currentPage < totalPages) {onPageChange(currentPage + 1);}
               }}
               aria-disabled={currentPage >= totalPages}
               className={

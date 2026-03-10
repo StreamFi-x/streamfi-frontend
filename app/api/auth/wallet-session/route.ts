@@ -9,7 +9,7 @@ const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
 
 function getSecret(): string {
   const s = process.env.SESSION_SECRET;
-  if (!s) throw new Error("SESSION_SECRET env var is required");
+  if (!s) {throw new Error("SESSION_SECRET env var is required");}
   return s;
 }
 

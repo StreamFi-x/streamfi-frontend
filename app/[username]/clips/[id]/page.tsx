@@ -31,22 +31,22 @@ interface UserData {
 }
 
 function formatDuration(seconds: number | null): string {
-  if (!seconds) return "";
+  if (!seconds) {return "";}
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  if (h > 0) {return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;}
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / 86400000);
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) return `${Math.floor(days / 7)} week${Math.floor(days / 7) > 1 ? "s" : ""} ago`;
-  if (days < 365) return `${Math.floor(days / 30)} month${Math.floor(days / 30) > 1 ? "s" : ""} ago`;
+  if (days === 0) {return "Today";}
+  if (days === 1) {return "Yesterday";}
+  if (days < 7) {return `${days} days ago`;}
+  if (days < 30) {return `${Math.floor(days / 7)} week${Math.floor(days / 7) > 1 ? "s" : ""} ago`;}
+  if (days < 365) {return `${Math.floor(days / 30)} month${Math.floor(days / 30) > 1 ? "s" : ""} ago`;}
   return `${Math.floor(days / 365)} year${Math.floor(days / 365) > 1 ? "s" : ""} ago`;
 }
 
@@ -81,7 +81,7 @@ const ClipPlayerPage = ({ params }: PageProps) => {
           setNotFound404(true);
           return;
         }
-        if (!recRes.ok) throw new Error("Failed to fetch recording");
+        if (!recRes.ok) {throw new Error("Failed to fetch recording");}
 
         const recData = await recRes.json();
         setRecording(recData.recording);
@@ -155,7 +155,7 @@ const ClipPlayerPage = ({ params }: PageProps) => {
     }
   };
 
-  if (notFound404) return notFound();
+  if (notFound404) {return notFound();}
 
   const isOwner = loggedInUsername?.toLowerCase() === username.toLowerCase();
   const title = recording

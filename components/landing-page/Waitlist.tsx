@@ -41,29 +41,29 @@ export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProp
       },
       { threshold: 0.1 }
     );
-    if (sectionRef.current) observer.observe(sectionRef.current);
+    if (sectionRef.current) {observer.observe(sectionRef.current);}
     return () => observer.disconnect();
   }, []);
 
   const validateEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
 
   useEffect(() => {
-    if (!emailTouched) return;
+    if (!emailTouched) {return;}
     let error = "";
-    if (!email) error = "Email is required";
-    else if (!validateEmail(email)) error = "Please enter a valid email address";
+    if (!email) {error = "Email is required";}
+    else if (!validateEmail(email)) {error = "Please enter a valid email address";}
     setEmailError(error);
     if (error) {
       setShowError(true);
       setShowErrorStyling(true);
-      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      if (errorTimeoutRef.current) {clearTimeout(errorTimeoutRef.current);}
       errorTimeoutRef.current = setTimeout(() => {
         setShowError(false);
         setShowErrorStyling(false);
       }, 3000);
     }
     return () => {
-      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      if (errorTimeoutRef.current) {clearTimeout(errorTimeoutRef.current);}
     };
   }, [email, emailTouched]);
 
@@ -75,7 +75,7 @@ export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProp
       setEmailError(error);
       setShowError(true);
       setShowErrorStyling(true);
-      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      if (errorTimeoutRef.current) {clearTimeout(errorTimeoutRef.current);}
       errorTimeoutRef.current = setTimeout(() => {
         setShowError(false);
         setShowErrorStyling(false);
@@ -101,9 +101,9 @@ export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProp
         }
         if (!response.ok) {
           let msg = data?.error || "Failed to join waitlist";
-          if (response.status === 429) msg = "Too many attempts. Please try again later.";
-          else if (response.status === 400) msg = data?.error || "Invalid email format";
-          else if (response.status === 500) msg = "Server error. Our team has been notified.";
+          if (response.status === 429) {msg = "Too many attempts. Please try again later.";}
+          else if (response.status === 400) {msg = data?.error || "Invalid email format";}
+          else if (response.status === 500) {msg = "Server error. Our team has been notified.";}
           throw new Error(msg);
         }
         if (data?.alreadySubscribed) {

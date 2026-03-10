@@ -8,7 +8,7 @@ interface PageProps {
   params: Promise<{ username: string }>;
 }
 
-const fetchVideos = async (_username: string) => {
+const fetchVideos = async () => {
   await new Promise(resolve => setTimeout(resolve, 500));
   return [];
 };
@@ -28,7 +28,7 @@ const VideosPage = ({ params }: PageProps) => {
     const getVideos = async () => {
       try {
         setLoading(true);
-        const data = await fetchVideos(username);
+        const data = await fetchVideos();
         setVideos(data);
       } catch (error) {
         console.error("Failed to fetch videos:", error);

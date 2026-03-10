@@ -20,6 +20,7 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
     currentAvatar
   );
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,7 +44,7 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {return;}
 
     const file = files[0];
 

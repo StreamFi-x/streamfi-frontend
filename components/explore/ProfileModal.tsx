@@ -85,7 +85,7 @@ export default function ProfileModal({
       }
     }
 
-    if (!isValid) return;
+    if (!isValid) {return;}
 
     setIsLoading(true);
 
@@ -188,7 +188,7 @@ export default function ProfileModal({
   const handleCodePaste = (e: React.ClipboardEvent<HTMLInputElement>, startIndex: number) => {
     e.preventDefault();
     const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6 - startIndex);
-    if (!digits) return;
+    if (!digits) {return;}
     const newCode = [...verificationCode];
     digits.split("").forEach((char, i) => {
       newCode[startIndex + i] = char;

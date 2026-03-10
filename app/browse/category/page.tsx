@@ -44,7 +44,7 @@ export default function BrowseCategoryPage() {
         setLoading(true);
         setError(null);
         const response = await fetch("/api/category");
-        if (!response.ok) throw new Error("Failed to fetch categories");
+        if (!response.ok) {throw new Error("Failed to fetch categories");}
         const data = await response.json();
         // API returns lowercase `imageurl` — normalize to `imageUrl` for CategoryCard.
         // Filter out example.com placeholder URLs that aren't real images.

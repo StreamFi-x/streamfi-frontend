@@ -277,7 +277,7 @@ const StreamPreferencesPage: React.FC = () => {
   };
 
   const handleRecordingToggle = async () => {
-    if (!address || recordingToggleSaving) return;
+    if (!address || recordingToggleSaving) {return;}
     const newValue = !enableRecording;
     setRecordingToggleSaving(true);
     try {
@@ -287,7 +287,7 @@ const StreamPreferencesPage: React.FC = () => {
         method: "PUT",
         body: formData,
       });
-      if (!res.ok) throw new Error("Failed to update");
+      if (!res.ok) {throw new Error("Failed to update");}
       setEnableRecording(newValue);
     } catch (e) {
       console.error("Failed to update recording preference:", e);
@@ -315,7 +315,7 @@ const StreamPreferencesPage: React.FC = () => {
   };
 
   const handleGenerateStreamKey = async () => {
-    if (!address) return;
+    if (!address) {return;}
     setProvisioning(true);
     try {
       const res = await fetch("/api/streams/create", {

@@ -20,7 +20,7 @@ export async function GET(
           WHERE LOWER(username) = ${normalizedUsername} OR wallet = ${username}
         `;
 
-        let stats = result.rows[0];
+        const stats = result.rows[0];
 
         // If user doesn't exist in DB but has a valid Stellar public key, 
         // return empty stats instead of 404 to allow the UI to render.

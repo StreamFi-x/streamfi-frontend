@@ -75,7 +75,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         <Link
           href={href}
           className={
-            state == "disabled" || loading ? "pointer-events-none" : ""
+            state === "disabled" || loading ? "pointer-events-none" : ""
           }
         >
           <Comp

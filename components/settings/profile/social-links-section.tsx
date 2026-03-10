@@ -140,20 +140,20 @@ export function SocialLinksSection({
   };
 
   const detectPlatformFromUrl = (url: string): Platform | null => {
-    if (!url) return null;
+    if (!url) {return null;}
 
     const domain = url.toLowerCase();
-    if (domain.includes("instagram")) return "instagram";
+    if (domain.includes("instagram")) {return "instagram";}
     if (domain.includes("twitter") || domain.includes("x.com"))
-      return "twitter";
+      {return "twitter";}
     if (domain.includes("facebook") || domain.includes("fb.com"))
-      return "facebook";
+      {return "facebook";}
     if (domain.includes("youtube") || domain.includes("youtu.be"))
-      return "youtube";
+      {return "youtube";}
     if (domain.includes("telegram") || domain.includes("t.me"))
-      return "telegram";
-    if (domain.includes("discord")) return "discord";
-    if (domain.includes("tiktok")) return "tiktok";
+      {return "telegram";}
+    if (domain.includes("discord")) {return "discord";}
+    if (domain.includes("tiktok")) {return "tiktok";}
     return "other";
   };
 
@@ -217,7 +217,7 @@ export function SocialLinksSection({
   const handleUpdateLink = () => {
     const { editingLink, editingTitle, editingIndex } = editState;
 
-    if (editingIndex === null) return;
+    if (editingIndex === null) {return;}
 
     const validatedLink = validateAndIdentifyLink(editingLink, editingTitle);
 
@@ -261,7 +261,7 @@ export function SocialLinksSection({
   const handleCancelEdit = () => {
     const { editingIndex } = editState;
 
-    if (editingIndex === null) return;
+    if (editingIndex === null) {return;}
 
     const newLinks = [...socialLinks];
     newLinks[editingIndex] = { ...newLinks[editingIndex], isEditing: false };

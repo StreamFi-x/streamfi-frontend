@@ -141,7 +141,7 @@ export async function POST(req: Request) {
         const assetId = event.data?.id;
         const playbackIds = event.data?.playback_ids as Array<{ id?: string }> | undefined;
         const playbackId = Array.isArray(playbackIds) ? playbackIds[0]?.id : undefined;
-        const duration = event.data?.duration != null ? Math.round(event.data.duration) : null;
+        const duration = event.data?.duration !== null && event.data?.duration !== undefined ? Math.round(event.data.duration) : null;
         const liveStreamId = event.data?.live_stream_id ?? event.data?.live_stream?.id;
 
         if (!assetId || !playbackId) {

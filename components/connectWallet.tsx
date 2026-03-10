@@ -119,7 +119,7 @@ export default function ConnectWalletModal({
   };
 
   const requestClose = () => {
-    if (isLoading || isConnecting) return;
+    if (isLoading || isConnecting) {return;}
     if (!isConnected) {
       setShowConfirm(true);
     } else {
@@ -145,7 +145,7 @@ export default function ConnectWalletModal({
       walletError.includes("extension")) &&
     selectedWalletInfo?.installUrl;
 
-  if (!isModalOpen) return null;
+  if (!isModalOpen) {return null;}
 
   return (
     <div

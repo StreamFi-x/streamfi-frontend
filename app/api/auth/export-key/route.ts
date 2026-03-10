@@ -37,7 +37,7 @@ function getEncryptionKey(): Buffer {
  */
 function decryptSecret(encrypted: string): string {
   const parts = encrypted.split(":");
-  if (parts.length !== 3) throw new Error("Invalid encrypted format");
+  if (parts.length !== 3) {throw new Error("Invalid encrypted format");}
 
   const [ivHex, authTagHex, ciphertextHex] = parts;
   const key = getEncryptionKey();
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
   // 2. Verify session
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   // 3. Only custodial (Privy) users have an encrypted key to export
   if (!session.privyId) {

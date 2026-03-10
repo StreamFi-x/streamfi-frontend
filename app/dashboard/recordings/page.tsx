@@ -16,14 +16,14 @@ interface Recording {
 }
 
 function formatDuration(seconds: number | null): string {
-  if (seconds == null || seconds <= 0) return "—";
+  if (seconds === null || seconds === undefined || seconds <= 0) {return "—";}
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 function formatDate(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) {return "—";}
   try {
     return new Date(iso).toLocaleDateString(undefined, {
       dateStyle: "medium",
@@ -51,7 +51,7 @@ export default function RecordingsPage() {
       try {
         const res = await fetch(`/api/streams/recordings/${walletAddress}`);
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to fetch");
+        if (!res.ok) {throw new Error(data.error || "Failed to fetch");}
         setRecordings(data.recordings ?? []);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load recordings");

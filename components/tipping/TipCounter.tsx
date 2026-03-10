@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import useSWR, { mutate } from "swr";
+import useSWR from "swr";
 import {
     TrendingUp,
     Coins,
@@ -11,7 +11,6 @@ import {
     RefreshCcw,
     AlertCircle,
     Gift,
-    ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
@@ -92,6 +91,7 @@ export const TipCounterError = ({ message, onRetry }: { message: string, onRetry
     );
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const TipCounterEmpty = ({ variant, username }: { variant: 'compact' | 'default' | 'large', username: string }) => {
     return (
         <div className={cn(
@@ -143,13 +143,13 @@ export function TipCounter({
     const fetchPrice = useCallback(async () => {
         try {
             const res = await fetch("/api/prices/xlm");
-            if (!res.ok) throw new Error("Price fetch failed");
+            if (!res.ok) {throw new Error("Price fetch failed");}
             const json = await res.json();
             setXlmPrice(json.price);
         } catch (err) {
             console.error("Failed to fetch XLM price", err);
             // Fallback price if API fails (approximate current value)
-            if (!xlmPrice) setXlmPrice(0.08);
+            if (!xlmPrice) {setXlmPrice(0.08);}
         }
     }, [xlmPrice]);
 
@@ -183,7 +183,7 @@ export function TipCounter({
         }
     };
 
-    if (isLoading) return <TipCounterSkeleton variant={variant} />;
+    if (isLoading) {return <TipCounterSkeleton variant={variant} />;}
     if (error) {
         return (
             <TipCounterError

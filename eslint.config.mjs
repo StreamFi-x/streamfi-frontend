@@ -10,6 +10,9 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  {
+    ignores: [".next/**", "dist/**", "build/**", "coverage/**", ".turbo/**", "node_modules/**"],
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     rules: {
@@ -17,7 +20,7 @@ const eslintConfig = [
       "no-console": "warn", // Warn about console.log statements
       "no-debugger": "error", // Error on debugger statements
       "no-unused-vars": "off", // Turn off base rule as it conflicts with TypeScript
-      "no-undef": "error", // Error on undefined variables
+      "no-undef": "off", // TypeScript's compiler handles undefined-variable checking
       "prefer-const": "error", // Prefer const over let when possible
       "no-var": "error", // Don't allow var declarations
 

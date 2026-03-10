@@ -70,7 +70,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Update effective theme based on theme setting
   useEffect(() => {
-    if (!isInitialized) return;
+    if (!isInitialized) {return;}
 
     const updateEffectiveTheme = () => {
       let newEffectiveTheme: "light" | "dark";

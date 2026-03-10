@@ -18,6 +18,7 @@ const StreamKeyConfirmationModal: React.FC<StreamKeyConfirmationModalProps> = ({
   onClose,
   onConfirm,
 }) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [hasConfirmed, setHasConfirmed] = useState(false);
 
   useEffect(() => {

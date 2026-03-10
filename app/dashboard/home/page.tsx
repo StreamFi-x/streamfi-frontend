@@ -56,7 +56,7 @@ export default function DashboardHome() {
     );
 
     useEffect(() => {
-        if (userData?.user?.username) setUsername(userData.user.username);
+        if (userData?.user?.username) {setUsername(userData.user.username);}
     }, [userData]);
 
     const effectiveUsername = username || walletAddress || "User";

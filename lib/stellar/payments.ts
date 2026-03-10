@@ -226,7 +226,7 @@ export async function hasInsufficientBalance(
     const server = getServer(network);
     const account = await server.loadAccount(publicKey);
     const nativeBalance = account.balances.find(b => b.asset_type === "native");
-    if (!nativeBalance) return true;
+    if (!nativeBalance) {return true;}
 
     const balance = parseFloat(nativeBalance.balance);
     const required = parseFloat(amount) + calculateFeeEstimate();

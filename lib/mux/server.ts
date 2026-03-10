@@ -141,12 +141,14 @@ export async function getPlaybackUrl(playbackId: string) {
  * This function is a no-op intentionally — recording changes take effect the
  * next time a Mux stream is created for this user.
  */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 export async function updateMuxStreamRecording(
   _streamId: string,
   _enable: boolean
 ): Promise<{ success: true }> {
   return { success: true };
 }
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 export async function enableMuxStreamRecording(streamId: string) {
   try {

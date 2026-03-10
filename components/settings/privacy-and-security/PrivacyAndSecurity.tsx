@@ -176,7 +176,7 @@ const VerifyEmailModal: React.FC<{
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>, startIndex: number) => {
     e.preventDefault();
     const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6 - startIndex);
-    if (!digits) return;
+    if (!digits) {return;}
     const newCode = [...code];
     digits.split("").forEach((char, i) => { newCode[startIndex + i] = char; });
     setCode(newCode);
@@ -620,7 +620,7 @@ const PrivacySecurityPage: React.FC = () => {
   };
 
   const handleCopyKey = () => {
-    if (!exportedKey) return;
+    if (!exportedKey) {return;}
     navigator.clipboard.writeText(exportedKey).then(() => {
       setKeyCopied(true);
       setTimeout(() => setKeyCopied(false), 2000);

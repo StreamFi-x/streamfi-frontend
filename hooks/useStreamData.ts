@@ -14,11 +14,11 @@ export interface StreamData {
 
 const fetcher = async (url: string): Promise<StreamData | null> => {
   const res = await fetch(url);
-  if (!res.ok) throw new Error("Failed to fetch");
+  if (!res.ok) {throw new Error("Failed to fetch");}
   const data = await res.json();
   const stream = data.streamData?.stream;
   const user = data.streamData?.user;
-  if (!stream) return null;
+  if (!stream) {return null;}
   return {
     streamKey:      stream.streamKey  ?? "",
     rtmpUrl:        stream.rtmpUrl    ?? null,

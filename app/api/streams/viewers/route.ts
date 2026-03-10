@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     // --- Deduplicate: check if this viewer session is already counted ---
     // Wrapped in try/catch so a missing stream_viewers table never blocks the count.
-    let alreadyCounted = false;
+    const alreadyCounted = false;
     try {
       const existingViewer = await sql`
         SELECT id FROM stream_viewers

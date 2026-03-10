@@ -73,6 +73,7 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
         confirmationAmount = amount;
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const handleConfirmationClose = () => {
         confirmationOpen = false;
       };
@@ -85,6 +86,7 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
       });
 
       // Render TipButton
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { rerender } = render(
         <TipButton
           recipientUsername={mockRecipient.username}
@@ -160,7 +162,7 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
     });
 
     it("should handle wallet disconnection during transaction", async () => {
-      let modalOpen = true;
+      const modalOpen = true;
 
       (stellarPayments.buildTipTransaction as jest.Mock).mockRejectedValue(
         new Error("Wallet disconnected")
@@ -245,9 +247,11 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
   describe("Error Recovery Flow", () => {
     it("should allow retry after error", async () => {
       let confirmationOpen = false;
-      let confirmationState: "success" | "error" = "error";
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const confirmationState: "success" | "error" = "error";
       let modalOpen = false;
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const handleConfirmationClose = () => {
         confirmationOpen = false;
       };
@@ -257,6 +261,7 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
         modalOpen = true;
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { rerender } = render(
         <TipConfirmation
           isOpen={true}

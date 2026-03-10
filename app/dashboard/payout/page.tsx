@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import useSWR from "swr";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { TipCounter } from "@/components/tipping";
 import {
@@ -43,7 +44,7 @@ export default function PayoutPage() {
     );
 
     useEffect(() => {
-        if (userData?.user?.username) setUsername(userData.user.username);
+        if (userData?.user?.username) {setUsername(userData.user.username);}
     }, [userData]);
 
     const effectiveUsername = username || walletAddress || "User";
@@ -64,11 +65,11 @@ export default function PayoutPage() {
     const fetchPrice = useCallback(async () => {
         try {
             const res = await fetch("/api/prices/xlm");
-            if (!res.ok) throw new Error();
+            if (!res.ok) {throw new Error();}
             const json = await res.json();
             setXlmPrice(json.price);
         } catch {
-            if (!xlmPrice) setXlmPrice(0.08);
+            if (!xlmPrice) {setXlmPrice(0.08);}
         }
     }, [xlmPrice]);
 
@@ -79,7 +80,7 @@ export default function PayoutPage() {
     }, [fetchPrice]);
 
     const handleCopy = () => {
-        if (!walletAddress) return;
+        if (!walletAddress) {return;}
         navigator.clipboard.writeText(walletAddress);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -246,12 +247,12 @@ export default function PayoutPage() {
                             <p className="text-xs text-blue-300 leading-relaxed">
                                 This is your custodial Stellar wallet managed by StreamFi. To send
                                 or withdraw funds, export your private key from{" "}
-                                <a
+                                <Link
                                     href="/settings/privacy"
                                     className="underline font-semibold hover:text-blue-100 transition-colors"
                                 >
                                     Settings → Privacy &amp; Security
-                                </a>{" "}
+                                </Link>{" "}
                                 and import it into a wallet like{" "}
                                 <a
                                     href="https://www.freighter.app"

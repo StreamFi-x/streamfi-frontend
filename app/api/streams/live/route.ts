@@ -66,7 +66,7 @@ export async function GET(req: Request) {
     // Followed streams bubble to top; within each group sort by viewer count
     if (viewerWallet) {
       streams.sort((a, b) => {
-        if (a.isFollowing !== b.isFollowing) return a.isFollowing ? -1 : 1;
+        if (a.isFollowing !== b.isFollowing) {return a.isFollowing ? -1 : 1;}
         return b.viewerCount - a.viewerCount;
       });
     }

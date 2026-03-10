@@ -19,7 +19,7 @@ export default function OnboardingPage() {
 
   // Redirect unauthenticated visitors away
   useEffect(() => {
-    if (!ready) return;
+    if (!ready) {return;}
     if (!authenticated) {
       router.replace("/");
     }
@@ -31,9 +31,9 @@ export default function OnboardingPage() {
       const stored = sessionStorage.getItem("privy_user");
       if (stored) {
         const u = JSON.parse(stored);
-        if (u?.email) setPrivyEmail(u.email);
+        if (u?.email) {setPrivyEmail(u.email);}
         // If username is already set, onboarding is complete — go to dashboard
-        if (u?.username) router.replace("/explore");
+        if (u?.username) {router.replace("/explore");}
       }
     } catch {
       // ignore parse errors
@@ -51,7 +51,7 @@ export default function OnboardingPage() {
         currentStep={step}
         onClose={() => router.replace("/")}
         onNextStep={setStep}
-        setIsProfileModalOpen={open => { if (!open) router.replace("/"); }}
+        setIsProfileModalOpen={open => { if (!open) {router.replace("/");} }}
         mode="privy"
         privyEmail={privyEmail}
       />

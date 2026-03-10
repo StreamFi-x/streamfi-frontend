@@ -24,7 +24,7 @@ const AboutPage = ({ params }: PageProps) => {
         }
         const data = await response.json();
         setUserData(data.user);
-      } catch (error) {
+      } catch {
         toast.error("Failed to fetch user data");
         setUserExists(false);
       } finally {

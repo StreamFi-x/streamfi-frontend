@@ -74,6 +74,7 @@ describe("TipButton", () => {
     });
 
     it("should not render when recipientPublicKey is missing", () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { recipientPublicKey, ...propsWithoutKey } = mockProps;
       render(<TipButton {...propsWithoutKey as any} />);
 

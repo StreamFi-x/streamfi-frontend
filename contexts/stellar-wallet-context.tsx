@@ -66,7 +66,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   // (including Lobstr/WalletConnect) appear connected on page reload without
   // waiting for the async wallet SDK to re-establish its session.
   const [publicKey, setPublicKey] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
+    if (typeof window === "undefined") {return null;}
     const autoConnect = localStorage.getItem("stellar_auto_connect") === "true";
     const cachedAddress = localStorage.getItem("stellar_address");
     return autoConnect && cachedAddress ? cachedAddress : null;
@@ -80,7 +80,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ user: PrivySessionUser }>).detail;
-      if (detail?.user) setPrivyWallet(detail.user);
+      if (detail?.user) {setPrivyWallet(detail.user);}
     };
     window.addEventListener("privy-wallet-set", handler);
 
@@ -234,7 +234,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
 
     const timeoutId = window.setTimeout(() => {
       const restoreConnection = async () => {
-        if (cancelled) return;
+        if (cancelled) {return;}
         setIsConnecting(true);
         setError(null);
         try {
