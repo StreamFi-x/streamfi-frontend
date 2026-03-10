@@ -67,7 +67,9 @@ export default function StreamInfoModal({
 
   const handleAddTag = () => {
     const trimmed = newTag.trim();
-    if (!trimmed || tags.length >= 4 || tags.includes(trimmed)) {return;}
+    if (!trimmed || tags.length >= 4 || tags.includes(trimmed)) {
+      return;
+    }
     setTags([...tags, trimmed]);
     setNewTag("");
   };
@@ -88,7 +90,9 @@ export default function StreamInfoModal({
     }
     const reader = new FileReader();
     reader.onload = e => {
-      if (e.target?.result) {setThumbnailPreview(e.target.result as string);}
+      if (e.target?.result) {
+        setThumbnailPreview(e.target.result as string);
+      }
     };
     reader.readAsDataURL(file);
     setThumbnailFile(file);
@@ -96,7 +100,9 @@ export default function StreamInfoModal({
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {processFile(file);}
+    if (file) {
+      processFile(file);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -108,7 +114,9 @@ export default function StreamInfoModal({
     e.preventDefault();
     e.stopPropagation();
     const file = e.dataTransfer.files?.[0];
-    if (file) {processFile(file);}
+    if (file) {
+      processFile(file);
+    }
   };
 
   const onSubmit = (data: StreamInfoFormData) => {
@@ -119,7 +127,11 @@ export default function StreamInfoModal({
     <AnimatePresence>
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-        onClick={e => { if (e.target === e.currentTarget) {onClose();} }}
+        onClick={e => {
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
       >
         <motion.div
           className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-xl"
@@ -132,7 +144,9 @@ export default function StreamInfoModal({
           <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <Info className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-semibold text-foreground">Edit Stream Info</span>
+              <span className="text-sm font-semibold text-foreground">
+                Edit Stream Info
+              </span>
             </div>
             <button
               onClick={onClose}
@@ -146,7 +160,6 @@ export default function StreamInfoModal({
           {/* Body */}
           <div className="overflow-y-auto flex-1 p-4 scrollbar-hide">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-
               {/* Title */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
@@ -192,7 +205,10 @@ export default function StreamInfoModal({
               {/* Thumbnail */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Thumbnail <span className="text-muted-foreground normal-case font-normal">(1200×640, max 4MB)</span>
+                  Thumbnail{" "}
+                  <span className="text-muted-foreground normal-case font-normal">
+                    (1200×640, max 4MB)
+                  </span>
                 </label>
                 <div
                   className="border border-dashed border-border rounded-lg cursor-pointer hover:border-highlight transition-colors"
@@ -228,8 +244,12 @@ export default function StreamInfoModal({
                   ) : (
                     <div className="py-6 text-center">
                       <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-foreground">Drag & drop or click to upload</p>
-                      <p className="text-xs text-muted-foreground mt-1">JPEG, PNG, or WebP</p>
+                      <p className="text-sm text-foreground">
+                        Drag & drop or click to upload
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        JPEG, PNG, or WebP
+                      </p>
                     </div>
                   )}
                 </div>
@@ -248,7 +268,10 @@ export default function StreamInfoModal({
               {/* Tags */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Tags <span className="text-muted-foreground normal-case font-normal">(max 4)</span>
+                  Tags{" "}
+                  <span className="text-muted-foreground normal-case font-normal">
+                    (max 4)
+                  </span>
                 </label>
                 {tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-2">
@@ -275,7 +298,12 @@ export default function StreamInfoModal({
                     type="text"
                     value={newTag}
                     onChange={e => setNewTag(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddTag(); } }}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
                     placeholder="Add a tag"
                     disabled={tags.length >= 4}
                     className="flex-1 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-highlight focus:outline-none transition-colors disabled:opacity-50"
@@ -290,7 +318,9 @@ export default function StreamInfoModal({
                   </button>
                 </div>
                 {tags.length >= 4 && (
-                  <p className="text-xs text-yellow-500">Maximum 4 tags reached</p>
+                  <p className="text-xs text-yellow-500">
+                    Maximum 4 tags reached
+                  </p>
                 )}
               </div>
 

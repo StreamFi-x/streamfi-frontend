@@ -35,8 +35,13 @@ export default function StreamManagerPage() {
 
   // Format seconds into HH:MM:SS
   const formatElapsed = (startedAt: string | null, live: boolean): string => {
-    if (!live || !startedAt) {return "00:00:00";}
-    const elapsed = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000));
+    if (!live || !startedAt) {
+      return "00:00:00";
+    }
+    const elapsed = Math.max(
+      0,
+      Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
+    );
     const h = Math.floor(elapsed / 3600);
     const m = Math.floor((elapsed % 3600) / 60);
     const s = elapsed % 60;
@@ -46,13 +51,21 @@ export default function StreamManagerPage() {
   // Resolve username
   useEffect(() => {
     const stored = sessionStorage.getItem("username");
-    if (stored) { setUsername(stored); return; }
-    if (privyWallet?.username) {setUsername(privyWallet.username);}
+    if (stored) {
+      setUsername(stored);
+      return;
+    }
+    if (privyWallet?.username) {
+      setUsername(privyWallet.username);
+    }
   }, [privyWallet]);
 
   // Fetch stream data
   useEffect(() => {
-    if (!address) { setIsLoadingData(false); return; }
+    if (!address) {
+      setIsLoadingData(false);
+      return;
+    }
 
     const fetchStreamData = async () => {
       try {
@@ -85,12 +98,13 @@ export default function StreamManagerPage() {
     const startedAt = liveStreamData?.startedAt ?? null;
     const live = isLive;
     setStreamSession(formatElapsed(startedAt, live));
-    if (!live || !startedAt) {return;}
+    if (!live || !startedAt) {
+      return;
+    }
     const timer = setInterval(() => {
       setStreamSession(formatElapsed(startedAt, true));
     }, 1000);
     return () => clearInterval(timer);
-   
   }, [isLive, liveStreamData?.startedAt]);
 
   interface StreamInfoUpdate {
@@ -102,7 +116,10 @@ export default function StreamManagerPage() {
   }
 
   const handleStreamInfoUpdate = async (newData: StreamInfoUpdate) => {
-    if (!address) { showToast("Wallet not connected"); return; }
+    if (!address) {
+      showToast("Wallet not connected");
+      return;
+    }
     setIsSaving(true);
     try {
       const response = await fetch("/api/streams/update", {
@@ -149,9 +166,21 @@ export default function StreamManagerPage() {
       {/* Stats Bar */}
       <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 border-b border-border bg-card">
         <div className="flex items-center gap-2">
-          <StatsChip icon={<Users className="w-3.5 h-3.5" />} label="Viewers" value={liveStreamData?.currentViewers ?? 0} />
-          <StatsChip icon={<UserPlus className="w-3.5 h-3.5" />} label="Followers" value={liveStreamData?.followerCount ?? 0} />
-          <StatsChip icon={<Coins className="w-3.5 h-3.5" />} label="Tips" value={0} />
+          <StatsChip
+            icon={<Users className="w-3.5 h-3.5" />}
+            label="Viewers"
+            value={liveStreamData?.currentViewers ?? 0}
+          />
+          <StatsChip
+            icon={<UserPlus className="w-3.5 h-3.5" />}
+            label="Followers"
+            value={liveStreamData?.followerCount ?? 0}
+          />
+          <StatsChip
+            icon={<Coins className="w-3.5 h-3.5" />}
+            label="Tips"
+            value={0}
+          />
         </div>
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground font-mono">
           <Timer className="w-4 h-4" />
@@ -235,7 +264,9 @@ function StatsChip({
     >
       <div className="text-muted-foreground">{icon}</div>
       <span className="text-sm font-bold text-foreground">{value}</span>
-      <span className="text-xs text-muted-foreground hidden sm:block">{label}</span>
+      <span className="text-xs text-muted-foreground hidden sm:block">
+        {label}
+      </span>
     </motion.div>
   );
 }

@@ -37,7 +37,9 @@ function getEncryptionKey(): Buffer {
  */
 function decryptSecret(encrypted: string): string {
   const parts = encrypted.split(":");
-  if (parts.length !== 3) {throw new Error("Invalid encrypted format");}
+  if (parts.length !== 3) {
+    throw new Error("Invalid encrypted format");
+  }
 
   const [ivHex, authTagHex, ciphertextHex] = parts;
   const key = getEncryptionKey();
@@ -48,7 +50,10 @@ function decryptSecret(encrypted: string): string {
   const decipher = createDecipheriv("aes-256-gcm", key, iv);
   decipher.setAuthTag(authTag);
 
-  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+  return Buffer.concat([
+    decipher.update(ciphertext),
+    decipher.final(),
+  ]).toString("utf8");
 }
 
 // ─── POST handler ──────────────────────────────────────────────────────────────
@@ -69,7 +74,9 @@ export async function POST(req: NextRequest) {
 
   // 2. Verify session
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   // 3. Only custodial (Privy) users have an encrypted key to export
   if (!session.privyId) {
@@ -91,7 +98,10 @@ export async function POST(req: NextRequest) {
     encryptedKey = rows[0]?.encrypted_stellar_key ?? null;
   } catch (err) {
     console.error("[export-key] DB error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 
   if (!encryptedKey) {

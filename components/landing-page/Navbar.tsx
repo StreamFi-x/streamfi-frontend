@@ -29,7 +29,9 @@ export default function Navbar() {
   // privyAuthenticated (Privy context) differ between server and first client render.
   const isAuthenticated = mounted && (privyAuthenticated || stellarConnected);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleAuthClick = () => {
     if (isAuthenticated) {
@@ -68,7 +70,7 @@ export default function Navbar() {
 
           {/* Desktop nav links */}
           <ul className="hidden lg:flex items-center gap-1">
-            {navLinks.map((link) => (
+            {navLinks.map(link => (
               <li key={link.name}>
                 <Link
                   href={link.href}
@@ -108,7 +110,11 @@ export default function Navbar() {
               className="transition-all duration-200"
               style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}
             >
-              {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {isOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
             </div>
           </button>
         </div>
@@ -119,7 +125,7 @@ export default function Navbar() {
           style={{ maxHeight: isOpen ? "400px" : "0px" }}
         >
           <div className="border-t border-white/[0.07] px-4 py-4 space-y-1">
-            {navLinks.map((link) => (
+            {navLinks.map(link => (
               <Link
                 key={link.name}
                 href={link.href}
@@ -132,14 +138,20 @@ export default function Navbar() {
             <div className="pt-3 space-y-2">
               {!isAuthenticated && (
                 <button
-                  onClick={() => { setIsOpen(false); handleAuthClick(); }}
+                  onClick={() => {
+                    setIsOpen(false);
+                    handleAuthClick();
+                  }}
                   className="block w-full text-center px-4 py-3 text-sm text-white/60 border border-white/10 rounded-xl hover:bg-white/[0.06] transition-all duration-200"
                 >
                   Sign in
                 </button>
               )}
               <button
-                onClick={() => { setIsOpen(false); handleAuthClick(); }}
+                onClick={() => {
+                  setIsOpen(false);
+                  handleAuthClick();
+                }}
                 className="block w-full text-center px-4 py-3 text-sm font-semibold bg-white text-[#07060f] rounded-xl hover:bg-white/90 transition-all duration-200"
               >
                 {isAuthenticated ? "Go to app →" : "Get started →"}

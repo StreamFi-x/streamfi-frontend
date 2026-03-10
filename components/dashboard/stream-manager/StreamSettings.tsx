@@ -13,7 +13,9 @@ export default function StreamSettings() {
   const [copied, setCopied] = useState(false);
 
   const copyAddress = () => {
-    if (!walletAddress) {return;}
+    if (!walletAddress) {
+      return;
+    }
     navigator.clipboard.writeText(walletAddress);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -42,7 +44,9 @@ export default function StreamSettings() {
       <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Settings className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-semibold text-foreground">Tip Wallet</span>
+          <span className="text-sm font-semibold text-foreground">
+            Tip Wallet
+          </span>
         </div>
         <button
           onClick={() => setIsMinimized(true)}

@@ -33,7 +33,9 @@ const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
                 {streamTitle && (
                   <>
                     <br />
-                    <span className="text-muted-foreground text-sm font-normal">{streamTitle}</span>
+                    <span className="text-muted-foreground text-sm font-normal">
+                      {streamTitle}
+                    </span>
                   </>
                 )}
               </h2>

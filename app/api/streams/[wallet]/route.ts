@@ -106,10 +106,13 @@ export async function GET(
         : null,
     };
 
-    return NextResponse.json({ streamData: responseData }, {
-      status: 200,
-      headers: { "Cache-Control": "private, max-age=10" },
-    });
+    return NextResponse.json(
+      { streamData: responseData },
+      {
+        status: 200,
+        headers: { "Cache-Control": "private, max-age=10" },
+      }
+    );
   } catch (error) {
     console.error("Get stream error:", error);
     return NextResponse.json(

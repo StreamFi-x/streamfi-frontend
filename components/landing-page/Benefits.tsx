@@ -54,18 +54,22 @@ export default function Benefits() {
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
+      entries => {
+        entries.forEach(entry => {
           if (entry.isIntersecting) {
-            entry.target.querySelectorAll<HTMLElement>(".reveal").forEach((el, i) => {
-              setTimeout(() => el.classList.add("visible"), i * 90);
-            });
+            entry.target
+              .querySelectorAll<HTMLElement>(".reveal")
+              .forEach((el, i) => {
+                setTimeout(() => el.classList.add("visible"), i * 90);
+              });
           }
         });
       },
       { threshold: 0.08 }
     );
-    if (sectionRef.current) {observer.observe(sectionRef.current);}
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
     return () => observer.disconnect();
   }, []);
 
@@ -83,7 +87,8 @@ export default function Benefits() {
             <span className="text-gradient-purple">For creators.</span>
           </h2>
           <p className="reveal reveal-delay-2 text-white/45 text-base max-w-xl mx-auto leading-relaxed">
-            Everything you need to stream, earn, and grow without the platform taking its cut.
+            Everything you need to stream, earn, and grow without the platform
+            taking its cut.
           </p>
         </div>
 
@@ -109,7 +114,9 @@ function BentoCard({
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = cardRef.current;
-    if (!el) {return;}
+    if (!el) {
+      return;
+    }
     const rect = el.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -120,7 +127,9 @@ function BentoCard({
 
   const handleMouseLeave = () => {
     const el = cardRef.current;
-    if (el) {el.style.setProperty("--glow-opacity", "0");}
+    if (el) {
+      el.style.setProperty("--glow-opacity", "0");
+    }
   };
 
   return (
@@ -148,8 +157,12 @@ function BentoCard({
 
       {/* Top row */}
       <div className="relative flex items-start justify-between mb-6">
-        <span className={`text-3xl leading-none ${card.iconClass}`}>{card.icon}</span>
-        <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full border ${card.badgeClass}`}>
+        <span className={`text-3xl leading-none ${card.iconClass}`}>
+          {card.icon}
+        </span>
+        <span
+          className={`text-[10px] font-medium px-2.5 py-1 rounded-full border ${card.badgeClass}`}
+        >
           {card.tag}
         </span>
       </div>
@@ -158,7 +171,9 @@ function BentoCard({
       <h3 className="relative font-pp-neue font-bold text-xl text-white mb-3 leading-snug">
         {card.title}
       </h3>
-      <p className="relative text-white/50 text-sm leading-relaxed">{card.description}</p>
+      <p className="relative text-white/50 text-sm leading-relaxed">
+        {card.description}
+      </p>
     </div>
   );
 }

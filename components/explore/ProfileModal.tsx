@@ -85,7 +85,9 @@ export default function ProfileModal({
       }
     }
 
-    if (!isValid) {return;}
+    if (!isValid) {
+      return;
+    }
 
     setIsLoading(true);
 
@@ -97,7 +99,10 @@ export default function ProfileModal({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ username: displayName, bio: bio || undefined }),
+          body: JSON.stringify({
+            username: displayName,
+            bio: bio || undefined,
+          }),
         });
 
         const result = await response.json();
@@ -178,17 +183,28 @@ export default function ProfileModal({
   };
 
   // Backspace on empty box → go back one
-  const handleCodeKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleCodeKeyDown = (
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
     if (e.key === "Backspace" && !verificationCode[index] && index > 0) {
       document.getElementById(`code-${index - 1}`)?.focus();
     }
   };
 
   // Paste — distribute digits across all 6 boxes at once
-  const handleCodePaste = (e: React.ClipboardEvent<HTMLInputElement>, startIndex: number) => {
+  const handleCodePaste = (
+    e: React.ClipboardEvent<HTMLInputElement>,
+    startIndex: number
+  ) => {
     e.preventDefault();
-    const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6 - startIndex);
-    if (!digits) {return;}
+    const digits = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6 - startIndex);
+    if (!digits) {
+      return;
+    }
     const newCode = [...verificationCode];
     digits.split("").forEach((char, i) => {
       newCode[startIndex + i] = char;
@@ -268,7 +284,9 @@ export default function ProfileModal({
                   <label className="block text-sm font-medium text-gray-400">
                     Email Address
                     {isPrivyMode && (
-                      <span className="ml-2 text-xs text-green-400">✓ verified via Google</span>
+                      <span className="ml-2 text-xs text-green-400">
+                        ✓ verified via Google
+                      </span>
                     )}
                     {emailError && (
                       <p className="text-red-500 text-xs">{emailError}</p>
@@ -287,10 +305,13 @@ export default function ProfileModal({
                 {/* Custodial wallet notice — shown only for Privy users */}
                 {isPrivyMode && (
                   <div className="rounded-md border border-yellow-600/40 bg-yellow-900/20 px-4 py-3 text-xs text-yellow-300">
-                    <p className="font-semibold mb-1">A Stellar wallet will be created for you</p>
+                    <p className="font-semibold mb-1">
+                      A Stellar wallet will be created for you
+                    </p>
                     <p className="text-yellow-400/80">
-                      StreamFi will generate and securely manage a Stellar wallet on your behalf.
-                      You can export your private key from Settings at any time to take self-custody.
+                      StreamFi will generate and securely manage a Stellar
+                      wallet on your behalf. You can export your private key
+                      from Settings at any time to take self-custody.
                     </p>
                   </div>
                 )}
@@ -335,8 +356,8 @@ export default function ProfileModal({
               </h2>
               <p className="text-gray-400 text-sm leading-relaxed">
                 Enter the 6-digit code sent to{" "}
-                <span className="text-white font-medium">{email}</span>.
-                {" "}Valid for 5 minutes.
+                <span className="text-white font-medium">{email}</span>. Valid
+                for 5 minutes.
               </p>
             </div>
 

@@ -47,11 +47,36 @@ const utilities = [
 ];
 
 const tokenImages = [
-  { src: "/Images/tokens/token1.svg", size: 64, delay: "0s", pos: "top-6 right-16" },
-  { src: "/Images/tokens/token2.svg", size: 48, delay: "1s", pos: "bottom-12 left-10" },
-  { src: "/Images/tokens/token3.svg", size: 40, delay: "2s", pos: "top-1/3 left-6" },
-  { src: "/Images/tokens/token4.svg", size: 40, delay: "0.5s", pos: "top-1/3 right-6" },
-  { src: "/Images/tokens/token5.svg", size: 36, delay: "1.5s", pos: "bottom-1/4 right-12" },
+  {
+    src: "/Images/tokens/token1.svg",
+    size: 64,
+    delay: "0s",
+    pos: "top-6 right-16",
+  },
+  {
+    src: "/Images/tokens/token2.svg",
+    size: 48,
+    delay: "1s",
+    pos: "bottom-12 left-10",
+  },
+  {
+    src: "/Images/tokens/token3.svg",
+    size: 40,
+    delay: "2s",
+    pos: "top-1/3 left-6",
+  },
+  {
+    src: "/Images/tokens/token4.svg",
+    size: 40,
+    delay: "0.5s",
+    pos: "top-1/3 right-6",
+  },
+  {
+    src: "/Images/tokens/token5.svg",
+    size: 36,
+    delay: "1.5s",
+    pos: "bottom-1/4 right-12",
+  },
 ];
 
 export default function StreamTokenUtility() {
@@ -59,23 +84,31 @@ export default function StreamTokenUtility() {
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
+      entries => {
+        entries.forEach(entry => {
           if (entry.isIntersecting) {
-            entry.target.querySelectorAll<HTMLElement>(".reveal").forEach((el, i) => {
-              setTimeout(() => el.classList.add("visible"), i * 90);
-            });
+            entry.target
+              .querySelectorAll<HTMLElement>(".reveal")
+              .forEach((el, i) => {
+                setTimeout(() => el.classList.add("visible"), i * 90);
+              });
           }
         });
       },
       { threshold: 0.08 }
     );
-    if (sectionRef.current) {observer.observe(sectionRef.current);}
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
     return () => observer.disconnect();
   }, []);
 
   return (
-    <section id="stream-token-utility" className="py-24 px-4 relative" ref={sectionRef}>
+    <section
+      id="stream-token-utility"
+      className="py-24 px-4 relative"
+      ref={sectionRef}
+    >
       {/* Subtle bg gradient */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -152,10 +185,11 @@ export default function StreamTokenUtility() {
             </h2>
 
             <p className="reveal reveal-delay-2 text-white/45 text-sm leading-relaxed mb-6">
-              StreamFi runs on the Stellar network, one of the fastest blockchains on the
-              planet with 3–5 second finality and near-zero fees. Every tip, payout, and
-              stablecoin transaction settles instantly, so creators get paid the moment it
-              happens. No waiting. No gas wars.
+              StreamFi runs on the Stellar network, one of the fastest
+              blockchains on the planet with 3–5 second finality and near-zero
+              fees. Every tip, payout, and stablecoin transaction settles
+              instantly, so creators get paid the moment it happens. No waiting.
+              No gas wars.
             </p>
 
             {/* Stellar network stats */}
@@ -164,13 +198,17 @@ export default function StreamTokenUtility() {
                 { value: "3–5s", label: "Finality" },
                 { value: "~$0.00", label: "Fee per tx" },
                 { value: "USDC", label: "Stablecoin" },
-              ].map((stat) => (
+              ].map(stat => (
                 <div
                   key={stat.label}
                   className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-3 text-center"
                 >
-                  <p className="font-pp-neue font-bold text-white text-sm mb-0.5">{stat.value}</p>
-                  <p className="text-white/35 text-[10px] uppercase tracking-wide">{stat.label}</p>
+                  <p className="font-pp-neue font-bold text-white text-sm mb-0.5">
+                    {stat.value}
+                  </p>
+                  <p className="text-white/35 text-[10px] uppercase tracking-wide">
+                    {stat.label}
+                  </p>
                 </div>
               ))}
             </div>
@@ -181,12 +219,18 @@ export default function StreamTokenUtility() {
                   key={i}
                   className={`reveal reveal-delay-${i + 3} flex items-start gap-4 p-4 rounded-xl border ${u.borderColor} ${u.bgColor} ${u.hoverBorder} hover:bg-white/[0.05] transition-all duration-300 cursor-default group`}
                 >
-                  <div className={`text-2xl ${u.iconColor} flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform duration-200`}>
+                  <div
+                    className={`text-2xl ${u.iconColor} flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform duration-200`}
+                  >
                     {u.icon}
                   </div>
                   <div>
-                    <h3 className="text-white text-sm font-semibold mb-1">{u.title}</h3>
-                    <p className="text-white/45 text-xs leading-relaxed">{u.description}</p>
+                    <h3 className="text-white text-sm font-semibold mb-1">
+                      {u.title}
+                    </h3>
+                    <p className="text-white/45 text-xs leading-relaxed">
+                      {u.description}
+                    </p>
                   </div>
                 </div>
               ))}

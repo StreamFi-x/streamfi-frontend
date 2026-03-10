@@ -13,13 +13,14 @@ function getPrivy(): PrivyClient {
     const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
     const secret = process.env.PRIVY_APP_SECRET;
     if (!appId || !secret) {
-      throw new Error("Privy env vars missing: NEXT_PUBLIC_PRIVY_APP_ID / PRIVY_APP_SECRET");
+      throw new Error(
+        "Privy env vars missing: NEXT_PUBLIC_PRIVY_APP_ID / PRIVY_APP_SECRET"
+      );
     }
     _privy = new PrivyClient(appId, secret);
   }
   return _privy;
 }
-
 
 // ─── POST /api/auth/session ───────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
@@ -39,7 +40,10 @@ export async function POST(req: NextRequest) {
   // 2. Extract and verify Privy token — NEVER trust client-supplied user data
   const authHeader = req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
-    return NextResponse.json({ error: "Missing authorization header" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Missing authorization header" },
+      { status: 401 }
+    );
   }
   const token = authHeader.slice(7);
 
@@ -48,7 +52,10 @@ export async function POST(req: NextRequest) {
     claims = await getPrivy().verifyAuthToken(token);
   } catch {
     // Don't leak internal error details — just signal invalid token
-    return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Invalid or expired token" },
+      { status: 401 }
+    );
   }
 
   const privyUserId = claims.userId; // "did:privy:xxx" — server-verified
@@ -58,7 +65,10 @@ export async function POST(req: NextRequest) {
   try {
     privyUser = await getPrivy().getUser(privyUserId);
   } catch {
-    return NextResponse.json({ error: "Failed to fetch user from Privy" }, { status: 502 });
+    return NextResponse.json(
+      { error: "Failed to fetch user from Privy" },
+      { status: 502 }
+    );
   }
 
   const googleAccount = privyUser.linkedAccounts?.find(
@@ -82,7 +92,10 @@ export async function POST(req: NextRequest) {
       `;
       if (emailConflict.length > 0) {
         return NextResponse.json(
-          { error: "This email is already associated with a wallet account. Please sign in with your wallet instead." },
+          {
+            error:
+              "This email is already associated with a wallet account. Please sign in with your wallet instead.",
+          },
           { status: 409 }
         );
       }
@@ -104,7 +117,10 @@ export async function POST(req: NextRequest) {
     `;
 
     if (rows.length === 0) {
-      return NextResponse.json({ error: "User record not found after upsert" }, { status: 500 });
+      return NextResponse.json(
+        { error: "User record not found after upsert" },
+        { status: 500 }
+      );
     }
 
     const dbUser = rows[0];
@@ -143,7 +159,10 @@ export async function POST(req: NextRequest) {
     return res;
   } catch (err) {
     console.error("[session] DB error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 

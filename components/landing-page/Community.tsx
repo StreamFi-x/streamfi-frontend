@@ -6,7 +6,9 @@ import Image from "next/image";
 function useCountUp(end: number, duration: number, active: boolean) {
   const [count, setCount] = useState(0);
   useEffect(() => {
-    if (!active) {return;}
+    if (!active) {
+      return;
+    }
     let start = 0;
     const increment = end / (duration / 16);
     const timer = setInterval(() => {
@@ -66,19 +68,23 @@ export default function Community() {
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
+      entries => {
+        entries.forEach(entry => {
           if (entry.isIntersecting) {
             setActive(true);
-            entry.target.querySelectorAll<HTMLElement>(".reveal").forEach((el, i) => {
-              setTimeout(() => el.classList.add("visible"), i * 80);
-            });
+            entry.target
+              .querySelectorAll<HTMLElement>(".reveal")
+              .forEach((el, i) => {
+                setTimeout(() => el.classList.add("visible"), i * 80);
+              });
           }
         });
       },
       { threshold: 0.15 }
     );
-    if (sectionRef.current) {observer.observe(sectionRef.current);}
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
     return () => observer.disconnect();
   }, []);
 
@@ -109,8 +115,8 @@ export default function Community() {
             Join the future of streaming
           </h2>
           <p className="reveal reveal-delay-2 text-white/45 text-base max-w-lg mx-auto leading-relaxed">
-            StreamFi is more than a platform, it&apos;s a movement of creators, viewers, and Web3
-            enthusiasts building the future together.
+            StreamFi is more than a platform, it&apos;s a movement of creators,
+            viewers, and Web3 enthusiasts building the future together.
           </p>
         </div>
 
@@ -125,7 +131,9 @@ export default function Community() {
                 {counts[i]}
                 {stat.suffix}
               </p>
-              <p className="text-white/40 text-xs tracking-wide">{stat.label}</p>
+              <p className="text-white/40 text-xs tracking-wide">
+                {stat.label}
+              </p>
             </div>
           ))}
         </div>
@@ -151,11 +159,15 @@ export default function Community() {
                   />
                 </div>
                 <div>
-                  <p className="text-white text-sm font-semibold leading-none mb-1">{s.name}</p>
+                  <p className="text-white text-sm font-semibold leading-none mb-1">
+                    {s.name}
+                  </p>
                   <p className="text-white/35 text-xs">{s.handle}</p>
                 </div>
               </div>
-              <p className="text-white/40 text-xs leading-relaxed mb-4">{s.desc}</p>
+              <p className="text-white/40 text-xs leading-relaxed mb-4">
+                {s.desc}
+              </p>
               <div className="flex items-center gap-1 text-purple-400 text-xs font-medium group-hover:gap-2 transition-all duration-200">
                 Join community
                 <span className="group-hover:translate-x-1 transition-transform duration-200 inline-block">

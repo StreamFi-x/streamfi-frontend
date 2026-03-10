@@ -5,10 +5,7 @@ const nextConfig = {
   experimental: {
     // Prevent Next.js from parsing all exports of large barrel packages —
     // only the icons/components actually used get compiled.
-    optimizePackageImports: [
-      "lucide-react",
-      "framer-motion",
-    ],
+    optimizePackageImports: ["lucide-react", "framer-motion"],
   },
   allowedDevOrigins: ["*.ngrok-free.app"],
   images: {

@@ -5,7 +5,9 @@ import { testimonial_content } from "@/data/landing-page/testimonial";
 
 // Duplicate items for seamless infinite loop
 const row1 = [...testimonial_content, ...testimonial_content];
-const row2 = [...testimonial_content].reverse().concat([...testimonial_content].reverse());
+const row2 = [...testimonial_content]
+  .reverse()
+  .concat([...testimonial_content].reverse());
 
 export default function Testimonials() {
   return (

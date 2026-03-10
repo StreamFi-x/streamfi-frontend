@@ -17,7 +17,10 @@ interface WaitlistProps {
   onSubmit?: (email: string) => Promise<void>;
 }
 
-export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProps) {
+export default function Waitlist({
+  initialCount = 3000,
+  onSubmit,
+}: WaitlistProps) {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -30,40 +33,53 @@ export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProp
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
+      entries => {
+        entries.forEach(entry => {
           if (entry.isIntersecting) {
-            entry.target.querySelectorAll<HTMLElement>(".reveal").forEach((el, i) => {
-              setTimeout(() => el.classList.add("visible"), i * 100);
-            });
+            entry.target
+              .querySelectorAll<HTMLElement>(".reveal")
+              .forEach((el, i) => {
+                setTimeout(() => el.classList.add("visible"), i * 100);
+              });
           }
         });
       },
       { threshold: 0.1 }
     );
-    if (sectionRef.current) {observer.observe(sectionRef.current);}
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
     return () => observer.disconnect();
   }, []);
 
   const validateEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
 
   useEffect(() => {
-    if (!emailTouched) {return;}
+    if (!emailTouched) {
+      return;
+    }
     let error = "";
-    if (!email) {error = "Email is required";}
-    else if (!validateEmail(email)) {error = "Please enter a valid email address";}
+    if (!email) {
+      error = "Email is required";
+    } else if (!validateEmail(email)) {
+      error = "Please enter a valid email address";
+    }
     setEmailError(error);
     if (error) {
       setShowError(true);
       setShowErrorStyling(true);
-      if (errorTimeoutRef.current) {clearTimeout(errorTimeoutRef.current);}
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
       errorTimeoutRef.current = setTimeout(() => {
         setShowError(false);
         setShowErrorStyling(false);
       }, 3000);
     }
     return () => {
-      if (errorTimeoutRef.current) {clearTimeout(errorTimeoutRef.current);}
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
     };
   }, [email, emailTouched]);
 
@@ -71,11 +87,15 @@ export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProp
     e.preventDefault();
     setEmailTouched(true);
     if (!email || !validateEmail(email)) {
-      const error = email ? "Please enter a valid email address" : "Email is required";
+      const error = email
+        ? "Please enter a valid email address"
+        : "Email is required";
       setEmailError(error);
       setShowError(true);
       setShowErrorStyling(true);
-      if (errorTimeoutRef.current) {clearTimeout(errorTimeoutRef.current);}
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
       errorTimeoutRef.current = setTimeout(() => {
         setShowError(false);
         setShowErrorStyling(false);
@@ -101,9 +121,13 @@ export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProp
         }
         if (!response.ok) {
           let msg = data?.error || "Failed to join waitlist";
-          if (response.status === 429) {msg = "Too many attempts. Please try again later.";}
-          else if (response.status === 400) {msg = data?.error || "Invalid email format";}
-          else if (response.status === 500) {msg = "Server error. Our team has been notified.";}
+          if (response.status === 429) {
+            msg = "Too many attempts. Please try again later.";
+          } else if (response.status === 400) {
+            msg = data?.error || "Invalid email format";
+          } else if (response.status === 500) {
+            msg = "Server error. Our team has been notified.";
+          }
           throw new Error(msg);
         }
         if (data?.alreadySubscribed) {
@@ -133,7 +157,8 @@ export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProp
       setTimeout(() => setIsSubmitted(false), 3000);
     } catch (error) {
       toast.error("Failed to join the waitlist", {
-        description: error instanceof Error ? error.message : "Please try again later.",
+        description:
+          error instanceof Error ? error.message : "Please try again later.",
       });
     } finally {
       setIsSubmitting(false);
@@ -141,7 +166,11 @@ export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProp
   };
 
   return (
-    <section id="waitlist" className="py-24 px-4 relative overflow-hidden" ref={sectionRef}>
+    <section
+      id="waitlist"
+      className="py-24 px-4 relative overflow-hidden"
+      ref={sectionRef}
+    >
       {/* Large glow */}
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full pointer-events-none"
@@ -166,9 +195,9 @@ export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProp
         </h2>
 
         <p className="reveal reveal-delay-2 text-white/50 text-base max-w-xl mx-auto leading-relaxed mb-10">
-          Sign up for early access and be among the first to explore StreamFi&apos;s decentralized
-          streaming platform. Get exclusive perks, early feature access, and shape the future
-          of streaming.
+          Sign up for early access and be among the first to explore
+          StreamFi&apos;s decentralized streaming platform. Get exclusive perks,
+          early feature access, and shape the future of streaming.
         </p>
 
         {/* Form */}
@@ -180,7 +209,7 @@ export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProp
             <input
               type="text"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={e => setEmail(e.target.value)}
               onBlur={() => setEmailTouched(true)}
               placeholder="Enter your email address"
               className={`w-full py-3.5 px-4 bg-white/[0.06] border rounded-xl text-white text-sm placeholder-white/30 focus:outline-none focus:ring-2 transition-all duration-200 ${
@@ -190,7 +219,9 @@ export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProp
               }`}
             />
             {emailError && emailTouched && showError && (
-              <p className="absolute -bottom-5 left-0 text-red-400 text-xs">{emailError}</p>
+              <p className="absolute -bottom-5 left-0 text-red-400 text-xs">
+                {emailError}
+              </p>
             )}
           </div>
 
@@ -203,7 +234,11 @@ export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProp
                 : "bg-white text-[#07060f] hover:bg-white/90 active:scale-95"
             } disabled:opacity-60 disabled:cursor-not-allowed`}
           >
-            {isSubmitting ? "Joining…" : isSubmitted ? "✓ Joined!" : "Join the Waitlist"}
+            {isSubmitting
+              ? "Joining…"
+              : isSubmitted
+                ? "✓ Joined!"
+                : "Join the Waitlist"}
           </button>
         </form>
 
@@ -222,7 +257,9 @@ export default function Waitlist({ initialCount = 3000, onSubmit }: WaitlistProp
             ))}
           </div>
           <p className="text-sm text-white/40">
-            <span className="text-white/70 font-medium">{initialCount.toLocaleString()}+</span>{" "}
+            <span className="text-white/70 font-medium">
+              {initialCount.toLocaleString()}+
+            </span>{" "}
             creators and viewers already joined
           </p>
         </div>

@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { TipButton } from "../TipButton";
 import { TipModal } from "../TipModal";
 import { TipConfirmation } from "../TipConfirmation";
@@ -15,20 +21,42 @@ jest.mock("@/lib/stellar/payments", () => ({
 
 // Mock UI components
 jest.mock("@/components/ui/avatar", () => ({
-  Avatar: ({ children }: { children: React.ReactNode }) => <div data-testid="avatar">{children}</div>,
+  Avatar: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="avatar">{children}</div>
+  ),
   AvatarImage: () => <img data-testid="avatar-image" />,
-  AvatarFallback: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AvatarFallback: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 jest.mock("@/components/ui/dialog", () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) => (
-    <div data-testid="dialog" style={{ display: open ? "block" : "none" }}>{children}</div>
+  Dialog: ({
+    children,
+    open,
+  }: {
+    children: React.ReactNode;
+    open: boolean;
+  }) => (
+    <div data-testid="dialog" style={{ display: open ? "block" : "none" }}>
+      {children}
+    </div>
   ),
-  DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
-  DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
-  DialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DialogContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DialogHeader: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DialogTitle: ({ children }: { children: React.ReactNode }) => (
+    <h2>{children}</h2>
+  ),
+  DialogDescription: ({ children }: { children: React.ReactNode }) => (
+    <p>{children}</p>
+  ),
+  DialogFooter: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 describe("TipButton → TipModal → TipConfirmation Integration", () => {
@@ -45,8 +73,12 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (stellarPayments.getXLMPrice as jest.Mock).mockResolvedValue(0.12);
-    (stellarPayments.calculateFeeEstimate as jest.Mock).mockReturnValue(0.00001);
-    (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(false);
+    (stellarPayments.calculateFeeEstimate as jest.Mock).mockReturnValue(
+      0.00001
+    );
+    (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(
+      false
+    );
   });
 
   describe("Full Success Flow", () => {
@@ -79,7 +111,9 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
       };
 
       // Mock successful transaction
-      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue({} as any);
+      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue(
+        {} as any
+      );
       (stellarPayments.submitTransaction as jest.Mock).mockResolvedValue({
         success: true,
         hash: "mockTxHash123",
@@ -123,13 +157,20 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
 
       // Enter amount and submit (modal is open; scope to dialog to get submit button)
       await waitFor(() => {
-        expect(within(screen.getByTestId("dialog")).getByRole("button", { name: "Send Tip" })).toBeInTheDocument();
+        expect(
+          within(screen.getByTestId("dialog")).getByRole("button", {
+            name: "Send Tip",
+          })
+        ).toBeInTheDocument();
       });
 
       const input = screen.getByPlaceholderText("0.00");
       fireEvent.change(input, { target: { value: "5" } });
 
-      const submitButton = within(screen.getByTestId("dialog")).getByRole("button", { name: "Send Tip" });
+      const submitButton = within(screen.getByTestId("dialog")).getByRole(
+        "button",
+        { name: "Send Tip" }
+      );
       fireEvent.click(submitButton);
 
       // Wait for transaction to complete
@@ -158,7 +199,9 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
 
       // TipButton should still render (it's the parent component's responsibility
       // to hide it based on wallet connection)
-      expect(screen.getByRole("button", { name: "Send Tip" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Send Tip" })
+      ).toBeInTheDocument();
     });
 
     it("should handle wallet disconnection during transaction", async () => {
@@ -184,7 +227,10 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
       const input = screen.getByPlaceholderText("0.00");
       fireEvent.change(input, { target: { value: "5" } });
 
-      const submitButton = within(screen.getByTestId("dialog")).getByRole("button", { name: "Send Tip" });
+      const submitButton = within(screen.getByTestId("dialog")).getByRole(
+        "button",
+        { name: "Send Tip" }
+      );
       fireEvent.click(submitButton);
 
       await waitFor(() => {
@@ -196,7 +242,8 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
   describe("Self-Tipping Prevention", () => {
     it("should prevent user from tipping themselves", () => {
       // Parent component logic - same public key for sender and recipient
-      const samePubKey = "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+      const samePubKey =
+        "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
 
       // In the parent component, the button should be disabled or hidden
       // when sender and recipient keys match
@@ -216,7 +263,9 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
         />
       );
 
-      expect(screen.queryByRole("button", { name: "Send Tip" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Send Tip" })
+      ).not.toBeInTheDocument();
     });
 
     it("should handle missing sender public key gracefully", async () => {
@@ -234,12 +283,17 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
       const input = screen.getByPlaceholderText("0.00");
       fireEvent.change(input, { target: { value: "5" } });
 
-      const submitButton = within(screen.getByTestId("dialog")).getByRole("button", { name: "Send Tip" });
+      const submitButton = within(screen.getByTestId("dialog")).getByRole(
+        "button",
+        { name: "Send Tip" }
+      );
       fireEvent.click(submitButton);
 
       // Should show error about invalid sender address
       await waitFor(() => {
-        expect(screen.getByText(/Invalid sender Stellar address/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/Invalid sender Stellar address/i)
+        ).toBeInTheDocument();
       });
     });
   });
@@ -311,7 +365,7 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
       };
 
       (stellarPayments.buildTipTransaction as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve("mockXDR"), 1000))
+        () => new Promise(resolve => setTimeout(() => resolve("mockXDR"), 1000))
       );
 
       render(
@@ -327,12 +381,18 @@ describe("TipButton → TipModal → TipConfirmation Integration", () => {
       const input = screen.getByPlaceholderText("0.00");
       fireEvent.change(input, { target: { value: "5" } });
 
-      const submitButton = within(screen.getByTestId("dialog")).getByRole("button", { name: "Send Tip" });
+      const submitButton = within(screen.getByTestId("dialog")).getByRole(
+        "button",
+        { name: "Send Tip" }
+      );
       fireEvent.click(submitButton);
 
       // Cancel button should be disabled during processing
       await waitFor(() => {
-        const cancelButton = within(screen.getByTestId("dialog")).getByRole("button", { name: "Cancel" });
+        const cancelButton = within(screen.getByTestId("dialog")).getByRole(
+          "button",
+          { name: "Cancel" }
+        );
         expect(cancelButton).toBeDisabled();
       });
     });

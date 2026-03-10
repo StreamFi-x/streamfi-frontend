@@ -56,9 +56,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const lastRefreshedRef = useRef<number>(0);
 
   const router = useRouter();
-  const { ready: privyReady, authenticated: privyAuthenticated, user: privyUser, getAccessToken, logout: privyLogout } = usePrivy();
-  const { address, isConnected, disconnect, isLoading: isStellarLoading } =
-    useStellarWallet();
+  const {
+    ready: privyReady,
+    authenticated: privyAuthenticated,
+    user: privyUser,
+    getAccessToken,
+    logout: privyLogout,
+  } = usePrivy();
+  const {
+    address,
+    isConnected,
+    disconnect,
+    isLoading: isStellarLoading,
+  } = useStellarWallet();
 
   const {
     user: swrUser,
@@ -75,15 +85,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // When Privy authenticates a user, exchange their short-lived JWT for a
   // server-verified HttpOnly session cookie. We do this once per login.
   useEffect(() => {
-    if (!privyReady || !privyAuthenticated || !privyUser) {return;}
-    if (privySessionCreated.current) {return;}
+    if (!privyReady || !privyAuthenticated || !privyUser) {
+      return;
+    }
+    if (privySessionCreated.current) {
+      return;
+    }
 
     const createSession = async () => {
       try {
         // getAccessToken returns the Privy JWT — we send it to our server
         // which verifies it with Privy's SDK before issuing our own cookie.
         const token = await getAccessToken();
-        if (!token) {return;}
+        if (!token) {
+          return;
+        }
 
         const res = await fetch("/api/auth/session", {
           method: "POST",
@@ -98,9 +114,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (res.status === 409) {
             privySessionCreated.current = false;
             void privyLogout();
-            setError(body.error ?? "This email is already associated with a wallet account.");
+            setError(
+              body.error ??
+                "This email is already associated with a wallet account."
+            );
           } else {
-            console.error("[AuthProvider] Session creation failed:", res.status);
+            console.error(
+              "[AuthProvider] Session creation failed:",
+              res.status
+            );
           }
           return;
         }
@@ -196,7 +218,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     document.cookie =
       "wallet=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict";
     // Expire signed wallet_session cookie server-side (fire-and-forget)
-    void fetch("/api/auth/wallet-session", { method: "DELETE", credentials: "include" }).catch(() => {});
+    void fetch("/api/auth/wallet-session", {
+      method: "DELETE",
+      credentials: "include",
+    }).catch(() => {});
     localStorage.removeItem("wallet");
     sessionStorage.removeItem("wallet");
     localStorage.removeItem(WALLET_CONNECTION_KEY);
@@ -211,16 +236,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       walletSessionRef.current = address;
       void setSessionCookies(address);
     }
-  // swrUser intentionally omitted — it creates a new reference on every SWR poll
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // swrUser intentionally omitted — it creates a new reference on every SWR poll
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]);
 
   const logout = () => {
     void disconnect();
     // Clear Privy session cookie server-side
-    void fetch("/api/auth/session", { method: "DELETE", credentials: "include" });
+    void fetch("/api/auth/session", {
+      method: "DELETE",
+      credentials: "include",
+    });
     // Sign out of Privy
-    if (privyAuthenticated) {void privyLogout();}
+    if (privyAuthenticated) {
+      void privyLogout();
+    }
     privySessionCreated.current = false;
     // Reset session refs so a re-login always gets a fresh cookie POST
     walletSessionRef.current = null;
@@ -267,7 +297,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setHasInitialized(true);
         }
       } catch (authError) {
-        console.error("[AuthProvider] Error initializing authentication:", authError);
+        console.error(
+          "[AuthProvider] Error initializing authentication:",
+          authError
+        );
         setError("Failed to initialize authentication");
         setIsInitializing(false);
         setHasInitialized(true);
@@ -342,12 +375,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const sessionWallet = sessionStorage.getItem("wallet");
     const walletAddress = address || storedWallet || sessionWallet;
 
-    if (!walletAddress || !isConnected) {return;}
+    if (!walletAddress || !isConnected) {
+      return;
+    }
 
     // Hard rate-limit: regardless of how many times this is called (activity
     // events fire on every mousemove/keydown/scroll) only POST when at least
     // SESSION_REFRESH_INTERVAL has elapsed since the last successful POST.
-    if (Date.now() - lastRefreshedRef.current < SESSION_REFRESH_INTERVAL) {return;}
+    if (Date.now() - lastRefreshedRef.current < SESSION_REFRESH_INTERVAL) {
+      return;
+    }
 
     void setSessionCookies(walletAddress);
   }, [address, isConnected]);

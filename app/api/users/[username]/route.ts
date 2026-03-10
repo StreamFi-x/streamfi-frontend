@@ -42,9 +42,14 @@ export async function GET(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { privy_id, email, ...publicUser } = user;
 
-    return NextResponse.json({ user: publicUser }, {
-      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
-    });
+    return NextResponse.json(
+      { user: publicUser },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        },
+      }
+    );
   } catch (error) {
     console.error("API: Fetch user error:", error);
     return NextResponse.json(

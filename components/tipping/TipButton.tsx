@@ -78,7 +78,11 @@ export function TipButton({
   };
 
   const buttonVariant =
-    variant === "icon-only" || variant === "outline" ? "outline" : variant === "secondary" ? "secondary" : "default";
+    variant === "icon-only" || variant === "outline"
+      ? "outline"
+      : variant === "secondary"
+        ? "secondary"
+        : "default";
   const buttonSize = size ?? (variant === "icon-only" ? "icon" : "default");
 
   return (
@@ -88,7 +92,9 @@ export function TipButton({
       className={cn(className)}
       disabled={isDisabled || isConnecting}
       onClick={handleClick}
-      aria-label={variant === "icon-only" ? `Send tip to ${recipientUsername}` : undefined}
+      aria-label={
+        variant === "icon-only" ? `Send tip to ${recipientUsername}` : undefined
+      }
       title={isDisabled ? "Recipient has no Stellar public key" : undefined}
     >
       {getButtonContent()}

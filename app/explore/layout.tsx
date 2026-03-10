@@ -7,7 +7,6 @@ export default function ClientLayout({
 }: {
   children: React.ReactNode;
 }) {
-
   return (
     <main>
       <div className="flex  flex-col h-screen">

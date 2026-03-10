@@ -83,7 +83,11 @@ const StreamCard = ({
             <div className="flex flex-col truncate">
               {" "}
               <span
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/${username}`); }}
+                onClick={e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  router.push(`/${username}`);
+                }}
                 className="text-xs hover:underline text-gray-400 font-medium cursor-pointer"
               >
                 {username}

@@ -164,4 +164,3 @@ export default function Chat() {
     </motion.div>
   );
 }
-

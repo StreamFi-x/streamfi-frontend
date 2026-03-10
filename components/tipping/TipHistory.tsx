@@ -21,7 +21,9 @@ function getStellarExplorerUrl(txHash: string) {
 }
 
 function truncateAddress(address: string) {
-  if (!address) {return "";}
+  if (!address) {
+    return "";
+  }
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
 }
 
@@ -88,7 +90,9 @@ export function TipHistory({ username }: TipHistoryProps) {
         body: JSON.stringify({ username }),
       });
 
-      if (!response.ok) {throw new Error("Refresh failed");}
+      if (!response.ok) {
+        throw new Error("Refresh failed");
+      }
 
       toast.success("Tip totals refreshed!");
       await fetchTipHistory();
@@ -106,7 +110,9 @@ export function TipHistory({ username }: TipHistoryProps) {
   };
 
   const loadMore = () => {
-    if (nextCursor) {fetchTipHistory(nextCursor);}
+    if (nextCursor) {
+      fetchTipHistory(nextCursor);
+    }
   };
 
   return (
@@ -117,7 +123,9 @@ export function TipHistory({ username }: TipHistoryProps) {
             <DollarSign size={24} />
           </div>
           <div>
-            <p className="text-sm text-muted-foreground font-medium">Total Received</p>
+            <p className="text-sm text-muted-foreground font-medium">
+              Total Received
+            </p>
             <p className="text-2xl font-bold">{totalReceived} XLM</p>
           </div>
         </div>
@@ -127,7 +135,9 @@ export function TipHistory({ username }: TipHistoryProps) {
             <History size={24} />
           </div>
           <div>
-            <p className="text-sm text-muted-foreground font-medium">Tip Count</p>
+            <p className="text-sm text-muted-foreground font-medium">
+              Tip Count
+            </p>
             <p className="text-2xl font-bold">{totalCount}</p>
           </div>
         </div>
@@ -135,14 +145,26 @@ export function TipHistory({ username }: TipHistoryProps) {
         <div className="bg-card border border-border p-4 rounded-xl flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-blue-500/10 rounded-lg text-blue-500">
-              <RefreshCw size={24} className={refreshing ? "animate-spin" : ""} />
+              <RefreshCw
+                size={24}
+                className={refreshing ? "animate-spin" : ""}
+              />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground font-medium">Last Refresh</p>
-              <p className="text-xs text-muted-foreground font-medium text-green-500">Updated live</p>
+              <p className="text-sm text-muted-foreground font-medium">
+                Last Refresh
+              </p>
+              <p className="text-xs text-muted-foreground font-medium text-green-500">
+                Updated live
+              </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing || loading}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+          >
             {refreshing ? "Refreshing..." : "Refresh"}
           </Button>
         </div>
@@ -166,13 +188,23 @@ export function TipHistory({ username }: TipHistoryProps) {
               </thead>
               <tbody className="divide-y divide-border">
                 {tips.map(tip => (
-                  <tr key={tip.id} className="hover:bg-muted/20 transition-colors">
+                  <tr
+                    key={tip.id}
+                    className="hover:bg-muted/20 transition-colors"
+                  >
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="font-medium">{tip.senderUsername || "Anonymous"}</span>
+                        <span className="font-medium">
+                          {tip.senderUsername || "Anonymous"}
+                        </span>
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           <span>{truncateAddress(tip.sender)}</span>
-                          <button onClick={() => copyToClipboard(tip.sender, "Address")} className="hover:text-foreground">
+                          <button
+                            onClick={() =>
+                              copyToClipboard(tip.sender, "Address")
+                            }
+                            className="hover:text-foreground"
+                          >
                             <Copy size={12} />
                           </button>
                         </div>
@@ -181,18 +213,30 @@ export function TipHistory({ username }: TipHistoryProps) {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5 font-semibold text-foreground">
                         <span>{tip.amount}</span>
-                        <span className="text-xs text-muted-foreground font-normal">{tip.asset}</span>
+                        <span className="text-xs text-muted-foreground font-normal">
+                          {tip.asset}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">
-                      {formatDistanceToNow(new Date(tip.timestamp), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(tip.timestamp), {
+                        addSuffix: true,
+                      })}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        <button onClick={() => copyToClipboard(tip.txHash, "Tx Hash")} className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground">
+                        <button
+                          onClick={() => copyToClipboard(tip.txHash, "Tx Hash")}
+                          className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground"
+                        >
                           <Copy size={16} />
                         </button>
-                        <a href={getStellarExplorerUrl(tip.txHash)} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground">
+                        <a
+                          href={getStellarExplorerUrl(tip.txHash)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground"
+                        >
                           <ExternalLink size={16} />
                         </a>
                       </div>
@@ -201,26 +245,35 @@ export function TipHistory({ username }: TipHistoryProps) {
                 ))}
               </tbody>
             </table>
-          ) : !loading && (
-            <div className="p-12 text-center text-muted-foreground">
-              {error ? (
-                <div>
-                  <p className="text-destructive mb-4">{error}</p>
-                  <Button variant="outline" onClick={() => fetchTipHistory()}>Retry</Button>
-                </div>
-              ) : (
-                <p>No tips found. Share your profile link!</p>
-              )}
-            </div>
+          ) : (
+            !loading && (
+              <div className="p-12 text-center text-muted-foreground">
+                {error ? (
+                  <div>
+                    <p className="text-destructive mb-4">{error}</p>
+                    <Button variant="outline" onClick={() => fetchTipHistory()}>
+                      Retry
+                    </Button>
+                  </div>
+                ) : (
+                  <p>No tips found. Share your profile link!</p>
+                )}
+              </div>
+            )
           )}
         </div>
 
         {(loading || nextCursor) && (
           <div className="p-4 bg-muted/10 flex justify-center border-t border-border">
             {loading ? (
-              <Loader2 className="animate-spin text-muted-foreground" size={20} />
+              <Loader2
+                className="animate-spin text-muted-foreground"
+                size={20}
+              />
             ) : (
-              <Button variant="ghost" size="sm" onClick={loadMore}>Load More History</Button>
+              <Button variant="ghost" size="sm" onClick={loadMore}>
+                Load More History
+              </Button>
             )}
           </div>
         )}

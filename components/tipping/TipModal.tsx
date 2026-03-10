@@ -78,9 +78,8 @@ export function TipModal({
 
   const { kit } = useStellarWallet();
   const fee = calculateFeeEstimate();
-  const usdEquivalent = xlmPrice && amount
-    ? (parseFloat(amount) * xlmPrice).toFixed(2)
-    : "0.00";
+  const usdEquivalent =
+    xlmPrice && amount ? (parseFloat(amount) * xlmPrice).toFixed(2) : "0.00";
 
   // Fix #5 - Fetch XLM price with failure tracking
   useEffect(() => {
@@ -149,7 +148,9 @@ export function TipModal({
 
     // Fix #4 - Max amount validation
     if (parsedAmount > MAX_TIP_AMOUNT) {
-      setError(`Amount is too large. Maximum is ${MAX_TIP_AMOUNT.toLocaleString()} XLM`);
+      setError(
+        `Amount is too large. Maximum is ${MAX_TIP_AMOUNT.toLocaleString()} XLM`
+      );
       return false;
     }
 
@@ -195,7 +196,10 @@ export function TipModal({
       }
 
       // Build transaction
-      const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet" ? "mainnet" : "testnet";
+      const network =
+        process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet"
+          ? "mainnet"
+          : "testnet";
       const transaction = await buildTipTransaction({
         sourcePublicKey: senderPublicKey,
         destinationPublicKey: recipientPublicKey,
@@ -205,17 +209,25 @@ export function TipModal({
 
       // Sign transaction with connected wallet
       setTransactionState("signing");
-      const walletNetwork = network === "mainnet" ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
+      const walletNetwork =
+        network === "mainnet" ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
       const { signedTxXdr } = await kit.signTransaction(transaction.toXDR(), {
         networkPassphrase: walletNetwork,
         address: senderPublicKey,
       });
-      const networkPassphrase = network === "mainnet" ? Networks.PUBLIC : Networks.TESTNET;
-      const signedTransaction = TransactionBuilder.fromXDR(signedTxXdr, networkPassphrase);
+      const networkPassphrase =
+        network === "mainnet" ? Networks.PUBLIC : Networks.TESTNET;
+      const signedTransaction = TransactionBuilder.fromXDR(
+        signedTxXdr,
+        networkPassphrase
+      );
 
       // Submit signed transaction
       setTransactionState("submitting");
-      const result = await submitTransaction(signedTransaction as any, network as "testnet" | "mainnet");
+      const result = await submitTransaction(
+        signedTransaction as any,
+        network as "testnet" | "mainnet"
+      );
 
       if (result.success) {
         setTransactionState("success");
@@ -226,7 +238,9 @@ export function TipModal({
           onSuccess(result.hash, amount);
         }
       } else {
-        throw result.error ? new Error(result.error) : new Error("Transaction failed");
+        throw result.error
+          ? new Error(result.error)
+          : new Error("Transaction failed");
       }
     } catch (err: unknown) {
       console.error("Transaction error:", err);
@@ -235,15 +249,25 @@ export function TipModal({
       let errorMessage = "An unexpected error occurred. Please try again.";
 
       if (err instanceof Error) {
-        if (err.message.includes("User declined") || err.message.includes("rejected")) {
+        if (
+          err.message.includes("User declined") ||
+          err.message.includes("rejected")
+        ) {
           errorMessage = "Transaction was cancelled. Please try again.";
-        } else if (err.message.includes("insufficient") || err.message.includes("balance")) {
+        } else if (
+          err.message.includes("insufficient") ||
+          err.message.includes("balance")
+        ) {
           errorMessage =
             "Insufficient balance. Your balance may have changed. Please try a smaller amount.";
         } else if (err.message.includes("timeout")) {
           errorMessage = "Transaction timed out. Please try again.";
-        } else if (err.message.includes("network") || err.message.includes("connectivity")) {
-          errorMessage = "Network connection issue. Please check your connection and try again.";
+        } else if (
+          err.message.includes("network") ||
+          err.message.includes("connectivity")
+        ) {
+          errorMessage =
+            "Network connection issue. Please check your connection and try again.";
         } else {
           errorMessage = err.message;
         }
@@ -277,7 +301,8 @@ export function TipModal({
     onClose();
   };
 
-  const currentConfirmationState = transactionState === "success" ? "success" : "error";
+  const currentConfirmationState =
+    transactionState === "success" ? "success" : "error";
 
   const getStateMessage = () => {
     switch (transactionState) {
@@ -345,15 +370,11 @@ export function TipModal({
                 )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Network Fee:</span>
-                  <span className="font-semibold">
-                    {fee.toFixed(7)} XLM
-                  </span>
+                  <span className="font-semibold">{fee.toFixed(7)} XLM</span>
                 </div>
                 <div className="border-t border-border pt-2 flex justify-between font-semibold">
                   <span>Total:</span>
-                  <span>
-                    {(parseFloat(amount) + fee).toFixed(7)} XLM
-                  </span>
+                  <span>{(parseFloat(amount) + fee).toFixed(7)} XLM</span>
                 </div>
               </div>
             )}
@@ -391,10 +412,12 @@ export function TipModal({
           <div className="space-y-2">
             <Label>Select Amount</Label>
             <div className="grid grid-cols-4 gap-2">
-              {PRESET_AMOUNTS.map((presetAmount) => (
+              {PRESET_AMOUNTS.map(presetAmount => (
                 <Button
                   key={presetAmount}
-                  variant={amount === presetAmount.toString() ? "default" : "outline"}
+                  variant={
+                    amount === presetAmount.toString() ? "default" : "outline"
+                  }
                   onClick={() => handlePresetClick(presetAmount)}
                   disabled={isProcessing}
                   className="font-semibold"
@@ -414,7 +437,7 @@ export function TipModal({
                 type="text"
                 placeholder="0.00"
                 value={amount}
-                onChange={(e) => handleAmountChange(e.target.value)}
+                onChange={e => handleAmountChange(e.target.value)}
                 disabled={isProcessing}
                 className="pr-12"
               />
@@ -442,15 +465,11 @@ export function TipModal({
               )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Network Fee:</span>
-                <span className="font-semibold">
-                  {fee.toFixed(7)} XLM
-                </span>
+                <span className="font-semibold">{fee.toFixed(7)} XLM</span>
               </div>
               <div className="border-t border-border pt-2 flex justify-between font-semibold">
                 <span>Total:</span>
-                <span>
-                  {(parseFloat(amount) + fee).toFixed(7)} XLM
-                </span>
+                <span>{(parseFloat(amount) + fee).toFixed(7)} XLM</span>
               </div>
             </div>
           )}

@@ -8,7 +8,10 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid request format" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request format" },
+      { status: 400 }
+    );
   }
 
   if (!body.email) {
@@ -16,7 +19,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (!validateEmail(body.email)) {
-    return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid email format" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -27,7 +33,10 @@ export async function POST(req: NextRequest) {
     const existing = rows[0];
 
     if (existing && !existing.unsubscribed_at) {
-      return NextResponse.json({ message: "Already subscribed", alreadySubscribed: true });
+      return NextResponse.json({
+        message: "Already subscribed",
+        alreadySubscribed: true,
+      });
     }
 
     if (existing) {
@@ -56,6 +65,9 @@ export async function POST(req: NextRequest) {
     );
   } catch (err) {
     console.error("[waitlist] DB error:", err);
-    return NextResponse.json({ error: "Database operation failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Database operation failed" },
+      { status: 500 }
+    );
   }
 }

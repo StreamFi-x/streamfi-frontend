@@ -38,7 +38,9 @@ function getSessionSecret(): string | null {
   return process.env.SESSION_SECRET ?? null;
 }
 
-export async function verifySession(req: NextRequest): Promise<VerifiedSession> {
+export async function verifySession(
+  req: NextRequest
+): Promise<VerifiedSession> {
   const privySessionId = req.cookies.get("privy_session")?.value;
   const walletSessionToken = req.cookies.get("wallet_session")?.value;
   const legacyWalletCookie = req.cookies.get("wallet")?.value;
@@ -48,7 +50,10 @@ export async function verifySession(req: NextRequest): Promise<VerifiedSession> 
     if (!privySessionId.startsWith("did:privy:")) {
       return {
         ok: false,
-        response: NextResponse.json({ error: "Invalid session" }, { status: 401 }),
+        response: NextResponse.json(
+          { error: "Invalid session" },
+          { status: 401 }
+        ),
       };
     }
 
@@ -63,7 +68,10 @@ export async function verifySession(req: NextRequest): Promise<VerifiedSession> 
       if (rows.length === 0) {
         return {
           ok: false,
-          response: NextResponse.json({ error: "Session not found" }, { status: 401 }),
+          response: NextResponse.json(
+            { error: "Session not found" },
+            { status: 401 }
+          ),
         };
       }
 
@@ -79,7 +87,10 @@ export async function verifySession(req: NextRequest): Promise<VerifiedSession> 
     } catch {
       return {
         ok: false,
-        response: NextResponse.json({ error: "Session verification failed" }, { status: 500 }),
+        response: NextResponse.json(
+          { error: "Session verification failed" },
+          { status: 500 }
+        ),
       };
     }
   }
@@ -88,18 +99,29 @@ export async function verifySession(req: NextRequest): Promise<VerifiedSession> 
   if (walletSessionToken) {
     const secret = getSessionSecret();
     if (!secret) {
-      console.error("[verifySession] SESSION_SECRET not configured — wallet_session cannot be verified");
+      console.error(
+        "[verifySession] SESSION_SECRET not configured — wallet_session cannot be verified"
+      );
       return {
         ok: false,
-        response: NextResponse.json({ error: "Server misconfiguration" }, { status: 500 }),
+        response: NextResponse.json(
+          { error: "Server misconfiguration" },
+          { status: 500 }
+        ),
       };
     }
 
-    const payload = verifyToken<{ userId: string; wallet: string }>(walletSessionToken, secret);
+    const payload = verifyToken<{ userId: string; wallet: string }>(
+      walletSessionToken,
+      secret
+    );
     if (!payload) {
       return {
         ok: false,
-        response: NextResponse.json({ error: "Invalid or expired session" }, { status: 401 }),
+        response: NextResponse.json(
+          { error: "Invalid or expired session" },
+          { status: 401 }
+        ),
       };
     }
 
@@ -116,7 +138,10 @@ export async function verifySession(req: NextRequest): Promise<VerifiedSession> 
       if (rows.length === 0) {
         return {
           ok: false,
-          response: NextResponse.json({ error: "Session not found" }, { status: 401 }),
+          response: NextResponse.json(
+            { error: "Session not found" },
+            { status: 401 }
+          ),
         };
       }
 
@@ -132,7 +157,10 @@ export async function verifySession(req: NextRequest): Promise<VerifiedSession> 
     } catch {
       return {
         ok: false,
-        response: NextResponse.json({ error: "Session verification failed" }, { status: 500 }),
+        response: NextResponse.json(
+          { error: "Session verification failed" },
+          { status: 500 }
+        ),
       };
     }
   }
@@ -144,7 +172,10 @@ export async function verifySession(req: NextRequest): Promise<VerifiedSession> 
     if (!/^G[A-Z2-7]{55}$/.test(legacyWalletCookie)) {
       return {
         ok: false,
-        response: NextResponse.json({ error: "Invalid wallet session" }, { status: 401 }),
+        response: NextResponse.json(
+          { error: "Invalid wallet session" },
+          { status: 401 }
+        ),
       };
     }
 
@@ -159,7 +190,10 @@ export async function verifySession(req: NextRequest): Promise<VerifiedSession> 
       if (rows.length === 0) {
         return {
           ok: false,
-          response: NextResponse.json({ error: "Wallet not registered" }, { status: 401 }),
+          response: NextResponse.json(
+            { error: "Wallet not registered" },
+            { status: 401 }
+          ),
         };
       }
 
@@ -175,7 +209,10 @@ export async function verifySession(req: NextRequest): Promise<VerifiedSession> 
     } catch {
       return {
         ok: false,
-        response: NextResponse.json({ error: "Session verification failed" }, { status: 500 }),
+        response: NextResponse.json(
+          { error: "Session verification failed" },
+          { status: 500 }
+        ),
       };
     }
   }

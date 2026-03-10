@@ -255,10 +255,7 @@ export default function StreamPreview() {
         </div>
       </div>
 
-      <div
-        className="flex-1 w-full bg-black relative"
-        id="video-container"
-      >
+      <div className="flex-1 w-full bg-black relative" id="video-container">
         {isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-white text-center">
@@ -348,4 +345,3 @@ function MonitorIcon({ size = 24, className = "" }) {
     </svg>
   );
 }
-

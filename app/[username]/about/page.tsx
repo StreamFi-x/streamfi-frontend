@@ -36,7 +36,8 @@ const AboutPage = ({ params }: PageProps) => {
   }, [username]);
 
   const isOwner =
-    typeof window !== "undefined" && sessionStorage.getItem("username") === username;
+    typeof window !== "undefined" &&
+    sessionStorage.getItem("username") === username;
   if (loading) {
     return <div>Loading...</div>;
   }

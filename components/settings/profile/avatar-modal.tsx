@@ -44,7 +44,9 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) {return;}
+    if (!files || files.length === 0) {
+      return;
+    }
 
     const file = files[0];
 

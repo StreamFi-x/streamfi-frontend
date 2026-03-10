@@ -24,7 +24,9 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
   }, []);
 
   const handleInputChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) {return;}
+    if (!/^\d*$/.test(value)) {
+      return;
+    }
 
     const newCode = [...verificationCode];
     newCode[index] = value;

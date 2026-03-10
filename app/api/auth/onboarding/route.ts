@@ -49,7 +49,11 @@ function encryptSecret(plaintext: string): string {
   ]);
   const authTag = cipher.getAuthTag(); // 16-byte GCM auth tag
 
-  return [iv.toString("hex"), authTag.toString("hex"), encrypted.toString("hex")].join(":");
+  return [
+    iv.toString("hex"),
+    authTag.toString("hex"),
+    encrypted.toString("hex"),
+  ].join(":");
 }
 
 // ─── Username validation ───────────────────────────────────────────────────────
@@ -57,9 +61,12 @@ function encryptSecret(plaintext: string): string {
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,30}$/;
 
 function validateUsername(username: string): string | null {
-  if (!username?.trim()) {return "Username is required";}
-  if (!USERNAME_RE.test(username))
-    {return "Username must be 3–30 characters: letters, numbers, underscores only";}
+  if (!username?.trim()) {
+    return "Username is required";
+  }
+  if (!USERNAME_RE.test(username)) {
+    return "Username must be 3–30 characters: letters, numbers, underscores only";
+  }
   return null;
 }
 
@@ -68,7 +75,9 @@ function validateUsername(username: string): string | null {
 export async function POST(req: NextRequest) {
   // 1. Verify the Privy session cookie — identity comes from the server, never the body
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   // Only Privy users go through this flow
   if (!session.privyId) {
@@ -103,11 +112,17 @@ export async function POST(req: NextRequest) {
       LIMIT 1
     `;
     if (existing.length > 0) {
-      return NextResponse.json({ error: "Username already taken" }, { status: 409 });
+      return NextResponse.json(
+        { error: "Username already taken" },
+        { status: 409 }
+      );
     }
   } catch (err) {
     console.error("[onboarding] Username check failed:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 
   // 4. If user already has a wallet (e.g. re-visiting onboarding), skip keygen
@@ -171,7 +186,10 @@ export async function POST(req: NextRequest) {
         { status: 409 }
       );
     }
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({

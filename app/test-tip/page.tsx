@@ -50,7 +50,7 @@ export default function TestTipPage() {
                 type="text"
                 placeholder="GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                 value={senderPublicKey}
-                onChange={(e) => setSenderPublicKey(e.target.value)}
+                onChange={e => setSenderPublicKey(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md bg-background"
               />
               <p className="text-xs text-muted-foreground">
@@ -67,7 +67,7 @@ export default function TestTipPage() {
                 type="text"
                 placeholder="GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                 value={recipientPublicKey}
-                onChange={(e) => setRecipientPublicKey(e.target.value)}
+                onChange={e => setRecipientPublicKey(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md bg-background"
               />
               <p className="text-xs text-muted-foreground">
@@ -84,17 +84,13 @@ export default function TestTipPage() {
                 type="text"
                 placeholder="testuser"
                 value={recipientUsername}
-                onChange={(e) => setRecipientUsername(e.target.value)}
+                onChange={e => setRecipientUsername(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md bg-background"
               />
             </div>
           </div>
 
-          <Button
-            onClick={handleOpenModal}
-            className="w-full"
-            size="lg"
-          >
+          <Button onClick={handleOpenModal} className="w-full" size="lg">
             Open Tip Modal
           </Button>
 

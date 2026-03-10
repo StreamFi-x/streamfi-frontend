@@ -24,7 +24,9 @@ export default function QuickActions() {
   // The wallet context reads localStorage on the client but returns null on the server,
   // which causes isConnected to differ between SSR and first client render.
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Use SWR hook for optimized data fetching with caching
   const { user } = useUserProfile(address ?? undefined);

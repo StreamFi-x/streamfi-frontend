@@ -210,22 +210,36 @@ interface PastRecording {
 }
 
 function formatRecDuration(seconds: number | null): string {
-  if (!seconds) {return "";}
+  if (!seconds) {
+    return "";
+  }
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
-  if (h > 0) {return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;}
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 function recTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / 86400000);
-  if (days === 0) {return "Today";}
-  if (days === 1) {return "Yesterday";}
-  if (days < 7) {return `${days} days ago`;}
-  if (days < 30) {return `${Math.floor(days / 7)} week${Math.floor(days / 7) > 1 ? "s" : ""} ago`;}
-  if (days < 365) {return `${Math.floor(days / 30)} month${Math.floor(days / 30) > 1 ? "s" : ""} ago`;}
+  if (days === 0) {
+    return "Today";
+  }
+  if (days === 1) {
+    return "Yesterday";
+  }
+  if (days < 7) {
+    return `${days} days ago`;
+  }
+  if (days < 30) {
+    return `${Math.floor(days / 7)} week${Math.floor(days / 7) > 1 ? "s" : ""} ago`;
+  }
+  if (days < 365) {
+    return `${Math.floor(days / 30)} month${Math.floor(days / 30) > 1 ? "s" : ""} ago`;
+  }
   return `${Math.floor(days / 365)} year${Math.floor(days / 365) > 1 ? "s" : ""} ago`;
 }
 
@@ -332,9 +346,15 @@ const ViewStream = ({
 
   // Fetch past recordings for this streamer
   useEffect(() => {
-    fetch(`/api/streams/recordings?username=${encodeURIComponent(username)}&limit=6`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.recordings) {setRecordings(data.recordings);} })
+    fetch(
+      `/api/streams/recordings?username=${encodeURIComponent(username)}&limit=6`
+    )
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (data?.recordings) {
+          setRecordings(data.recordings);
+        }
+      })
       .catch(() => {});
   }, [username]);
 
@@ -716,10 +736,16 @@ const ViewStream = ({
                               onClick={isFollowing ? onUnfollow : onFollow}
                               disabled={followLoading}
                             >
-                              {followLoading ? "…" : isFollowing ? "Unfollow" : "Follow"}
+                              {followLoading
+                                ? "…"
+                                : isFollowing
+                                  ? "Unfollow"
+                                  : "Follow"}
                             </Button>
                             {/* Stellar Tip Button */}
-                            {streamData.starknetAddress && publicKey && publicKey !== streamData.starknetAddress ? (
+                            {streamData.starknetAddress &&
+                            publicKey &&
+                            publicKey !== streamData.starknetAddress ? (
                               <TipButton
                                 recipientUsername={username}
                                 recipientPublicKey={streamData.starknetAddress}
@@ -732,7 +758,13 @@ const ViewStream = ({
                                 variant="outline"
                                 className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-gray-600"
                                 disabled
-                                title={!publicKey ? "Connect Stellar wallet to tip" : !streamData.starknetAddress ? "Streamer hasn't set up Stellar wallet" : "Cannot tip yourself"}
+                                title={
+                                  !publicKey
+                                    ? "Connect Stellar wallet to tip"
+                                    : !streamData.starknetAddress
+                                      ? "Streamer hasn't set up Stellar wallet"
+                                      : "Cannot tip yourself"
+                                }
                               >
                                 <Gift className="h-4 w-4 mr-2" />
                                 Send Tip
@@ -818,7 +850,9 @@ const ViewStream = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {recordings.map(rec => {
                         const thumb = `https://image.mux.com/${rec.playback_id}/thumbnail.jpg?width=480&time=5`;
-                        const title = rec.title ?? `Stream — ${recTimeAgo(rec.stream_date ?? rec.created_at)}`;
+                        const title =
+                          rec.title ??
+                          `Stream — ${recTimeAgo(rec.stream_date ?? rec.created_at)}`;
                         return (
                           <Link
                             key={rec.id}
@@ -838,7 +872,9 @@ const ViewStream = ({
                               )}
                             </div>
                             <div className="p-2">
-                              <h4 className="text-sm font-medium truncate text-foreground">{title}</h4>
+                              <h4 className="text-sm font-medium truncate text-foreground">
+                                {title}
+                              </h4>
                               <p className="text-gray-400 text-xs mt-0.5">
                                 {recTimeAgo(rec.stream_date ?? rec.created_at)}
                               </p>
@@ -941,4 +977,3 @@ const ViewStream = ({
 };
 
 export default ViewStream;
-

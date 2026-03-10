@@ -30,9 +30,12 @@ export async function GET(
       ORDER  BY uf.created_at DESC
     `;
 
-    return NextResponse.json({ following: followingProfiles }, {
-      headers: { "Cache-Control": "public, s-maxage=30" },
-    });
+    return NextResponse.json(
+      { following: followingProfiles },
+      {
+        headers: { "Cache-Control": "public, s-maxage=30" },
+      }
+    );
   } catch (error) {
     console.error("Fetch following error:", error);
     return NextResponse.json(

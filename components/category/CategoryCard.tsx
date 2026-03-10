@@ -26,7 +26,9 @@ function CategoryCard({ category }: CategoryCardProps) {
           />
         </div>
         <div className="flex flex-col gap-1 px-0.5">
-          <h3 className="font-semibold text-sm text-foreground truncate">{title}</h3>
+          <h3 className="font-semibold text-sm text-foreground truncate">
+            {title}
+          </h3>
           {viewers !== null && viewers !== undefined && viewers > 0 && (
             <p className="text-muted-foreground text-xs">
               {viewers.toLocaleString()} watching

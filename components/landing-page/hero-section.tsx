@@ -9,7 +9,9 @@ export default function HeroSection() {
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!glowRef.current) {return;}
+      if (!glowRef.current) {
+        return;
+      }
       const x = (e.clientX / window.innerWidth - 0.5) * 60;
       const y = (e.clientY / window.innerHeight - 0.5) * 40;
       glowRef.current.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
@@ -45,7 +47,8 @@ export default function HeroSection() {
         <div
           className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 text-xs font-medium mb-8 cursor-default"
           style={{
-            boxShadow: "0 0 0 1px rgba(168,85,247,0.1), 0 0 24px rgba(124,58,237,0.1)",
+            boxShadow:
+              "0 0 0 1px rgba(168,85,247,0.1), 0 0 24px rgba(124,58,237,0.1)",
           }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
@@ -62,9 +65,10 @@ export default function HeroSection() {
 
         {/* Subheadline */}
         <p className="text-white/50 text-base sm:text-lg max-w-2xl leading-relaxed mb-10">
-          Stream without limits, engage your community, and earn instantly with a
-          blockchain-powered ecosystem that ensures true ownership and frictionless
-          transactions. Built for creators. Designed for the future.
+          Stream without limits, engage your community, and earn instantly with
+          a blockchain-powered ecosystem that ensures true ownership and
+          frictionless transactions. Built for creators. Designed for the
+          future.
         </p>
 
         {/* CTAs */}
@@ -89,7 +93,7 @@ export default function HeroSection() {
         {/* Social proof */}
         <div className="flex items-center gap-3 mb-16">
           <div className="flex -space-x-2.5">
-            {[1, 2, 3, 4].map((i) => (
+            {[1, 2, 3, 4].map(i => (
               <img
                 key={i}
                 src={`/Images/waitlist${i}.png`}
@@ -99,7 +103,8 @@ export default function HeroSection() {
             ))}
           </div>
           <p className="text-sm text-white/45">
-            <span className="text-white/80 font-medium">3,000+</span> creators already joined
+            <span className="text-white/80 font-medium">3,000+</span> creators
+            already joined
           </p>
         </div>
 

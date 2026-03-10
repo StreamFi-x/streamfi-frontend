@@ -16,16 +16,22 @@ interface Recording {
 }
 
 function formatDuration(seconds: number | null): string {
-  if (!seconds || seconds <= 0) {return "";}
+  if (!seconds || seconds <= 0) {
+    return "";
+  }
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
-  if (h > 0) {return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;}
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 function formatDate(iso: string | null): string {
-  if (!iso) {return "";}
+  if (!iso) {
+    return "";
+  }
   try {
     return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
   } catch {
@@ -67,7 +73,8 @@ export function PastStreams() {
       <div className="py-16 text-center text-muted-foreground">
         <p className="text-base">No recordings yet.</p>
         <p className="text-sm mt-2">
-          Enable &quot;Record Live Streams&quot; in Stream Settings and go live to create recordings.
+          Enable &quot;Record Live Streams&quot; in Stream Settings and go live
+          to create recordings.
         </p>
       </div>
     );
@@ -113,7 +120,9 @@ export function PastStreams() {
               <p className="text-sm font-semibold text-foreground line-clamp-2 leading-tight">
                 {r.title || "Stream Recording"}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">{r.username}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {r.username}
+              </p>
               {(r.stream_date ?? r.created_at) && (
                 <p className="text-xs text-muted-foreground">
                   {formatDate(r.stream_date ?? r.created_at)}

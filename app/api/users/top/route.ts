@@ -26,10 +26,16 @@ export async function GET(req: NextRequest) {
     `;
 
     const res = NextResponse.json({ users: rows });
-    res.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+    res.headers.set(
+      "Cache-Control",
+      "public, s-maxage=60, stale-while-revalidate=120"
+    );
     return res;
   } catch (error) {
     console.error("[users/top] DB error:", error);
-    return NextResponse.json({ error: "Failed to fetch top users" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch top users" },
+      { status: 500 }
+    );
   }
 }

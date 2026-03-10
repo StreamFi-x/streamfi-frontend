@@ -36,9 +36,16 @@ function encryptSecret(plaintext: string): string {
   const key = getEncryptionKey();
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const encrypted = Buffer.concat([
+    cipher.update(plaintext, "utf8"),
+    cipher.final(),
+  ]);
   const authTag = cipher.getAuthTag();
-  return [iv.toString("hex"), authTag.toString("hex"), encrypted.toString("hex")].join(":");
+  return [
+    iv.toString("hex"),
+    authTag.toString("hex"),
+    encrypted.toString("hex"),
+  ].join(":");
 }
 
 // ─── POST handler ──────────────────────────────────────────────────────────────
@@ -56,11 +63,15 @@ export async function POST(req: NextRequest) {
   }
 
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   if (!session.privyId) {
     return NextResponse.json(
-      { error: "Only Privy (Google) accounts can regenerate a custodial wallet" },
+      {
+        error: "Only Privy (Google) accounts can regenerate a custodial wallet",
+      },
       { status: 403 }
     );
   }
@@ -90,7 +101,10 @@ export async function POST(req: NextRequest) {
     `;
   } catch (err) {
     console.error("[regenerate-wallet] DB update failed:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ ok: true, wallet: walletPublicKey });

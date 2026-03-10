@@ -24,18 +24,24 @@ export function verifyToken<T extends object>(
   secret: string
 ): T | null {
   const dot = token.lastIndexOf(".");
-  if (dot < 1) {return null;}
+  if (dot < 1) {
+    return null;
+  }
 
   const data = token.slice(0, dot);
   const sig = token.slice(dot + 1);
 
-  const expected = createHmac("sha256", secret).update(data).digest("base64url");
+  const expected = createHmac("sha256", secret)
+    .update(data)
+    .digest("base64url");
 
   try {
     const a = Buffer.from(sig, "base64url");
     const b = Buffer.from(expected, "base64url");
     // Lengths must match for timingSafeEqual; mismatched length = invalid sig
-    if (a.length !== b.length || !timingSafeEqual(a, b)) {return null;}
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      return null;
+    }
   } catch {
     return null;
   }
@@ -46,7 +52,10 @@ export function verifyToken<T extends object>(
     ) as T & { exp?: number };
 
     // Reject expired tokens
-    if (typeof parsed.exp === "number" && Math.floor(Date.now() / 1000) > parsed.exp) {
+    if (
+      typeof parsed.exp === "number" &&
+      Math.floor(Date.now() / 1000) > parsed.exp
+    ) {
       return null;
     }
 

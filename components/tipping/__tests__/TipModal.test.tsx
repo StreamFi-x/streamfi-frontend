@@ -1,4 +1,11 @@
-import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TipModal } from "../TipModal";
 import * as stellarPayments from "@/lib/stellar/payments";
@@ -14,20 +21,42 @@ jest.mock("@/lib/stellar/payments", () => ({
 
 // Mock UI components
 jest.mock("@/components/ui/avatar", () => ({
-  Avatar: ({ children }: { children: React.ReactNode }) => <div data-testid="avatar">{children}</div>,
+  Avatar: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="avatar">{children}</div>
+  ),
   AvatarImage: () => <img data-testid="avatar-image" />,
-  AvatarFallback: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AvatarFallback: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 jest.mock("@/components/ui/dialog", () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) => (
-    <div data-testid="dialog" style={{ display: open ? "block" : "none" }}>{children}</div>
+  Dialog: ({
+    children,
+    open,
+  }: {
+    children: React.ReactNode;
+    open: boolean;
+  }) => (
+    <div data-testid="dialog" style={{ display: open ? "block" : "none" }}>
+      {children}
+    </div>
   ),
-  DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
-  DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
-  DialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DialogContent: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DialogHeader: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DialogTitle: ({ children }: { children: React.ReactNode }) => (
+    <h2>{children}</h2>
+  ),
+  DialogDescription: ({ children }: { children: React.ReactNode }) => (
+    <p>{children}</p>
+  ),
+  DialogFooter: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 describe("TipModal", () => {
@@ -35,7 +64,8 @@ describe("TipModal", () => {
     isOpen: true,
     onClose: jest.fn(),
     recipientUsername: "testuser",
-    recipientPublicKey: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    recipientPublicKey:
+      "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     senderPublicKey: "GYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY",
     recipientAvatar: "https://example.com/avatar.jpg",
   };
@@ -43,8 +73,12 @@ describe("TipModal", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (stellarPayments.getXLMPrice as jest.Mock).mockResolvedValue(0.12);
-    (stellarPayments.calculateFeeEstimate as jest.Mock).mockReturnValue(0.00001);
-    (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(false);
+    (stellarPayments.calculateFeeEstimate as jest.Mock).mockReturnValue(
+      0.00001
+    );
+    (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(
+      false
+    );
   });
 
   describe("Preset Amount Selection", () => {
@@ -160,14 +194,18 @@ describe("TipModal", () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/Please enter a valid amount greater than 0/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/Please enter a valid amount greater than 0/i)
+        ).toBeInTheDocument();
       });
     });
   });
 
   describe("Transaction State Transitions", () => {
     it("should transition through states on successful transaction", async () => {
-      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue({} as any);
+      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue(
+        {} as any
+      );
       (stellarPayments.submitTransaction as jest.Mock).mockResolvedValue({
         success: true,
         hash: "mockTxHash123",
@@ -182,7 +220,9 @@ describe("TipModal", () => {
 
       await waitFor(
         () => {
-          expect(screen.getByText((c) => c.includes("XLM sent!"))).toBeInTheDocument();
+          expect(
+            screen.getByText(c => c.includes("XLM sent!"))
+          ).toBeInTheDocument();
           expect(onSuccess).toHaveBeenCalledWith("mockTxHash123", "5");
         },
         { timeout: 5000 }
@@ -203,7 +243,9 @@ describe("TipModal", () => {
 
       await waitFor(
         () => {
-          expect(screen.getByText((c) => c.includes("Network error"))).toBeInTheDocument();
+          expect(
+            screen.getByText(c => c.includes("Network error"))
+          ).toBeInTheDocument();
           expect(onError).toHaveBeenCalled();
         },
         { timeout: 5000 }
@@ -211,7 +253,9 @@ describe("TipModal", () => {
     });
 
     it("should handle user rejection", async () => {
-      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue({} as any);
+      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue(
+        {} as any
+      );
       (stellarPayments.submitTransaction as jest.Mock).mockRejectedValue(
         new Error("User declined")
       );
@@ -224,7 +268,9 @@ describe("TipModal", () => {
 
       await waitFor(
         () => {
-          expect(screen.getByText((c) => c.includes("Transaction was cancelled"))).toBeInTheDocument();
+          expect(
+            screen.getByText(c => c.includes("Transaction was cancelled"))
+          ).toBeInTheDocument();
         },
         { timeout: 5000 }
       );
@@ -233,7 +279,9 @@ describe("TipModal", () => {
 
   describe("Error Handling", () => {
     it("should handle insufficient balance error", async () => {
-      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(true);
+      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(
+        true
+      );
 
       const onError = jest.fn();
       render(<TipModal {...mockProps} onError={onError} />);
@@ -244,14 +292,18 @@ describe("TipModal", () => {
         fireEvent.click(within(dialog).getByText("5 XLM"));
       });
       expect(within(dialog).getByDisplayValue("5")).toBeInTheDocument();
-      const submitButton = within(dialog).getByRole("button", { name: "Send Tip" });
+      const submitButton = within(dialog).getByRole("button", {
+        name: "Send Tip",
+      });
       expect(submitButton).not.toBeDisabled();
 
       const user = userEvent.setup();
       await user.click(submitButton);
       await waitFor(
         () => {
-          expect(within(dialog).getByText(/Insufficient balance/i)).toBeInTheDocument();
+          expect(
+            within(dialog).getByText(/Insufficient balance/i)
+          ).toBeInTheDocument();
           expect(onError).toHaveBeenCalledWith("Insufficient balance");
         },
         { timeout: 5000 }
@@ -259,7 +311,9 @@ describe("TipModal", () => {
     });
 
     it("should show retry button on error", async () => {
-      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(false);
+      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(
+        false
+      );
       (stellarPayments.buildTipTransaction as jest.Mock).mockRejectedValue(
         new Error("Network error")
       );
@@ -271,13 +325,18 @@ describe("TipModal", () => {
       await user.click(screen.getByRole("button", { name: "Send Tip" }));
 
       await waitFor(
-        () => expect(screen.getByRole("button", { name: "Try Again" })).toBeInTheDocument(),
+        () =>
+          expect(
+            screen.getByRole("button", { name: "Try Again" })
+          ).toBeInTheDocument(),
         { timeout: 5000 }
       );
     });
 
     it("should reset state on retry", async () => {
-      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(false);
+      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(
+        false
+      );
       (stellarPayments.buildTipTransaction as jest.Mock).mockRejectedValue(
         new Error("Network error")
       );
@@ -295,7 +354,10 @@ describe("TipModal", () => {
       await user.click(retryButton);
 
       await waitFor(
-        () => expect(screen.getByRole("button", { name: "Send Tip" })).toBeInTheDocument(),
+        () =>
+          expect(
+            screen.getByRole("button", { name: "Send Tip" })
+          ).toBeInTheDocument(),
         { timeout: 5000 }
       );
     });
@@ -314,14 +376,20 @@ describe("TipModal", () => {
       fireEvent.change(input, { target: { value: "5" } });
       fireEvent.click(submitButton);
 
-      expect(await screen.findByText(/Invalid recipient Stellar address/i)).toBeInTheDocument();
+      expect(
+        await screen.findByText(/Invalid recipient Stellar address/i)
+      ).toBeInTheDocument();
     });
   });
 
   describe("Success/Error States", () => {
     it("should display success state with transaction hash", async () => {
-      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(false);
-      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue("mockXDR");
+      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(
+        false
+      );
+      (stellarPayments.buildTipTransaction as jest.Mock).mockResolvedValue(
+        "mockXDR"
+      );
       (stellarPayments.submitTransaction as jest.Mock).mockResolvedValue({
         success: true,
         hash: "ABC123DEF456",
@@ -335,7 +403,9 @@ describe("TipModal", () => {
 
       await waitFor(
         () => {
-          expect(screen.getByText((c) => c.includes("XLM sent!"))).toBeInTheDocument();
+          expect(
+            screen.getByText(c => c.includes("XLM sent!"))
+          ).toBeInTheDocument();
           expect(screen.getByText(/View on Explorer/i)).toBeInTheDocument();
         },
         { timeout: 5000 }
@@ -343,13 +413,19 @@ describe("TipModal", () => {
     });
 
     it("should show price fetch failure warning", async () => {
-      (stellarPayments.getXLMPrice as jest.Mock).mockRejectedValue(new Error("API error"));
+      (stellarPayments.getXLMPrice as jest.Mock).mockRejectedValue(
+        new Error("API error")
+      );
 
       render(<TipModal {...mockProps} />);
 
       await waitFor(
         () => {
-          expect(screen.getByText((c) => c.includes("Unable to load current XLM price"))).toBeInTheDocument();
+          expect(
+            screen.getByText(c =>
+              c.includes("Unable to load current XLM price")
+            )
+          ).toBeInTheDocument();
         },
         { timeout: 5000 }
       );
@@ -378,15 +454,19 @@ describe("TipModal", () => {
       rerender(<TipModal {...mockProps} isOpen={true} />);
 
       await waitFor(() => {
-        const resetInput = screen.getByPlaceholderText("0.00") as HTMLInputElement;
+        const resetInput = screen.getByPlaceholderText(
+          "0.00"
+        ) as HTMLInputElement;
         expect(resetInput.value).toBe("");
       });
     });
 
     it("should prevent closing during transaction processing", async () => {
-      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(false);
+      (stellarPayments.hasInsufficientBalance as jest.Mock).mockResolvedValue(
+        false
+      );
       (stellarPayments.buildTipTransaction as jest.Mock).mockImplementation(
-        () => new Promise(() => { }) // Never resolves
+        () => new Promise(() => {}) // Never resolves
       );
 
       render(<TipModal {...mockProps} />);

@@ -46,7 +46,9 @@ interface CategoryData {
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
-  if (!res.ok) {throw new Error("Failed to fetch");}
+  if (!res.ok) {
+    throw new Error("Failed to fetch");
+  }
   return res.json();
 };
 
@@ -91,7 +93,9 @@ export default function CategoryDetailPage() {
 
   // Fetch live streams with 20-second polling
   const { data } = useSWR<{ streams: LiveStream[] }>(
-    address ? `/api/streams/live?viewer_wallet=${address}` : "/api/streams/live",
+    address
+      ? `/api/streams/live?viewer_wallet=${address}`
+      : "/api/streams/live",
     fetcher,
     { refreshInterval: 20000, revalidateOnFocus: false, dedupingInterval: 5000 }
   );
@@ -102,9 +106,13 @@ export default function CategoryDetailPage() {
       try {
         setLoading(true);
         const res = await fetch(`/api/category/${encodeURIComponent(title)}`);
-        if (!res.ok) {throw new Error("Not found");}
+        if (!res.ok) {
+          throw new Error("Not found");
+        }
         const json = await res.json();
-        if (!json.success || !json.category) {throw new Error("Invalid response");}
+        if (!json.success || !json.category) {
+          throw new Error("Invalid response");
+        }
         const c = json.category;
         setCategoryData({
           id: c.id,
@@ -133,7 +141,9 @@ export default function CategoryDetailPage() {
     fetchCategory();
   }, [title]);
 
-  const [activeTab, setActiveTab] = useState<"live" | "shorts" | "videos">("live");
+  const [activeTab, setActiveTab] = useState<"live" | "shorts" | "videos">(
+    "live"
+  );
   const [selectedLanguage, setSelectedLanguage] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSort, setSelectedSort] = useState("recommended");
@@ -145,7 +155,9 @@ export default function CategoryDetailPage() {
   ];
 
   const categoryFilteredStreams = useMemo(() => {
-    if (!categoryData) {return [];}
+    if (!categoryData) {
+      return [];
+    }
     const streams = data?.streams || [];
     return streams.filter(stream => {
       const matchesCategory =
@@ -303,7 +315,10 @@ export default function CategoryDetailPage() {
             <span className="text-xs text-muted-foreground font-medium sm:whitespace-nowrap">
               Filter by
             </span>
-            <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+            <Select
+              value={selectedLanguage}
+              onValueChange={setSelectedLanguage}
+            >
               <SelectTrigger className="w-full sm:w-44">
                 <SelectValue placeholder="Language" />
               </SelectTrigger>

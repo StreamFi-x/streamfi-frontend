@@ -38,7 +38,10 @@ export async function GET() {
     cached = { price, fetchedAt: now };
     return NextResponse.json({ price }, { status: 200 });
   } catch (err) {
-    console.warn("[prices/xlm] Failed to fetch XLM price:", (err as Error).message);
+    console.warn(
+      "[prices/xlm] Failed to fetch XLM price:",
+      (err as Error).message
+    );
     // Return last cached value if available, otherwise a safe fallback
     const fallback = cached?.price ?? 0.08;
     return NextResponse.json({ price: fallback, stale: true }, { status: 200 });

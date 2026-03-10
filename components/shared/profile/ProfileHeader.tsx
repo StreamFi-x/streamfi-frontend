@@ -78,7 +78,10 @@ const ProfileHeader = ({
                   : "Follow"}
             </Button>
             {/* Stellar Tip Button */}
-            {stellarPublicKey && userStellarPublicKey && userStellarPublicKey !== stellarPublicKey && onTipClick ? (
+            {stellarPublicKey &&
+            userStellarPublicKey &&
+            userStellarPublicKey !== stellarPublicKey &&
+            onTipClick ? (
               <TipButton
                 recipientUsername={username}
                 recipientPublicKey={stellarPublicKey}

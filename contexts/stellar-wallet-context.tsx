@@ -66,7 +66,9 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   // (including Lobstr/WalletConnect) appear connected on page reload without
   // waiting for the async wallet SDK to re-establish its session.
   const [publicKey, setPublicKey] = useState<string | null>(() => {
-    if (typeof window === "undefined") {return null;}
+    if (typeof window === "undefined") {
+      return null;
+    }
     const autoConnect = localStorage.getItem("stellar_auto_connect") === "true";
     const cachedAddress = localStorage.getItem("stellar_address");
     return autoConnect && cachedAddress ? cachedAddress : null;
@@ -80,14 +82,20 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ user: PrivySessionUser }>).detail;
-      if (detail?.user) {setPrivyWallet(detail.user);}
+      if (detail?.user) {
+        setPrivyWallet(detail.user);
+      }
     };
     window.addEventListener("privy-wallet-set", handler);
 
     // Restore from sessionStorage for page refreshes
     const stored = sessionStorage.getItem("privy_user");
     if (stored) {
-      try { setPrivyWallet(JSON.parse(stored)); } catch { /* ignore */ }
+      try {
+        setPrivyWallet(JSON.parse(stored));
+      } catch {
+        /* ignore */
+      }
     }
 
     return () => window.removeEventListener("privy-wallet-set", handler);
@@ -141,72 +149,88 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     }
   }, [kit]);
 
-  const connectWallet = useCallback(async (walletId: string) => {
-    setIsConnecting(true);
-    setError(null);
-    try {
-      // Set the wallet first - this initializes the wallet module
-      kit.setWallet(walletId);
-      
-      // Small delay to ensure wallet is properly initialized
-      // This is especially important for extension wallets
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // For some wallets (like Albedo), getAddress might open a modal
-      // For extension wallets, it should work directly
-      const result = await kit.getAddress();
-      
-      if (result && result.address) {
-        setPublicKey(result.address);
-        localStorage.setItem("stellar_address", result.address);
-        // A fresh wallet-connect session must not inherit a previous Privy identity
-        sessionStorage.removeItem("privy_user");
-        sessionStorage.removeItem("username");
-        setPrivyWallet(null);
-        localStorage.setItem("stellar_last_wallet", walletId);
-        localStorage.setItem("stellar_auto_connect", "true");
-      } else {
-        throw new Error("No address returned from wallet");
-      }
-    } catch (err: any) {
-      console.error("Failed to connect Stellar wallet:", err);
-      console.error("Error details:", {
-        walletId,
-        error: err,
-        message: err?.message,
-        stack: err?.stack,
-      });
-      
-      const errorMessage = err?.message || err?.toString() || String(err) || "Failed to connect wallet";
-      
-      // Check if wallet is not installed
-      if (errorMessage.includes("not installed") || 
+  const connectWallet = useCallback(
+    async (walletId: string) => {
+      setIsConnecting(true);
+      setError(null);
+      try {
+        // Set the wallet first - this initializes the wallet module
+        kit.setWallet(walletId);
+
+        // Small delay to ensure wallet is properly initialized
+        // This is especially important for extension wallets
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // For some wallets (like Albedo), getAddress might open a modal
+        // For extension wallets, it should work directly
+        const result = await kit.getAddress();
+
+        if (result && result.address) {
+          setPublicKey(result.address);
+          localStorage.setItem("stellar_address", result.address);
+          // A fresh wallet-connect session must not inherit a previous Privy identity
+          sessionStorage.removeItem("privy_user");
+          sessionStorage.removeItem("username");
+          setPrivyWallet(null);
+          localStorage.setItem("stellar_last_wallet", walletId);
+          localStorage.setItem("stellar_auto_connect", "true");
+        } else {
+          throw new Error("No address returned from wallet");
+        }
+      } catch (err: any) {
+        console.error("Failed to connect Stellar wallet:", err);
+        console.error("Error details:", {
+          walletId,
+          error: err,
+          message: err?.message,
+          stack: err?.stack,
+        });
+
+        const errorMessage =
+          err?.message ||
+          err?.toString() ||
+          String(err) ||
+          "Failed to connect wallet";
+
+        // Check if wallet is not installed
+        if (
+          errorMessage.includes("not installed") ||
           errorMessage.includes("not found") ||
           errorMessage.includes("extension") ||
           errorMessage.includes("Extension not found") ||
           errorMessage.includes("Wallet not found") ||
           errorMessage.toLowerCase().includes("no provider") ||
           errorMessage.toLowerCase().includes("not available") ||
-          errorMessage.toLowerCase().includes("unavailable")) {
-        setError(`${walletId.charAt(0).toUpperCase() + walletId.slice(1)} wallet is not installed. Please install the extension first.`);
-      } else if (errorMessage.includes("rejected") || 
-                 errorMessage.includes("denied") ||
-                 errorMessage.includes("User rejected") ||
-                 errorMessage.includes("cancelled") ||
-                 errorMessage.includes("canceled") ||
-                 errorMessage.includes("User cancelled") ||
-                 errorMessage.includes("user cancelled")) {
-        setError("Connection was rejected. Please try again.");
-      } else if (errorMessage.includes("timeout") || errorMessage.includes("timed out")) {
-        setError("Connection timed out. Please try again.");
-      } else {
-        // Show a more user-friendly error message
-        setError(`Failed to connect ${walletId}. ${errorMessage}`);
+          errorMessage.toLowerCase().includes("unavailable")
+        ) {
+          setError(
+            `${walletId.charAt(0).toUpperCase() + walletId.slice(1)} wallet is not installed. Please install the extension first.`
+          );
+        } else if (
+          errorMessage.includes("rejected") ||
+          errorMessage.includes("denied") ||
+          errorMessage.includes("User rejected") ||
+          errorMessage.includes("cancelled") ||
+          errorMessage.includes("canceled") ||
+          errorMessage.includes("User cancelled") ||
+          errorMessage.includes("user cancelled")
+        ) {
+          setError("Connection was rejected. Please try again.");
+        } else if (
+          errorMessage.includes("timeout") ||
+          errorMessage.includes("timed out")
+        ) {
+          setError("Connection timed out. Please try again.");
+        } else {
+          // Show a more user-friendly error message
+          setError(`Failed to connect ${walletId}. ${errorMessage}`);
+        }
+      } finally {
+        setIsConnecting(false);
       }
-    } finally {
-      setIsConnecting(false);
-    }
-  }, [kit]);
+    },
+    [kit]
+  );
 
   const disconnect = useCallback(() => {
     setPublicKey(null);
@@ -234,7 +258,9 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
 
     const timeoutId = window.setTimeout(() => {
       const restoreConnection = async () => {
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         setIsConnecting(true);
         setError(null);
         try {

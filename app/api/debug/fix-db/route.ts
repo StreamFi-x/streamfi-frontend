@@ -197,7 +197,9 @@ export async function GET() {
       await sql`CREATE INDEX IF NOT EXISTS idx_users_username_lower ON users (LOWER(username))`;
       results.push("✅ Created/verified index: idx_users_username_lower");
     } catch {
-      skipped.push("⏭️ Index idx_users_username_lower already exists or failed");
+      skipped.push(
+        "⏭️ Index idx_users_username_lower already exists or failed"
+      );
     }
 
     try {
@@ -228,7 +230,9 @@ export async function GET() {
         `;
         results.push("✅ Created table: user_follows");
       } catch (e) {
-        results.push(`❌ Failed to create user_follows: ${e instanceof Error ? e.message : e}`);
+        results.push(
+          `❌ Failed to create user_follows: ${e instanceof Error ? e.message : e}`
+        );
       }
     } else {
       skipped.push("⏭️ Table 'user_follows' already exists");
@@ -238,7 +242,9 @@ export async function GET() {
       await sql`CREATE INDEX IF NOT EXISTS idx_user_follows_followee ON user_follows (followee_id)`;
       results.push("✅ Created/verified index: idx_user_follows_followee");
     } catch {
-      skipped.push("⏭️ Index idx_user_follows_followee already exists or failed");
+      skipped.push(
+        "⏭️ Index idx_user_follows_followee already exists or failed"
+      );
     }
 
     // Backfill user_follows from the legacy following UUID[] arrays.

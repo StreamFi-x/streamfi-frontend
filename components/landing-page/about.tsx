@@ -30,18 +30,22 @@ export default function About() {
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
+      entries => {
+        entries.forEach(entry => {
           if (entry.isIntersecting) {
-            entry.target.querySelectorAll<HTMLElement>(".reveal").forEach((el, i) => {
-              setTimeout(() => el.classList.add("visible"), i * 120);
-            });
+            entry.target
+              .querySelectorAll<HTMLElement>(".reveal")
+              .forEach((el, i) => {
+                setTimeout(() => el.classList.add("visible"), i * 120);
+              });
           }
         });
       },
       { threshold: 0.1 }
     );
-    if (sectionRef.current) {observer.observe(sectionRef.current);}
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
     return () => observer.disconnect();
   }, []);
 
@@ -58,14 +62,18 @@ export default function About() {
             <h2 className="reveal reveal-delay-1 font-pp-neue font-extrabold text-4xl md:text-5xl text-white leading-tight mb-6">
               A new era of
               <br />
-              <span className="text-gradient-purple">creator-first streaming</span>
+              <span className="text-gradient-purple">
+                creator-first streaming
+              </span>
             </h2>
 
             <p className="reveal reveal-delay-2 text-white/50 text-sm leading-relaxed mb-10">
-              StreamFi is a Web3-powered streaming platform built to give content creators and
-              gamers full control over their earnings. Unlike traditional platforms that take large
-              cuts and delay payouts, StreamFi uses blockchain technology to enable instant crypto
-              tipping, NFT-based memberships, and DeFi staking rewards, all without middlemen.
+              StreamFi is a Web3-powered streaming platform built to give
+              content creators and gamers full control over their earnings.
+              Unlike traditional platforms that take large cuts and delay
+              payouts, StreamFi uses blockchain technology to enable instant
+              crypto tipping, NFT-based memberships, and DeFi staking rewards,
+              all without middlemen.
             </p>
 
             {/* Steps */}
@@ -81,8 +89,12 @@ export default function About() {
                     </span>
                   </div>
                   <div className="pt-0.5">
-                    <h3 className="text-white text-sm font-semibold mb-1">{step.title}</h3>
-                    <p className="text-white/45 text-sm leading-relaxed">{step.description}</p>
+                    <h3 className="text-white text-sm font-semibold mb-1">
+                      {step.title}
+                    </h3>
+                    <p className="text-white/45 text-sm leading-relaxed">
+                      {step.description}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -101,7 +113,8 @@ export default function About() {
             <div
               className="rounded-2xl overflow-hidden border border-white/[0.08]"
               style={{
-                boxShadow: "0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
+                boxShadow:
+                  "0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
               }}
             >
               <Image

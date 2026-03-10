@@ -70,13 +70,19 @@ export default function ConnectWalletModal({
     connectWallet,
     error: walletError,
   } = useStellarWallet();
-  const { signInWithGoogle, ready: privyReady, authenticated: privyAuthenticated } = usePrivyAuth();
+  const {
+    signInWithGoogle,
+    ready: privyReady,
+    authenticated: privyAuthenticated,
+  } = usePrivyAuth();
   const router = useRouter();
 
   const [dismissed, setDismissed] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
-  const [connectingWalletId, setConnectingWalletId] = useState<string | null>(null);
+  const [connectingWalletId, setConnectingWalletId] = useState<string | null>(
+    null
+  );
   const hasOpened = useRef(false);
 
   useEffect(() => {
@@ -119,7 +125,9 @@ export default function ConnectWalletModal({
   };
 
   const requestClose = () => {
-    if (isLoading || isConnecting) {return;}
+    if (isLoading || isConnecting) {
+      return;
+    }
     if (!isConnected) {
       setShowConfirm(true);
     } else {
@@ -145,7 +153,9 @@ export default function ConnectWalletModal({
       walletError.includes("extension")) &&
     selectedWalletInfo?.installUrl;
 
-  if (!isModalOpen) {return null;}
+  if (!isModalOpen) {
+    return null;
+  }
 
   return (
     <div
@@ -183,7 +193,6 @@ export default function ConnectWalletModal({
 
         {/* Body */}
         <div className="px-5 pt-4 pb-5 space-y-3">
-
           {/* — Confirm-close screen — */}
           {showConfirm ? (
             <div className="py-2 space-y-4">
@@ -221,11 +230,29 @@ export default function ConnectWalletModal({
                   disabled={!privyReady}
                   className="flex items-center justify-center gap-2.5 w-full py-3 px-4 bg-white hover:bg-white/[0.92] text-[#111] text-sm font-semibold rounded-xl transition-all active:scale-[0.98] disabled:opacity-40 shadow-sm"
                 >
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-                    <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4" />
-                    <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853" />
-                    <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05" />
-                    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335" />
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 18 18"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"
+                      fill="#4285F4"
+                    />
+                    <path
+                      d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"
+                      fill="#34A853"
+                    />
+                    <path
+                      d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"
+                      fill="#FBBC05"
+                    />
+                    <path
+                      d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"
+                      fill="#EA4335"
+                    />
                   </svg>
                   Continue with Google
                 </button>
@@ -257,7 +284,9 @@ export default function ConnectWalletModal({
                 <div className="flex items-start gap-2.5 p-3 bg-red-500/[0.08] border border-red-500/[0.18] rounded-xl">
                   <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-red-400 text-xs leading-relaxed">{walletError}</p>
+                    <p className="text-red-400 text-xs leading-relaxed">
+                      {walletError}
+                    </p>
                     {showInstallLink && (
                       <a
                         href={selectedWalletInfo!.installUrl}
@@ -305,7 +334,9 @@ export default function ConnectWalletModal({
                           <p className="text-white/85 text-sm font-medium leading-none mb-1 group-hover:text-white transition-colors">
                             {wallet.name}
                           </p>
-                          <p className="text-white/30 text-xs">{wallet.description}</p>
+                          <p className="text-white/30 text-xs">
+                            {wallet.description}
+                          </p>
                         </div>
                         {isConnectingThis && (
                           <div className="w-4 h-4 rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin flex-shrink-0" />
@@ -319,11 +350,17 @@ export default function ConnectWalletModal({
               {/* Terms */}
               <p className="text-white/20 text-[11px] text-center pt-0.5 leading-relaxed">
                 By continuing you agree to our{" "}
-                <a href="#" className="text-white/35 hover:text-white/55 underline underline-offset-2 transition-colors">
+                <a
+                  href="#"
+                  className="text-white/35 hover:text-white/55 underline underline-offset-2 transition-colors"
+                >
                   Terms of Service
                 </a>{" "}
                 and{" "}
-                <a href="#" className="text-white/35 hover:text-white/55 underline underline-offset-2 transition-colors">
+                <a
+                  href="#"
+                  className="text-white/35 hover:text-white/55 underline underline-offset-2 transition-colors"
+                >
                   Privacy Policy
                 </a>
               </p>

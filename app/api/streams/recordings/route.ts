@@ -9,7 +9,10 @@ import { sql } from "@vercel/postgres";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10))
+    );
     const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
     const username = searchParams.get("username") ?? "";
 
@@ -73,7 +76,11 @@ export async function GET(req: NextRequest) {
         hasMore: offset + limit < total,
         nextOffset: offset + limit < total ? offset + limit : null,
       },
-      { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" } }
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+        },
+      }
     );
   } catch (error) {
     console.error("Error fetching public recordings:", error);

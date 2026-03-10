@@ -9,7 +9,9 @@ const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
 
 function getSecret(): string {
   const s = process.env.SESSION_SECRET;
-  if (!s) {throw new Error("SESSION_SECRET env var is required");}
+  if (!s) {
+    throw new Error("SESSION_SECRET env var is required");
+  }
   return s;
 }
 
@@ -37,12 +39,18 @@ export async function POST(req: NextRequest) {
   try {
     ({ wallet } = await req.json());
   } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 }
+    );
   }
 
   // Stellar public keys are 56 chars, start with G, base32 alphabet
   if (!wallet || !/^G[A-Z2-7]{55}$/.test(wallet)) {
-    return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid wallet address" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -54,7 +62,10 @@ export async function POST(req: NextRequest) {
     `;
 
     if (rows.length === 0) {
-      return NextResponse.json({ error: "Wallet not registered" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Wallet not registered" },
+        { status: 404 }
+      );
     }
 
     const u = rows[0];
@@ -81,7 +92,10 @@ export async function POST(req: NextRequest) {
     return res;
   } catch (err) {
     console.error("[wallet-session] DB error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 

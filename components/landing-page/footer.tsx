@@ -15,7 +15,11 @@ const links = {
   community: [
     { name: "Twitter / X", href: "https://x.com/_streamfi", external: true },
     { name: "Discord", href: "https://discord.gg/jPhndJFC", external: true },
-    { name: "Telegram", href: "https://t.me/+slCXibBFWF05NDQ0", external: true },
+    {
+      name: "Telegram",
+      href: "https://t.me/+slCXibBFWF05NDQ0",
+      external: true,
+    },
   ],
   legal: [
     { name: "Terms of Service", href: "/terms" },
@@ -36,16 +40,28 @@ export default function Footer() {
               <Image src={Logo} alt="StreamFi" width={120} height={38} />
             </Link>
             <p className="text-white/35 text-sm leading-relaxed mb-6 max-w-xs">
-              The creator-first live streaming platform. Own your stream, own your earnings,
-              powered by Web3.
+              The creator-first live streaming platform. Own your stream, own
+              your earnings, powered by Web3.
             </p>
             {/* Social icons */}
             <div className="flex items-center gap-2">
               {[
-                { href: "https://x.com/_streamfi", src: "/Images/x.png", label: "X" },
-                { href: "https://discord.gg/jPhndJFC", src: "/Images/discord.svg", label: "Discord" },
-                { href: "https://t.me/+slCXibBFWF05NDQ0", src: "/Images/Telegram.png", label: "Telegram" },
-              ].map((s) => (
+                {
+                  href: "https://x.com/_streamfi",
+                  src: "/Images/x.png",
+                  label: "X",
+                },
+                {
+                  href: "https://discord.gg/jPhndJFC",
+                  src: "/Images/discord.svg",
+                  label: "Discord",
+                },
+                {
+                  href: "https://t.me/+slCXibBFWF05NDQ0",
+                  src: "/Images/Telegram.png",
+                  label: "Telegram",
+                },
+              ].map(s => (
                 <a
                   key={s.label}
                   href={s.href}
@@ -54,7 +70,13 @@ export default function Footer() {
                   className="w-8 h-8 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-white/15 transition-all duration-200"
                   aria-label={s.label}
                 >
-                  <Image src={s.src} alt={s.label} width={14} height={14} className="opacity-55 w-[14px] h-[14px] object-contain" />
+                  <Image
+                    src={s.src}
+                    alt={s.label}
+                    width={14}
+                    height={14}
+                    className="opacity-55 w-[14px] h-[14px] object-contain"
+                  />
                 </a>
               ))}
             </div>
@@ -66,7 +88,7 @@ export default function Footer() {
               Product
             </h3>
             <ul className="space-y-3">
-              {links.product.map((l) => (
+              {links.product.map(l => (
                 <li key={l.name}>
                   <Link
                     href={l.href}
@@ -85,7 +107,7 @@ export default function Footer() {
               Community
             </h3>
             <ul className="space-y-3">
-              {links.community.map((l) => (
+              {links.community.map(l => (
                 <li key={l.name}>
                   <a
                     href={l.href}
@@ -106,7 +128,7 @@ export default function Footer() {
               Legal
             </h3>
             <ul className="space-y-3 mb-6">
-              {links.legal.map((l) => (
+              {links.legal.map(l => (
                 <li key={l.name}>
                   <Link
                     href={l.href}
@@ -134,7 +156,9 @@ export default function Footer() {
           </p>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-white/25 text-xs">All systems operational</span>
+            <span className="text-white/25 text-xs">
+              All systems operational
+            </span>
           </div>
         </div>
       </div>

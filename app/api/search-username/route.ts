@@ -22,7 +22,10 @@ export async function GET(req: NextRequest) {
     const query = searchParams.get("q")?.trim() ?? "";
 
     if (!query) {
-      return NextResponse.json({ error: "Query parameter 'q' is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Query parameter 'q' is required" },
+        { status: 400 }
+      );
     }
 
     // Single-char queries match too broadly and defeat the trgm index's usefulness
@@ -43,6 +46,9 @@ export async function GET(req: NextRequest) {
     );
   } catch (error) {
     console.error("Username search error:", error);
-    return NextResponse.json({ error: "Failed to search usernames" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to search usernames" },
+      { status: 500 }
+    );
   }
 }

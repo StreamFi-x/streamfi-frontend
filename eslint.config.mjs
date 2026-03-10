@@ -11,7 +11,14 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   {
-    ignores: [".next/**", "dist/**", "build/**", "coverage/**", ".turbo/**", "node_modules/**"],
+    ignores: [
+      ".next/**",
+      "dist/**",
+      "build/**",
+      "coverage/**",
+      ".turbo/**",
+      "node_modules/**",
+    ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
@@ -35,8 +42,8 @@ const eslintConfig = [
       "@typescript-eslint/no-explicit-any": "warn", // Warn about any usage
 
       // Best practices
-      "eqeqeq": "error", // Require === and !==
-      "curly": "error", // Require curly braces
+      eqeqeq: "error", // Require === and !==
+      curly: "error", // Require curly braces
       "no-eval": "error", // No eval usage
       "no-implied-eval": "error", // No implied eval
       "no-new-func": "error", // No new Function()

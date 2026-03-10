@@ -408,8 +408,10 @@ const useDropzoneContext = <TUploadRes, TUploadError>() => {
   >;
 };
 
-interface DropzoneProps<TUploadRes, TUploadError>
-  extends UseDropzoneReturn<TUploadRes, TUploadError> {
+interface DropzoneProps<TUploadRes, TUploadError> extends UseDropzoneReturn<
+  TUploadRes,
+  TUploadError
+> {
   children: React.ReactNode;
 }
 const Dropzone = <TUploadRes, TUploadError>(
@@ -436,7 +438,7 @@ const DropZoneArea = forwardRef<HTMLDivElement, DropZoneAreaProps>(
 
     return (
       // A11y behavior is handled through Trigger. All of these are only relevant to drag and drop which means this should be fine?
-       
+
       <div
         ref={instance => {
           // TODO: test if this actually works?
@@ -468,7 +470,8 @@ const DropZoneArea = forwardRef<HTMLDivElement, DropZoneAreaProps>(
 );
 DropZoneArea.displayName = "DropZoneArea";
 
-export type DropzoneDescriptionProps = React.HTMLAttributes<HTMLParagraphElement>;
+export type DropzoneDescriptionProps =
+  React.HTMLAttributes<HTMLParagraphElement>;
 
 const DropzoneDescription = forwardRef<
   HTMLParagraphElement,
@@ -537,8 +540,10 @@ const DropzoneFileList = forwardRef<HTMLOListElement, DropZoneFileListProps>(
 );
 DropzoneFileList.displayName = "DropzoneFileList";
 
-interface DropzoneFileListItemProps<TUploadRes, TUploadError>
-  extends React.LiHTMLAttributes<HTMLLIElement> {
+interface DropzoneFileListItemProps<
+  TUploadRes,
+  TUploadError,
+> extends React.LiHTMLAttributes<HTMLLIElement> {
   file: FileStatus<TUploadRes, TUploadError>;
 }
 

@@ -7,7 +7,9 @@ export async function DELETE(req: NextRequest) {
   // Verify caller is authenticated — identity comes from the server-side session
   // cookie, NOT from client-supplied body fields.
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     const userResult = await sql`
@@ -32,7 +34,8 @@ export async function DELETE(req: NextRequest) {
     if (user.is_live) {
       return NextResponse.json(
         {
-          error: "Cannot delete stream while live. Please stop the stream first.",
+          error:
+            "Cannot delete stream while live. Please stop the stream first.",
         },
         { status: 409 }
       );

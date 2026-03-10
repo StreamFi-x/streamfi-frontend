@@ -223,7 +223,11 @@ export default function ProfileSettings() {
             setSocialLinks(convertedLinks);
           }
 
-          setIsEmailVerified(parsedUserData.emailverified || parsedUserData.email_verified || false);
+          setIsEmailVerified(
+            parsedUserData.emailverified ||
+              parsedUserData.email_verified ||
+              false
+          );
           setIsInitialized(true);
         } else if (!isInitialized) {
           // No sessionStorage data at all — stop spinning, show empty form

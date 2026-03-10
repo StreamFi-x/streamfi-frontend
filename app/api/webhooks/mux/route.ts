@@ -139,13 +139,24 @@ export async function POST(req: Request) {
 
       case "video.asset.ready": {
         const assetId = event.data?.id;
-        const playbackIds = event.data?.playback_ids as Array<{ id?: string }> | undefined;
-        const playbackId = Array.isArray(playbackIds) ? playbackIds[0]?.id : undefined;
-        const duration = event.data?.duration !== null && event.data?.duration !== undefined ? Math.round(event.data.duration) : null;
-        const liveStreamId = event.data?.live_stream_id ?? event.data?.live_stream?.id;
+        const playbackIds = event.data?.playback_ids as
+          | Array<{ id?: string }>
+          | undefined;
+        const playbackId = Array.isArray(playbackIds)
+          ? playbackIds[0]?.id
+          : undefined;
+        const duration =
+          event.data?.duration !== null && event.data?.duration !== undefined
+            ? Math.round(event.data.duration)
+            : null;
+        const liveStreamId =
+          event.data?.live_stream_id ?? event.data?.live_stream?.id;
 
         if (!assetId || !playbackId) {
-          console.error("❌ video.asset.ready missing asset id or playback_id", event.data);
+          console.error(
+            "❌ video.asset.ready missing asset id or playback_id",
+            event.data
+          );
           break;
         }
 
@@ -161,7 +172,8 @@ export async function POST(req: Request) {
             if (userResult.rows.length > 0) {
               const u = userResult.rows[0];
               userId = u.id;
-              sessionTitle = u.creator?.streamTitle ?? u.creator?.title ?? sessionTitle;
+              sessionTitle =
+                u.creator?.streamTitle ?? u.creator?.title ?? sessionTitle;
               const sessionResult = await sql`
                 SELECT id FROM stream_sessions
                 WHERE user_id = ${u.id} AND ended_at IS NOT NULL
@@ -174,7 +186,10 @@ export async function POST(req: Request) {
           }
 
           if (!userId) {
-            console.warn("⚠️ video.asset.ready: could not resolve user for asset", assetId);
+            console.warn(
+              "⚠️ video.asset.ready: could not resolve user for asset",
+              assetId
+            );
             break;
           }
 

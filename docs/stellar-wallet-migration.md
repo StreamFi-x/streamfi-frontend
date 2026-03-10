@@ -3,10 +3,12 @@
 ## Decisions
 
 ### Wallet column
+
 - **Column type:** Keep `VARCHAR(255)`. Stellar public keys are 56 characters; 255 allows future formats without another migration.
 - **Optional:** To enforce Stellar-only, use `VARCHAR(56)` and add a migration; not applied here.
 
 ### Existing StarkNet data
+
 - **Recommended (pre-production):** **Option A** — Wipe test data. If the database has no production users or only test StarkNet hex addresses, run:
   ```sql
   -- Only if pre-production and you want to clear StarkNet users
@@ -20,6 +22,7 @@
 - **Otherwise:** **Option C** — Document that legacy StarkNet users must re-register with a Stellar wallet.
 
 ### Schema and queries
+
 - **LOWER(wallet) removed** everywhere. Stellar public keys are uppercase; comparisons use exact match on `wallet`.
 - **Indexes:** Use `users(wallet)` and `users(wallet, is_live)`; no expression index on `LOWER(wallet)`.
 

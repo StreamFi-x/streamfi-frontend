@@ -25,7 +25,7 @@
     --accent-foreground: 222.2 84% 4.9%; /* slate-900 */
     --destructive: 0 84.2% 60.2%; /* red-500 */
     --destructive-foreground: 210 40% 98%; /* gray-50 */
-    --surface:0, 0%, 100%; /* white */
+    --surface: 0, 0%, 100%; /* white */
     --surface-hover: 0, 0%, 96%; /* gray-100 */
     --border: 220 14% 96%; /* gray-100 */
     --input: 240 5% 96%; /* gray-100 */
@@ -194,39 +194,68 @@
   opacity: 1;
   transform: translateY(0);
 }
-.reveal-delay-1 { transition-delay: 0.08s; }
-.reveal-delay-2 { transition-delay: 0.16s; }
-.reveal-delay-3 { transition-delay: 0.24s; }
-.reveal-delay-4 { transition-delay: 0.32s; }
-.reveal-delay-5 { transition-delay: 0.40s; }
-.reveal-delay-6 { transition-delay: 0.48s; }
+.reveal-delay-1 {
+  transition-delay: 0.08s;
+}
+.reveal-delay-2 {
+  transition-delay: 0.16s;
+}
+.reveal-delay-3 {
+  transition-delay: 0.24s;
+}
+.reveal-delay-4 {
+  transition-delay: 0.32s;
+}
+.reveal-delay-5 {
+  transition-delay: 0.4s;
+}
+.reveal-delay-6 {
+  transition-delay: 0.48s;
+}
 
 /* ─── Marquee ─────────────────────────────────────────────────────────────── */
 @keyframes marquee {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
 @keyframes marquee-reverse {
-  from { transform: translateX(-50%); }
-  to   { transform: translateX(0); }
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 .marquee-track {
   display: flex;
   width: max-content;
   animation: marquee 40s linear infinite;
 }
-.marquee-track:hover { animation-play-state: paused; }
+.marquee-track:hover {
+  animation-play-state: paused;
+}
 .marquee-track-reverse {
   display: flex;
   width: max-content;
   animation: marquee-reverse 45s linear infinite;
 }
-.marquee-track-reverse:hover { animation-play-state: paused; }
+.marquee-track-reverse:hover {
+  animation-play-state: paused;
+}
 
 /* ─── Token float ─────────────────────────────────────────────────────────── */
 @keyframes token-float {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50%       { transform: translateY(-14px) rotate(4deg); }
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(4deg);
+  }
 }
 .token-float {
   animation: token-float 4s ease-in-out infinite;
@@ -234,8 +263,12 @@
 
 /* ─── Slow spin ───────────────────────────────────────────────────────────── */
 @keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .animate-spin-slow {
   animation: spin-slow 20s linear infinite;
@@ -246,8 +279,13 @@
 
 /* ─── Glow pulse ──────────────────────────────────────────────────────────── */
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.3); }
-  50%       { box-shadow: 0 0 40px rgba(124, 58, 237, 0.6); }
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(124, 58, 237, 0.6);
+  }
 }
 .glow-pulse {
   animation: glow-pulse 2.5s ease-in-out infinite;
@@ -256,8 +294,8 @@
 /* ─── Hero grid lines ─────────────────────────────────────────────────────── */
 .hero-grid {
   background-image:
-    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 64px 64px;
 }
 

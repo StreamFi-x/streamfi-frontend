@@ -48,7 +48,10 @@ export async function POST(req: NextRequest) {
     const stream = result.rows[0];
 
     if (!stream.is_live) {
-      return NextResponse.json({ error: "Stream is not currently live" }, { status: 409 });
+      return NextResponse.json(
+        { error: "Stream is not currently live" },
+        { status: 409 }
+      );
     }
 
     // --- Deduplicate: check if this viewer session is already counted ---
@@ -60,7 +63,10 @@ export async function POST(req: NextRequest) {
         WHERE session_id = ${sessionId} AND left_at IS NULL
       `;
       if (existingViewer.rows.length > 0) {
-        return NextResponse.json({ message: "Already tracking this viewer" }, { status: 200 });
+        return NextResponse.json(
+          { message: "Already tracking this viewer" },
+          { status: 200 }
+        );
       }
     } catch {
       // stream_viewers table may not exist yet — skip dedup, still count viewer
@@ -106,7 +112,10 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error("Viewer join error:", error);
-    return NextResponse.json({ error: "Failed to join stream" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to join stream" },
+      { status: 500 }
+    );
   }
 }
 
@@ -115,7 +124,10 @@ export async function DELETE(req: Request) {
     const { sessionId, playbackId } = await req.json();
 
     if (!sessionId) {
-      return NextResponse.json({ error: "Session ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Session ID is required" },
+        { status: 400 }
+      );
     }
 
     // --- Primary path: stream_viewers record exists ---
@@ -139,7 +151,10 @@ export async function DELETE(req: Request) {
             WHERE id = ${sessionResult.rows[0].user_id}
           `;
         }
-        return NextResponse.json({ message: "Viewer left successfully" }, { status: 200 });
+        return NextResponse.json(
+          { message: "Viewer left successfully" },
+          { status: 200 }
+        );
       }
     } catch {
       // stream_viewers or stream_sessions table missing — fall through to playbackId path
@@ -155,9 +170,15 @@ export async function DELETE(req: Request) {
       `;
     }
 
-    return NextResponse.json({ message: "Viewer left successfully" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Viewer left successfully" },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Viewer leave error:", error);
-    return NextResponse.json({ error: "Failed to leave stream" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to leave stream" },
+      { status: 500 }
+    );
   }
 }

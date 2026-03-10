@@ -12,7 +12,9 @@ const swrCache = new Map();
 const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
 
 if (!PRIVY_APP_ID) {
-  throw new Error("NEXT_PUBLIC_PRIVY_APP_ID is not set. Check your .env.local file.");
+  throw new Error(
+    "NEXT_PUBLIC_PRIVY_APP_ID is not set. Check your .env.local file."
+  );
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {

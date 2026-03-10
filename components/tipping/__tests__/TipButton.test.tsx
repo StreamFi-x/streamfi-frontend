@@ -3,7 +3,14 @@ import { TipButton } from "../TipButton";
 
 // Mock UI components
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, disabled, title, className, ...props }: any) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    title,
+    className,
+    ...props
+  }: any) => (
     <button
       onClick={onClick}
       disabled={disabled}
@@ -20,7 +27,8 @@ jest.mock("@/components/ui/button", () => ({
 describe("TipButton", () => {
   const mockProps = {
     recipientUsername: "testuser",
-    recipientPublicKey: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    recipientPublicKey:
+      "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     onTipClick: jest.fn(),
   };
 
@@ -62,7 +70,10 @@ describe("TipButton", () => {
       render(<TipButton {...mockProps} recipientPublicKey="" />);
 
       const button = screen.getByTestId("tip-button");
-      expect(button).toHaveAttribute("title", "Recipient has no Stellar public key");
+      expect(button).toHaveAttribute(
+        "title",
+        "Recipient has no Stellar public key"
+      );
     });
   });
 
@@ -76,7 +87,7 @@ describe("TipButton", () => {
     it("should not render when recipientPublicKey is missing", () => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { recipientPublicKey, ...propsWithoutKey } = mockProps;
-      render(<TipButton {...propsWithoutKey as any} />);
+      render(<TipButton {...(propsWithoutKey as any)} />);
 
       expect(screen.queryByTestId("tip-button")).not.toBeInTheDocument();
     });
@@ -102,7 +113,10 @@ describe("TipButton", () => {
       render(<TipButton {...mockProps} />);
 
       const button = screen.getByTestId("tip-button");
-      const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+      const event = new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+      });
       const preventDefaultSpy = jest.spyOn(event, "preventDefault");
 
       button.dispatchEvent(event);
@@ -114,7 +128,10 @@ describe("TipButton", () => {
       render(<TipButton {...mockProps} />);
 
       const button = screen.getByTestId("tip-button");
-      const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+      const event = new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+      });
       const stopPropagationSpy = jest.spyOn(event, "stopPropagation");
 
       button.dispatchEvent(event);
@@ -178,7 +195,10 @@ describe("TipButton", () => {
       render(<TipButton {...mockProps} recipientUsername={specialUsername} />);
 
       const button = screen.getByTestId("tip-button");
-      expect(button).toHaveAttribute("title", `Send a tip to ${specialUsername}`);
+      expect(button).toHaveAttribute(
+        "title",
+        `Send a tip to ${specialUsername}`
+      );
     });
   });
 });

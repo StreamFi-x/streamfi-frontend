@@ -186,7 +186,10 @@ export default function LivePage() {
             <span className="text-xs text-muted-foreground font-medium sm:whitespace-nowrap">
               Filter by
             </span>
-            <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+            <Select
+              value={selectedLanguage}
+              onValueChange={setSelectedLanguage}
+            >
               <SelectTrigger className="w-full sm:w-44">
                 <SelectValue placeholder="Language" />
               </SelectTrigger>
@@ -256,4 +259,3 @@ export default function LivePage() {
     </div>
   );
 }
-

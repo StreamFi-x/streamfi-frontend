@@ -19,7 +19,9 @@ const ProfilePage = ({ params }: PageProps) => {
 
     const fetchUserData = async () => {
       try {
-        if (isInitialLoad) {setLoading(true);}
+        if (isInitialLoad) {
+          setLoading(true);
+        }
 
         const response = await fetch(`/api/users/${username}?t=${Date.now()}`);
 
@@ -33,7 +35,9 @@ const ProfilePage = ({ params }: PageProps) => {
         if (!response.ok) {
           // Server error (500, timeout, etc.) — keep showing existing data if we
           // have it, or show a toast on the initial load. Don't set userExists=false.
-          if (isInitialLoad) {toast.error("Failed to load profile. Retrying…");}
+          if (isInitialLoad) {
+            toast.error("Failed to load profile. Retrying…");
+          }
           return;
         }
 
@@ -41,7 +45,9 @@ const ProfilePage = ({ params }: PageProps) => {
         setUserData(data.user);
       } catch {
         // Network failure — same as above, transient, don't show "User not found".
-        if (isInitialLoad) {toast.error("Failed to load profile. Retrying…");}
+        if (isInitialLoad) {
+          toast.error("Failed to load profile. Retrying…");
+        }
       } finally {
         if (isInitialLoad) {
           setLoading(false);
@@ -56,25 +62,30 @@ const ProfilePage = ({ params }: PageProps) => {
     return () => clearInterval(interval);
   }, [username]);
 
-  if (loading) {return <div>Loading...</div>;}
-  if (!userExists) {return <div>User not found</div>;}
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  if (!userExists) {
+    return <div>User not found</div>;
+  }
 
-  const recentStreams =
-    userData?.is_live
-      ? [
-          {
-            id: userData.id,
-            title: userData.creator?.title || `${username}'s Live Stream`,
-            thumbnailUrl:
-              userData.creator?.thumbnail || userData.avatar || "/Images/user.png",
-            username,
-            category: userData.creator?.category || "Live",
-            tags: userData.creator?.tags || ["live"],
-            viewCount: userData.current_viewers || 0,
-            isLive: true,
-          },
-        ]
-      : [];
+  const recentStreams = userData?.is_live
+    ? [
+        {
+          id: userData.id,
+          title: userData.creator?.title || `${username}'s Live Stream`,
+          thumbnailUrl:
+            userData.creator?.thumbnail ||
+            userData.avatar ||
+            "/Images/user.png",
+          username,
+          category: userData.creator?.category || "Live",
+          tags: userData.creator?.tags || ["live"],
+          viewCount: userData.current_viewers || 0,
+          isLive: true,
+        },
+      ]
+    : [];
 
   const popularClips: any[] = [];
 
@@ -99,7 +110,9 @@ const ProfilePage = ({ params }: PageProps) => {
       </section>
 
       <section>
-        <h2 className="text-foreground text-xl font-medium mb-4">Popular Clips</h2>
+        <h2 className="text-foreground text-xl font-medium mb-4">
+          Popular Clips
+        </h2>
         {popularClips.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {popularClips.map(clip => (

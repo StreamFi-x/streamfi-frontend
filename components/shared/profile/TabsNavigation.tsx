@@ -29,7 +29,9 @@ const TabsNavigation = ({ username }: TabsNavigationProps) => {
   ];
 
   const isActive = (path: string) => {
-    if (!mounted) {return false;}
+    if (!mounted) {
+      return false;
+    }
     if (path === `/${username}`) {
       return pathname === `/${username}`;
     }

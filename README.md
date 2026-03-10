@@ -1,7 +1,8 @@
 [optional body]
 
 [optional footer]
-```
+
+````
 
 Types:
 
@@ -22,7 +23,7 @@ Example:
 ```bash
 npm run commit
 # This will open an interactive prompt to create a properly formatted commit
-```
+````
 
 ### Git Hooks
 
@@ -40,8 +41,9 @@ rm package-lock.json
 npm install
 ```
 
-## 
- Development Tools
+##
+
+Development Tools
 
 ### Code Formatting & Linting
 
@@ -116,8 +118,9 @@ The following hooks are automatically run:
 - **pre-commit**: Formats and lints staged files
 - **commit-msg**: Validates commit message format
 
-## 
- Branch Naming Convention
+##
+
+Branch Naming Convention
 
 We follow a structured branch naming format:
 
@@ -132,19 +135,22 @@ feat-23-livepeer-integration
 fix-45-streaming-bug
 ```
 
-## 
- Contributing
+##
+
+Contributing
 
 We are always excited to welcome passionate developers and contributors to help shape the future of StreamFi. Whether you're improving existing features, fixing bugs, or bringing innovative ideas to the table, your contributions are invaluable. To get started, check out our [
- Contribution Guide](https://github.com/StreamFi-x/streamfi-frontend/blob/main/CONTRIBUTING.md) for detailed instructions on how to contribute effectively.
+Contribution Guide](https://github.com/StreamFi-x/streamfi-frontend/blob/main/CONTRIBUTING.md) for detailed instructions on how to contribute effectively.
 
-## 
- Community & Support
+##
+
+Community & Support
 
 - Join our [Telegram](https://t.me/+slCXibBFWF05NDQ0) for discussions and support.
 
-## 
- License
+##
+
+License
 
 This project is licensed under the MIT License.
 ."(bdeaec5f1344e4fffb26079ea963ece4698b285e2Bfile:///Users/dumtochukwu/Desktop/wave/streamfi-frontend/README.md:8file:///Users/dumtochukwu/Desktop/wave/streamfi-frontend

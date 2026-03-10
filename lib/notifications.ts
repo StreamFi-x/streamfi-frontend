@@ -31,6 +31,8 @@ export async function writeNotification(
   `;
 
   if (result.rowCount === 0) {
-    console.error(`[writeNotification] No user found with id=${recipientId} — notification not written`);
+    console.error(
+      `[writeNotification] No user found with id=${recipientId} — notification not written`
+    );
   }
 }

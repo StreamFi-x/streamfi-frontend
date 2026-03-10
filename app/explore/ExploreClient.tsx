@@ -25,14 +25,20 @@ interface LiveStream {
 }
 
 function formatViewCount(count: number): string {
-  if (count >= 1_000_000) {return `${(count / 1_000_000).toFixed(1)}M`;}
-  if (count >= 1_000) {return `${(count / 1_000).toFixed(1)}k`;}
+  if (count >= 1_000_000) {
+    return `${(count / 1_000_000).toFixed(1)}M`;
+  }
+  if (count >= 1_000) {
+    return `${(count / 1_000).toFixed(1)}k`;
+  }
   return count.toString();
 }
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
-  if (!res.ok) {throw new Error("Failed to fetch");}
+  if (!res.ok) {
+    throw new Error("Failed to fetch");
+  }
   return res.json();
 };
 
@@ -139,7 +145,10 @@ export function ExploreClient({
           <>
             <FeaturedStream stream={featuredStreamData} />
             <LiveStreams title="Live on Streamfi" streams={mappedStreams} />
-            <TrendingStreams title="Trending in Gaming" streams={trendingStreams} />
+            <TrendingStreams
+              title="Trending in Gaming"
+              streams={trendingStreams}
+            />
           </>
         ) : (
           <PastStreams />

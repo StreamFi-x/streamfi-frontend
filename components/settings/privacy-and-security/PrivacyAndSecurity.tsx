@@ -173,14 +173,26 @@ const VerifyEmailModal: React.FC<{
   };
 
   // Paste — distribute digits across all boxes starting from the pasted box
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>, startIndex: number) => {
+  const handlePaste = (
+    e: React.ClipboardEvent<HTMLInputElement>,
+    startIndex: number
+  ) => {
     e.preventDefault();
-    const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6 - startIndex);
-    if (!digits) {return;}
+    const digits = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6 - startIndex);
+    if (!digits) {
+      return;
+    }
     const newCode = [...code];
-    digits.split("").forEach((char, i) => { newCode[startIndex + i] = char; });
+    digits.split("").forEach((char, i) => {
+      newCode[startIndex + i] = char;
+    });
     setCode(newCode);
-    document.getElementById(`code-${Math.min(startIndex + digits.length, 5)}`)?.focus();
+    document
+      .getElementById(`code-${Math.min(startIndex + digits.length, 5)}`)
+      ?.focus();
   };
 
   const handleSubmit = async () => {
@@ -327,7 +339,10 @@ const VerifyEmailModal: React.FC<{
                 onChange={e => handleCodeChange(index, e.target.value)}
                 onKeyDown={e => handleKeyDown(index, e)}
                 onPaste={e => handlePaste(e, index)}
-                onFocus={e => { setFocusedIndex(index); e.target.select(); }}
+                onFocus={e => {
+                  setFocusedIndex(index);
+                  e.target.select();
+                }}
                 onBlur={() => setFocusedIndex(null)}
                 className="bg-input border border-border w-12 h-12 text-center text-lg font-semibold rounded-lg focus:border-highlight focus:ring-1 focus:ring-highlight focus:ring-opacity-20 outline-none transition-colors text-foreground caret-foreground"
                 disabled={isLoading}
@@ -579,9 +594,14 @@ const PrivacySecurityPage: React.FC = () => {
       const data = await res.json();
       if (!res.ok) {
         // Detect key-mismatch (encryption key rotated after wallet was created)
-        if (data.error?.includes("decrypt") || data.error?.includes("contact support")) {
+        if (
+          data.error?.includes("decrypt") ||
+          data.error?.includes("contact support")
+        ) {
           setDecryptionFailed(true);
-          setExportError("Your wallet was encrypted with a different key. Regenerate your wallet to fix this.");
+          setExportError(
+            "Your wallet was encrypted with a different key. Regenerate your wallet to fix this."
+          );
         } else {
           setExportError(data.error ?? "Failed to export key");
         }
@@ -620,7 +640,9 @@ const PrivacySecurityPage: React.FC = () => {
   };
 
   const handleCopyKey = () => {
-    if (!exportedKey) {return;}
+    if (!exportedKey) {
+      return;
+    }
     navigator.clipboard.writeText(exportedKey).then(() => {
       setKeyCopied(true);
       setTimeout(() => setKeyCopied(false), 2000);
@@ -830,17 +852,21 @@ const PrivacySecurityPage: React.FC = () => {
         {/* Custodial Wallet Export — only visible to Google/Privy users */}
         {isPrivyUser && (
           <SectionCard>
-            <h2 className="text-highlight text-xl font-medium mb-2">Stellar Wallet</h2>
+            <h2 className="text-highlight text-xl font-medium mb-2">
+              Stellar Wallet
+            </h2>
             <p className="text-muted-foreground text-sm mb-4">
-              Your account uses a StreamFi-managed Stellar wallet. You can export your private key
-              to self-custody your funds using any Stellar wallet (e.g. Freighter, Lobstr).
+              Your account uses a StreamFi-managed Stellar wallet. You can
+              export your private key to self-custody your funds using any
+              Stellar wallet (e.g. Freighter, Lobstr).
             </p>
 
             <div className="rounded-md border border-yellow-600/40 bg-yellow-900/20 px-4 py-3 text-xs text-yellow-300 mb-4 flex gap-2 items-start">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
               <span>
-                <strong>Keep your private key secret.</strong> Anyone with it has full control of your wallet.
-                Store it securely offline — StreamFi cannot recover it if lost.
+                <strong>Keep your private key secret.</strong> Anyone with it
+                has full control of your wallet. Store it securely offline —
+                StreamFi cannot recover it if lost.
               </span>
             </div>
 
@@ -850,7 +876,9 @@ const PrivacySecurityPage: React.FC = () => {
                 disabled={isExporting}
                 className="bg-highlight hover:bg-highlight/80 disabled:opacity-50 text-white px-5 py-2 rounded-md text-sm font-medium flex items-center gap-2"
               >
-                {isExporting ? <Loader2 size={14} className="animate-spin" /> : null}
+                {isExporting ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : null}
                 {isExporting ? "Fetching key..." : "Export Private Key"}
               </button>
             ) : (
@@ -882,7 +910,10 @@ const PrivacySecurityPage: React.FC = () => {
                     </button>
                   )}
                   <button
-                    onClick={() => { setExportedKey(null); setKeyRevealed(false); }}
+                    onClick={() => {
+                      setExportedKey(null);
+                      setKeyRevealed(false);
+                    }}
                     className="text-sm text-muted-foreground hover:text-foreground"
                   >
                     Hide
@@ -897,15 +928,20 @@ const PrivacySecurityPage: React.FC = () => {
                 {decryptionFailed && (
                   <div className="rounded-md border border-orange-600/40 bg-orange-900/20 px-4 py-3 text-xs text-orange-300 space-y-2">
                     <p>
-                      <strong>⚠️ This will generate a NEW Stellar wallet address.</strong>{" "}
-                      Only proceed if you have no funds on your current custodial address.
+                      <strong>
+                        ⚠️ This will generate a NEW Stellar wallet address.
+                      </strong>{" "}
+                      Only proceed if you have no funds on your current
+                      custodial address.
                     </p>
                     <button
                       onClick={handleRegenerateWallet}
                       disabled={isRegenerating}
                       className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-md text-xs font-medium flex items-center gap-2"
                     >
-                      {isRegenerating ? <Loader2 size={12} className="animate-spin" /> : null}
+                      {isRegenerating ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : null}
                       {isRegenerating ? "Regenerating..." : "Regenerate Wallet"}
                     </button>
                   </div>

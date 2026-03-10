@@ -160,7 +160,8 @@ const StreamPreferencesPage: React.FC = () => {
         const data = await response.json();
 
         setEnableRecording(
-          data.enableRecording === true || data.streamData?.enableRecording === true
+          data.enableRecording === true ||
+            data.streamData?.enableRecording === true
         );
         if (data.hasStream && data.streamData) {
           setStreamData(data.streamData);
@@ -277,7 +278,9 @@ const StreamPreferencesPage: React.FC = () => {
   };
 
   const handleRecordingToggle = async () => {
-    if (!address || recordingToggleSaving) {return;}
+    if (!address || recordingToggleSaving) {
+      return;
+    }
     const newValue = !enableRecording;
     setRecordingToggleSaving(true);
     try {
@@ -287,7 +290,9 @@ const StreamPreferencesPage: React.FC = () => {
         method: "PUT",
         body: formData,
       });
-      if (!res.ok) {throw new Error("Failed to update");}
+      if (!res.ok) {
+        throw new Error("Failed to update");
+      }
       setEnableRecording(newValue);
     } catch (e) {
       console.error("Failed to update recording preference:", e);
@@ -315,7 +320,9 @@ const StreamPreferencesPage: React.FC = () => {
   };
 
   const handleGenerateStreamKey = async () => {
-    if (!address) {return;}
+    if (!address) {
+      return;
+    }
     setProvisioning(true);
     try {
       const res = await fetch("/api/streams/create", {
@@ -333,7 +340,8 @@ const StreamPreferencesPage: React.FC = () => {
       if ((res.status === 200 || res.status === 201) && data.streamData) {
         setStreamData({
           streamKey: data.streamData.streamKey,
-          rtmpUrl: data.streamData.rtmpUrl ?? "rtmp://global-live.mux.com:5222/app",
+          rtmpUrl:
+            data.streamData.rtmpUrl ?? "rtmp://global-live.mux.com:5222/app",
           playbackId: data.streamData.playbackId ?? "",
           isLive: false,
         });
@@ -386,41 +394,42 @@ const StreamPreferencesPage: React.FC = () => {
           <SectionCard>
             {/* Stream URL */}
             <SecretField
-            label="Stream URL (RTMP Server)"
-            value={streamData.rtmpUrl}
-            isVisible={state.urlVisible}
-            onToggleVisibility={() => toggleVisibility("urlVisible")}
-          />
+              label="Stream URL (RTMP Server)"
+              value={streamData.rtmpUrl}
+              isVisible={state.urlVisible}
+              onToggleVisibility={() => toggleVisibility("urlVisible")}
+            />
 
-          {/* Stream Key */}
-          <SecretField
-            label="Stream Key (Keep Secret!)"
-            value={streamData.streamKey}
-            isVisible={state.keyVisible}
-            onToggleVisibility={() => toggleVisibility("keyVisible")}
-            actions={streamKeyActions}
-          />
+            {/* Stream Key */}
+            <SecretField
+              label="Stream Key (Keep Secret!)"
+              value={streamData.streamKey}
+              isVisible={state.keyVisible}
+              onToggleVisibility={() => toggleVisibility("keyVisible")}
+              actions={streamKeyActions}
+            />
 
-          {/* Warning */}
-          <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4 mt-4">
-            <p className="text-yellow-600 dark:text-yellow-400 font-semibold mb-2">
-              Important Security Notice
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Never share your stream key with anyone. Anyone with this key can
-              broadcast to your channel. If you suspect your key has been
-              compromised, use the &quot;Reset&quot; button to generate a new
-              one.
-            </p>
-          </div>
-        </SectionCard>
+            {/* Warning */}
+            <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4 mt-4">
+              <p className="text-yellow-600 dark:text-yellow-400 font-semibold mb-2">
+                Important Security Notice
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Never share your stream key with anyone. Anyone with this key
+                can broadcast to your channel. If you suspect your key has been
+                compromised, use the &quot;Reset&quot; button to generate a new
+                one.
+              </p>
+            </div>
+          </SectionCard>
         ) : (
           <SectionCard>
             <div className="text-center py-8">
               <Zap className="mx-auto mb-4 text-muted-foreground" size={32} />
               <div className="text-xl font-medium mb-2">No stream key yet</div>
               <p className="text-muted-foreground text-sm mb-6">
-                Generate a stream key to start broadcasting with OBS or any RTMP-compatible software.
+                Generate a stream key to start broadcasting with OBS or any
+                RTMP-compatible software.
               </p>
               <button
                 onClick={handleGenerateStreamKey}
@@ -444,8 +453,8 @@ const StreamPreferencesPage: React.FC = () => {
               <p className="text-muted-foreground text-sm italic">
                 Automatically save recordings of your live streams. Recordings
                 will be available for replay after your stream ends. You can
-                view or delete recordings from your dashboard. Storage may
-                incur cost.
+                view or delete recordings from your dashboard. Storage may incur
+                cost.
               </p>
             </div>
             <div className="flex items-center shrink-0">
@@ -454,7 +463,9 @@ const StreamPreferencesPage: React.FC = () => {
                 onChange={handleRecordingToggle}
               />
               {recordingToggleSaving && (
-                <span className="ml-2 text-sm text-muted-foreground">Saving…</span>
+                <span className="ml-2 text-sm text-muted-foreground">
+                  Saving…
+                </span>
               )}
             </div>
           </div>
@@ -497,4 +508,3 @@ const StreamPreferencesPage: React.FC = () => {
 };
 
 export default StreamPreferencesPage;
-

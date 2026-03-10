@@ -55,7 +55,7 @@ export default function UsernameLayoutClient({
     if (isDefaultRoute && isLive === true) {
       router.replace(`/${username}/watch`);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDefaultRoute, isLive, username]);
 
   // Fetch user data — viewer_username lets the API return is_following from the join table
@@ -85,7 +85,7 @@ export default function UsernameLayoutClient({
     fetchUserData(loggedInUsername);
     const interval = setInterval(() => fetchUserData(loggedInUsername), 15000);
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username, loggedInUsername]);
 
   // Handle follow
@@ -195,7 +195,9 @@ export default function UsernameLayoutClient({
           />
           <ProfileHeader
             username={username}
-            followers={userData?.follower_count ?? userData?.followers?.length ?? 0}
+            followers={
+              userData?.follower_count ?? userData?.followers?.length ?? 0
+            }
             avatarUrl={userData?.avatar}
             isOwner={isOwner}
             isFollowing={isFollowing}

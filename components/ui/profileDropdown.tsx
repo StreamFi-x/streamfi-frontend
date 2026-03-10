@@ -128,7 +128,9 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
           />
         )}
       </div>
-      <span className="text-foreground font-medium sm:text-lg truncate min-w-0">{name}</span>
+      <span className="text-foreground font-medium sm:text-lg truncate min-w-0">
+        {name}
+      </span>
     </div>
   );
 };

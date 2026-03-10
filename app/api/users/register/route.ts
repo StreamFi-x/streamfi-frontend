@@ -45,7 +45,10 @@ async function handler(req: NextRequest) {
   const username = rawUsername ? String(rawUsername).trim().toLowerCase() : "";
 
   if (!username) {
-    return NextResponse.json({ error: "Username is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Username is required" },
+      { status: 400 }
+    );
   }
 
   if (!wallet) {
@@ -57,12 +60,23 @@ async function handler(req: NextRequest) {
   }
 
   if (!validateEmail(email)) {
-    return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid email format" },
+      { status: 400 }
+    );
   }
 
   try {
-    const userEmailExist = await checkExistingTableDetail("users", "email", email);
-    const userWalletExist = await checkExistingTableDetail("users", "wallet", wallet);
+    const userEmailExist = await checkExistingTableDetail(
+      "users",
+      "email",
+      email
+    );
+    const userWalletExist = await checkExistingTableDetail(
+      "users",
+      "wallet",
+      wallet
+    );
     // Case-insensitive username check — username is stored lowercase but guard against
     // any legacy mixed-case rows that may exist
     const { rows: usernameRows } = await sql`
@@ -71,11 +85,17 @@ async function handler(req: NextRequest) {
     const usernameExist = usernameRows.length > 0;
 
     if (userEmailExist) {
-      return NextResponse.json({ error: "Email already exist" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Email already exist" },
+        { status: 400 }
+      );
     }
 
     if (usernameExist) {
-      return NextResponse.json({ error: "Username already exist" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Username already exist" },
+        { status: 400 }
+      );
     }
 
     if (userWalletExist) {
@@ -151,7 +171,10 @@ async function handler(req: NextRequest) {
     );
   } catch (error) {
     console.error("Registration error:", error);
-    return NextResponse.json({ error: "Failed to register user" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to register user" },
+      { status: 500 }
+    );
   }
 }
 

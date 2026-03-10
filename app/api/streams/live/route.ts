@@ -28,7 +28,11 @@ export async function GET(req: Request) {
     if (liveStreamsResult.rows.length === 0) {
       return NextResponse.json(
         { streams: [], hasMore: false, nextOffset: null },
-        { headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30" } }
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30",
+          },
+        }
       );
     }
 
@@ -66,7 +70,9 @@ export async function GET(req: Request) {
     // Followed streams bubble to top; within each group sort by viewer count
     if (viewerWallet) {
       streams.sort((a, b) => {
-        if (a.isFollowing !== b.isFollowing) {return a.isFollowing ? -1 : 1;}
+        if (a.isFollowing !== b.isFollowing) {
+          return a.isFollowing ? -1 : 1;
+        }
         return b.viewerCount - a.viewerCount;
       });
     }
@@ -77,10 +83,17 @@ export async function GET(req: Request) {
 
     return NextResponse.json(
       { streams: page, hasMore, nextOffset },
-      { headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30" } }
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30",
+        },
+      }
     );
   } catch (error) {
     console.error("Error fetching live streams:", error);
-    return NextResponse.json({ error: "Failed to fetch live streams" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch live streams" },
+      { status: 500 }
+    );
   }
 }
