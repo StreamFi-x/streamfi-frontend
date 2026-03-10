@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, dev]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, dev]
 
 jobs:
   # Code Quality Checks
@@ -101,4 +101,3 @@ jobs:
             http://localhost:3000
           uploadArtifacts: true
           temporaryPublicStorage: true
-"(713c5f08fa785b684d66eb9cd1f023bdcead43702Qfile:///Users/dumtochukwu/Desktop/wave/streamfi-frontend/.github/workflows/ci.yml:8file:///Users/dumtochukwu/Desktop/wave/streamfi-frontend
