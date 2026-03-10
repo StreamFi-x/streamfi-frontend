@@ -23,13 +23,14 @@ jest.mock("@vercel/postgres", () => ({
 import { sql } from "@vercel/postgres";
 import { POST, GET, DELETE } from "../route";
 
-// Helper to build a minimal Request
+// Helper to build a minimal Request cast to NextRequest.
+// The route handlers only use standard Request APIs (json(), url) so this cast is safe.
 const makeRequest = (method: string, body?: object, search?: string) =>
   new Request(`http://localhost/api/streams/chat${search ?? ""}`, {
     method,
     headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
-  });
+  }) as unknown as import("next/server").NextRequest;
 
 const sqlMock = sql as unknown as jest.Mock;
 

@@ -51,7 +51,7 @@ export default function Sidebar() {
   const recommendedList: SidebarUser[] = (liveStreams.length > 0
     ? liveStreams
     : (topData?.users ?? [])
-  ).filter(u => u.username !== currentUsername);
+  ).filter((u: SidebarUser) => u.username !== currentUsername);
 
   // Following: current user's followed accounts
   const { data: followingData } = useSWR(
