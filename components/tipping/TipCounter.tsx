@@ -108,13 +108,10 @@ export const TipCounterError = ({
   );
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const TipCounterEmpty = ({
   variant,
-  username,
 }: {
   variant: "compact" | "default" | "large";
-  username: string;
 }) => {
   return (
     <div
@@ -254,7 +251,7 @@ export function TipCounter({
   // We show the empty state only for non-large variants (public profile views).
   // For the dashboard (large variant), we always show the counter so the creator sees their stats panel.
   if (isZero && variant !== "large") {
-    return <TipCounterEmpty variant={variant} username={username} />;
+    return <TipCounterEmpty variant={variant} />;
   }
 
   const usdValue = xlmPrice
