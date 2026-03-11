@@ -71,6 +71,7 @@ jobs:
           NEXT_PUBLIC_STELLAR_NETWORK: ${{ secrets.NEXT_PUBLIC_STELLAR_NETWORK }}
           NEXT_PUBLIC_STELLAR_HORIZON_URL: ${{ secrets.NEXT_PUBLIC_STELLAR_HORIZON_URL }}
           NEXT_PUBLIC_DEV_MODE: "false"
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
 
       - name: Deploy to Vercel (if using Vercel)
         uses: amondnet/vercel-action@v25
@@ -105,6 +106,7 @@ jobs:
           NEXT_PUBLIC_STELLAR_NETWORK: ${{ secrets.NEXT_PUBLIC_STELLAR_NETWORK }}
           NEXT_PUBLIC_STELLAR_HORIZON_URL: ${{ secrets.NEXT_PUBLIC_STELLAR_HORIZON_URL }}
           NEXT_PUBLIC_DEV_MODE: "false"
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
 
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v10
