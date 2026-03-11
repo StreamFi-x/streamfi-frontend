@@ -64,8 +64,19 @@ export default function UsernameLayoutClient({
       const viewerParam = viewer ?? loggedInUsername ?? "";
       const url = `/api/users/${username}${viewerParam ? `?viewer_username=${encodeURIComponent(viewerParam)}` : ""}`;
       const response = await fetch(url, { cache: "no-store" });
+
+      // Only a true 404 means the user doesn't exist
       if (response.status === 404) {
         setUserExists(false);
+        return;
+      }
+
+      // Any other non-OK response (500, DB timeout, etc.) is transient — keep
+      // showing whatever data we already have; never redirect to 404.
+      if (!response.ok) {
+        if (!userData) {
+          toast.error("Failed to fetch user data");
+        }
         return;
       }
 
@@ -74,8 +85,10 @@ export default function UsernameLayoutClient({
       setIsLive(data.user.is_live || false);
       setIsFollowing(!!data.user.is_following);
     } catch {
-      toast.error("Failed to fetch user data");
-      setUserExists(false);
+      // Network-level failure — also transient, never show 404.
+      if (!userData) {
+        toast.error("Failed to fetch user data");
+      }
     }
   };
 
@@ -176,8 +189,14 @@ export default function UsernameLayoutClient({
   // /watch and /clips/[id] routes: render children without the profile banner/header/tabs overlay
   if (isWatchRoute || isClipRoute) {
     return (
-      <div className="flex flex-col h-screen bg-secondary text-foreground">
-        <main className="flex-1 overflow-auto">{children}</main>
+      <div className="flex flex-col h-dvh bg-secondary text-foreground">
+        {/* Watch: overflow-hidden so ViewStream manages its own internal scroll.
+            Clips: overflow-y-auto so the page can scroll normally. */}
+        <main
+          className={`flex-1 min-h-0 ${isWatchRoute ? "overflow-hidden" : "overflow-y-auto"}`}
+        >
+          {children}
+        </main>
       </div>
     );
   }

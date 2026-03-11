@@ -17,7 +17,7 @@ export async function GET() {
 
   try {
     const res = await fetch(
-      "https://api.coingecko.com/api/v3/simple/price?ids=stellar&vs_currencies=usd",
+      "https://api.binance.com/api/v3/ticker/price?symbol=XLMUSDT",
       {
         headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(5000),
@@ -25,14 +25,14 @@ export async function GET() {
     );
 
     if (!res.ok) {
-      throw new Error(`CoinGecko responded with ${res.status}`);
+      throw new Error(`Binance responded with ${res.status}`);
     }
 
     const json = await res.json();
-    const price = parseFloat(json?.stellar?.usd);
+    const price = parseFloat(json?.price);
 
     if (isNaN(price)) {
-      throw new Error("Invalid price data from Coinbase");
+      throw new Error("Invalid price data from Binance");
     }
 
     cached = { price, fetchedAt: now };

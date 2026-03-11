@@ -96,34 +96,42 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ wallet: string }> }
 ) {
-  const session = await verifySession(req);
-  if (!session.ok) {
-    return session.response;
-  }
+  try {
+    const session = await verifySession(req);
+    if (!session.ok) {
+      return session.response;
+    }
 
-  const { wallet: id } = await params;
-  if (!UUID_RE.test(id)) {
+    const { wallet: id } = await params;
+    if (!UUID_RE.test(id)) {
+      return NextResponse.json(
+        { error: "Invalid recording ID" },
+        { status: 400 }
+      );
+    }
+
+    const { rows } = await sql`
+      SELECT user_id FROM stream_recordings WHERE id = ${id}
+    `;
+
+    if (rows.length === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (rows[0].user_id !== session.userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    await sql`DELETE FROM stream_recordings WHERE id = ${id}`;
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("[recordings] DELETE error:", error);
     return NextResponse.json(
-      { error: "Invalid recording ID" },
-      { status: 400 }
+      { error: "Failed to delete recording" },
+      { status: 500 }
     );
   }
-
-  const { rows } = await sql`
-    SELECT user_id FROM stream_recordings WHERE id = ${id}
-  `;
-
-  if (rows.length === 0) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  if (rows[0].user_id !== session.userId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  await sql`DELETE FROM stream_recordings WHERE id = ${id}`;
-
-  return NextResponse.json({ ok: true });
 }
 
 /**
@@ -134,32 +142,40 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ wallet: string }> }
 ) {
-  const session = await verifySession(req);
-  if (!session.ok) {
-    return session.response;
-  }
+  try {
+    const session = await verifySession(req);
+    if (!session.ok) {
+      return session.response;
+    }
 
-  const { wallet: id } = await params;
-  if (!UUID_RE.test(id)) {
+    const { wallet: id } = await params;
+    if (!UUID_RE.test(id)) {
+      return NextResponse.json(
+        { error: "Invalid recording ID" },
+        { status: 400 }
+      );
+    }
+
+    const { rows } = await sql`
+      UPDATE stream_recordings
+      SET needs_review = false
+      WHERE id = ${id} AND user_id = ${session.userId}
+      RETURNING id
+    `;
+
+    if (rows.length === 0) {
+      return NextResponse.json(
+        { error: "Not found or forbidden" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("[recordings] PATCH error:", error);
     return NextResponse.json(
-      { error: "Invalid recording ID" },
-      { status: 400 }
+      { error: "Failed to update recording" },
+      { status: 500 }
     );
   }
-
-  const { rows } = await sql`
-    UPDATE stream_recordings
-    SET needs_review = false
-    WHERE id = ${id} AND user_id = ${session.userId}
-    RETURNING id
-  `;
-
-  if (rows.length === 0) {
-    return NextResponse.json(
-      { error: "Not found or forbidden" },
-      { status: 404 }
-    );
-  }
-
-  return NextResponse.json({ ok: true });
 }

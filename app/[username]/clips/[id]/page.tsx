@@ -185,116 +185,117 @@ const ClipPlayerPage = ({ params }: PageProps) => {
     : "";
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#17191A] text-foreground">
-      {/* Back navigation */}
-      <div className="px-4 pt-4 pb-2">
-        <Link
-          href={`/${username}/clips`}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Past Streams
-        </Link>
-      </div>
-
-      {loading ? (
-        <div className="flex flex-1 flex-col">
-          <div className="aspect-video bg-black animate-pulse" />
-          <div className="p-4 space-y-3">
-            <div className="h-5 bg-muted rounded w-2/3 animate-pulse" />
-            <div className="h-4 bg-muted rounded w-1/3 animate-pulse" />
-          </div>
+    <div className="bg-background text-foreground flex flex-col h-full min-h-0">
+      {/* Scrollable content — same pattern as the watch page */}
+      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto scrollbar-hide">
+        {/* Back navigation */}
+        <div className="px-4 pt-4 pb-2 shrink-0">
+          <Link
+            href={`/${username}/clips`}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Past Streams
+          </Link>
         </div>
-      ) : recording ? (
-        <>
-          {/* Full-width player */}
-          <div className="w-full bg-black aspect-video">
-            <MuxPlayer
-              playbackId={recording.playback_id}
-              streamType="on-demand"
-              autoPlay
-              metadata={{
-                video_id: recording.playback_id,
-                video_title: title,
-                viewer_user_id: "anonymous",
-              }}
-              primaryColor="#ac39f2"
-              className="w-full h-full"
-            />
-          </div>
 
-          {/* Stream info bar */}
-          <div className="border-b border-border p-4">
-            <h1 className="text-foreground font-semibold text-lg mb-3">
-              {title}
-            </h1>
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3">
-                {/* Avatar */}
-                <div className="relative w-10 h-10 rounded-full overflow-hidden bg-purple-600 flex-shrink-0">
-                  {recording.avatar ? (
-                    <Image
-                      src={recording.avatar}
-                      alt={username}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm">
-                      {username.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                </div>
+        {loading ? (
+          <>
+            <div className="w-full aspect-video min-h-[56vw] lg:min-h-[360px] bg-muted animate-pulse shrink-0" />
+            <div className="p-4 space-y-3">
+              <div className="h-5 bg-muted rounded w-2/3 animate-pulse" />
+              <div className="h-4 bg-muted rounded w-1/3 animate-pulse" />
+            </div>
+          </>
+        ) : recording ? (
+          <>
+            {/* Player — same sizing as the live watch player */}
+            <div className="relative w-full aspect-video min-h-[56vw] lg:min-h-[360px] bg-black overflow-hidden shrink-0">
+              <MuxPlayer
+                playbackId={recording.playback_id}
+                streamType="on-demand"
+                autoPlay
+                metadata={{
+                  video_id: recording.playback_id,
+                  video_title: title,
+                  viewer_user_id: "anonymous",
+                }}
+                primaryColor="#ac39f2"
+                className="w-full h-full"
+              />
+            </div>
 
-                <div>
-                  <p className="text-foreground font-medium">{username}</p>
-                  <div className="flex items-center flex-wrap gap-3 text-xs text-muted-foreground mt-0.5">
-                    <span className="flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      {(userData?.follower_count ?? 0).toLocaleString()}{" "}
-                      followers
-                    </span>
-                    {recording.duration && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {formatDuration(recording.duration)}
-                      </span>
+            {/* Stream info bar */}
+            <div className="border-b border-border p-4">
+              <h1 className="text-foreground font-semibold text-lg mb-3">
+                {title}
+              </h1>
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden bg-highlight flex-shrink-0">
+                    {recording.avatar ? (
+                      <Image
+                        src={recording.avatar}
+                        alt={username}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm">
+                        {username.charAt(0).toUpperCase()}
+                      </div>
                     )}
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {timeAgo(recording.stream_date ?? recording.created_at)}
-                    </span>
+                  </div>
+                  <div>
+                    <p className="text-foreground font-medium">{username}</p>
+                    <div className="flex items-center flex-wrap gap-3 text-xs text-muted-foreground mt-0.5">
+                      <span className="flex items-center gap-1">
+                        <Users className="w-3 h-3" />
+                        {(userData?.follower_count ?? 0).toLocaleString()}{" "}
+                        followers
+                      </span>
+                      {recording.duration && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {formatDuration(recording.duration)}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {timeAgo(recording.stream_date ?? recording.created_at)}
+                      </span>
+                    </div>
                   </div>
                 </div>
+
+                {!isOwner && (
+                  <Button
+                    className={
+                      isFollowing
+                        ? "bg-muted hover:bg-accent text-foreground border-none flex-shrink-0"
+                        : "bg-highlight hover:bg-highlight/90 text-white border-none flex-shrink-0"
+                    }
+                    onClick={isFollowing ? handleUnfollow : handleFollow}
+                    disabled={followLoading}
+                  >
+                    {followLoading ? "…" : isFollowing ? "Unfollow" : "Follow"}
+                  </Button>
+                )}
               </div>
-
-              {!isOwner && (
-                <Button
-                  className={
-                    isFollowing
-                      ? "bg-gray-700 hover:bg-gray-600 text-white border-none flex-shrink-0"
-                      : "bg-purple-600 hover:bg-purple-700 text-white border-none flex-shrink-0"
-                  }
-                  onClick={isFollowing ? handleUnfollow : handleFollow}
-                  disabled={followLoading}
-                >
-                  {followLoading ? "…" : isFollowing ? "Unfollow" : "Follow"}
-                </Button>
-              )}
             </div>
-          </div>
 
-          {/* About section */}
-          {recording.bio && (
-            <div className="p-4">
-              <h3 className="text-foreground font-medium mb-2">
-                About {username}
-              </h3>
-              <p className="text-muted-foreground text-sm">{recording.bio}</p>
-            </div>
-          )}
-        </>
-      ) : null}
+            {/* About section */}
+            {recording.bio && (
+              <div className="p-4">
+                <h3 className="text-foreground font-medium mb-2">
+                  About {username}
+                </h3>
+                <p className="text-muted-foreground text-sm">{recording.bio}</p>
+              </div>
+            )}
+          </>
+        ) : null}
+      </div>
     </div>
   );
 };

@@ -34,7 +34,7 @@ export default function Navbar({}: NavbarProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { publicKey, isConnected, disconnect, privyWallet } =
     useStellarWallet();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, isError: authError } = useAuth();
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
@@ -150,12 +150,7 @@ export default function Navbar({}: NavbarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Autofocus search input
-  useEffect(() => {
-    searchInputRef.current?.focus();
-  }, []);
-
-  // Search results fetch with debounce
+  // Search results fetch with debounce — categories + users in parallel
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -164,19 +159,36 @@ export default function Navbar({}: NavbarProps) {
 
     const timeout = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `/api/category?title=${encodeURIComponent(searchQuery)}`
-        );
-        const data = await res.json();
-        const normalizedResults = (data.categories ?? []).map(
+        const q = encodeURIComponent(searchQuery);
+        const [catRes, userRes] = await Promise.all([
+          fetch(`/api/category?title=${q}`),
+          fetch(`/api/search-username?q=${q}`),
+        ]);
+
+        const [catData, userData] = await Promise.all([
+          catRes.json(),
+          userRes.json(),
+        ]);
+
+        const categories: SearchResult[] = (catData.categories ?? []).map(
           (cat: Category) => ({
             id: cat.id,
             title: cat.title,
             image: cat.imageurl || "/Images/user.png",
-            type: "category",
+            type: "category" as const,
           })
         );
-        setSearchResults(normalizedResults);
+
+        const users: SearchResult[] = (userData.users ?? []).map(
+          (u: { id: string; username: string; avatar?: string }) => ({
+            id: u.id,
+            title: u.username,
+            image: u.avatar || "/Images/user.png",
+            type: "user" as const,
+          })
+        );
+
+        setSearchResults([...users, ...categories]);
       } catch {
         setSearchResults([]);
       }
@@ -206,17 +218,24 @@ export default function Navbar({}: NavbarProps) {
       return;
     }
 
-    setHasCheckedProfile(true);
-
     if (!user) {
+      if (authError) {
+        // SWR fetch failed (network/5xx) — don't mark check as done so the
+        // effect re-runs once SWR retries and either confirms 404 or finds the user.
+        setIsLoading(false);
+        return;
+      }
+      // Confirmed 404: user is genuinely not registered yet.
+      setHasCheckedProfile(true);
       setProfileModalOpen(true);
     } else {
+      setHasCheckedProfile(true);
       sessionStorage.setItem("userData", JSON.stringify(user));
       sessionStorage.setItem("username", user.username);
     }
 
     setIsLoading(false);
-  }, [isConnected, publicKey, authLoading, user, hasCheckedProfile]);
+  }, [isConnected, publicKey, authLoading, authError, user, hasCheckedProfile]);
 
   useEffect(() => {
     if (isConnected) {
@@ -294,9 +313,15 @@ export default function Navbar({}: NavbarProps) {
                     <Link
                       key={result.id}
                       className="flex items-center gap-3 p-2 hover:bg-surface-hover rounded-md cursor-pointer"
-                      href={`/browse/${result.type}/${result.title.toLowerCase()}`}
+                      href={
+                        result.type === "user"
+                          ? `/${result.title}`
+                          : `/browse/${result.type}/${result.title.toLowerCase()}`
+                      }
                     >
-                      <div className="w-10 h-10 rounded bg-gray-700 overflow-hidden">
+                      <div
+                        className={`w-10 h-10 bg-gray-700 overflow-hidden shrink-0 ${result.type === "user" ? "rounded-full" : "rounded"}`}
+                      >
                         <Image
                           src={result.image || "/Images/user.png"}
                           alt={result.title}

@@ -13,7 +13,6 @@ import {
   X,
   Twitter,
   Users,
-  Menu,
   Flag,
 } from "lucide-react";
 import Image from "next/image";
@@ -33,7 +32,6 @@ const FacebookIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 import StreamInfoModal from "../dashboard/common/StreamInfoModal";
-import DashboardScreenGuard from "../explore/DashboardScreenGuard";
 import { Button } from "../ui/button";
 import ChatSection from "./chat-section";
 import { ViewStreamSkeleton } from "../skeletons/ViewStreamSkeleton";
@@ -134,10 +132,10 @@ const TippingModal = ({
 
   return isOpen ? (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div className="bg-[#1D2027] rounded-2xl p-8 max-w-md w-full relative text-white shadow-lg">
+      <div className="bg-card rounded-2xl p-8 max-w-md w-full relative text-foreground shadow-lg border border-border">
         {/* Close button */}
         <button
-          className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-[#35363C] hover:bg-[#44454B] text-2xl text-white/80"
+          className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-muted hover:bg-accent text-2xl text-muted-foreground"
           onClick={onClose}
           aria-label="Close"
         >
@@ -145,15 +143,18 @@ const TippingModal = ({
         </button>
         <h2 className="text-2xl font-bold text-center mb-8">Tip to Creator</h2>
         <div className="mb-6 flex justify-center gap-8 items-center">
-          <span className="text-gray-400 text-sm mb-1">Stellar address:</span>
-          <span className="bg-[#18191C] px-4 py-2 rounded-lg font-mono text-base tracking-wider select-all">
+          <span className="text-muted-foreground text-sm mb-1">
+            Stellar address:
+          </span>
+          <span className="bg-muted px-4 py-2 rounded-lg font-mono text-base tracking-wider select-all text-foreground">
             {formatAddress(creatorAddress)}
           </span>
         </div>
         <div className="mb-2 flex items-center justify-between">
           <label className="text-white text-base font-medium">Amount:</label>
           <span className="text-white text-base font-medium">
-            {usdValue} <span className="text-gray-400 text-sm">USD</span>
+            {usdValue}{" "}
+            <span className="text-muted-foreground text-sm">USD</span>
           </span>
         </div>
         <div className="flex items-center mb-4">
@@ -163,12 +164,12 @@ const TippingModal = ({
             value={amount}
             onChange={handleAmountChange}
             placeholder="Enter amount"
-            className="flex-1 bg-[#18191C] text-white rounded-l-lg px-4 py-3 text-base focus:outline-none border border-[#35363C] border-r-0"
+            className="flex-1 bg-muted text-foreground rounded-l-lg px-4 py-3 text-base focus:outline-none border border-border border-r-0"
           />
           <select
             value={currency}
             onChange={e => setCurrency(e.target.value)}
-            className="bg-[#18191C] text-white rounded-r-lg px-4 py-3 text-base border border-[#35363C] border-l-0 focus:outline-none"
+            className="bg-muted text-foreground rounded-r-lg px-4 py-3 text-base border border-border border-l-0 focus:outline-none"
           >
             {TIPPING_CURRENCIES.map(c => (
               <option key={c.value} value={c.value}>
@@ -182,7 +183,7 @@ const TippingModal = ({
             <button
               key={val}
               type="button"
-              className={`px-5 py-2 rounded-full border border-[#35363C] text-white text-base font-medium transition-colors ${amount === val.toString() ? "bg-[#35363C]" : "bg-transparent hover:bg-[#2D2F31]"}`}
+              className={`px-5 py-2 rounded-full border border-border text-foreground text-base font-medium transition-colors ${amount === val.toString() ? "bg-muted" : "bg-transparent hover:bg-muted"}`}
               onClick={() => handleQuickSelect(val)}
             >
               {val}
@@ -190,7 +191,7 @@ const TippingModal = ({
           ))}
         </div>
         <button
-          className="w-full py-4 rounded-xl text-lg font-semibold mt-2 transition-colors bg-[#5A189A] text-white disabled:bg-[#2D2F31] disabled:text-gray-400"
+          className="w-full py-4 rounded-xl text-lg font-semibold mt-2 transition-colors bg-highlight hover:bg-highlight/90 text-white disabled:bg-muted disabled:text-muted-foreground"
           disabled={!amount || isNaN(Number(amount)) || Number(amount) <= 0}
         >
           Tip Creator
@@ -259,10 +260,11 @@ const ViewStream = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
   const [fullscreenElement, setFullscreenElement] = useState<Element | null>(
     null
   );
-  const [showChat, setShowChat] = useState(true);
+  const [showChat, setShowChat] = useState(false);
   const [showChatOverlay, setShowChatOverlay] = useState(true);
   const [chatOverlayMessage, setChatOverlayMessage] = useState("");
   const [showStreamInfoModal, setShowStreamInfoModal] = useState(false);
@@ -357,6 +359,27 @@ const ViewStream = ({
       })
       .catch(() => {});
   }, [username]);
+
+  // Detect portrait vs landscape from the native video element's metadata
+  useEffect(() => {
+    const container = videoContainerRef.current;
+    if (!container || !isLive || !userData?.playbackId) return;
+
+    const handleLoadedMetadata = (e: Event) => {
+      const video = e.target as HTMLVideoElement;
+      if (video.tagName === "VIDEO" && video.videoWidth && video.videoHeight) {
+        setIsPortrait(video.videoHeight > video.videoWidth);
+      }
+    };
+
+    container.addEventListener("loadedmetadata", handleLoadedMetadata, true);
+    return () =>
+      container.removeEventListener(
+        "loadedmetadata",
+        handleLoadedMetadata,
+        true
+      );
+  }, [isLive, userData?.playbackId]);
 
   // Handle fullscreen change event
   useEffect(() => {
@@ -474,30 +497,39 @@ const ViewStream = ({
 
   if (error || !streamData) {
     return (
-      <div className="flex items-center justify-center h-full min-h-[400px] bg-[#17191A]">
-        <div className="text-white">{error || "Failed to load stream"}</div>
+      <div className="flex items-center justify-center h-full min-h-[400px] bg-background">
+        <div className="text-foreground">
+          {error || "Failed to load stream"}
+        </div>
       </div>
     );
   }
 
   return (
-    <DashboardScreenGuard>
-      <div className="bg-background text-foreground border border-border flex flex-col h-full bg-[#17191A]">
-        <div className="flex flex-1 items-start relative overflow-hidden">
+    <>
+      <div className="bg-background text-foreground border border-border flex flex-col h-full min-h-0">
+        <div className="flex flex-1 min-h-0 flex-col lg:flex-row relative overflow-hidden">
           {/* Main content */}
           <div
             ref={mainContentRef}
-            className="flex-1 flex flex-col overflow-y-auto scrollbar-hide"
-            style={{ height: "calc(100vh - 64px)" }}
+            className="flex-1 min-h-0 flex flex-col overflow-y-auto scrollbar-hide"
           >
             {/* Video player container - modified for fullscreen layout */}
             <div
               ref={videoContainerRef}
-              className={`relative bg-black overflow-hidden group ${isFullscreen ? "flex h-screen" : "aspect-video"}`}
+              className={`relative bg-black overflow-hidden group ${isFullscreen ? "flex h-screen" : "w-full aspect-video min-h-[56vw] lg:min-h-[360px]"}`}
             >
               {/* Video content area */}
               <div
                 className={`relative ${isFullscreen ? "flex-1" : "w-full h-full"}`}
+                style={
+                  isPortrait
+                    ? ({
+                        "--media-object-fit": "cover",
+                        "--media-object-position": "center",
+                      } as React.CSSProperties)
+                    : undefined
+                }
               >
                 {isLive && userData?.playbackId ? (
                   <MuxPlayer
@@ -513,12 +545,12 @@ const ViewStream = ({
                     className="w-full h-full"
                   />
                 ) : (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-                    <div className="text-white text-center">
+                  <div className="absolute inset-0 flex items-center justify-center bg-card">
+                    <div className="text-foreground text-center">
                       <p className="text-lg mb-2">
                         {isLive ? "Loading stream..." : "Stream is offline"}
                       </p>
-                      <p className="text-sm text-gray-400">
+                      <p className="text-sm text-muted-foreground">
                         {isLive
                           ? "Please wait while we load the stream"
                           : "Check back later or browse past streams below"}
@@ -686,10 +718,12 @@ const ViewStream = ({
             {/* Stream info - only show when not in fullscreen */}
             {!isFullscreen && (
               <>
-                <div className="text-muted-foreground border-b border-gray- p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="relative w-12 h-12 rounded-full overflow-hidden bg-purple-600">
+                <div className="text-muted-foreground border-b border-border p-4">
+                  {/* Top row: avatar + name/title/tags + action buttons */}
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    {/* Left: avatar + streamer info */}
+                    <div className="flex items-start space-x-3 min-w-0">
+                      <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-highlight shrink-0">
                         <Image
                           src={streamData.avatarUrl || "/Images/user.png"}
                           alt={username}
@@ -697,14 +731,18 @@ const ViewStream = ({
                           className="object-cover"
                         />
                       </div>
-                      <div>
-                        <h1 className="text- font-medium">{username}</h1>
-                        <h2 className="-400 text-sm">{streamData.title}</h2>
-                        <div className="flex flex-wrap gap-2 mt-1">
+                      <div className="min-w-0">
+                        <h1 className="font-medium text-foreground truncate">
+                          {username}
+                        </h1>
+                        <h2 className="text-sm text-muted-foreground truncate">
+                          {streamData.title}
+                        </h2>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
                           {streamData.tags.map((tag: string) => (
                             <span
                               key={tag}
-                              className="text-xs bg-[#2D2F31] text-gray-300 px-2 py-0.5 rounded"
+                              className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded"
                             >
                               {tag}
                             </span>
@@ -712,83 +750,87 @@ const ViewStream = ({
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end space-y-2">
-                      <div className="flex items-center space-x-2">
-                        {isOwner ? (
+
+                    {/* Right: action buttons + viewer count */}
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      {isOwner ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowStreamInfoModal(true)}
+                          className="bg-muted hover:bg-accent text-foreground border-none text-sm"
+                        >
+                          <Edit3 className="h-4 w-4 mr-2" />
+                          Edit Stream Info
+                        </Button>
+                      ) : (
+                        <>
                           <Button
-                            // onClick={() => setShowStreamInfoModal(true)}
                             variant="outline"
-                            onClick={() => setShowStreamInfoModal(true)}
-                            className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-none"
+                            size="sm"
+                            className={
+                              isFollowing
+                                ? "bg-muted hover:bg-accent text-foreground border-none"
+                                : "bg-highlight hover:bg-highlight/90 text-white border-none"
+                            }
+                            onClick={isFollowing ? onUnfollow : onFollow}
+                            disabled={followLoading}
                           >
-                            <Edit3 className="h-4 w-4 mr-2" />
-                            Edit Stream Info
+                            {followLoading
+                              ? "…"
+                              : isFollowing
+                                ? "Unfollow"
+                                : "Follow"}
                           </Button>
-                        ) : (
-                          <>
+                          {streamData.starknetAddress &&
+                          publicKey &&
+                          publicKey !== streamData.starknetAddress ? (
+                            <TipButton
+                              recipientUsername={username}
+                              recipientPublicKey={streamData.starknetAddress}
+                              onTipClick={tipModalState.openTipModal}
+                              variant="outline"
+                              className="bg-muted hover:bg-accent text-foreground border-border"
+                            />
+                          ) : (
                             <Button
                               variant="outline"
-                              className={
-                                isFollowing
-                                  ? "bg-gray-700 hover:bg-gray-600 text-white border-none"
-                                  : "bg-purple-600 hover:bg-purple-700 text-white border-none"
+                              size="sm"
+                              className="bg-muted hover:bg-accent text-foreground border-border"
+                              disabled
+                              title={
+                                !publicKey
+                                  ? "Connect Stellar wallet to tip"
+                                  : !streamData.starknetAddress
+                                    ? "Streamer hasn't set up Stellar wallet"
+                                    : "Cannot tip yourself"
                               }
-                              onClick={isFollowing ? onUnfollow : onFollow}
-                              disabled={followLoading}
                             >
-                              {followLoading
-                                ? "…"
-                                : isFollowing
-                                  ? "Unfollow"
-                                  : "Follow"}
-                            </Button>
-                            {/* Stellar Tip Button */}
-                            {streamData.starknetAddress &&
-                            publicKey &&
-                            publicKey !== streamData.starknetAddress ? (
-                              <TipButton
-                                recipientUsername={username}
-                                recipientPublicKey={streamData.starknetAddress}
-                                onTipClick={tipModalState.openTipModal}
-                                variant="outline"
-                                className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-gray-600"
-                              />
-                            ) : (
-                              <Button
-                                variant="outline"
-                                className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-gray-600"
-                                disabled
-                                title={
-                                  !publicKey
-                                    ? "Connect Stellar wallet to tip"
-                                    : !streamData.starknetAddress
-                                      ? "Streamer hasn't set up Stellar wallet"
-                                      : "Cannot tip yourself"
-                                }
-                              >
-                                <Gift className="h-4 w-4 mr-2" />
+                              <Gift className="h-4 w-4" />
+                              <span className="hidden sm:inline ml-1.5">
                                 Send Tip
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              className="p-0 w-7 h- border-none focus:ring-0 focus:ring-offset-0 "
-                            >
-                              <Share2 className="w-7 h-7" />
+                              </span>
                             </Button>
-                            <button>
-                              <Menu />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                      <div className="mt-4">
-                        <div className="flex items-center -400 text-sm">
-                          <Users className="h-4 w-4 mr-1" />
-                          <span>
-                            {streamData.viewCount.toLocaleString()} viewers
-                          </span>
-                        </div>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="p-2 border-none bg-muted hover:bg-accent"
+                          >
+                            <Share2 className="w-4 h-4" />
+                          </Button>
+                          <button
+                            className="p-2 rounded-md bg-muted hover:bg-accent"
+                            onClick={toggleChat}
+                            aria-label="Toggle chat"
+                            title="Toggle chat"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                      <div className="flex items-center text-sm text-muted-foreground gap-1">
+                        <Users className="h-4 w-4" />
+                        <span>{streamData.viewCount.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -796,12 +838,12 @@ const ViewStream = ({
 
                 {/* Report Live Stream Button */}
                 {!isOwner && (
-                  <div className="p-4 border-b border-gray-800">
+                  <div className="p-4 border-b border-border">
                     <div className="flex justify-end">
                       <Button
                         onClick={() => setShowReportModal(true)}
                         variant="outline"
-                        className="bg-[#2D2F31] hover:bg-[#3D3F41] text-white border-gray-600 text-xs px-3 py-2 h-8"
+                        className="bg-muted hover:bg-accent text-muted-foreground border-border text-xs px-3 py-2 h-8"
                       >
                         <Flag className="h-3 w-3 mr-2" />
                         Report Live Stream
@@ -811,38 +853,47 @@ const ViewStream = ({
                 )}
 
                 {/* About section */}
-                <div className={"p-4 border-b border-gray-"}>
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text- font-medium mb-">About {username}</h3>
-                    <div className="flex space-x-4 items-center mt-2">
+                <div className="p-4 border-b border-border">
+                  <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                    <h3 className="font-medium text-foreground">
+                      About {username}
+                    </h3>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
                       {Object.entries(streamData.socialLinks).map(
-                        ([platform, url]) => (
-                          <a
-                            key={platform}
-                            href={String(url)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className=" flex gap-2 items-center capitalize" //add hover effect
-                            title={platform}
-                          >
-                            <span>{platform}</span>
-                            <span>{socialIcons[platform.toLowerCase()]}</span>
-                          </a>
-                        )
+                        ([platform, url]) =>
+                          url ? (
+                            <a
+                              key={platform}
+                              href={String(url)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex gap-1.5 items-center capitalize text-sm text-muted-foreground hover:text-highlight transition-colors"
+                              title={platform}
+                            >
+                              <span>{socialIcons[platform.toLowerCase()]}</span>
+                              <span className="hidden sm:inline">
+                                {platform}
+                              </span>
+                            </a>
+                          ) : null
                       )}
                     </div>
                   </div>
-                  <p className=" text-sm line-clamp-2">{streamData.bio}</p>
+                  <p className="text-sm text-muted-foreground line-clamp-3">
+                    {streamData.bio}
+                  </p>
                 </div>
 
                 {/* Past streams */}
                 {recordings.length > 0 && (
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-medium">Past Streams</h3>
+                      <h3 className="font-medium text-foreground">
+                        Past Streams
+                      </h3>
                       <Link
                         href={`/${username}/clips`}
-                        className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                        className="text-xs text-highlight hover:text-highlight/80 transition-colors"
                       >
                         View all
                       </Link>
@@ -857,7 +908,7 @@ const ViewStream = ({
                           <Link
                             key={rec.id}
                             href={`/${username}/clips/${rec.id}`}
-                            className="group bg-background rounded-md overflow-hidden hover:ring-1 hover:ring-purple-500/50 transition-all block"
+                            className="group bg-card rounded-md overflow-hidden border border-border hover:ring-1 hover:ring-highlight/40 transition-all block"
                           >
                             <div className="aspect-video relative bg-black overflow-hidden">
                               <img
@@ -875,7 +926,7 @@ const ViewStream = ({
                               <h4 className="text-sm font-medium truncate text-foreground">
                                 {title}
                               </h4>
-                              <p className="text-gray-400 text-xs mt-0.5">
+                              <p className="text-muted-foreground text-xs mt-0.5">
                                 {recTimeAgo(rec.stream_date ?? rec.created_at)}
                               </p>
                             </div>
@@ -892,14 +943,19 @@ const ViewStream = ({
           {/* Chat sidebar (non-fullscreen) */}
           {!isFullscreen && (
             <div
-              className={`transition-all flex-shrink-0 duration-300 ease-in-out ${showChat ? "w-[30%]" : "w-0"}`}
+              className={`transition-all flex-shrink-0 duration-300 ease-in-out overflow-hidden
+                ${
+                  showChat
+                    ? "w-full h-72 lg:h-auto lg:w-[30%] border-t lg:border-t-0 lg:border-l border-border"
+                    : "h-0 w-full lg:w-0"
+                }`}
             >
               <ChatSection
                 messages={chatMessages}
                 onSendMessage={sendMessage}
                 isCollapsible={true}
                 isFullscreen={false}
-                className="border border-border h-full border-l"
+                className="h-full"
                 onToggleChat={toggleChat}
                 showChat={showChat}
                 isWalletConnected={!!address}
@@ -908,11 +964,11 @@ const ViewStream = ({
             </div>
           )}
 
-          {/* Collapsed chat button (non-fullscreen) */}
+          {/* Collapsed chat button — desktop only (mobile uses the MessageCircle button in stream info) */}
           {!showChat && !isFullscreen && (
             <button
               onClick={toggleChat}
-              className="absolute right-0 top-0 z-20 w-10 p-3 border-gray-800 flex items-center justify-center text-white transition-colors hover:text-gray-300"
+              className="hidden lg:flex absolute right-0 top-0 z-20 w-10 p-3 border-border items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
               aria-label="Show chat"
             >
               <ChevronRight className="h-5 w-5 rotate-180" />
@@ -972,7 +1028,7 @@ const ViewStream = ({
         onConfirmationClose={tipModalState.closeConfirmation}
         onRetry={tipModalState.retryFromConfirmation}
       />
-    </DashboardScreenGuard>
+    </>
   );
 };
 

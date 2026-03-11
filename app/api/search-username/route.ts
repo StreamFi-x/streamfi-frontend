@@ -34,14 +34,14 @@ export async function GET(req: NextRequest) {
     }
 
     const results = await sql`
-      SELECT username
+      SELECT id, username, avatar
       FROM users
       WHERE username ILIKE ${"%" + query + "%"}
-      LIMIT 10
+      LIMIT 8
     `;
 
     return NextResponse.json(
-      { usernames: results.rows.map(row => row.username) },
+      { users: results.rows },
       { headers: { "Cache-Control": "public, s-maxage=5" } }
     );
   } catch (error) {

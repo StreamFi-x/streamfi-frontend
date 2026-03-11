@@ -21,6 +21,7 @@ type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   isInitializing: boolean;
+  isError: boolean;
   error: string | null;
   logout: () => void;
   refreshUser: (walletAddress?: string) => Promise<User | null>;
@@ -32,6 +33,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: false,
   isInitializing: true,
+  isError: false,
   error: null,
   logout: () => {},
   refreshUser: async () => null,
@@ -48,7 +50,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitializing, setIsInitializing] = useState(true);
   const [hasInitialized, setHasInitialized] = useState(false);
   const mountTime = useRef(Date.now());
-  const privySessionCreated = useRef(false);
+  // Persisted to sessionStorage so page reloads don't re-fire createSession().
+  // Without this, every reload would call disconnect() + clearSessionCookies() again.
+  const privySessionCreated = useRef(
+    typeof window !== "undefined" &&
+      sessionStorage.getItem("privy_session_created") === "1"
+  );
   const walletSessionRef = useRef<string | null>(null);
   // Tracks the last time we successfully POSTed to /api/auth/wallet-session.
   // Used to rate-limit all callers (interval, activity events) to at most
@@ -73,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const {
     user: swrUser,
     isLoading: swrLoading,
+    isError: swrError,
     mutate: mutateUser,
   } = useUserProfile(address ?? undefined);
 
@@ -129,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const data = await res.json();
         privySessionCreated.current = true;
+        sessionStorage.setItem("privy_session_created", "1");
 
         // A fresh Privy session must not inherit a previous wallet-connect identity
         disconnect();
@@ -167,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (privyReady && !privyAuthenticated) {
       privySessionCreated.current = false;
+      sessionStorage.removeItem("privy_session_created");
       sessionStorage.removeItem("privy_user");
     }
   }, [privyReady, privyAuthenticated]);
@@ -252,6 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void privyLogout();
     }
     privySessionCreated.current = false;
+    sessionStorage.removeItem("privy_session_created");
     // Reset session refs so a re-login always gets a fresh cookie POST
     walletSessionRef.current = null;
     lastRefreshedRef.current = 0;
@@ -427,6 +438,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isLoading: swrLoading,
         isInitializing,
+        isError: !!swrError,
         error,
         logout,
 

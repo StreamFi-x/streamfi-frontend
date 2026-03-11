@@ -294,7 +294,7 @@ const ClipsPage = ({ params }: PageProps) => {
       <h2 className="text-foreground text-xl font-medium mb-6">Past Streams</h2>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="rounded-lg overflow-hidden animate-pulse">
               <div className="aspect-video bg-muted" />
@@ -314,7 +314,7 @@ const ClipsPage = ({ params }: PageProps) => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {recordings.map(rec => (
             <RecordingCard
               key={rec.id}
