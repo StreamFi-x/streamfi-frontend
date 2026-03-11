@@ -363,7 +363,9 @@ const ViewStream = ({
   // Detect portrait vs landscape from the native video element's metadata
   useEffect(() => {
     const container = videoContainerRef.current;
-    if (!container || !isLive || !userData?.playbackId) return;
+    if (!container || !isLive || !userData?.playbackId) {
+      return;
+    }
 
     const handleLoadedMetadata = (e: Event) => {
       const video = e.target as HTMLVideoElement;
