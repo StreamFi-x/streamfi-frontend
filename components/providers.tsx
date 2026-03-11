@@ -11,9 +11,13 @@ const swrCache = new Map();
 
 const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
 
-if (!PRIVY_APP_ID && typeof window !== "undefined") {
-  console.error(
-    "NEXT_PUBLIC_PRIVY_APP_ID is not set. Check your .env.local file."
+function InnerProviders({ children }: { children: React.ReactNode }) {
+  return (
+    <StellarWalletProvider>
+      <ThemeProvider>
+        <AuthProvider>{children}</AuthProvider>
+      </ThemeProvider>
+    </StellarWalletProvider>
   );
 }
 
@@ -28,29 +32,27 @@ export function Providers({ children }: { children: React.ReactNode }) {
         provider: () => swrCache,
       }}
     >
-      <PrivyProvider
-        appId={PRIVY_APP_ID}
-        config={{
-          // Only allow Google login — no email/SMS magic links, no wallets via Privy
-          loginMethods: ["google"],
-          appearance: {
-            theme: "dark",
-            accentColor: "#ac39f2",
-            logo: "/Images/streamFiLogo.svg",
-          },
-          // Never create embedded wallets through Privy — we manage Stellar custodial wallets ourselves
-          embeddedWallets: {
-            ethereum: { createOnLogin: "off" },
-            solana: { createOnLogin: "off" },
-          },
-        }}
-      >
-        <StellarWalletProvider>
-          <ThemeProvider>
-            <AuthProvider>{children}</AuthProvider>
-          </ThemeProvider>
-        </StellarWalletProvider>
-      </PrivyProvider>
+      {PRIVY_APP_ID ? (
+        <PrivyProvider
+          appId={PRIVY_APP_ID}
+          config={{
+            loginMethods: ["google"],
+            appearance: {
+              theme: "dark",
+              accentColor: "#ac39f2",
+              logo: "/Images/streamFiLogo.svg",
+            },
+            embeddedWallets: {
+              ethereum: { createOnLogin: "off" },
+              solana: { createOnLogin: "off" },
+            },
+          }}
+        >
+          <InnerProviders>{children}</InnerProviders>
+        </PrivyProvider>
+      ) : (
+        <InnerProviders>{children}</InnerProviders>
+      )}
     </SWRConfig>
   );
 }
