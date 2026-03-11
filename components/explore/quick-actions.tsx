@@ -60,7 +60,10 @@ export default function QuickActions() {
   const quickActionItems: QuickActionItem[] = [
     { icon: Home, label: "Home", href: "/explore", type: "link" },
     { icon: Search, label: "Search", href: "/browse", type: "link" },
-    { icon: Settings, label: "Settings", href: "/settings", type: "link" },
+    // Settings requires auth — show connect modal instead of navigating when not logged in
+    effectivelyConnected
+      ? { icon: Settings, label: "Settings", href: "/settings", type: "link" }
+      : { icon: Settings, label: "Settings", href: "#", type: "action" },
     effectivelyConnected && address
       ? {
           icon: User,

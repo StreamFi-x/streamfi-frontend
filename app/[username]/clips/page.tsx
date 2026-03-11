@@ -2,7 +2,9 @@
 
 import { use, useState, useEffect, useRef } from "react";
 import { notFound, useRouter } from "next/navigation";
-import { Play, Clock, Calendar } from "lucide-react";
+import { Play, Clock, Calendar, Trash2 } from "lucide-react";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface PageProps {
   params: Promise<{ username: string }>;
@@ -57,12 +59,22 @@ function timeAgo(dateStr: string): string {
 // Mux animated GIF preview (VOD only) — auto-plays when card enters viewport
 function RecordingCard({
   rec,
+  isOwner,
+  confirmingDelete,
   onClick,
+  onDeleteRequest,
+  onDeleteConfirm,
+  onDeleteCancel,
 }: {
   rec: Recording;
+  isOwner: boolean;
+  confirmingDelete: boolean;
   onClick: () => void;
+  onDeleteRequest: () => void;
+  onDeleteConfirm: () => void;
+  onDeleteCancel: () => void;
 }) {
-  const cardRef = useRef<HTMLButtonElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
 
   useEffect(() => {
@@ -98,13 +110,15 @@ function RecordingCard({
     : null;
 
   return (
-    <button
+    <div
       ref={cardRef}
-      onClick={onClick}
       className="group text-left rounded-lg overflow-hidden bg-card border border-border hover:border-purple-500/50 transition-colors w-full"
     >
       {/* Thumbnail / animated preview */}
-      <div className="relative aspect-video bg-black overflow-hidden">
+      <button
+        onClick={onClick}
+        className="relative aspect-video bg-black overflow-hidden w-full block"
+      >
         {thumb ? (
           <>
             {/* Static thumbnail — shows until GIF loads */}
@@ -141,7 +155,42 @@ function RecordingCard({
             {formatDuration(rec.duration)}
           </div>
         )}
-      </div>
+
+        {/* Owner delete button — visible on hover */}
+        {isOwner && !confirmingDelete && (
+          <button
+            onClick={e => {
+              e.stopPropagation();
+              onDeleteRequest();
+            }}
+            className="absolute top-2 right-2 p-1.5 rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 hover:bg-red-600 transition-all"
+            title="Delete recording"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+      </button>
+
+      {/* Delete confirmation overlay */}
+      {isOwner && confirmingDelete && (
+        <div className="px-3 py-2 bg-red-950/80 border-t border-red-700 flex items-center justify-between gap-2">
+          <span className="text-sm text-red-200">Delete this recording?</span>
+          <div className="flex gap-2">
+            <button
+              onClick={onDeleteCancel}
+              className="px-2 py-1 text-xs rounded bg-muted text-foreground hover:bg-muted/80"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onDeleteConfirm}
+              className="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Card info */}
       <div className="p-3">
@@ -162,7 +211,7 @@ function RecordingCard({
           </span>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -172,6 +221,17 @@ const ClipsPage = ({ params }: PageProps) => {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound404, setNotFound404] = useState(false);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
+    null
+  );
+
+  // Determine if the current viewer is the page owner
+  const { publicKey: address, privyWallet } = useStellarWallet();
+  const walletAddr = address ?? privyWallet?.wallet ?? undefined;
+  const { user: currentUser } = useUserProfile(walletAddr);
+  const isOwner =
+    !!currentUser?.username &&
+    currentUser.username.toLowerCase() === username.toLowerCase();
 
   useEffect(() => {
     const fetchRecordings = async () => {
@@ -198,6 +258,32 @@ const ClipsPage = ({ params }: PageProps) => {
 
     fetchRecordings();
   }, [username]);
+
+  const handleDelete = async (id: string) => {
+    // Optimistic remove
+    setRecordings(prev => prev.filter(r => r.id !== id));
+    setConfirmingDeleteId(null);
+
+    try {
+      const res = await fetch(`/api/streams/recordings/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("Failed to delete recording:", data.error);
+        // Re-fetch to restore the list on failure
+        const refetch = await fetch(
+          `/api/streams/recordings?username=${encodeURIComponent(username)}&limit=50`
+        );
+        if (refetch.ok) {
+          const data = await refetch.json();
+          setRecordings(data.recordings ?? []);
+        }
+      }
+    } catch (err) {
+      console.error("Delete request failed:", err);
+    }
+  };
 
   if (notFound404) {
     return notFound();
@@ -233,7 +319,12 @@ const ClipsPage = ({ params }: PageProps) => {
             <RecordingCard
               key={rec.id}
               rec={rec}
+              isOwner={isOwner}
+              confirmingDelete={confirmingDeleteId === rec.id}
               onClick={() => router.push(`/${username}/clips/${rec.id}`)}
+              onDeleteRequest={() => setConfirmingDeleteId(rec.id)}
+              onDeleteConfirm={() => handleDelete(rec.id)}
+              onDeleteCancel={() => setConfirmingDeleteId(null)}
             />
           ))}
         </div>
