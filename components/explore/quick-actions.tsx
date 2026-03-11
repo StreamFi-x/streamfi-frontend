@@ -78,7 +78,7 @@ export default function QuickActions() {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="lg:hidden absolute bottom-0 left-0 right-0 z-[80] bg-background/90 backdrop-blur-lg border-t border-border"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-[80] bg-background/90 backdrop-blur-lg border-t border-border"
       >
         <div className="flex items-center justify-around py-2 px-4 safe-area-pb">
           {quickActionItems.map((item, index) => {
