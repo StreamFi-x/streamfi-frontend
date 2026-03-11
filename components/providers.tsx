@@ -11,8 +11,8 @@ const swrCache = new Map();
 
 const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
 
-if (!PRIVY_APP_ID) {
-  throw new Error(
+if (!PRIVY_APP_ID && typeof window !== "undefined") {
+  console.error(
     "NEXT_PUBLIC_PRIVY_APP_ID is not set. Check your .env.local file."
   );
 }

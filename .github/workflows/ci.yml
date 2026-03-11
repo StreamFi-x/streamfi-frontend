@@ -10,6 +10,13 @@ jobs:
   # Code Quality Checks
   quality:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_PRIVY_APP_ID: ${{ secrets.NEXT_PUBLIC_PRIVY_APP_ID }}
+      NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+      NEXT_PUBLIC_STELLAR_NETWORK: ${{ secrets.NEXT_PUBLIC_STELLAR_NETWORK }}
+      NEXT_PUBLIC_STELLAR_HORIZON_URL: ${{ secrets.NEXT_PUBLIC_STELLAR_HORIZON_URL }}
+      NEXT_PUBLIC_DEV_MODE: "false"
+      POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,9 +41,6 @@ jobs:
 
       - name: Run tests
         run: npm run test:ci
-        env:
-          NEXT_PUBLIC_PRIVY_APP_ID: ${{ secrets.NEXT_PUBLIC_PRIVY_APP_ID }}
-          NEXT_PUBLIC_STELLAR_NETWORK: ${{ secrets.NEXT_PUBLIC_STELLAR_NETWORK }}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -50,6 +54,13 @@ jobs:
     needs: [quality]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    env:
+      NEXT_PUBLIC_PRIVY_APP_ID: ${{ secrets.NEXT_PUBLIC_PRIVY_APP_ID }}
+      NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+      NEXT_PUBLIC_STELLAR_NETWORK: ${{ secrets.NEXT_PUBLIC_STELLAR_NETWORK }}
+      NEXT_PUBLIC_STELLAR_HORIZON_URL: ${{ secrets.NEXT_PUBLIC_STELLAR_HORIZON_URL }}
+      NEXT_PUBLIC_DEV_MODE: "false"
+      POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -65,13 +76,6 @@ jobs:
 
       - name: Build application
         run: npm run build
-        env:
-          NEXT_PUBLIC_PRIVY_APP_ID: ${{ secrets.NEXT_PUBLIC_PRIVY_APP_ID }}
-          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
-          NEXT_PUBLIC_STELLAR_NETWORK: ${{ secrets.NEXT_PUBLIC_STELLAR_NETWORK }}
-          NEXT_PUBLIC_STELLAR_HORIZON_URL: ${{ secrets.NEXT_PUBLIC_STELLAR_HORIZON_URL }}
-          NEXT_PUBLIC_DEV_MODE: "false"
-          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
 
       - name: Deploy to Vercel (if using Vercel)
         uses: amondnet/vercel-action@v25
@@ -85,6 +89,13 @@ jobs:
   performance:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    env:
+      NEXT_PUBLIC_PRIVY_APP_ID: ${{ secrets.NEXT_PUBLIC_PRIVY_APP_ID }}
+      NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+      NEXT_PUBLIC_STELLAR_NETWORK: ${{ secrets.NEXT_PUBLIC_STELLAR_NETWORK }}
+      NEXT_PUBLIC_STELLAR_HORIZON_URL: ${{ secrets.NEXT_PUBLIC_STELLAR_HORIZON_URL }}
+      NEXT_PUBLIC_DEV_MODE: "false"
+      POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -100,13 +111,6 @@ jobs:
 
       - name: Build application
         run: npm run build
-        env:
-          NEXT_PUBLIC_PRIVY_APP_ID: ${{ secrets.NEXT_PUBLIC_PRIVY_APP_ID }}
-          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
-          NEXT_PUBLIC_STELLAR_NETWORK: ${{ secrets.NEXT_PUBLIC_STELLAR_NETWORK }}
-          NEXT_PUBLIC_STELLAR_HORIZON_URL: ${{ secrets.NEXT_PUBLIC_STELLAR_HORIZON_URL }}
-          NEXT_PUBLIC_DEV_MODE: "false"
-          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
 
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v10
