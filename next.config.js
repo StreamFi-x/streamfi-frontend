@@ -74,7 +74,7 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' https://auth.privy.io https://cdn.mux.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://auth.privy.io https://cdn.mux.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://res.cloudinary.com https://lh3.googleusercontent.com https://images.unsplash.com https://picsum.photos https://image.mux.com",
