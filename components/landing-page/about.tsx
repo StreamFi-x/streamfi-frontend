@@ -2,14 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import Image from "next/image";
-import { AboutImage2 } from "@/public/Images";
 
 const steps = [
   {
     number: "01",
-    title: "Connect Your Wallet",
+    title: "Sign Up Your Way",
     description:
-      "Sign in with your Stellar wallet. No email, no passwords. Your identity and earnings are fully yours.",
+      "Continue with Google or connect a Stellar wallet, whichever you prefer. No complicated setup, no crypto knowledge needed to get started.",
   },
   {
     number: "02",
@@ -21,7 +20,7 @@ const steps = [
     number: "03",
     title: "Earn Without Limits",
     description:
-      "Receive tips, subscriptions, and staking rewards directly to your wallet. Zero platform cuts. Instant settlement.",
+      "Receive tips directly from your viewers and get paid instantly with no platform cut taken. Your earnings land in your account the moment they are sent.",
   },
 ];
 
@@ -52,7 +51,7 @@ export default function About() {
   return (
     <section id="about" className="py-24 px-4" ref={sectionRef}>
       <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-20 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-20 items-stretch">
           {/* Left: copy */}
           <div>
             <div className="reveal inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 text-xs font-medium mb-7">
@@ -68,12 +67,11 @@ export default function About() {
             </h2>
 
             <p className="reveal reveal-delay-2 text-white/50 text-sm leading-relaxed mb-10">
-              StreamFi is a Web3-powered streaming platform built to give
-              content creators and gamers full control over their earnings.
-              Unlike traditional platforms that take large cuts and delay
-              payouts, StreamFi uses blockchain technology to enable instant
-              crypto tipping, NFT-based memberships, and DeFi staking rewards,
-              all without middlemen.
+              StreamFi is a live-streaming platform built to put creators first.
+              Sign up with Google or a wallet, go live in seconds, and get paid
+              instantly by your viewers with no middleman taking a cut. We use
+              blockchain technology under the hood so payments are fast and
+              transparent, but you never have to think about any of that.
             </p>
 
             {/* Steps */}
@@ -102,26 +100,31 @@ export default function About() {
           </div>
 
           {/* Right: image */}
-          <div className="reveal reveal-delay-2 relative">
-            <div
-              className="absolute inset-0 rounded-3xl blur-3xl -z-10 scale-95 opacity-50"
-              style={{
-                background:
-                  "radial-gradient(ellipse at 40% 50%, rgba(124,58,237,0.25), transparent 70%)",
-              }}
-            />
-            <div
-              className="rounded-2xl overflow-hidden border border-white/[0.08]"
-              style={{
-                boxShadow:
-                  "0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
-              }}
-            >
-              <Image
-                src={AboutImage2}
-                alt="StreamFi Platform — Creator dashboard"
-                className="w-full h-auto block"
+          <div className="reveal reveal-delay-2 flex flex-col min-h-[480px]">
+            <div className="relative flex-1">
+              {/* Glow */}
+              <div
+                className="absolute inset-0 rounded-3xl blur-3xl -z-10 scale-95 opacity-50"
+                style={{
+                  background:
+                    "radial-gradient(ellipse at 40% 50%, rgba(124,58,237,0.25), transparent 70%)",
+                }}
               />
+              {/* Image fills the entire flex child */}
+              <div
+                className="absolute inset-0 rounded-2xl overflow-hidden border border-white/[0.08]"
+                style={{
+                  boxShadow:
+                    "0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
+                }}
+              >
+                <Image
+                  src="/Images/streamer.jpg"
+                  alt="StreamFi Platform — Creator streaming"
+                  fill
+                  className="object-cover"
+                />
+              </div>
             </div>
           </div>
         </div>
