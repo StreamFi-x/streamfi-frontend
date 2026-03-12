@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import useSWR from "swr";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { FeaturedStream } from "@/components/explore/home/FeaturedStream";
@@ -42,14 +41,11 @@ const fetcher = async (url: string) => {
   return res.json();
 };
 
-type Tab = "live" | "past";
-
 export function ExploreClient({
   initialStreams,
 }: {
   initialStreams: LiveStream[];
 }) {
-  const [activeTab, setActiveTab] = useState<Tab>("live");
   const { publicKey: address } = useStellarWallet();
 
   // SWR starts with server-fetched data immediately (no loading flash).
@@ -117,42 +113,16 @@ export function ExploreClient({
   return (
     <div className="min-h-screen bg-secondary text-foreground">
       <main className="container mx-auto px-4 py-8">
-        {/* Tab bar */}
-        <div className="flex gap-1 mb-6 border-b border-border">
-          <button
-            onClick={() => setActiveTab("live")}
-            className={`px-5 py-2.5 text-sm font-medium transition-colors relative ${
-              activeTab === "live"
-                ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Live
-          </button>
-          <button
-            onClick={() => setActiveTab("past")}
-            className={`px-5 py-2.5 text-sm font-medium transition-colors relative ${
-              activeTab === "past"
-                ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Past Streams
-          </button>
-        </div>
+        <FeaturedStream stream={featuredStreamData} />
+        <LiveStreams title="Live on Streamfi" streams={mappedStreams} />
+        <TrendingStreams title="Trending in Gaming" streams={trendingStreams} />
 
-        {activeTab === "live" ? (
-          <>
-            <FeaturedStream stream={featuredStreamData} />
-            <LiveStreams title="Live on Streamfi" streams={mappedStreams} />
-            <TrendingStreams
-              title="Trending in Gaming"
-              streams={trendingStreams}
-            />
-          </>
-        ) : (
+        <section className="mt-10">
+          <h2 className="text-foreground text-xl font-semibold mb-4">
+            Past Streams
+          </h2>
           <PastStreams />
-        )}
+        </section>
       </main>
     </div>
   );

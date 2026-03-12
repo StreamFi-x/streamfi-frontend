@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Eye, ChevronDown, ChevronUp } from "lucide-react";
+import { Eye, ChevronDown, ChevronUp, TrendingUp } from "lucide-react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -142,6 +142,23 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
       setIsTransitioning(false);
     }, 500);
   };
+
+  if (streams.length === 0) {
+    return (
+      <div className="w-full py-6">
+        <h2 className="text-2xl font-bold mb-6 text-foreground">{title}</h2>
+        <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-dashed border-border bg-card/40 text-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+            <TrendingUp className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <p className="text-foreground font-medium">No trending streams yet</p>
+          <p className="text-sm text-muted-foreground">
+            Trending streams will appear here once people go live.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={sectionRef} className="w-full py-6">

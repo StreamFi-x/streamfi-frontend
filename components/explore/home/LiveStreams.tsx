@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Eye, ChevronDown, ChevronUp } from "lucide-react";
+import { Eye, ChevronDown, ChevronUp, Radio } from "lucide-react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -142,6 +142,25 @@ export function LiveStreams({
       setIsTransitioning(false);
     }, 500);
   };
+
+  if (streams.length === 0) {
+    return (
+      <div className="w-full py-6">
+        <h2 className="text-2xl font-bold mb-6 text-foreground">{title}</h2>
+        <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-dashed border-border bg-card/40 text-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+            <Radio className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <p className="text-foreground font-medium">
+            No one is live right now
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Check back soon — streams go live here.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={sectionRef} className="w-full py-6">
