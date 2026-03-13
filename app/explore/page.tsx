@@ -55,7 +55,7 @@ export default async function Home() {
     });
   } catch (err) {
     // If DB is unavailable, render the page with empty data — client SWR will recover.
-    console.error("[explore] failed to fetch initial streams:", err);
+    console.warn("[explore] DB unavailable on server render, SWR will recover:", err);
   }
 
   return <ExploreClient initialStreams={initialStreams} />;

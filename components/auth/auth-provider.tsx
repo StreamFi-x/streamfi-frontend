@@ -159,9 +159,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           new CustomEvent("privy-wallet-set", { detail: { user: data.user } })
         );
 
-        // If onboarding isn't complete, redirect to finish it
+        // Redirect: new users to onboarding, returning users to explore
         if (data.needsOnboarding) {
           router.push("/onboarding");
+        } else {
+          router.push("/explore");
         }
       } catch (err) {
         // Use warn not error — the overlay only surfaces console.error calls
@@ -447,7 +449,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return result ?? null;
         },
         updateUserProfile: async (userData: UserUpdateInput) => {
-          if (!user) {
+          // Determine the API endpoint.
+          // Wallet users: PUT /api/users/updates/[wallet]
+          // Google (Privy) users: PUT /api/users/updates/privy/[privyId]
+          let endpoint: string | null = null;
+          let isPrivyUser = false;
+
+          if (user?.wallet) {
+            endpoint = `/api/users/updates/${user.wallet}`;
+          } else {
+            // No wallet — check sessionStorage for a Privy-authenticated user
+            try {
+              const raw = sessionStorage.getItem("privy_user");
+              if (raw) {
+                const privyUser = JSON.parse(raw);
+                if (privyUser?.privyId) {
+                  endpoint = `/api/users/updates/privy/${privyUser.privyId}`;
+                  isPrivyUser = true;
+                }
+              }
+            } catch {
+              // sessionStorage unavailable (SSR guard)
+            }
+          }
+
+          if (!endpoint) {
             return false;
           }
 
@@ -479,7 +505,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               formData.append("creator", JSON.stringify(userData.creator));
             }
 
-            const response = await fetch(`/api/users/updates/${user.wallet}`, {
+            const response = await fetch(endpoint, {
               method: "PUT",
               body: formData,
             });
@@ -488,21 +514,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const result = await response.json();
               const updatedUser = result.user;
 
-              await mutateUser(updatedUser, false);
-
-              localStorage.setItem(
-                `user_${user.wallet}`,
-                JSON.stringify(updatedUser)
-              );
-              localStorage.setItem(
-                `user_timestamp_${user.wallet}`,
-                Date.now().toString()
-              );
+              if (!isPrivyUser && user?.wallet) {
+                await mutateUser(updatedUser, false);
+                localStorage.setItem(
+                  `user_${user.wallet}`,
+                  JSON.stringify(updatedUser)
+                );
+                localStorage.setItem(
+                  `user_timestamp_${user.wallet}`,
+                  Date.now().toString()
+                );
+              } else {
+                // Merge updated fields back into privy_user sessionStorage
+                try {
+                  const existing = JSON.parse(
+                    sessionStorage.getItem("privy_user") ?? "{}"
+                  );
+                  sessionStorage.setItem(
+                    "privy_user",
+                    JSON.stringify({ ...existing, ...updatedUser })
+                  );
+                  if (updatedUser.username) {
+                    sessionStorage.setItem("username", updatedUser.username);
+                  }
+                } catch {
+                  // best-effort
+                }
+              }
 
               return true;
             }
 
-            const responseError = await response.json();
+            const responseError = await response.json().catch(() => ({}));
             console.error("Error response from API:", responseError);
             return false;
           } catch (updateError) {

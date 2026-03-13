@@ -23,6 +23,17 @@ interface LiveStream {
   streamStartedAt: string;
 }
 
+interface Recording {
+  id: string;
+  playback_id: string;
+  title: string | null;
+  duration: number | null;
+  created_at: string;
+  username: string;
+  avatar: string | null;
+  stream_date: string | null;
+}
+
 function formatViewCount(count: number): string {
   if (count >= 1_000_000) {
     return `${(count / 1_000_000).toFixed(1)}M`;
@@ -33,11 +44,20 @@ function formatViewCount(count: number): string {
   return count.toString();
 }
 
+function formatDuration(seconds: number | null): string {
+  if (!seconds || seconds <= 0) return "";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 const fetcher = async (url: string) => {
   const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error("Failed to fetch");
-  }
+  if (!res.ok) throw new Error("Failed to fetch");
   return res.json();
 };
 
@@ -63,12 +83,27 @@ export function ExploreClient({
     }
   );
 
+  // Always fetch recordings — used as featured carousel fallback when nobody is live
+  const { data: recordingsData } = useSWR<{ recordings: Recording[] }>(
+    "/api/streams/recordings",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60_000 }
+  );
+
   const streams = data?.streams ?? initialStreams;
+
+  // Mux live snapshot thumbnail (real-time frame from live stream)
+  const getMuxThumbnail = (playbackId: string) =>
+    `https://image.mux.com/${playbackId}/thumbnail.png?width=640&height=360&fit_mode=crop`;
 
   const mappedStreams = streams.map(stream => ({
     id: stream.id,
     title: stream.title,
-    thumbnail: stream.thumbnail || "/Images/user.png",
+    thumbnail: stream.playbackId
+      ? getMuxThumbnail(stream.playbackId)
+      : stream.thumbnail || "/Images/user.png",
+    playbackId: stream.playbackId,
+    isLive: true,
     viewCount: formatViewCount(stream.viewerCount),
     streamer: {
       name: stream.username,
@@ -79,19 +114,26 @@ export function ExploreClient({
     location: stream.category || "General",
   }));
 
-  const featuredStreamData = streams[0]
-    ? {
-        title: streams[0].title,
-        thumbnail: streams[0].thumbnail || "/Images/user.png",
-        isLive: true,
-        streamerThumbnail: streams[0].avatar || undefined,
-        playbackId: streams[0].playbackId,
-      }
-    : {
-        title: "No live streams",
-        thumbnail: "/Images/user.png",
-        isLive: false,
-      };
+  // When nobody is live, map recordings into the same CarouselStream shape
+  const recordingCarouselItems = (recordingsData?.recordings ?? []).map(r => ({
+    id: r.id,
+    title: r.title || "Stream Recording",
+    thumbnail: `https://image.mux.com/${r.playback_id}/thumbnail.jpg?time=5`,
+    playbackId: r.playback_id,
+    isLive: false,
+    viewCount: formatDuration(r.duration),
+    streamer: {
+      name: r.username,
+      username: r.username,
+      logo: r.avatar || "/Images/user.png",
+    },
+    tags: [] as string[],
+    location: "",
+  }));
+
+  // Featured carousel: live streams take priority; fall back to past recordings
+  const featuredStreams =
+    mappedStreams.length > 0 ? mappedStreams : recordingCarouselItems;
 
   const trendingStreams = [...streams]
     .sort((a, b) => b.totalViews - a.totalViews)
@@ -99,7 +141,9 @@ export function ExploreClient({
     .map(stream => ({
       id: stream.id,
       title: stream.title,
-      thumbnail: stream.thumbnail || "/Images/user.png",
+      thumbnail: stream.playbackId
+        ? getMuxThumbnail(stream.playbackId)
+        : stream.thumbnail || "/Images/user.png",
       viewCount: formatViewCount(stream.totalViews),
       streamer: {
         name: stream.username,
@@ -113,7 +157,7 @@ export function ExploreClient({
   return (
     <div className="min-h-screen bg-secondary text-foreground">
       <main className="container mx-auto px-4 py-8">
-        <FeaturedStream stream={featuredStreamData} />
+        <FeaturedStream streams={featuredStreams} />
         <LiveStreams title="Live on Streamfi" streams={mappedStreams} />
         <TrendingStreams title="Trending in Gaming" streams={trendingStreams} />
 
