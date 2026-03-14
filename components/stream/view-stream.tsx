@@ -1019,6 +1019,7 @@ const ViewStream = ({
         isOpen={showReportModal}
         onClose={() => setShowReportModal(false)}
         username={username}
+        streamId={userData?.playbackId ?? ""}
       />
 
       {/* Stellar Tip Modals */}

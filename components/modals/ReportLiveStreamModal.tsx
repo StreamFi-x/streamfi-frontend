@@ -10,6 +10,7 @@ interface ReportLiveStreamModalProps {
   isOpen: boolean;
   onClose: () => void;
   username?: string;
+  streamId?: string;
 }
 
 interface ReportReason {
@@ -43,6 +44,7 @@ export default function ReportLiveStreamModal({
   isOpen,
   onClose,
   username,
+  streamId,
 }: ReportLiveStreamModalProps) {
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
@@ -55,16 +57,24 @@ export default function ReportLiveStreamModal({
     }
   }, [isOpen]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedReason) {
       return;
     }
 
-    console.log("Report submitted:", {
-      username,
-      reason: selectedReason,
-      timestamp: new Date().toISOString(),
-    });
+    try {
+      await fetch("/api/admin/reports/stream/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stream_id: streamId ?? "",
+          streamer: username ?? "unknown",
+          reason: selectedReason,
+        }),
+      });
+    } catch {
+      // Silent fail — don't block the UI on a network error
+    }
 
     setIsSubmitted(true);
   };
