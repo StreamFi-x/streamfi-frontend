@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { getDefaultAvatar } from "@/lib/profile-icons";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import CustomizeChannelButton from "./CustomizeChannelButton";
@@ -45,7 +46,7 @@ const ProfileHeader = ({
             />
           ) : (
             <Image
-              src={avatarUrl || "/Images/user.png"}
+              src={avatarUrl || getDefaultAvatar(username)}
               alt={username}
               fill
               className="object-cover"

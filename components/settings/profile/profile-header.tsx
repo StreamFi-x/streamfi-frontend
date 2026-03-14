@@ -1,5 +1,6 @@
 "use client";
 import Image, { type StaticImageData } from "next/image";
+import { PROFILE_ICONS } from "@/lib/profile-icons";
 
 import { useState, useEffect } from "react";
 
@@ -44,7 +45,7 @@ export function ProfileHeader({ avatar, onAvatarClick }: ProfileHeaderProps) {
             />
           ) : (
             <Image
-              src={avatarSrc || "/Images/user.png"}
+              src={avatarSrc || PROFILE_ICONS[0]}
               alt="Profile Avatar"
               fill
               className="object-cover"

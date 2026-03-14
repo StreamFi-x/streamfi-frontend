@@ -4,7 +4,7 @@ import type React from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import profileImage from "@/public/Images/profile.png";
-import Avatar from "@/public/icons/avatar.svg";
+import { PROFILE_ICONS } from "@/lib/profile-icons";
 import VerificationPopup from "./popup";
 import AvatarSelectionModal from "./avatar-modal";
 import type {
@@ -26,7 +26,7 @@ import { useToast } from "@/components/ui/toast-provider";
 
 export default function ProfileSettings() {
   const { user, isLoading, updateUserProfile } = useAuth();
-  const avatarOptions = [Avatar, Avatar, Avatar, Avatar, Avatar];
+  const avatarOptions = [...PROFILE_ICONS];
   const { showToast } = useToast();
 
   const [avatar, setAvatar] = useState<StaticImageData | string | File>(

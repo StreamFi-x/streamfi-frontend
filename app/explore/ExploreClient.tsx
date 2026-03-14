@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { getDefaultAvatar } from "@/lib/profile-icons";
 import { FeaturedStream } from "@/components/explore/home/FeaturedStream";
 import { LiveStreams } from "@/components/explore/home/LiveStreams";
 import { TrendingStreams } from "@/components/explore/home/TrendingStreams";
@@ -45,7 +46,9 @@ function formatViewCount(count: number): string {
 }
 
 function formatDuration(seconds: number | null): string {
-  if (!seconds || seconds <= 0) return "";
+  if (!seconds || seconds <= 0) {
+    return "";
+  }
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
@@ -57,7 +60,9 @@ function formatDuration(seconds: number | null): string {
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
-  if (!res.ok) throw new Error("Failed to fetch");
+  if (!res.ok) {
+    throw new Error("Failed to fetch");
+  }
   return res.json();
 };
 
@@ -101,14 +106,14 @@ export function ExploreClient({
     title: stream.title,
     thumbnail: stream.playbackId
       ? getMuxThumbnail(stream.playbackId)
-      : stream.thumbnail || "/Images/user.png",
+      : stream.thumbnail || "",
     playbackId: stream.playbackId,
     isLive: true,
     viewCount: formatViewCount(stream.viewerCount),
     streamer: {
       name: stream.username,
       username: stream.username,
-      logo: stream.avatar || "/Images/user.png",
+      logo: stream.avatar || getDefaultAvatar(stream.username),
     },
     tags: stream.tags,
     location: stream.category || "General",
@@ -125,7 +130,7 @@ export function ExploreClient({
     streamer: {
       name: r.username,
       username: r.username,
-      logo: r.avatar || "/Images/user.png",
+      logo: r.avatar || getDefaultAvatar(r.username),
     },
     tags: [] as string[],
     location: "",
@@ -143,12 +148,12 @@ export function ExploreClient({
       title: stream.title,
       thumbnail: stream.playbackId
         ? getMuxThumbnail(stream.playbackId)
-        : stream.thumbnail || "/Images/user.png",
+        : stream.thumbnail || "",
       viewCount: formatViewCount(stream.totalViews),
       streamer: {
         name: stream.username,
         username: stream.username,
-        logo: stream.avatar || "/Images/user.png",
+        logo: stream.avatar || getDefaultAvatar(stream.username),
       },
       tags: stream.tags,
       location: stream.category || "General",

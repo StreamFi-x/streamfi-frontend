@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PrivyClient } from "@privy-io/server-auth";
 import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { getRandomProfileIcon } from "@/lib/profile-icons";
 
 // 10 Privy session exchanges per IP per 60 s
 const isRateLimited = createRateLimiter(60_000, 10);
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
     // Insert if new, do nothing if existing (idempotent)
     await sql`
       INSERT INTO users (privy_id, email, avatar)
-      VALUES (${privyUserId}, ${verifiedEmail}, '/Images/user.png')
+      VALUES (${privyUserId}, ${verifiedEmail}, ${getRandomProfileIcon()})
       ON CONFLICT (privy_id) DO NOTHING
     `;
 

@@ -113,14 +113,25 @@ export async function PUT(
       }
     }
 
-    // Handle avatar upload
+    // Handle avatar — file upload (→ Cloudinary) or preset icon URL string
     let avatarUrl = user.avatar;
     const avatarFile = formData.get("avatar");
+    const avatarUrlField = formData.get("avatarUrl");
+
     if (avatarFile instanceof Blob) {
       const buffer = Buffer.from(await avatarFile.arrayBuffer());
       const uploadResult = await uploadImageFromBuffer(buffer);
       avatarUrl = uploadResult.secure_url;
 
+      if (user.avatar) {
+        const oldPublicId = extractPublicIdFromUrl(user.avatar);
+        if (oldPublicId) {
+          await deleteImage(oldPublicId);
+        }
+      }
+    } else if (typeof avatarUrlField === "string" && avatarUrlField.trim()) {
+      avatarUrl = avatarUrlField.trim();
+      // Clean up old Cloudinary photo if switching to a preset icon
       if (user.avatar) {
         const oldPublicId = extractPublicIdFromUrl(user.avatar);
         if (oldPublicId) {

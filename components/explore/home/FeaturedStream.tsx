@@ -19,13 +19,16 @@ import MuxPlayer from "@/components/MuxPlayerLazy";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { FeaturedStreamProps, CarouselStream } from "@/types/explore/home";
+import { getDefaultAvatar } from "@/lib/profile-icons";
 
 function getMuxThumbnail(playbackId: string): string {
   return `https://image.mux.com/${playbackId}/thumbnail.png?width=1280&height=720&fit_mode=crop`;
 }
 
 function streamThumbnail(stream: CarouselStream): string {
-  if (stream.playbackId) return getMuxThumbnail(stream.playbackId);
+  if (stream.playbackId) {
+    return getMuxThumbnail(stream.playbackId);
+  }
   return stream.thumbnail;
 }
 
@@ -41,7 +44,7 @@ function StreamerAvatar({ src, name }: { src: string; name: string }) {
   }
   return (
     <Image
-      src={src || "/Images/user.png"}
+      src={src || getDefaultAvatar(name)}
       alt={name}
       width={32}
       height={32}
@@ -69,7 +72,11 @@ function PreviewCard({
         ${side === "left" ? "origin-right" : "origin-left"}`}
     >
       {thumb.includes("cloudinary.com") || thumb.includes("mux.com") ? (
-        <img src={thumb} alt={stream.title} className="w-full h-full object-cover" />
+        <img
+          src={thumb}
+          alt={stream.title}
+          className="w-full h-full object-cover"
+        />
       ) : (
         <Image
           src={thumb}
@@ -99,9 +106,13 @@ export function FeaturedStream({ streams }: FeaturedStreamProps) {
   // Once the video starts playing, unmute it programmatically.
   useEffect(() => {
     const el = playerRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
     const unmute = () => {
-      if (!isMuted) el.muted = false;
+      if (!isMuted) {
+        el.muted = false;
+      }
     };
     el.addEventListener("playing", unmute, { once: true });
     return () => el.removeEventListener("playing", unmute);
@@ -159,7 +170,11 @@ export function FeaturedStream({ streams }: FeaturedStreamProps) {
       <div className="flex items-stretch gap-2 h-[220px] sm:h-[300px] lg:h-[400px] xl:h-[460px]">
         {/* Left peek */}
         {streams.length > 1 && (
-          <PreviewCard stream={streams[prevIndex]} onClick={goPrev} side="left" />
+          <PreviewCard
+            stream={streams[prevIndex]}
+            onClick={goPrev}
+            side="left"
+          />
         )}
 
         {/* ── Featured (centre) ── */}
@@ -217,7 +232,10 @@ export function FeaturedStream({ streams }: FeaturedStreamProps) {
 
               {/* Streamer avatar + name + location */}
               <div className="pointer-events-auto">
-                <StreamerAvatar src={active.streamer.logo} name={active.streamer.name} />
+                <StreamerAvatar
+                  src={active.streamer.logo}
+                  name={active.streamer.name}
+                />
               </div>
               <div className="flex-1 min-w-0 pointer-events-auto">
                 <button
@@ -323,7 +341,11 @@ export function FeaturedStream({ streams }: FeaturedStreamProps) {
 
         {/* Right peek — only when 3+ streams so prev ≠ next */}
         {streams.length > 2 && (
-          <PreviewCard stream={streams[nextIndex]} onClick={goNext} side="right" />
+          <PreviewCard
+            stream={streams[nextIndex]}
+            onClick={goNext}
+            side="right"
+          />
         )}
       </div>
     </div>

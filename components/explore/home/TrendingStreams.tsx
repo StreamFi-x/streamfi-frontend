@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import type { TrendingStreamsProps } from "@/types/explore/home";
 import Image from "next/image";
+import { getDefaultAvatar } from "@/lib/profile-icons";
 
 export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
   const [showAll, setShowAll] = useState(false);
@@ -196,7 +197,7 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
                   <Image
                     width={500}
                     height={300}
-                    src={stream.thumbnail || "/Images/user.png"}
+                    src={stream.thumbnail || ""}
                     alt={stream.title}
                     className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
                   />
@@ -226,7 +227,10 @@ export function TrendingStreams({ title, streams }: TrendingStreamsProps) {
                       <Image
                         width={300}
                         height={300}
-                        src={stream.streamer.logo || "/Images/user.png"}
+                        src={
+                          stream.streamer.logo ||
+                          getDefaultAvatar(stream.streamer.name)
+                        }
                         alt={stream.streamer.name}
                         className="w-full h-full object-cover"
                       />

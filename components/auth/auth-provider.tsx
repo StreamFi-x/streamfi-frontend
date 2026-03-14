@@ -494,6 +494,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             if (userData.avatar && userData.avatar instanceof File) {
               formData.append("avatar", userData.avatar);
+            } else if (userData.avatar && typeof userData.avatar === "string") {
+              // Preset icon or external URL — send as plain string, no Cloudinary upload needed
+              formData.append("avatarUrl", userData.avatar);
             }
             if (userData.socialLinks) {
               formData.append(

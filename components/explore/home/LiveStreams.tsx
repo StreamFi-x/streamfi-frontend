@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import type { LiveStreamProps } from "@/types/explore/home";
 import Image from "next/image";
+import { getDefaultAvatar } from "@/lib/profile-icons";
 
 export function LiveStreams({
   title,
@@ -197,7 +198,7 @@ export function LiveStreams({
                   <Image
                     width={500}
                     height={300}
-                    src={stream.thumbnail || "/Images/user.png"}
+                    src={stream.thumbnail || ""}
                     alt={stream.title}
                     className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
                   />
@@ -227,7 +228,10 @@ export function LiveStreams({
                       <Image
                         width={300}
                         height={300}
-                        src={stream.streamer.logo || "/Images/user.png"}
+                        src={
+                          stream.streamer.logo ||
+                          getDefaultAvatar(stream.streamer.name)
+                        }
                         alt={stream.streamer.name}
                         className="w-full h-full object-cover"
                       />

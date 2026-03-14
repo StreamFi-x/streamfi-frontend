@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import useSWR from "swr";
 import Image from "next/image";
+import { getDefaultAvatar } from "@/lib/profile-icons";
 
 interface LiveStream {
   id: string;
@@ -260,7 +261,7 @@ function StreamCard({
           <Image
             width={500}
             height={300}
-            src={stream.thumbnail || "/Images/user.png"}
+            src={stream.thumbnail || ""}
             alt={stream.title}
             className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
           />
@@ -291,7 +292,7 @@ function StreamCard({
               <Image
                 width={300}
                 height={300}
-                src={stream.avatar || "/Images/user.png"}
+                src={stream.avatar || getDefaultAvatar(stream.username)}
                 alt={stream.username}
                 className="w-full h-full object-cover"
               />
