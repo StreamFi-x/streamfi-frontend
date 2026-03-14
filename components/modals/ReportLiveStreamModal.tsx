@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Info, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -87,9 +91,9 @@ export default function ReportLiveStreamModal({
             {/* Header */}
             <div className="p-4 relative">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-white text-sm font-medium">
+                <DialogTitle className="text-white text-sm font-medium">
                   Getting Information
-                </span>
+                </DialogTitle>
               </div>
               <div className="absolute bottom-0 left-4 right-4 h-px bg-gray-700"></div>
             </div>

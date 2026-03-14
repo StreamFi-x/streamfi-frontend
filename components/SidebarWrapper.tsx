@@ -40,7 +40,7 @@ export default function SidebarWrapper({
       <TopLoadingBar />
       <div className="flex flex-col h-screen">
         {!hideSidebar && <Navbar />}
-        <div className="flex h-screen overflow-hidden">
+        <div className="flex flex-1 min-h-0 overflow-hidden">
           {!hideSidebar && <Sidebar />}
           <main className="flex-1 overflow-y-auto scrollbar-hide pb-10 xl:pb-0">
             {children}

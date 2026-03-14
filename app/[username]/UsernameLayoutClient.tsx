@@ -189,7 +189,7 @@ export default function UsernameLayoutClient({
   // /watch and /clips/[id] routes: render children without the profile banner/header/tabs overlay
   if (isWatchRoute || isClipRoute) {
     return (
-      <div className="flex flex-col h-dvh bg-secondary text-foreground">
+      <div className="flex flex-col h-full bg-secondary text-foreground">
         {/* Watch: overflow-hidden so ViewStream manages its own internal scroll.
             Clips: overflow-y-auto so the page can scroll normally. */}
         <main
@@ -211,6 +211,7 @@ export default function UsernameLayoutClient({
             streamTitle={
               userData?.creator?.streamTitle || userData?.creator?.title
             }
+            bannerUrl={userData?.banner}
           />
           <ProfileHeader
             username={username}

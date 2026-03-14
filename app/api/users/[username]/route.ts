@@ -13,7 +13,7 @@ export async function GET(
 
     const result = await sql`
       SELECT
-        u.id, u.username, u.wallet, u.avatar, u.bio,
+        u.id, u.username, u.wallet, u.avatar, u.banner, u.bio,
         u.sociallinks, u.emailverified, u.emailnotifications,
         u.creator, u.auth_type, u.privy_id,
         u.is_live, u.mux_playback_id, u.current_viewers,

@@ -400,17 +400,19 @@ export default function Sidebar() {
                   >
                     <motion.div
                       variants={avatarVariants}
-                      className="relative w-8 h-8 rounded-full bg-tertiary overflow-hidden"
+                      className="relative w-8 h-8 flex-shrink-0"
                     >
-                      {renderAvatar(
-                        user.avatar ?? getDefaultAvatar(user.username),
-                        user.username
-                      )}
+                      <div className="w-full h-full rounded-full bg-tertiary overflow-hidden">
+                        {renderAvatar(
+                          user.avatar ?? getDefaultAvatar(user.username),
+                          user.username
+                        )}
+                      </div>
                       {user.is_live && (
                         <motion.div
                           variants={liveIndicatorVariants}
                           animate="animate"
-                          className="absolute bottom-0 left-0 bg-red-500 text-white text-[6px] px-1 rounded shadow-lg"
+                          className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[6px] px-1 rounded shadow-lg"
                         >
                           LIVE
                         </motion.div>
@@ -499,17 +501,19 @@ export default function Sidebar() {
                   >
                     <motion.div
                       variants={avatarVariants}
-                      className="relative w-8 h-8 rounded-full bg-tertiary overflow-hidden"
+                      className="relative w-8 h-8 flex-shrink-0"
                     >
-                      {renderAvatar(
-                        user.avatar ?? getDefaultAvatar(user.username),
-                        user.username
-                      )}
+                      <div className="w-full h-full rounded-full bg-tertiary overflow-hidden">
+                        {renderAvatar(
+                          user.avatar ?? getDefaultAvatar(user.username),
+                          user.username
+                        )}
+                      </div>
                       {user.is_live && (
                         <motion.div
                           variants={liveIndicatorVariants}
                           animate="animate"
-                          className="absolute bottom-0 left-0 bg-red-500 text-white text-[8px] px-1 rounded shadow-lg"
+                          className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[8px] px-1 rounded shadow-lg"
                         >
                           LIVE
                         </motion.div>

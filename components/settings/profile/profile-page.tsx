@@ -32,6 +32,7 @@ export default function ProfileSettings() {
   const [avatar, setAvatar] = useState<StaticImageData | string | File>(
     profileImage
   );
+  const [banner, setBanner] = useState<File | string | null>(null);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
 
   const [, setUsedPlatforms] = useState<Platform[]>([]);
@@ -175,6 +176,10 @@ export default function ProfileSettings() {
         setAvatar(user.avatar);
       }
 
+      if ((user as any).banner) {
+        setBanner((user as any).banner);
+      }
+
       // Handle social links
       if (user.socialLinks) {
         const convertedLinks = convertBackendSocialLinks(user.socialLinks);
@@ -208,6 +213,10 @@ export default function ProfileSettings() {
 
           if (parsedUserData.avatar) {
             setAvatar(parsedUserData.avatar);
+          }
+
+          if (parsedUserData.banner) {
+            setBanner(parsedUserData.banner);
           }
 
           // Handle social links from sessionStorage
@@ -408,11 +417,15 @@ export default function ProfileSettings() {
         avatarData = avatar;
       }
 
+      const bannerData: File | undefined =
+        banner instanceof File ? banner : undefined;
+
       const success = await updateUserProfile({
         username: formState.username,
         bio: formState.bio,
         socialLinks: socialLinksObj,
         avatar: avatarData,
+        banner: bannerData,
       });
 
       if (success) {
@@ -448,8 +461,13 @@ export default function ProfileSettings() {
   return (
     <div className="min-h-screen bg-secondary text-foreground pb-8">
       <div className="mx-auto max-w-8xl">
-        {/* Avatar Section */}
-        <ProfileHeader avatar={avatar} onAvatarClick={handleAvatarClick} />
+        {/* Avatar + Banner Section */}
+        <ProfileHeader
+          avatar={avatar}
+          onAvatarClick={handleAvatarClick}
+          banner={banner}
+          onBannerChange={setBanner}
+        />
 
         {/* Basic Settings Section */}
         <BasicSettingsSection

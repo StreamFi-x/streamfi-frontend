@@ -453,6 +453,16 @@ const ViewStream = ({
     setShowChat(!showChat);
   };
 
+  // Handle share — copies the stream URL to clipboard
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Stream link copied to clipboard");
+    } catch {
+      toast.error("Could not copy link");
+    }
+  };
+
   // Handle stream info save — persists to DB then updates local state
   const handleSaveStreamInfo = async (data: any) => {
     if (!address) {
@@ -723,12 +733,12 @@ const ViewStream = ({
             {/* Stream info - only show when not in fullscreen */}
             {!isFullscreen && (
               <>
-                <div className="text-muted-foreground border-b border-border p-4">
-                  {/* Top row: avatar + name/title/tags + action buttons */}
+                {/* Streamer info row */}
+                <div className="border-b border-border p-4">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    {/* Left: avatar + streamer info */}
-                    <div className="flex items-start space-x-3 min-w-0">
-                      <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-highlight shrink-0">
+                    {/* Left: avatar + name/title/tags */}
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="relative w-12 h-12 rounded-full overflow-hidden bg-highlight shrink-0">
                         <Image
                           src={
                             streamData.avatarUrl || getDefaultAvatar(username)
@@ -739,17 +749,17 @@ const ViewStream = ({
                         />
                       </div>
                       <div className="min-w-0">
-                        <h1 className="font-medium text-foreground truncate">
+                        <h1 className="font-bold text-foreground truncate">
                           {username}
                         </h1>
                         <h2 className="text-sm text-muted-foreground truncate">
                           {streamData.title}
                         </h2>
-                        <div className="flex flex-wrap gap-1.5 mt-1">
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
                           {streamData.tags.map((tag: string) => (
                             <span
                               key={tag}
-                              className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded"
+                              className="text-[11px] font-medium bg-tag text-muted-foreground px-2 py-0.5 rounded-md"
                             >
                               {tag}
                             </span>
@@ -762,9 +772,10 @@ const ViewStream = ({
                     <div className="flex flex-wrap items-center gap-2 shrink-0">
                       {isOwner ? (
                         <Button
+                          size="sm"
                           variant="outline"
                           onClick={() => setShowStreamInfoModal(true)}
-                          className="bg-muted hover:bg-accent text-foreground border-none text-sm"
+                          className="bg-transparent border border-border hover:bg-accent text-foreground text-sm"
                         >
                           <Edit3 className="h-4 w-4 mr-2" />
                           Edit Stream Info
@@ -772,12 +783,11 @@ const ViewStream = ({
                       ) : (
                         <>
                           <Button
-                            variant="outline"
                             size="sm"
                             className={
                               isFollowing
-                                ? "bg-muted hover:bg-accent text-foreground border-none"
-                                : "bg-highlight hover:bg-highlight/90 text-white border-none"
+                                ? "bg-transparent border border-border hover:bg-accent text-foreground"
+                                : "bg-highlight hover:bg-highlight/80 text-primary-foreground border-none"
                             }
                             onClick={isFollowing ? onUnfollow : onFollow}
                             disabled={followLoading}
@@ -796,13 +806,13 @@ const ViewStream = ({
                               recipientPublicKey={streamData.starknetAddress}
                               onTipClick={tipModalState.openTipModal}
                               variant="outline"
-                              className="bg-muted hover:bg-accent text-foreground border-border"
+                              className="bg-transparent border border-border hover:bg-accent text-foreground"
                             />
                           ) : (
                             <Button
-                              variant="outline"
                               size="sm"
-                              className="bg-muted hover:bg-accent text-foreground border-border"
+                              variant="outline"
+                              className="bg-transparent border border-border hover:bg-accent text-foreground"
                               disabled
                               title={
                                 !publicKey
@@ -819,23 +829,34 @@ const ViewStream = ({
                             </Button>
                           )}
                           <Button
-                            variant="outline"
                             size="sm"
-                            className="p-2 border-none bg-muted hover:bg-accent"
+                            variant="outline"
+                            onClick={handleShare}
+                            aria-label="Share stream"
+                            title="Share stream"
+                            className="px-2 bg-transparent border border-border hover:bg-accent text-foreground"
                           >
                             <Share2 className="w-4 h-4" />
                           </Button>
                           <button
-                            className="p-2 rounded-md bg-muted hover:bg-accent"
+                            className="p-2 rounded-md border border-border bg-transparent hover:bg-accent text-foreground transition-colors"
                             onClick={toggleChat}
                             aria-label="Toggle chat"
                             title="Toggle chat"
                           >
                             <MessageCircle className="w-4 h-4" />
                           </button>
+                          <button
+                            className="p-2 rounded-md border border-border bg-transparent hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => setShowReportModal(true)}
+                            aria-label="Report live stream"
+                            title="Report Live Stream"
+                          >
+                            <Flag className="w-4 h-4" />
+                          </button>
                         </>
                       )}
-                      <div className="flex items-center text-sm text-muted-foreground gap-1">
+                      <div className="flex items-center text-sm text-muted-foreground gap-1.5 pl-1">
                         <Users className="h-4 w-4" />
                         <span>{streamData.viewCount.toLocaleString()}</span>
                       </div>
@@ -843,26 +864,10 @@ const ViewStream = ({
                   </div>
                 </div>
 
-                {/* Report Live Stream Button */}
-                {!isOwner && (
-                  <div className="p-4 border-b border-border">
-                    <div className="flex justify-end">
-                      <Button
-                        onClick={() => setShowReportModal(true)}
-                        variant="outline"
-                        className="bg-muted hover:bg-accent text-muted-foreground border-border text-xs px-3 py-2 h-8"
-                      >
-                        <Flag className="h-3 w-3 mr-2" />
-                        Report Live Stream
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
                 {/* About section */}
                 <div className="p-4 border-b border-border">
                   <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                    <h3 className="font-medium text-foreground">
+                    <h3 className="font-bold text-foreground">
                       About {username}
                     </h3>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
@@ -953,7 +958,7 @@ const ViewStream = ({
               className={`transition-all flex-shrink-0 duration-300 ease-in-out overflow-hidden
                 ${
                   showChat
-                    ? "w-full h-72 lg:h-auto lg:w-[30%] border-t lg:border-t-0 lg:border-l border-border"
+                    ? "w-full h-72 lg:h-full lg:w-[30%] border-t lg:border-t-0 lg:border-l border-border"
                     : "h-0 w-full lg:w-0"
                 }`}
             >

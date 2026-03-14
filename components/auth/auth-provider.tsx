@@ -14,6 +14,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import type { User, UserUpdateInput } from "@/types/user";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import UsernamePromptModal from "@/components/modals/UsernamePromptModal";
 
 const SESSION_REFRESH_INTERVAL = 30 * 60 * 1000;
 
@@ -498,6 +499,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               // Preset icon or external URL — send as plain string, no Cloudinary upload needed
               formData.append("avatarUrl", userData.avatar);
             }
+            if (userData.banner instanceof File) {
+              formData.append("banner", userData.banner);
+            }
             if (userData.socialLinks) {
               formData.append(
                 "socialLinks",
@@ -560,6 +564,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+      <UsernamePromptModal />
       {/* Email-conflict error banner — shown when a Privy email is already
           claimed by a wallet account. Auto-dismisses after 8s. */}
       {error && (

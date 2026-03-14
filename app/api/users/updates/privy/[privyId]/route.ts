@@ -13,7 +13,7 @@ export async function PUT(
 
     // Fetch current user record by privy_id
     const existingResult = await sql`
-      SELECT id, username, email, bio, streamkey, avatar, sociallinks,
+      SELECT id, username, email, bio, streamkey, avatar, banner, sociallinks,
              emailverified, emailnotifications, creator, enable_recording,
              privy_id
       FROM users WHERE privy_id = ${privyId}
@@ -140,10 +140,28 @@ export async function PUT(
       }
     }
 
+    // Handle banner — file upload (→ Cloudinary)
+    let bannerUrl = user.banner;
+    const bannerFile = formData.get("banner");
+
+    if (bannerFile instanceof Blob) {
+      const buffer = Buffer.from(await bannerFile.arrayBuffer());
+      const uploadResult = await uploadImageFromBuffer(buffer);
+      bannerUrl = uploadResult.secure_url;
+
+      if (user.banner) {
+        const oldPublicId = extractPublicIdFromUrl(user.banner);
+        if (oldPublicId) {
+          await deleteImage(oldPublicId);
+        }
+      }
+    }
+
     const updatedUser = await sql`
       UPDATE users SET
         username = ${username},
         avatar = ${avatarUrl},
+        banner = ${bannerUrl},
         bio = ${bio},
         streamkey = ${streamkey},
         sociallinks = ${processedSocialLinks},
@@ -152,7 +170,7 @@ export async function PUT(
         creator = ${creator ? JSON.stringify(creator) : user.creator},
         updated_at = CURRENT_TIMESTAMP
       WHERE privy_id = ${privyId}
-      RETURNING id, username, email, streamkey, avatar, bio, sociallinks,
+      RETURNING id, username, email, streamkey, avatar, banner, bio, sociallinks,
                 emailverified, emailnotifications, creator, privy_id,
                 created_at, updated_at
     `;

@@ -1,9 +1,11 @@
+"use client";
 import Image from "next/image";
 import { getDefaultAvatar } from "@/lib/profile-icons";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import CustomizeChannelButton from "./CustomizeChannelButton";
 import { TipButton } from "@/components/tipping";
+import { toast } from "sonner";
 
 interface ProfileHeaderProps {
   username: string;
@@ -32,6 +34,17 @@ const ProfileHeader = ({
   userStellarPublicKey,
   onTipClick,
 }: ProfileHeaderProps) => {
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/${username}`
+      );
+      toast.success("Profile link copied to clipboard");
+    } catch {
+      toast.error("Could not copy link");
+    }
+  };
+
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
       {/* Avatar + name */}
@@ -66,7 +79,7 @@ const ProfileHeader = ({
       {/* Action buttons — wrap on mobile, single row on sm+ */}
       <div className="flex items-center gap-2 flex-wrap">
         {isOwner ? (
-          <CustomizeChannelButton />
+          <CustomizeChannelButton username={username} />
         ) : (
           <>
             <Button
@@ -102,6 +115,8 @@ const ProfileHeader = ({
             <Button
               size="sm"
               className="bg-transparent border border-border hover:bg-accent text-foreground px-2"
+              onClick={handleShare}
+              aria-label="Copy profile link"
             >
               <ExternalLink className="h-4 w-4" />
             </Button>
