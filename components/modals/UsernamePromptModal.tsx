@@ -68,8 +68,8 @@ export default function UsernamePromptModal() {
     setIsLoading(true);
 
     try {
-      const ok = await updateUserProfile({ username: username.trim() });
-      if (ok) {
+      const result = await updateUserProfile({ username: username.trim() });
+      if (result.success) {
         try {
           sessionStorage.setItem("username", username.trim());
         } catch {
@@ -80,7 +80,7 @@ export default function UsernamePromptModal() {
         // Auto-close after brief success flash
         setTimeout(() => setDismissed(true), 1200);
       } else {
-        setError("That username is already taken or invalid");
+        setError(result.error ?? "That username is already taken or invalid");
       }
     } catch {
       setError("Something went wrong — please try again");
@@ -91,10 +91,7 @@ export default function UsernamePromptModal() {
 
   const handleLater = () => {
     try {
-      localStorage.setItem(
-        SNOOZE_KEY,
-        String(Date.now() + SNOOZE_DURATION_MS)
-      );
+      localStorage.setItem(SNOOZE_KEY, String(Date.now() + SNOOZE_DURATION_MS));
     } catch {
       // ignore
     }

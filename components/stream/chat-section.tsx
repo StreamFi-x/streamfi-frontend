@@ -3,7 +3,7 @@
 import type React from "react";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronRight, Send, Smile, GiftIcon, Wallet } from "lucide-react";
+import { ChevronRight, Send, Smile, GiftIcon, LogIn } from "lucide-react";
 import type { ChatMessage } from "@/types/chat";
 
 interface ChatSectionProps {
@@ -16,26 +16,108 @@ interface ChatSectionProps {
   showChat?: boolean;
   isWalletConnected?: boolean;
   isSending?: boolean;
+  onLoginClick?: () => void;
 }
 
 // ── Emoji data ───────────────────────────────────────────────────────────────
 const EMOJI_CATEGORIES: Record<string, string[]> = {
   "😊": [
-    "😀","😂","🤣","😍","🥰","😘","🤩","😎","😅","😆",
-    "🥲","😊","🙂","🤔","😏","😒","😔","😢","😭","😤",
-    "😡","🤯","😳","😱","🤗","😴","🥱","😵","🤧","😷",
+    "😀",
+    "😂",
+    "🤣",
+    "😍",
+    "🥰",
+    "😘",
+    "🤩",
+    "😎",
+    "😅",
+    "😆",
+    "🥲",
+    "😊",
+    "🙂",
+    "🤔",
+    "😏",
+    "😒",
+    "😔",
+    "😢",
+    "😭",
+    "😤",
+    "😡",
+    "🤯",
+    "😳",
+    "😱",
+    "🤗",
+    "😴",
+    "🥱",
+    "😵",
+    "🤧",
+    "😷",
   ],
   "👋": [
-    "👍","👎","👏","🙌","🤝","🫶","✌️","🤙","👋","💪",
-    "🙏","👌","🤌","🤞","🫡","🤘","✋","🤚","🖐️","🖖",
+    "👍",
+    "👎",
+    "👏",
+    "🙌",
+    "🤝",
+    "🫶",
+    "✌️",
+    "🤙",
+    "👋",
+    "💪",
+    "🙏",
+    "👌",
+    "🤌",
+    "🤞",
+    "🫡",
+    "🤘",
+    "✋",
+    "🤚",
+    "🖐️",
+    "🖖",
   ],
   "❤️": [
-    "❤️","🧡","💛","💚","💙","💜","🖤","🤍","💔","❣️",
-    "💕","💞","💓","💗","💖","💝","💘","🩷","🩵","🩶",
+    "❤️",
+    "🧡",
+    "💛",
+    "💚",
+    "💙",
+    "💜",
+    "🖤",
+    "🤍",
+    "💔",
+    "❣️",
+    "💕",
+    "💞",
+    "💓",
+    "💗",
+    "💖",
+    "💝",
+    "💘",
+    "🩷",
+    "🩵",
+    "🩶",
   ],
   "🔥": [
-    "🔥","⭐","🌟","💫","✨","⚡","🎯","🏆","🎮","💯",
-    "🎉","🎊","🎁","🎶","🎵","🚀","💎","👑","🌈","💥",
+    "🔥",
+    "⭐",
+    "🌟",
+    "💫",
+    "✨",
+    "⚡",
+    "🎯",
+    "🏆",
+    "🎮",
+    "💯",
+    "🎉",
+    "🎊",
+    "🎁",
+    "🎶",
+    "🎵",
+    "🚀",
+    "💎",
+    "👑",
+    "🌈",
+    "💥",
   ],
 };
 
@@ -57,6 +139,7 @@ const ChatSection = ({
   showChat = true,
   isWalletConnected = false,
   isSending = false,
+  onLoginClick,
 }: ChatSectionProps) => {
   const [chatMessage, setChatMessage] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -266,10 +349,13 @@ const ChatSection = ({
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-1">
-            <Wallet className="h-4 w-4" />
-            <span>Connect wallet to chat</span>
-          </div>
+          <button
+            onClick={onLoginClick}
+            className="flex items-center justify-center gap-2 text-sm text-highlight hover:text-highlight/80 transition-colors py-1 w-full"
+          >
+            <LogIn className="h-4 w-4" />
+            <span>Log in or sign up to chat</span>
+          </button>
         )}
       </div>
     </div>

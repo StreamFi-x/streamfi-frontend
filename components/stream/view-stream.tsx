@@ -21,6 +21,7 @@ import { createPortal } from "react-dom";
 import { JSX, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { usePrivy } from "@privy-io/react-auth";
 import { getDefaultAvatar } from "@/lib/profile-icons";
 const DiscordIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -279,6 +280,7 @@ const ViewStream = ({
   // address covers both native Stellar wallet and Privy-embedded wallet
   const address = publicKey || privyWallet?.wallet || null;
   const tipModalState = useTipModal();
+  const { login } = usePrivy();
 
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
@@ -706,9 +708,12 @@ const ViewStream = ({
                               </button>
                             </div>
                           ) : (
-                            <p className="text-white/50 text-xs text-center">
-                              Connect wallet to chat
-                            </p>
+                            <button
+                              onClick={() => login()}
+                              className="text-purple-400 hover:text-purple-300 text-xs text-center transition-colors w-full py-1"
+                            >
+                              Log in or sign up to chat
+                            </button>
                           )}
                         </div>
                       </div>
@@ -972,6 +977,7 @@ const ViewStream = ({
                 showChat={showChat}
                 isWalletConnected={!!address}
                 isSending={isSending}
+                onLoginClick={() => login()}
               />
             </div>
           )}

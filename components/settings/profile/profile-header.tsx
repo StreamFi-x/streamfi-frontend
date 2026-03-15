@@ -4,6 +4,64 @@ import { PROFILE_ICONS } from "@/lib/profile-icons";
 import { Camera } from "lucide-react";
 
 import { useRef, useState, useEffect } from "react";
+import { useToast } from "@/components/ui/toast-provider";
+
+const MAX_BANNER_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB hard limit before compression
+
+/** Compress a banner image to JPEG ≤ 1920×600 at 85% quality using Canvas. */
+async function compressImageFile(
+  file: File,
+  maxWidth = 1920,
+  maxHeight = 600,
+  quality = 0.85
+): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas context unavailable"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        blob => {
+          if (!blob) {
+            reject(new Error("Image compression failed"));
+            return;
+          }
+          const name = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+          resolve(new File([blob], name, { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Failed to load image for compression"));
+    };
+
+    img.src = objectUrl;
+  });
+}
 
 interface ProfileHeaderProps {
   avatar: StaticImageData | string | File;
@@ -18,6 +76,7 @@ export function ProfileHeader({
   banner,
   onBannerChange,
 }: ProfileHeaderProps) {
+  const { showToast } = useToast();
   const [avatarSrc, setAvatarSrc] = useState<string | StaticImageData>(() => {
     if (avatar instanceof File) {
       return URL.createObjectURL(avatar);
@@ -54,12 +113,32 @@ export function ProfileHeader({
     }
   }, [banner]);
 
-  const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBannerFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
-    if (file) {
-      onBannerChange(file);
-    }
     e.target.value = "";
+    if (!file) {
+      return;
+    }
+
+    if (file.size > MAX_BANNER_SIZE_BYTES) {
+      showToast(
+        "Banner image must be under 10 MB. Please choose a smaller image.",
+        "error"
+      );
+      return;
+    }
+
+    try {
+      const compressed = await compressImageFile(file);
+      onBannerChange(compressed);
+    } catch {
+      showToast(
+        "Failed to process the image. Please try another file.",
+        "error"
+      );
+    }
   };
 
   return (
@@ -70,7 +149,7 @@ export function ProfileHeader({
         style={{
           backgroundImage: bannerSrc
             ? `url('${bannerSrc}')`
-            : `url('/images/banner-bg.png')`,
+            : `url('/Images/banner-bg.png')`,
         }}
       >
         <button

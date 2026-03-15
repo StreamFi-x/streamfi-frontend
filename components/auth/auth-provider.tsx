@@ -26,7 +26,9 @@ type AuthContextType = {
   error: string | null;
   logout: () => void;
   refreshUser: (walletAddress?: string) => Promise<User | null>;
-  updateUserProfile: (userData: UserUpdateInput) => Promise<boolean>;
+  updateUserProfile: (
+    userData: UserUpdateInput
+  ) => Promise<{ success: boolean; error?: string }>;
   isWalletConnecting: boolean;
 };
 
@@ -38,7 +40,7 @@ const AuthContext = createContext<AuthContextType>({
   error: null,
   logout: () => {},
   refreshUser: async () => null,
-  updateUserProfile: async () => false,
+  updateUserProfile: async () => ({ success: false }),
   isWalletConnecting: false,
 });
 
@@ -475,7 +477,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           if (!endpoint) {
-            return false;
+            return { success: false, error: "Not authenticated" };
           }
 
           try {
@@ -549,15 +551,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
               }
 
-              return true;
+              return { success: true };
             }
 
-            const responseError = await response.json().catch(() => ({}));
-            console.error("Error response from API:", responseError);
-            return false;
+            // Surface the real API error message to the caller
+            const responseBody = await response.json().catch(() => ({}));
+            const apiError =
+              responseBody?.error ??
+              (response.status === 413
+                ? "Image file is too large. Please choose a smaller image."
+                : response.status === 400
+                  ? "Invalid data. Please check your inputs."
+                  : `Server error (${response.status}). Please try again.`);
+            console.error("Error response from API:", responseBody);
+            return { success: false, error: apiError };
           } catch (updateError) {
             console.error("Error updating user profile:", updateError);
-            return false;
+            return {
+              success: false,
+              error: "Network error. Please try again.",
+            };
           }
         },
         isWalletConnecting,
