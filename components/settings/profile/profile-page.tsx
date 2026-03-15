@@ -420,7 +420,7 @@ export default function ProfileSettings() {
       const bannerData: File | undefined =
         banner instanceof File ? banner : undefined;
 
-      const success = await updateUserProfile({
+      const result = await updateUserProfile({
         username: formState.username,
         bio: formState.bio,
         socialLinks: socialLinksObj,
@@ -428,7 +428,7 @@ export default function ProfileSettings() {
         banner: bannerData,
       });
 
-      if (success) {
+      if (result.success) {
         showToast("Profile updated successfully!", "success");
         updateUiState({ saveSuccess: true });
 
@@ -446,8 +446,9 @@ export default function ProfileSettings() {
           sessionStorage.setItem("userData", JSON.stringify(updatedUser));
         }
       } else {
-        showToast("Failed to save changes. Please try again.", "error");
-        updateUiState({ saveError: "Failed to save changes" });
+        const msg = result.error ?? "Failed to save changes. Please try again.";
+        showToast(msg, "error");
+        updateUiState({ saveError: msg });
       }
     } catch (error) {
       console.error("Error saving profile:", error);
