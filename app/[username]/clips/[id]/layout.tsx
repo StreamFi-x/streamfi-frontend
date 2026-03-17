@@ -9,9 +9,7 @@ interface Props {
   params: Promise<{ username: string; id: string }>;
 }
 
-export async function generateMetadata({
-  params,
-}: Props): Promise<Metadata> {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username, id } = await params;
 
   try {

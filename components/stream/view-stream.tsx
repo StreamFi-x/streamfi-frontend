@@ -614,115 +614,115 @@ const ViewStream = ({
                         className="absolute inset-0 z-[99] lg:hidden"
                         onClick={() => setShowChatOverlay(false)}
                       />
-                    <motion.div
-                      key="chat-overlay"
-                      initial={{ x: 400, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      exit={{ x: 400, opacity: 0 }}
-                      transition={{
-                        type: "spring",
-                        damping: 30,
-                        stiffness: 300,
-                      }}
-                      onClick={e => e.stopPropagation()}
-                      className="absolute right-4 top-4 bottom-20 w-80 flex flex-col pointer-events-auto z-[100]"
-                      style={{ maxHeight: "calc(100vh - 8rem)" }}
-                    >
-                      <div className="flex flex-col h-full bg-gradient-to-b from-black/40 via-black/30 to-black/40 backdrop-blur-sm rounded-lg overflow-hidden">
-                        {/* Header */}
-                        <div className="flex items-center justify-between p-3 bg-black/50 backdrop-blur-md border-b border-white/10">
-                          <div className="flex items-center gap-2">
-                            <MessageCircle size={16} className="text-white" />
-                            <span className="text-white font-semibold text-sm">
-                              Live Chat
-                            </span>
+                      <motion.div
+                        key="chat-overlay"
+                        initial={{ x: 400, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        exit={{ x: 400, opacity: 0 }}
+                        transition={{
+                          type: "spring",
+                          damping: 30,
+                          stiffness: 300,
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        className="absolute right-4 top-4 bottom-20 w-80 flex flex-col pointer-events-auto z-[100]"
+                        style={{ maxHeight: "calc(100vh - 8rem)" }}
+                      >
+                        <div className="flex flex-col h-full bg-gradient-to-b from-black/40 via-black/30 to-black/40 backdrop-blur-sm rounded-lg overflow-hidden">
+                          {/* Header */}
+                          <div className="flex items-center justify-between p-3 bg-black/50 backdrop-blur-md border-b border-white/10">
+                            <div className="flex items-center gap-2">
+                              <MessageCircle size={16} className="text-white" />
+                              <span className="text-white font-semibold text-sm">
+                                Live Chat
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => setShowChatOverlay(false)}
+                              className="p-1 hover:bg-white/20 rounded transition-colors"
+                            >
+                              <X size={16} className="text-white" />
+                            </button>
                           </div>
-                          <button
-                            onClick={() => setShowChatOverlay(false)}
-                            className="p-1 hover:bg-white/20 rounded transition-colors"
-                          >
-                            <X size={16} className="text-white" />
-                          </button>
-                        </div>
 
-                        {/* Messages */}
-                        <div
-                          ref={overlayScrollRef}
-                          className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
-                        >
-                          <div className="text-xs text-white/60 text-center py-2">
-                            Welcome to live chat!
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            {chatMessages.map(msg => (
-                              <div
-                                key={msg.id}
-                                className={`bg-black/30 backdrop-blur-sm rounded-lg p-2 ${msg.isPending ? "opacity-50" : ""}`}
-                              >
-                                <div className="flex items-start gap-2">
-                                  <div
-                                    className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-white font-semibold"
-                                    style={{ backgroundColor: msg.color }}
-                                  >
-                                    {msg.username.charAt(0).toUpperCase()}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <span
-                                      className="text-xs font-semibold"
-                                      style={{ color: msg.color }}
+                          {/* Messages */}
+                          <div
+                            ref={overlayScrollRef}
+                            className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
+                          >
+                            <div className="text-xs text-white/60 text-center py-2">
+                              Welcome to live chat!
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              {chatMessages.map(msg => (
+                                <div
+                                  key={msg.id}
+                                  className={`bg-black/30 backdrop-blur-sm rounded-lg p-2 ${msg.isPending ? "opacity-50" : ""}`}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <div
+                                      className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs text-white font-semibold"
+                                      style={{ backgroundColor: msg.color }}
                                     >
-                                      {msg.username}
-                                    </span>
-                                    <p className="text-white text-sm break-words">
-                                      {msg.message}
-                                    </p>
+                                      {msg.username.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <span
+                                        className="text-xs font-semibold"
+                                        style={{ color: msg.color }}
+                                      >
+                                        {msg.username}
+                                      </span>
+                                      <p className="text-white text-sm break-words">
+                                        {msg.message}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Input */}
+                          <div className="p-3 bg-black/50 backdrop-blur-md border-t border-white/10">
+                            {!!address ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  ref={overlayInputRef}
+                                  type="text"
+                                  value={chatOverlayMessage}
+                                  onChange={e =>
+                                    setChatOverlayMessage(e.target.value)
+                                  }
+                                  placeholder="Say something..."
+                                  disabled={isSending}
+                                  autoComplete="off"
+                                  autoCorrect="off"
+                                  autoCapitalize="off"
+                                  spellCheck={false}
+                                  className="flex-1 bg-white/10 text-white text-sm px-3 py-2 rounded-lg border border-white/20 focus:border-purple-500 focus:bg-white/15 focus:outline-none placeholder-white/50 disabled:opacity-50"
+                                />
+                                <button
+                                  onClick={handleOverlaySendMessage}
+                                  disabled={
+                                    !chatOverlayMessage.trim() || isSending
+                                  }
+                                  className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 disabled:cursor-not-allowed text-white p-2 rounded-lg transition-colors"
+                                >
+                                  <Send size={16} />
+                                </button>
                               </div>
-                            ))}
+                            ) : (
+                              <button
+                                onClick={() => login()}
+                                className="text-purple-400 hover:text-purple-300 text-xs text-center transition-colors w-full py-1"
+                              >
+                                Log in or sign up to chat
+                              </button>
+                            )}
                           </div>
                         </div>
-
-                        {/* Input */}
-                        <div className="p-3 bg-black/50 backdrop-blur-md border-t border-white/10">
-                          {!!address ? (
-                            <div className="flex items-center gap-2">
-                              <input
-                                ref={overlayInputRef}
-                                type="text"
-                                value={chatOverlayMessage}
-                                onChange={e =>
-                                  setChatOverlayMessage(e.target.value)
-                                }
-                                placeholder="Say something..."
-                                disabled={isSending}
-                                autoComplete="off"
-                                autoCorrect="off"
-                                autoCapitalize="off"
-                                spellCheck={false}
-                                className="flex-1 bg-white/10 text-white text-sm px-3 py-2 rounded-lg border border-white/20 focus:border-purple-500 focus:bg-white/15 focus:outline-none placeholder-white/50 disabled:opacity-50"
-                              />
-                              <button
-                                onClick={handleOverlaySendMessage}
-                                disabled={
-                                  !chatOverlayMessage.trim() || isSending
-                                }
-                                className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 disabled:cursor-not-allowed text-white p-2 rounded-lg transition-colors"
-                              >
-                                <Send size={16} />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => login()}
-                              className="text-purple-400 hover:text-purple-300 text-xs text-center transition-colors w-full py-1"
-                            >
-                              Log in or sign up to chat
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
+                      </motion.div>
                     </>
                   ) : (
                     <motion.button
@@ -777,227 +777,232 @@ const ViewStream = ({
                   : "flex-1 min-h-0 flex flex-col"
               }`}
             >
-            {/* Stream info - only show when not in fullscreen */}
-            {!isFullscreen && (
-              <>
-                {/* Streamer info row */}
-                <div className="border-b border-border p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    {/* Left: avatar + name/title/tags */}
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div className="relative w-12 h-12 rounded-full overflow-hidden bg-highlight shrink-0">
-                        <Image
-                          src={
-                            streamData.avatarUrl || getDefaultAvatar(username)
-                          }
-                          alt={username}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <h1 className="font-bold text-foreground truncate">
-                          {username}
-                        </h1>
-                        <h2 className="text-sm text-muted-foreground truncate">
-                          {streamData.title}
-                        </h2>
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {streamData.tags.map((tag: string) => (
-                            <span
-                              key={tag}
-                              className="text-[11px] font-medium bg-tag text-muted-foreground px-2 py-0.5 rounded-md"
-                            >
-                              {tag}
-                            </span>
-                          ))}
+              {/* Stream info - only show when not in fullscreen */}
+              {!isFullscreen && (
+                <>
+                  {/* Streamer info row */}
+                  <div className="border-b border-border p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      {/* Left: avatar + name/title/tags */}
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden bg-highlight shrink-0">
+                          <Image
+                            src={
+                              streamData.avatarUrl || getDefaultAvatar(username)
+                            }
+                            alt={username}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <h1 className="font-bold text-foreground truncate">
+                            {username}
+                          </h1>
+                          <h2 className="text-sm text-muted-foreground truncate">
+                            {streamData.title}
+                          </h2>
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {streamData.tags.map((tag: string) => (
+                              <span
+                                key={tag}
+                                className="text-[11px] font-medium bg-tag text-muted-foreground px-2 py-0.5 rounded-md"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Right: action buttons + viewer count */}
-                    <div className="flex flex-wrap items-center gap-2 shrink-0">
-                      {isOwner ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setShowStreamInfoModal(true)}
-                          className="bg-transparent border border-border hover:bg-accent text-foreground text-sm"
-                        >
-                          <Edit3 className="h-4 w-4 mr-2" />
-                          Edit Stream Info
-                        </Button>
-                      ) : (
-                        <>
-                          <Button
-                            size="sm"
-                            className={
-                              isFollowing
-                                ? "bg-transparent border border-border hover:bg-accent text-foreground"
-                                : "bg-highlight hover:bg-highlight/80 text-primary-foreground border-none"
-                            }
-                            onClick={isFollowing ? onUnfollow : onFollow}
-                            disabled={followLoading}
-                          >
-                            {followLoading
-                              ? "…"
-                              : isFollowing
-                                ? "Unfollow"
-                                : "Follow"}
-                          </Button>
-                          {streamData.starknetAddress &&
-                          publicKey &&
-                          publicKey !== streamData.starknetAddress ? (
-                            <TipButton
-                              recipientUsername={username}
-                              recipientPublicKey={streamData.starknetAddress}
-                              onTipClick={tipModalState.openTipModal}
-                              variant="outline"
-                              className="bg-transparent border border-border hover:bg-accent text-foreground"
-                            />
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="bg-transparent border border-border hover:bg-accent text-foreground"
-                              disabled
-                              title={
-                                !publicKey
-                                  ? "Connect Stellar wallet to tip"
-                                  : !streamData.starknetAddress
-                                    ? "Streamer hasn't set up Stellar wallet"
-                                    : "Cannot tip yourself"
-                              }
-                            >
-                              <Gift className="h-4 w-4" />
-                              <span className="hidden sm:inline ml-1.5">
-                                Send Tip
-                              </span>
-                            </Button>
-                          )}
+                      {/* Right: action buttons + viewer count */}
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        {isOwner ? (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={handleShare}
-                            aria-label="Share stream"
-                            title="Share stream"
-                            className="px-2 bg-transparent border border-border hover:bg-accent text-foreground"
+                            onClick={() => setShowStreamInfoModal(true)}
+                            className="bg-transparent border border-border hover:bg-accent text-foreground text-sm"
                           >
-                            <Share2 className="w-4 h-4" />
+                            <Edit3 className="h-4 w-4 mr-2" />
+                            Edit Stream Info
                           </Button>
-                          <button
-                            className="hidden lg:flex p-2 rounded-md border border-border bg-transparent hover:bg-accent text-foreground transition-colors"
-                            onClick={toggleChat}
-                            aria-label="Toggle chat"
-                            title="Toggle chat"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                          </button>
-                          <button
-                            className="p-2 rounded-md border border-border bg-transparent hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                            onClick={() => setShowReportModal(true)}
-                            aria-label="Report live stream"
-                            title="Report Live Stream"
-                          >
-                            <Flag className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                      <div className="flex items-center text-sm text-muted-foreground gap-1.5 pl-1">
-                        <Users className="h-4 w-4" />
-                        <span>{streamData.viewCount.toLocaleString()}</span>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              className={
+                                isFollowing
+                                  ? "bg-transparent border border-border hover:bg-accent text-foreground"
+                                  : "bg-highlight hover:bg-highlight/80 text-primary-foreground border-none"
+                              }
+                              onClick={isFollowing ? onUnfollow : onFollow}
+                              disabled={followLoading}
+                            >
+                              {followLoading
+                                ? "…"
+                                : isFollowing
+                                  ? "Unfollow"
+                                  : "Follow"}
+                            </Button>
+                            {streamData.starknetAddress &&
+                            publicKey &&
+                            publicKey !== streamData.starknetAddress ? (
+                              <TipButton
+                                recipientUsername={username}
+                                recipientPublicKey={streamData.starknetAddress}
+                                onTipClick={tipModalState.openTipModal}
+                                variant="outline"
+                                className="bg-transparent border border-border hover:bg-accent text-foreground"
+                              />
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="bg-transparent border border-border hover:bg-accent text-foreground"
+                                disabled
+                                title={
+                                  !publicKey
+                                    ? "Connect Stellar wallet to tip"
+                                    : !streamData.starknetAddress
+                                      ? "Streamer hasn't set up Stellar wallet"
+                                      : "Cannot tip yourself"
+                                }
+                              >
+                                <Gift className="h-4 w-4" />
+                                <span className="hidden sm:inline ml-1.5">
+                                  Send Tip
+                                </span>
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleShare}
+                              aria-label="Share stream"
+                              title="Share stream"
+                              className="px-2 bg-transparent border border-border hover:bg-accent text-foreground"
+                            >
+                              <Share2 className="w-4 h-4" />
+                            </Button>
+                            <button
+                              className="hidden lg:flex p-2 rounded-md border border-border bg-transparent hover:bg-accent text-foreground transition-colors"
+                              onClick={toggleChat}
+                              aria-label="Toggle chat"
+                              title="Toggle chat"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </button>
+                            <button
+                              className="p-2 rounded-md border border-border bg-transparent hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                              onClick={() => setShowReportModal(true)}
+                              aria-label="Report live stream"
+                              title="Report Live Stream"
+                            >
+                              <Flag className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                        <div className="flex items-center text-sm text-muted-foreground gap-1.5 pl-1">
+                          <Users className="h-4 w-4" />
+                          <span>{streamData.viewCount.toLocaleString()}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* About section */}
-                <div className="p-4 border-b border-border">
-                  <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                    <h3 className="font-bold text-foreground">
-                      About {username}
-                    </h3>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
-                      {Object.entries(streamData.socialLinks).map(
-                        ([platform, url]) =>
-                          url ? (
-                            <a
-                              key={platform}
-                              href={String(url)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex gap-1.5 items-center capitalize text-sm text-muted-foreground hover:text-highlight transition-colors"
-                              title={platform}
-                            >
-                              <span>{socialIcons[platform.toLowerCase()]}</span>
-                              <span className="hidden sm:inline">
-                                {platform}
-                              </span>
-                            </a>
-                          ) : null
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground line-clamp-3">
-                    {streamData.bio}
-                  </p>
-                </div>
-
-                {/* Past streams */}
-                {recordings.length > 0 && (
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-medium text-foreground">
-                        Past Streams
+                  {/* About section */}
+                  <div className="p-4 border-b border-border">
+                    <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                      <h3 className="font-bold text-foreground">
+                        About {username}
                       </h3>
-                      <Link
-                        href={`/${username}/clips`}
-                        className="text-xs text-highlight hover:text-highlight/80 transition-colors"
-                      >
-                        View all
-                      </Link>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {recordings.map(rec => {
-                        const thumb = `https://image.mux.com/${rec.playback_id}/thumbnail.jpg?width=480&time=5`;
-                        const title =
-                          rec.title ??
-                          `Stream — ${recTimeAgo(rec.stream_date ?? rec.created_at)}`;
-                        return (
-                          <Link
-                            key={rec.id}
-                            href={`/${username}/clips/${rec.id}`}
-                            className="group bg-card rounded-md overflow-hidden border border-border hover:ring-1 hover:ring-highlight/40 transition-all block"
-                          >
-                            <div className="aspect-video relative bg-black overflow-hidden">
-                              <img
-                                src={thumb}
-                                alt={title}
-                                className="w-full h-full object-cover"
-                              />
-                              {rec.duration && (
-                                <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-xs px-1 py-0.5 rounded font-mono">
-                                  {formatRecDuration(rec.duration)}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
+                        {Object.entries(streamData.socialLinks).map(
+                          ([platform, url]) =>
+                            url ? (
+                              <a
+                                key={platform}
+                                href={String(url)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex gap-1.5 items-center capitalize text-sm text-muted-foreground hover:text-highlight transition-colors"
+                                title={platform}
+                              >
+                                <span>
+                                  {socialIcons[platform.toLowerCase()]}
                                 </span>
-                              )}
-                            </div>
-                            <div className="p-2">
-                              <h4 className="text-sm font-medium truncate text-foreground">
-                                {title}
-                              </h4>
-                              <p className="text-muted-foreground text-xs mt-0.5">
-                                {recTimeAgo(rec.stream_date ?? rec.created_at)}
-                              </p>
-                            </div>
-                          </Link>
-                        );
-                      })}
+                                <span className="hidden sm:inline">
+                                  {platform}
+                                </span>
+                              </a>
+                            ) : null
+                        )}
+                      </div>
                     </div>
+                    <p className="text-sm text-muted-foreground line-clamp-3">
+                      {streamData.bio}
+                    </p>
                   </div>
-                )}
-              </>
-            )}
-            </div>{/* end mainContentRef */}
+
+                  {/* Past streams */}
+                  {recordings.length > 0 && (
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-medium text-foreground">
+                          Past Streams
+                        </h3>
+                        <Link
+                          href={`/${username}/clips`}
+                          className="text-xs text-highlight hover:text-highlight/80 transition-colors"
+                        >
+                          View all
+                        </Link>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {recordings.map(rec => {
+                          const thumb = `https://image.mux.com/${rec.playback_id}/thumbnail.jpg?width=480&time=5`;
+                          const title =
+                            rec.title ??
+                            `Stream — ${recTimeAgo(rec.stream_date ?? rec.created_at)}`;
+                          return (
+                            <Link
+                              key={rec.id}
+                              href={`/${username}/clips/${rec.id}`}
+                              className="group bg-card rounded-md overflow-hidden border border-border hover:ring-1 hover:ring-highlight/40 transition-all block"
+                            >
+                              <div className="aspect-video relative bg-black overflow-hidden">
+                                <img
+                                  src={thumb}
+                                  alt={title}
+                                  className="w-full h-full object-cover"
+                                />
+                                {rec.duration && (
+                                  <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-xs px-1 py-0.5 rounded font-mono">
+                                    {formatRecDuration(rec.duration)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="p-2">
+                                <h4 className="text-sm font-medium truncate text-foreground">
+                                  {title}
+                                </h4>
+                                <p className="text-muted-foreground text-xs mt-0.5">
+                                  {recTimeAgo(
+                                    rec.stream_date ?? rec.created_at
+                                  )}
+                                </p>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            {/* end mainContentRef */}
 
             {/* Mobile-only full-height chat — shown when Chat tab active */}
             {!isFullscreen && mobileTab === "chat" && (
@@ -1015,7 +1020,8 @@ const ViewStream = ({
                 />
               </div>
             )}
-          </div>{/* end left column */}
+          </div>
+          {/* end left column */}
 
           {/* Chat sidebar — desktop only */}
           {!isFullscreen && (

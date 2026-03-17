@@ -288,7 +288,11 @@ const ClipPlayerPage = ({ params }: PageProps) => {
                       onClick={isFollowing ? handleUnfollow : handleFollow}
                       disabled={followLoading}
                     >
-                      {followLoading ? "…" : isFollowing ? "Unfollow" : "Follow"}
+                      {followLoading
+                        ? "…"
+                        : isFollowing
+                          ? "Unfollow"
+                          : "Follow"}
                     </Button>
                   )}
                   <Button
