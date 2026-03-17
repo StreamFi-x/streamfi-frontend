@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { notFound, usePathname, useRouter } from "next/navigation";
+import { notFound, usePathname } from "next/navigation";
 import { toast } from "sonner";
 
 import Banner from "@/components/shared/profile/Banner";
@@ -23,7 +23,6 @@ export default function UsernameLayoutClient({
   username,
 }: UsernameLayoutClientProps) {
   const pathname = usePathname();
-  const router = useRouter();
 
   const [isLive, setIsLive] = useState<boolean | null>(null);
   const [userData, setUserData] = useState<any>(null);
