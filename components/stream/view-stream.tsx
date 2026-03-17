@@ -267,6 +267,7 @@ const ViewStream = ({
     null
   );
   const [showChat, setShowChat] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"info" | "chat">("info");
   const [showChatOverlay, setShowChatOverlay] = useState(true);
   const [chatOverlayMessage, setChatOverlayMessage] = useState("");
   const [showStreamInfoModal, setShowStreamInfoModal] = useState(false);
@@ -524,15 +525,12 @@ const ViewStream = ({
     <>
       <div className="bg-background text-foreground border border-border flex flex-col h-full min-h-0">
         <div className="flex flex-1 min-h-0 flex-col lg:flex-row relative overflow-hidden">
-          {/* Main content */}
-          <div
-            ref={mainContentRef}
-            className="flex-1 min-h-0 flex flex-col overflow-y-auto scrollbar-hide"
-          >
-            {/* Video player container - modified for fullscreen layout */}
+          {/* Left column: pinned video + tab bar + scrollable content */}
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            {/* Video player container - always visible, never scrolls away */}
             <div
               ref={videoContainerRef}
-              className={`relative bg-black overflow-hidden group ${isFullscreen ? "flex h-screen" : "w-full aspect-video min-h-[56vw] lg:min-h-[360px]"}`}
+              className={`relative bg-black overflow-hidden group ${isFullscreen ? "flex h-screen" : "w-full aspect-video min-h-[56vw] lg:min-h-[360px] flex-shrink-0"}`}
             >
               {/* Video content area */}
               <div
@@ -610,6 +608,12 @@ const ViewStream = ({
               createPortal(
                 <AnimatePresence>
                   {showChatOverlay ? (
+                    <>
+                      {/* Invisible backdrop — tap outside chat panel to close (mobile) */}
+                      <div
+                        className="absolute inset-0 z-[99] lg:hidden"
+                        onClick={() => setShowChatOverlay(false)}
+                      />
                     <motion.div
                       key="chat-overlay"
                       initial={{ x: 400, opacity: 0 }}
@@ -620,6 +624,7 @@ const ViewStream = ({
                         damping: 30,
                         stiffness: 300,
                       }}
+                      onClick={e => e.stopPropagation()}
                       className="absolute right-4 top-4 bottom-20 w-80 flex flex-col pointer-events-auto z-[100]"
                       style={{ maxHeight: "calc(100vh - 8rem)" }}
                     >
@@ -718,6 +723,7 @@ const ViewStream = ({
                         </div>
                       </div>
                     </motion.div>
+                    </>
                   ) : (
                     <motion.button
                       key="chat-toggle"
@@ -725,7 +731,7 @@ const ViewStream = ({
                       animate={{ x: 0, opacity: 1 }}
                       exit={{ x: 100, opacity: 0 }}
                       onClick={() => setShowChatOverlay(true)}
-                      className="absolute right-4 top-20 bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-black/80 transition-all z-[100] flex items-center gap-2"
+                      className="absolute right-4 bottom-[5em] lg:bottom-auto lg:top-20 bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-black/80 transition-all z-[100] flex items-center gap-2"
                     >
                       <MessageCircle size={16} />
                       <span className="text-sm font-semibold">Chat</span>
@@ -735,6 +741,42 @@ const ViewStream = ({
                 fullscreenElement
               )}
 
+            {/* Mobile tab bar: Info | Chat — below video, hidden on lg+ */}
+            {!isFullscreen && (
+              <div className="flex border-b border-border lg:hidden flex-shrink-0">
+                <button
+                  onClick={() => setMobileTab("info")}
+                  className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                    mobileTab === "info"
+                      ? "text-foreground border-b-2 border-highlight"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Info
+                </button>
+                <button
+                  onClick={() => setMobileTab("chat")}
+                  className={`flex-1 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                    mobileTab === "chat"
+                      ? "text-foreground border-b-2 border-highlight"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Chat
+                </button>
+              </div>
+            )}
+
+            {/* Scrollable info content — always on desktop, mobile only when Info tab */}
+            <div
+              ref={mainContentRef}
+              className={`overflow-y-auto scrollbar-hide ${
+                !isFullscreen && mobileTab === "chat"
+                  ? "hidden lg:flex lg:flex-1 lg:min-h-0 lg:flex-col"
+                  : "flex-1 min-h-0 flex flex-col"
+              }`}
+            >
             {/* Stream info - only show when not in fullscreen */}
             {!isFullscreen && (
               <>
@@ -844,7 +886,7 @@ const ViewStream = ({
                             <Share2 className="w-4 h-4" />
                           </Button>
                           <button
-                            className="p-2 rounded-md border border-border bg-transparent hover:bg-accent text-foreground transition-colors"
+                            className="hidden lg:flex p-2 rounded-md border border-border bg-transparent hover:bg-accent text-foreground transition-colors"
                             onClick={toggleChat}
                             aria-label="Toggle chat"
                             title="Toggle chat"
@@ -955,16 +997,34 @@ const ViewStream = ({
                 )}
               </>
             )}
-          </div>
+            </div>{/* end mainContentRef */}
 
-          {/* Chat sidebar (non-fullscreen) */}
+            {/* Mobile-only full-height chat — shown when Chat tab active */}
+            {!isFullscreen && mobileTab === "chat" && (
+              <div className="flex-1 min-h-0 lg:hidden">
+                <ChatSection
+                  messages={chatMessages}
+                  onSendMessage={sendMessage}
+                  isCollapsible={false}
+                  isFullscreen={false}
+                  className="h-full pb-10"
+                  showChat={true}
+                  isWalletConnected={!!address}
+                  isSending={isSending}
+                  onLoginClick={() => login()}
+                />
+              </div>
+            )}
+          </div>{/* end left column */}
+
+          {/* Chat sidebar — desktop only */}
           {!isFullscreen && (
             <div
-              className={`transition-all flex-shrink-0 duration-300 ease-in-out overflow-hidden
+              className={`hidden lg:block transition-all flex-shrink-0 duration-300 ease-in-out overflow-hidden
                 ${
                   showChat
-                    ? "w-full h-72 lg:h-full lg:w-[30%] border-t lg:border-t-0 lg:border-l border-border"
-                    : "h-0 w-full lg:w-0"
+                    ? "lg:h-full lg:w-[30%] lg:border-l border-border"
+                    : "lg:w-0"
                 }`}
             >
               <ChatSection
@@ -982,7 +1042,7 @@ const ViewStream = ({
             </div>
           )}
 
-          {/* Collapsed chat button — desktop only (mobile uses the MessageCircle button in stream info) */}
+          {/* Collapsed chat button — desktop only */}
           {!showChat && !isFullscreen && (
             <button
               onClick={toggleChat}

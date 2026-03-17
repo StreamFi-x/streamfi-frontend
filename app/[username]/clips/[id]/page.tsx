@@ -4,7 +4,7 @@ import { use, useState, useEffect } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Clock, Calendar, Users } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, Users, Share2 } from "lucide-react";
 import MuxPlayer from "@/components/MuxPlayerLazy";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -144,6 +144,15 @@ const ClipPlayerPage = ({ params }: PageProps) => {
     }
   };
 
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error("Could not copy link");
+    }
+  };
+
   const handleUnfollow = async () => {
     if (!loggedInUsername) {
       toast.error("You must be logged in to unfollow.");
@@ -268,19 +277,31 @@ const ClipPlayerPage = ({ params }: PageProps) => {
                   </div>
                 </div>
 
-                {!isOwner && (
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {!isOwner && (
+                    <Button
+                      className={
+                        isFollowing
+                          ? "bg-muted hover:bg-accent text-foreground border-none"
+                          : "bg-highlight hover:bg-highlight/90 text-white border-none"
+                      }
+                      onClick={isFollowing ? handleUnfollow : handleFollow}
+                      disabled={followLoading}
+                    >
+                      {followLoading ? "…" : isFollowing ? "Unfollow" : "Follow"}
+                    </Button>
+                  )}
                   <Button
-                    className={
-                      isFollowing
-                        ? "bg-muted hover:bg-accent text-foreground border-none flex-shrink-0"
-                        : "bg-highlight hover:bg-highlight/90 text-white border-none flex-shrink-0"
-                    }
-                    onClick={isFollowing ? handleUnfollow : handleFollow}
-                    disabled={followLoading}
+                    variant="outline"
+                    size="icon"
+                    onClick={handleShare}
+                    aria-label="Share recording"
+                    title="Copy link"
+                    className="bg-transparent border border-border hover:bg-accent text-foreground"
                   >
-                    {followLoading ? "…" : isFollowing ? "Unfollow" : "Follow"}
+                    <Share2 className="w-4 h-4" />
                   </Button>
-                )}
+                </div>
               </div>
             </div>
 

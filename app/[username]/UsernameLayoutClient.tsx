@@ -51,9 +51,11 @@ export default function UsernameLayoutClient({
   const isOwner = loggedInUsername?.toLowerCase() === username.toLowerCase();
 
   // When the user visits /{username} and they're live, redirect to the canonical watch URL.
+  // Use window.location to avoid the RSC fetch that router.replace() triggers, which can
+  // fail with "Failed to fetch" when Turbopack hasn't compiled the route yet.
   useEffect(() => {
     if (isDefaultRoute && isLive === true) {
-      router.replace(`/${username}/watch`);
+      window.location.replace(`/${username}/watch`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDefaultRoute, isLive, username]);

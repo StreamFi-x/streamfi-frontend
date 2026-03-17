@@ -5,6 +5,7 @@ import type React from "react";
 import { useState, useRef, useEffect } from "react";
 import { ChevronRight, Send, Smile, GiftIcon, LogIn } from "lucide-react";
 import type { ChatMessage } from "@/types/chat";
+import { EMOJI_CATEGORIES, CATEGORY_LABELS } from "@/lib/emoji-categories";
 
 interface ChatSectionProps {
   messages: ChatMessage[];
@@ -18,115 +19,6 @@ interface ChatSectionProps {
   isSending?: boolean;
   onLoginClick?: () => void;
 }
-
-// ── Emoji data ───────────────────────────────────────────────────────────────
-const EMOJI_CATEGORIES: Record<string, string[]> = {
-  "😊": [
-    "😀",
-    "😂",
-    "🤣",
-    "😍",
-    "🥰",
-    "😘",
-    "🤩",
-    "😎",
-    "😅",
-    "😆",
-    "🥲",
-    "😊",
-    "🙂",
-    "🤔",
-    "😏",
-    "😒",
-    "😔",
-    "😢",
-    "😭",
-    "😤",
-    "😡",
-    "🤯",
-    "😳",
-    "😱",
-    "🤗",
-    "😴",
-    "🥱",
-    "😵",
-    "🤧",
-    "😷",
-  ],
-  "👋": [
-    "👍",
-    "👎",
-    "👏",
-    "🙌",
-    "🤝",
-    "🫶",
-    "✌️",
-    "🤙",
-    "👋",
-    "💪",
-    "🙏",
-    "👌",
-    "🤌",
-    "🤞",
-    "🫡",
-    "🤘",
-    "✋",
-    "🤚",
-    "🖐️",
-    "🖖",
-  ],
-  "❤️": [
-    "❤️",
-    "🧡",
-    "💛",
-    "💚",
-    "💙",
-    "💜",
-    "🖤",
-    "🤍",
-    "💔",
-    "❣️",
-    "💕",
-    "💞",
-    "💓",
-    "💗",
-    "💖",
-    "💝",
-    "💘",
-    "🩷",
-    "🩵",
-    "🩶",
-  ],
-  "🔥": [
-    "🔥",
-    "⭐",
-    "🌟",
-    "💫",
-    "✨",
-    "⚡",
-    "🎯",
-    "🏆",
-    "🎮",
-    "💯",
-    "🎉",
-    "🎊",
-    "🎁",
-    "🎶",
-    "🎵",
-    "🚀",
-    "💎",
-    "👑",
-    "🌈",
-    "💥",
-  ],
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  "😊": "Faces",
-  "👋": "Gestures",
-  "❤️": "Hearts",
-  "🔥": "Misc",
-};
 
 // ── Component ────────────────────────────────────────────────────────────────
 const ChatSection = ({
@@ -323,7 +215,7 @@ const ChatSection = ({
               disabled={isSending}
               className="w-full bg-secondary text-foreground rounded-md px-3 py-2 pr-20 text-sm focus:outline-none focus:ring-1 focus:ring-highlight disabled:opacity-50"
             />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex space-x-1 items-center">
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex space-x-3 items-center">
               <button
                 type="button"
                 onClick={() => setShowEmojiPicker(p => !p)}
