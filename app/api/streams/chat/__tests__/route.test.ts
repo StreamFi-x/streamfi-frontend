@@ -149,6 +149,7 @@ describe("POST /api/streams/chat", () => {
           {
             sender_id: 1,
             sender_username: "Alice",
+            streamer_id: 2,
             streamer_username: "Bob",
             is_live: true,
             session_id: 10,
@@ -160,7 +161,6 @@ describe("POST /api/streams/chat", () => {
       })
       .mockResolvedValueOnce({ rows: [] }) // permanent ban check
       .mockResolvedValueOnce({ rows: [] }) // timeout check
-      .mockResolvedValueOnce({ rows: [] }) // slow mode last message check
       .mockResolvedValueOnce({
         // INSERT
         rows: [{ id: 99, created_at: "2025-01-01T00:00:00Z" }],
@@ -190,6 +190,7 @@ describe("POST /api/streams/chat", () => {
           {
             sender_id: 1,
             sender_username: "Alice",
+            streamer_id: 2,
             streamer_username: "Bob",
             is_live: true,
             session_id: 10,
