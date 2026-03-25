@@ -271,7 +271,10 @@ export async function listNotifications(userId: string, limit = 50) {
   };
 }
 
-export async function markNotificationAsRead(userId: string, notificationId: string) {
+export async function markNotificationAsRead(
+  userId: string,
+  notificationId: string
+) {
   const result = await sql<NotificationRow>`
     UPDATE notifications
     SET read = true
@@ -292,7 +295,10 @@ export async function markAllNotificationsAsRead(userId: string) {
   return result.rowCount ?? 0;
 }
 
-export async function deleteNotification(userId: string, notificationId: string) {
+export async function deleteNotification(
+  userId: string,
+  notificationId: string
+) {
   const result = await sql`
     DELETE FROM notifications
     WHERE id = ${notificationId} AND user_id = ${userId}

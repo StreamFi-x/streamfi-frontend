@@ -89,8 +89,9 @@ export default function TipReceivedEmail({
                             color: "#374151",
                           }}
                         >
-                          {senderLabel} just sent you <strong>{amount} XLM</strong>.
-                          Your latest payout details are ready in your dashboard.
+                          {senderLabel} just sent you{" "}
+                          <strong>{amount} XLM</strong>. Your latest payout
+                          details are ready in your dashboard.
                         </p>
                         <a
                           href={dashboardUrl}
@@ -114,8 +115,8 @@ export default function TipReceivedEmail({
                             color: "#6b7280",
                           }}
                         >
-                          You can disable tip emails anytime from your notification
-                          settings.
+                          You can disable tip emails anytime from your
+                          notification settings.
                         </p>
                       </td>
                     </tr>

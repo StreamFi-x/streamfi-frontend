@@ -150,9 +150,7 @@ export async function POST(req: Request) {
 
           if (existingSession.rows.length === 0) {
             const streamTitle =
-              user.creator?.title ||
-              user.creator?.streamTitle ||
-              "Live Stream";
+              user.creator?.title || user.creator?.streamTitle || "Live Stream";
 
             await client.sql`
               INSERT INTO stream_sessions (user_id, title, playback_id, started_at, mux_session_id)

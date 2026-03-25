@@ -34,9 +34,8 @@ const initialPreferences: NotificationPreferences = {
 
 export default function NotificationSettings() {
   const { showToast } = useToast();
-  const [preferences, setPreferences] = useState<NotificationPreferences>(
-    initialPreferences
-  );
+  const [preferences, setPreferences] =
+    useState<NotificationPreferences>(initialPreferences);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -57,7 +56,8 @@ export default function NotificationSettings() {
       {
         key: "streamLive" as const,
         label: "Creators going live",
-        description: "Get in-app alerts when creators I follow start streaming.",
+        description:
+          "Get in-app alerts when creators I follow start streaming.",
         icon: Radio,
       },
       {
@@ -69,7 +69,8 @@ export default function NotificationSettings() {
       {
         key: "emailNotifications" as const,
         label: "Email notifications",
-        description: "Send email for tip receipts when email alerts are enabled.",
+        description:
+          "Send email for tip receipts when email alerts are enabled.",
         icon: Bell,
       },
     ],

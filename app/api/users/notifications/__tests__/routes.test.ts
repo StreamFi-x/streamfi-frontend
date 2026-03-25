@@ -47,7 +47,8 @@ const markNotificationAsReadMock = markNotificationAsRead as jest.Mock;
 const markAllNotificationsAsReadMock = markAllNotificationsAsRead as jest.Mock;
 const deleteNotificationMock = deleteNotification as jest.Mock;
 const getNotificationPreferencesMock = getNotificationPreferences as jest.Mock;
-const updateNotificationPreferencesMock = updateNotificationPreferences as jest.Mock;
+const updateNotificationPreferencesMock =
+  updateNotificationPreferences as jest.Mock;
 
 const makeRequest = (method: string, path: string, body?: unknown) =>
   new Request(`http://localhost${path}`, {
@@ -95,7 +96,10 @@ describe("notifications routes", () => {
     markNotificationAsReadMock.mockResolvedValue({ id: "n-1", read: true });
 
     const response = await patchNotification(
-      makeRequest("PATCH", "/api/users/notifications/11111111-1111-1111-1111-111111111111"),
+      makeRequest(
+        "PATCH",
+        "/api/users/notifications/11111111-1111-1111-1111-111111111111"
+      ),
       {
         params: Promise.resolve({
           id: "11111111-1111-1111-1111-111111111111",
@@ -127,7 +131,10 @@ describe("notifications routes", () => {
     deleteNotificationMock.mockResolvedValue(true);
 
     const response = await deleteNotificationRoute(
-      makeRequest("DELETE", "/api/users/notifications/11111111-1111-1111-1111-111111111111"),
+      makeRequest(
+        "DELETE",
+        "/api/users/notifications/11111111-1111-1111-1111-111111111111"
+      ),
       {
         params: Promise.resolve({
           id: "11111111-1111-1111-1111-111111111111",
