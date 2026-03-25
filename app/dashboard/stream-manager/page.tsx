@@ -9,6 +9,7 @@ import ActivityFeed from "@/components/dashboard/stream-manager/ActivityFeed";
 import Chat from "@/components/dashboard/stream-manager/Chat";
 import StreamInfo from "@/components/dashboard/stream-manager/StreamInfo";
 import StreamSettings from "@/components/dashboard/stream-manager/StreamSettings";
+import StreamAccessSettings from "@/components/dashboard/stream-manager/StreamAccessSettings";
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
 import { Users, UserPlus, Coins, Timer } from "lucide-react";
@@ -26,6 +27,8 @@ export default function StreamManagerPage() {
     description: "",
     tags: [] as string[],
     thumbnail: null as string | null,
+    accessType: "public",
+    accessConfig: {} as any,
   });
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -79,6 +82,8 @@ export default function StreamManagerPage() {
             description: creator.description || "",
             tags: creator.tags || [],
             thumbnail: creator.thumbnail || null,
+            accessType: data.streamData?.stream?.stream_access_type || "public",
+            accessConfig: data.streamData?.stream?.stream_access_config || {},
           });
         }
       } catch (error) {
@@ -156,6 +161,53 @@ export default function StreamManagerPage() {
     }
   };
 
+  const handleAccessPolicyUpdate = async (
+    accessType: string,
+    accessConfig: any
+  ) => {
+    if (!address) {
+      showToast("Wallet not connected");
+      return;
+    }
+    const userEmail = sessionStorage.getItem("userEmail") || privyWallet?.email || "";
+    if (!userEmail) {
+      showToast("Session expired, please refresh");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/users/update-creator", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: userEmail,
+          creator: {
+            ...streamData,
+            stream_access_type: accessType,
+            stream_access_config: accessConfig,
+          },
+        }),
+      });
+
+      if (response.ok) {
+        setStreamData({
+          ...streamData,
+          accessType,
+          accessConfig,
+        });
+        showToast("Access policy updated!");
+      } else {
+        const err = await response.json();
+        showToast(err.error || "Failed to update access policy");
+      }
+    } catch {
+      showToast("Failed to update access policy");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const showToast = (message: string) => {
     setToastMessage(message);
     setTimeout(() => setToastMessage(null), 3000);
@@ -216,6 +268,12 @@ export default function StreamManagerPage() {
               thumbnail: streamData.thumbnail || undefined,
             }}
             onEditClick={() => setIsStreamInfoModalOpen(true)}
+          />
+          <StreamAccessSettings
+            initialAccessType={streamData.accessType}
+            initialAccessConfig={streamData.accessConfig}
+            onSave={handleAccessPolicyUpdate}
+            isSaving={isSaving}
           />
           <StreamSettings />
         </div>
