@@ -20,6 +20,7 @@ export async function GET(
         u.stream_started_at, u.total_views,
         u.total_tips_received, u.total_tips_count, u.last_tip_at,
         u.created_at, u.updated_at,
+        u.stream_access_type, u.stream_access_config,
         (SELECT COUNT(*)::int FROM user_follows WHERE followee_id = u.id) AS follower_count,
         (SELECT COUNT(*)::int FROM user_follows WHERE follower_id = u.id) AS following_count,
         EXISTS(
@@ -41,6 +42,12 @@ export async function GET(
     // Strip internal/private fields before sending to any client
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { privy_id, email, ...publicUser } = user;
+
+    // Filter sensitive fields from stream_access_config
+    if (publicUser.stream_access_config?.password_hash) {
+      const { password_hash, ...safeConfig } = publicUser.stream_access_config;
+      publicUser.stream_access_config = safeConfig;
+    }
 
     return NextResponse.json(
       { user: publicUser },
