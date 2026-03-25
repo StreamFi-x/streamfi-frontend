@@ -9,6 +9,7 @@ import ActivityFeed from "@/components/dashboard/stream-manager/ActivityFeed";
 import Chat from "@/components/dashboard/stream-manager/Chat";
 import StreamInfo from "@/components/dashboard/stream-manager/StreamInfo";
 import StreamSettings from "@/components/dashboard/stream-manager/StreamSettings";
+import ChatModerationSettings from "@/components/dashboard/stream-manager/ChatModerationSettings";
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
 import { Users, UserPlus, Coins, Timer } from "lucide-react";
@@ -205,7 +206,7 @@ export default function StreamManagerPage() {
           </div>
         </div>
 
-        {/* Right column: Chat + Stream info + Tip wallet */}
+        {/* Right column: Chat + Stream info + Chat moderation + Tip wallet */}
         <div className="col-span-12 lg:col-span-5 flex flex-col gap-3">
           <div className="h-96">
             <Chat />
@@ -217,6 +218,7 @@ export default function StreamManagerPage() {
             }}
             onEditClick={() => setIsStreamInfoModalOpen(true)}
           />
+          <ChatModerationSettings />
           <StreamSettings />
         </div>
       </div>

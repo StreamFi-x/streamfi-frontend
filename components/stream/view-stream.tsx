@@ -286,6 +286,8 @@ const ViewStream = ({
   const {
     messages: chatMessages,
     sendMessage,
+    deleteMessage,
+    banUser,
     isSending,
   } = useChat(userData?.playbackId, address, isLive);
 
@@ -955,6 +957,8 @@ const ViewStream = ({
               <ChatSection
                 messages={chatMessages}
                 onSendMessage={sendMessage}
+                onDeleteMessage={deleteMessage}
+                onBanUser={banUser}
                 isCollapsible={true}
                 isFullscreen={false}
                 className="h-full"
@@ -962,6 +966,7 @@ const ViewStream = ({
                 showChat={showChat}
                 isWalletConnected={!!address}
                 isSending={isSending}
+                isStreamOwner={isOwner}
               />
             </div>
           )}

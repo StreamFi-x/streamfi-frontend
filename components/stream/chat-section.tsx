@@ -3,12 +3,24 @@
 import type React from "react";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronRight, Send, Smile, GiftIcon, Wallet } from "lucide-react";
+import {
+  ChevronRight,
+  Send,
+  Smile,
+  GiftIcon,
+  Wallet,
+  MoreVertical,
+  Trash2,
+  Ban,
+  Clock,
+} from "lucide-react";
 import type { ChatMessage } from "@/types/chat";
 
 interface ChatSectionProps {
   messages: ChatMessage[];
   onSendMessage: (message: string) => void;
+  onDeleteMessage?: (messageId: number) => void;
+  onBanUser?: (username: string, durationMinutes?: number) => void;
   isCollapsible?: boolean;
   isFullscreen?: boolean;
   className?: string;
@@ -16,11 +28,14 @@ interface ChatSectionProps {
   showChat?: boolean;
   isWalletConnected?: boolean;
   isSending?: boolean;
+  isStreamOwner?: boolean;
 }
 
 const ChatSection = ({
   messages,
   onSendMessage,
+  onDeleteMessage,
+  onBanUser,
   isCollapsible = true,
   isFullscreen = false,
   className = "",
@@ -28,9 +43,17 @@ const ChatSection = ({
   showChat = true,
   isWalletConnected = false,
   isSending = false,
+  isStreamOwner = false,
 }: ChatSectionProps) => {
   const [chatMessage, setChatMessage] = useState("");
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    messageId: number;
+    username: string;
+    x: number;
+    y: number;
+    showTimeoutSubmenu?: boolean;
+  } | null>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -39,6 +62,44 @@ const ChatSection = ({
         chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Close context menu on click outside
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null);
+    if (contextMenu) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [contextMenu]);
+
+  const handleContextMenu = (
+    e: React.MouseEvent,
+    messageId: number,
+    username: string
+  ) => {
+    if (!isStreamOwner) return;
+    e.preventDefault();
+    setContextMenu({
+      messageId,
+      username,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
+
+  const handleDeleteMessage = () => {
+    if (contextMenu && onDeleteMessage) {
+      onDeleteMessage(contextMenu.messageId);
+      setContextMenu(null);
+    }
+  };
+
+  const handleBanUser = (durationMinutes?: number) => {
+    if (contextMenu && onBanUser) {
+      onBanUser(contextMenu.username, durationMinutes);
+      setContextMenu(null);
+    }
+  };
 
   const handleSendMessage = () => {
     if (!chatMessage.trim() || !isWalletConnected || isSending) {
@@ -111,13 +172,16 @@ const ChatSection = ({
             messages.map(message => (
               <div
                 key={message.id}
-                className={`text-xs xl:text-sm flex ${message.isPending ? "opacity-50" : ""}`}
+                className={`text-xs xl:text-sm flex group relative ${message.isPending ? "opacity-50" : ""}`}
+                onContextMenu={e =>
+                  handleContextMenu(e, message.id, message.username)
+                }
               >
                 <div
                   className="w-1 mr-2 rounded-full"
                   style={{ backgroundColor: message.color }}
                 />
-                <div>
+                <div className="flex-1">
                   <span
                     className="font-medium"
                     style={{ color: message.color }}
@@ -126,6 +190,22 @@ const ChatSection = ({
                   </span>
                   <span>{message.message}</span>
                 </div>
+                {isStreamOwner && (
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      setContextMenu({
+                        messageId: message.id,
+                        username: message.username,
+                        x: e.currentTarget.getBoundingClientRect().right,
+                        y: e.currentTarget.getBoundingClientRect().top,
+                      });
+                    }}
+                    className="opacity-0 group-hover:opacity-100 ml-2 p-1 hover:bg-secondary rounded transition-opacity"
+                  >
+                    <MoreVertical className="h-3 w-3" />
+                  </button>
+                )}
               </div>
             ))
           )}
@@ -175,6 +255,79 @@ const ChatSection = ({
           </div>
         )}
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && isStreamOwner && (
+        <div
+          className="fixed bg-background border border-border rounded-md shadow-lg z-50 py-1 min-w-[160px]"
+          style={{
+            top: `${contextMenu.y}px`,
+            left: `${contextMenu.x}px`,
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            onClick={handleDeleteMessage}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete message
+          </button>
+          <div className="relative">
+            <button
+              onClick={() =>
+                setContextMenu(prev =>
+                  prev
+                    ? { ...prev, showTimeoutSubmenu: !prev.showTimeoutSubmenu }
+                    : null
+                )
+              }
+              className="w-full px-3 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2 justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Timeout
+              </div>
+              <ChevronRight className="h-3 w-3" />
+            </button>
+            {contextMenu.showTimeoutSubmenu && (
+              <div className="absolute left-full top-0 ml-1 bg-background border border-border rounded-md shadow-lg py-1 min-w-[120px]">
+                <button
+                  onClick={() => handleBanUser(1)}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-secondary"
+                >
+                  1 minute
+                </button>
+                <button
+                  onClick={() => handleBanUser(5)}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-secondary"
+                >
+                  5 minutes
+                </button>
+                <button
+                  onClick={() => handleBanUser(10)}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-secondary"
+                >
+                  10 minutes
+                </button>
+                <button
+                  onClick={() => handleBanUser(60)}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-secondary"
+                >
+                  1 hour
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => handleBanUser()}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2 text-red-500"
+          >
+            <Ban className="h-4 w-4" />
+            Ban user
+          </button>
+        </div>
+      )}
     </div>
   );
 };
