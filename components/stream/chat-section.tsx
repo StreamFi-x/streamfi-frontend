@@ -77,7 +77,9 @@ const ChatSection = ({
     messageId: number,
     username: string
   ) => {
-    if (!isStreamOwner) return;
+    if (!isStreamOwner) {
+      return;
+    }
     e.preventDefault();
     setContextMenu({
       messageId,

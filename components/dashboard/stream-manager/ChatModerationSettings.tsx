@@ -63,7 +63,9 @@ export default function ChatModerationSettings() {
     key: keyof StreamChatSettings,
     value: number | boolean
   ) => {
-    if (!walletAddress) return;
+    if (!walletAddress) {
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -88,7 +90,9 @@ export default function ChatModerationSettings() {
   };
 
   const unbanUser = async (username: string) => {
-    if (!walletAddress) return;
+    if (!walletAddress) {
+      return;
+    }
 
     try {
       const res = await fetch(
