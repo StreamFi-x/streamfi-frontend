@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
-import { writeNotification } from "@/lib/notifications";
+import {
+  createNotification,
+  withNotificationTransaction,
+} from "@/lib/notifications";
 
 // 30 follow/unfollow actions per IP per minute
 const isRateLimited = createRateLimiter(60_000, 30);
@@ -60,23 +63,31 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "follow") {
-      await sql`
-        INSERT INTO user_follows (follower_id, followee_id)
-        VALUES (${callerId}, ${receiverId})
-        ON CONFLICT DO NOTHING
-      `;
+      await withNotificationTransaction(async client => {
+        const followResult = await client.sql`
+          INSERT INTO user_follows (follower_id, followee_id)
+          VALUES (${callerId}, ${receiverId})
+          ON CONFLICT DO NOTHING
+          RETURNING follower_id
+        `;
 
-      // Write notification — awaited so it completes before response is sent
-      try {
-        await writeNotification(
-          receiverId,
-          "follow",
-          "New follower",
-          `${callerUsername} started following you`
-        );
-      } catch (notifErr) {
-        console.error("[follow] notification write failed:", notifErr);
-      }
+        if ((followResult.rowCount ?? 0) === 0) {
+          return;
+        }
+
+        await createNotification({
+          userId: receiverId,
+          type: "new_follower",
+          title: "New follower",
+          body: `${callerUsername} started following you`,
+          metadata: {
+            followerId: callerId,
+            followerUsername: callerUsername,
+            url: `/${callerUsername}`,
+          },
+          client,
+        });
+      });
 
       return NextResponse.json({ message: "Followed successfully" });
     } else {

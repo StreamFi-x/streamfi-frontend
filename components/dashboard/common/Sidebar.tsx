@@ -8,6 +8,7 @@ import {
   Settings,
   BarChartIcon as ChartColumnDecreasing,
   ArrowLeftToLine,
+  Bell,
   Video,
   Coins,
 } from "lucide-react";
@@ -36,6 +37,11 @@ export default function Sidebar({
       name: "Stream Manager",
       icon: <ChartColumnDecreasing size={24} />,
       path: "/dashboard/stream-manager",
+    },
+    {
+      name: "Notifications",
+      icon: <Bell size={24} />,
+      path: "/dashboard/notifications",
     },
     {
       name: "Recordings",
