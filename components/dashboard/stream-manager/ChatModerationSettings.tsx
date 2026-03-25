@@ -203,7 +203,9 @@ export default function ChatModerationSettings() {
                 <input
                   type="checkbox"
                   checked={settings.linkBlocking}
-                  onChange={e => updateSetting("linkBlocking", e.target.checked)}
+                  onChange={e =>
+                    updateSetting("linkBlocking", e.target.checked)
+                  }
                   disabled={isSaving}
                   className="w-4 h-4 rounded border-border bg-secondary text-highlight focus:ring-1 focus:ring-highlight disabled:opacity-50"
                 />

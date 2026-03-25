@@ -7,7 +7,10 @@ export async function PATCH(req: NextRequest) {
       await req.json();
 
     if (!wallet) {
-      return NextResponse.json({ error: "Wallet is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Wallet is required" },
+        { status: 400 }
+      );
     }
 
     // Validate slow mode value
@@ -92,7 +95,10 @@ export async function GET(req: Request) {
     const wallet = searchParams.get("wallet");
 
     if (!wallet) {
-      return NextResponse.json({ error: "Wallet is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Wallet is required" },
+        { status: 400 }
+      );
     }
 
     const result = await sql`
