@@ -20,6 +20,7 @@ export async function GET(
         u.stream_started_at, u.total_views,
         u.total_tips_received, u.total_tips_count, u.last_tip_at,
         u.created_at, u.updated_at,
+        (u.stream_password_hash IS NOT NULL) AS is_password_protected,
         (SELECT COUNT(*)::int FROM user_follows WHERE followee_id = u.id) AS follower_count,
         (SELECT COUNT(*)::int FROM user_follows WHERE follower_id = u.id) AS following_count,
         EXISTS(

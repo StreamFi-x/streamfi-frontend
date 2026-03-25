@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { uploadImage } from "@/utils/upload/cloudinary";
+import { hashPassword } from "@/lib/stream-access/password";
 
 export async function PATCH(req: Request) {
   try {
-    const { wallet, title, description, category, tags, thumbnail } =
+    const { wallet, title, description, category, tags, thumbnail, password } =
       await req.json();
 
     if (!wallet) {
@@ -63,6 +64,32 @@ export async function PATCH(req: Request) {
           { error: "Failed to upload thumbnail" },
           { status: 500 }
         );
+      }
+    }
+
+    // Handle stream password: set/update or remove
+    if (password !== undefined) {
+      if (password === null || password === "") {
+        await sql`
+          UPDATE users SET
+            stream_password_hash = NULL,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE wallet = ${wallet}
+        `;
+      } else {
+        if (typeof password !== "string" || password.length < 4) {
+          return NextResponse.json(
+            { error: "Password must be at least 4 characters" },
+            { status: 400 }
+          );
+        }
+        const hashed = hashPassword(password);
+        await sql`
+          UPDATE users SET
+            stream_password_hash = ${hashed},
+            updated_at = CURRENT_TIMESTAMP
+          WHERE wallet = ${wallet}
+        `;
       }
     }
 
