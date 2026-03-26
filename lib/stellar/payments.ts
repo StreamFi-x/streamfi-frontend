@@ -8,6 +8,7 @@ import {
   Transaction,
   Horizon,
 } from "@stellar/stellar-sdk";
+import { buildPaymentTransaction } from "./transactions";
 
 const Server = Horizon.Server;
 
@@ -56,29 +57,15 @@ export async function buildTipTransaction(
   const { sourcePublicKey, destinationPublicKey, amount, network } = params;
 
   try {
-    const server = getServer(network);
-    const networkPassphrase = getNetworkPassphrase(network);
-
-    // Load the source account from the network
-    const sourceAccount = await server.loadAccount(sourcePublicKey);
-
-    // Build the transaction
-    const transaction = new TransactionBuilder(sourceAccount, {
-      fee: BASE_FEE,
-      networkPassphrase,
-    })
-      .addOperation(
-        Operation.payment({
-          destination: destinationPublicKey,
-          asset: Asset.native(), // XLM
-          amount: amount,
-        })
-      )
-      .addMemo(Memo.text("StreamFi Tip"))
-      .setTimeout(30) // 30 seconds timeout
-      .build();
-
-    return transaction;
+    return await buildPaymentTransaction({
+      sourcePublicKey,
+      destinationPublicKey,
+      asset: Asset.native(),
+      amount,
+      memoText: "StreamFi Tip",
+      network,
+      timeoutSeconds: 30,
+    });
   } catch (error) {
     if (error instanceof Error) {
       // Handle specific Stellar errors

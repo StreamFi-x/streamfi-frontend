@@ -24,7 +24,6 @@ import {
 import { TransactionBuilder, Networks } from "@stellar/stellar-sdk";
 import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
-import { TipConfirmation } from "./TipConfirmation";
 
 interface TipModalProps {
   isOpen: boolean;
@@ -64,17 +63,10 @@ export function TipModal({
   const [transactionState, setTransactionState] =
     useState<TransactionState>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [txHash, setTxHash] = useState<string | null>(null);
   const [xlmPrice, setXlmPrice] = useState<number>(0);
   const [isLoadingPrice, setIsLoadingPrice] = useState<boolean>(false);
   // Fix #5 - Track price fetch failures
   const [priceFetchFailed, setPriceFetchFailed] = useState<boolean>(false);
-  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
-  const [structuredError, setStructuredError] = useState<{
-    message: string;
-    details?: string;
-    code?: string;
-  } | null>(null);
 
   const { kit } = useStellarWallet();
   const fee = calculateFeeEstimate();
@@ -110,9 +102,6 @@ export function TipModal({
     setAmount("");
     setTransactionState("idle");
     setError(null);
-    setTxHash(null);
-    setIsConfirmationOpen(false);
-    setStructuredError(null);
   };
 
   const handlePresetClick = (presetAmount: number) => {
@@ -231,8 +220,6 @@ export function TipModal({
 
       if (result.success) {
         setTransactionState("success");
-        setTxHash(result.hash ?? null);
-        setIsConfirmationOpen(true);
         // Call onSuccess callback if provided
         if (onSuccess && result.hash) {
           onSuccess(result.hash, amount);
@@ -274,13 +261,7 @@ export function TipModal({
       }
 
       setError(errorMessage);
-      setStructuredError({
-        message: errorMessage,
-        details: err instanceof Error ? err.stack || err.message : String(err),
-        code: (err as any)?.code || (err as any)?.status?.toString(),
-      });
       setTransactionState("error");
-      setIsConfirmationOpen(true);
       // Call onError callback if provided
       if (onError) {
         onError(errorMessage);
@@ -300,9 +281,6 @@ export function TipModal({
     }
     onClose();
   };
-
-  const currentConfirmationState =
-    transactionState === "success" ? "success" : "error";
 
   const getStateMessage = () => {
     switch (transactionState) {
@@ -483,7 +461,7 @@ export function TipModal({
           )}
 
           {/* Error Message */}
-          {error && transactionState === "error" && !isConfirmationOpen && (
+          {error && transactionState === "error" && (
             <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
               <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
@@ -520,29 +498,6 @@ export function TipModal({
           </div>
         </DialogFooter>
       </DialogContent>
-
-      <TipConfirmation
-        isOpen={isConfirmationOpen}
-        onClose={() => {
-          setIsConfirmationOpen(false);
-          if (transactionState === "success") {
-            onClose();
-          }
-        }}
-        state={currentConfirmationState}
-        amount={amount}
-        recipientUsername={recipientUsername}
-        txHash={txHash || undefined}
-        error={structuredError || undefined}
-        onRetry={() => {
-          setIsConfirmationOpen(false);
-          handleRetry();
-        }}
-        onSendAnother={() => {
-          setIsConfirmationOpen(false);
-          resetModal();
-        }}
-      />
     </Dialog>
   );
 }

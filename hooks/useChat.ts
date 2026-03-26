@@ -65,7 +65,8 @@ const chatFetcher = async (url: string): Promise<ChatMessage[]> => {
 export function useChat(
   playbackId: string | null | undefined,
   wallet: string | null | undefined,
-  isLive: boolean = true
+  isLive: boolean = true,
+  pollEnabled: boolean = true
 ): UseChatReturn {
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -77,7 +78,7 @@ export function useChat(
   const cacheKey = playbackId
     ? `/api/streams/chat?playbackId=${playbackId}&limit=${MAX_MESSAGES}`
     : null;
-  const shouldPoll = !!playbackId && isLive;
+  const shouldPoll = !!playbackId && isLive && pollEnabled;
 
   const { data, error, isLoading, mutate } = useSWR<ChatMessage[]>(
     cacheKey,

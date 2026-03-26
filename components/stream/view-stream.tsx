@@ -41,6 +41,10 @@ import { useChat } from "@/hooks/useChat";
 import { TipButton, TipModalContainer } from "@/components/tipping";
 import { useTipModal } from "@/hooks/useTipModal";
 import { toast } from "sonner";
+import { AccessGate } from "./AccessGate";
+import { useStreamAccess } from "@/hooks/useStreamAccess";
+import { TipAlertOverlay, type TipAlert } from "./TipAlertOverlay";
+import { PaidAccessGate } from "./PaidAccessGate";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,
@@ -279,6 +283,14 @@ const ViewStream = ({
   const address = publicKey || privyWallet?.wallet || null;
   const tipModalState = useTipModal();
 
+  const { access, isLoading: isCheckingAccess, refresh } = useStreamAccess({
+    streamerUsername: username,
+    viewerPublicKey: address,
+    enabled: !isOwner,
+  });
+  const isLocked = !isOwner && !!access && access.allowed === false;
+  const isAllowed = isOwner || !access || access.allowed === true;
+
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
   const overlayScrollRef = useRef<HTMLDivElement>(null);
@@ -287,7 +299,28 @@ const ViewStream = ({
     messages: chatMessages,
     sendMessage,
     isSending,
-  } = useChat(userData?.playbackId, address, isLive);
+  } = useChat(userData?.playbackId, address, isLive, showChat || isFullscreen);
+
+  const [tipAlerts, setTipAlerts] = useState<TipAlert[]>([]);
+  const lastTipMessageId = useRef<number | null>(null);
+
+  useEffect(() => {
+    const last = chatMessages[chatMessages.length - 1];
+    if (!last || last.messageType !== "system") {
+      return;
+    }
+    if (lastTipMessageId.current === last.id) {
+      return;
+    }
+    if (!last.message.startsWith("💜")) {
+      return;
+    }
+    lastTipMessageId.current = last.id;
+    setTipAlerts(prev => {
+      const next = [{ id: String(last.id), text: last.message }, ...prev];
+      return next.slice(0, 5);
+    });
+  }, [chatMessages]);
 
   // Stable refs so the native keydown listener always reads current values
   const chatOverlayMessageRef = useRef(chatOverlayMessage);
@@ -521,6 +554,37 @@ const ViewStream = ({
               ref={videoContainerRef}
               className={`relative bg-black overflow-hidden group ${isFullscreen ? "flex h-screen" : "w-full aspect-video min-h-[56vw] lg:min-h-[360px]"}`}
             >
+              <TipAlertOverlay
+                alerts={tipAlerts}
+                onExpire={id =>
+                  setTipAlerts(prev => prev.filter(a => a.id !== id))
+                }
+                max={5}
+              />
+              {!isAllowed && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center p-4">
+                  {access && access.access_type === "paid" ? (
+                    <PaidAccessGate
+                      streamerUsername={username}
+                      streamerId={access.streamer_id}
+                      streamerPublicKey={access.streamer_public_key}
+                      viewerPublicKey={address}
+                      priceUsdc={access.price_usdc}
+                      onVerified={() => void refresh()}
+                    />
+                  ) : (
+                    <AccessGate
+                      isLoading={isCheckingAccess}
+                      allowed={false}
+                      title="This stream is locked"
+                      description="You don't have access to this stream."
+                      onRetry={() => {
+                        void refresh();
+                      }}
+                    />
+                  )}
+                </div>
+              )}
               {/* Video content area */}
               <div
                 className={`relative ${isFullscreen ? "flex-1" : "w-full h-full"}`}
@@ -533,7 +597,7 @@ const ViewStream = ({
                     : undefined
                 }
               >
-                {isLive && userData?.playbackId ? (
+                {isAllowed && isLive && userData?.playbackId ? (
                   <MuxPlayer
                     playbackId={userData.playbackId}
                     streamType="live:dvr"
@@ -783,12 +847,12 @@ const ViewStream = ({
                                 ? "Unfollow"
                                 : "Follow"}
                           </Button>
-                          {streamData.starknetAddress &&
+                          {streamData.stellarAddress &&
                           publicKey &&
-                          publicKey !== streamData.starknetAddress ? (
+                          publicKey !== streamData.stellarAddress ? (
                             <TipButton
                               recipientUsername={username}
-                              recipientPublicKey={streamData.starknetAddress}
+                              recipientPublicKey={streamData.stellarAddress}
                               onTipClick={tipModalState.openTipModal}
                               variant="outline"
                               className="bg-muted hover:bg-accent text-foreground border-border"
@@ -802,7 +866,7 @@ const ViewStream = ({
                               title={
                                 !publicKey
                                   ? "Connect Stellar wallet to tip"
-                                  : !streamData.starknetAddress
+                                  : !streamData.stellarAddress
                                     ? "Streamer hasn't set up Stellar wallet"
                                     : "Cannot tip yourself"
                               }
@@ -955,6 +1019,11 @@ const ViewStream = ({
               <ChatSection
                 messages={chatMessages}
                 onSendMessage={sendMessage}
+                playbackId={userData?.playbackId ?? null}
+                streamerUsername={username}
+                streamerPublicKey={streamData?.stellarAddress ?? null}
+                viewerPublicKey={address}
+                onOpenCustomTip={tipModalState.openTipModal}
                 isCollapsible={true}
                 isFullscreen={false}
                 className="h-full"

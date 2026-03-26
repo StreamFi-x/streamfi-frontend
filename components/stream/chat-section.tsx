@@ -5,10 +5,16 @@ import type React from "react";
 import { useState, useRef, useEffect } from "react";
 import { ChevronRight, Send, Smile, GiftIcon, Wallet } from "lucide-react";
 import type { ChatMessage } from "@/types/chat";
+import { QuickTipBar } from "./QuickTipBar";
 
 interface ChatSectionProps {
   messages: ChatMessage[];
   onSendMessage: (message: string) => void;
+  playbackId?: string | null;
+  streamerUsername?: string;
+  streamerPublicKey?: string | null;
+  viewerPublicKey?: string | null;
+  onOpenCustomTip?: () => void;
   isCollapsible?: boolean;
   isFullscreen?: boolean;
   className?: string;
@@ -21,6 +27,11 @@ interface ChatSectionProps {
 const ChatSection = ({
   messages,
   onSendMessage,
+  playbackId = null,
+  streamerUsername,
+  streamerPublicKey = null,
+  viewerPublicKey = null,
+  onOpenCustomTip,
   isCollapsible = true,
   isFullscreen = false,
   className = "",
@@ -30,6 +41,8 @@ const ChatSection = ({
   isSending = false,
 }: ChatSectionProps) => {
   const [chatMessage, setChatMessage] = useState("");
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [highlightId, setHighlightId] = useState<number | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -38,6 +51,17 @@ const ChatSection = ({
       chatContainerRef.current.scrollTop =
         chatContainerRef.current.scrollHeight;
     }
+  }, [messages]);
+
+  // Highlight tip/system messages briefly
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (!last || last.messageType !== "system") {
+      return;
+    }
+    setHighlightId(last.id);
+    const t = window.setTimeout(() => setHighlightId(null), 3000);
+    return () => window.clearTimeout(t);
   }, [messages]);
 
   const handleSendMessage = () => {
@@ -98,6 +122,21 @@ const ChatSection = ({
           ref={chatContainerRef}
           className={`${isFullscreen ? "h-full" : "h-[calc(100vh-200px)]"} overflow-y-auto scrollbar-hide p-3 space-y-4 pt-8 pb-16`}
         >
+          {highlightId != null && (
+            <div className="sticky top-2 z-20">
+              {(() => {
+                const msg = messages.find(m => m.id === highlightId);
+                if (!msg) {
+                  return null;
+                }
+                return (
+                  <div className="bg-highlight/15 border border-highlight/30 text-highlight rounded-md px-3 py-2 text-xs">
+                    {msg.message}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-4">
               <p className="text-sm font-semibold mb-2 text-foreground">
@@ -111,7 +150,9 @@ const ChatSection = ({
             messages.map(message => (
               <div
                 key={message.id}
-                className={`text-xs xl:text-sm flex ${message.isPending ? "opacity-50" : ""}`}
+                className={`text-xs xl:text-sm flex ${
+                  message.isPending ? "opacity-50" : ""
+                } ${message.messageType === "system" ? "text-highlight" : ""}`}
               >
                 <div
                   className="w-1 mr-2 rounded-full"
@@ -122,7 +163,9 @@ const ChatSection = ({
                     className="font-medium"
                     style={{ color: message.color }}
                   >
-                    {message.username}:{" "}
+                    {message.messageType === "system"
+                      ? "System: "
+                      : `${message.username}: `}
                   </span>
                   <span>{message.message}</span>
                 </div>
@@ -142,16 +185,36 @@ const ChatSection = ({
       {/* Chat input */}
       <div className="border border-border p-3 border-t">
         {isWalletConnected ? (
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              value={chatMessage}
-              onChange={e => setChatMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Send a message"
-              disabled={isSending}
-              className="w-full bg-secondary text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-highlight disabled:opacity-50"
-            />
+          <div>
+            {playbackId &&
+              streamerUsername &&
+              streamerPublicKey &&
+              viewerPublicKey && (
+                <QuickTipBar
+                  playbackId={playbackId}
+                  streamerUsername={streamerUsername}
+                  streamerPublicKey={streamerPublicKey}
+                  viewerPublicKey={viewerPublicKey}
+                  hidden={
+                    isInputFocused && typeof window !== "undefined"
+                      ? window.innerWidth < 640
+                      : false
+                  }
+                  onCustomTip={onOpenCustomTip}
+                />
+              )}
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={chatMessage}
+                onChange={e => setChatMessage(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => setIsInputFocused(false)}
+                placeholder="Send a message"
+                disabled={isSending}
+                className="w-full bg-secondary text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-highlight disabled:opacity-50"
+              />
             <div className="absolute right-2 top-2 flex space-x-1 items-center">
               <button className="text-muted-foreground hover:text-foreground">
                 <Smile className="h-4 w-4" />
@@ -167,6 +230,7 @@ const ChatSection = ({
                 <Send className="h-4 w-4" />
               </button>
             </div>
+          </div>
           </div>
         ) : (
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-1">
