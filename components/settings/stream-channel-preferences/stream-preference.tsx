@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import StreamKeyModal from "@/components/ui/streamkeyModal";
 import StreamKeyConfirmationModal from "@/components/ui/streamKeyConfirmationModal";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { TokenGateSettings } from "./TokenGateSettings";
+import type { StreamAccessType, TokenGateConfig } from "@/types/stream-access";
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -139,6 +141,9 @@ const StreamPreferencesPage: React.FC = () => {
   const [enableRecording, setEnableRecording] = useState(false);
   const [recordingToggleSaving, setRecordingToggleSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState<string | null>(null);
+  const [accessType, setAccessType] = useState<StreamAccessType>("public");
+  const [accessConfig, setAccessConfig] = useState<TokenGateConfig | null>(null);
 
   // State for the modals
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
@@ -147,7 +152,7 @@ const StreamPreferencesPage: React.FC = () => {
   // Add auto-hide timer ref
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch stream key on mount
+  // Fetch stream key and user access settings on mount
   useEffect(() => {
     if (!address) {
       setLoading(false);
@@ -175,8 +180,50 @@ const StreamPreferencesPage: React.FC = () => {
       }
     };
 
+    const fetchUserAccess = async () => {
+      try {
+        const response = await fetch(`/api/users/wallet/${address}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const user = data.user;
+        if (user?.email) setEmail(user.email);
+        if (user?.stream_access_type) setAccessType(user.stream_access_type);
+        if (user?.stream_access_config) setAccessConfig(user.stream_access_config);
+      } catch {
+        // Non-critical — access settings will default to public
+      }
+    };
+
     fetchStreamKey();
+    fetchUserAccess();
   }, [address]);
+
+  const handleSaveAccessSettings = async (
+    newAccessType: StreamAccessType,
+    newConfig: TokenGateConfig | null
+  ) => {
+    if (!email) {
+      toast.error("Could not determine your account email. Please reload.");
+      return;
+    }
+    const res = await fetch("/api/users/update-creator", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        creator: {},
+        stream_access_type: newAccessType,
+        stream_access_config: newConfig,
+      }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.error ?? "Failed to save");
+    }
+    setAccessType(newAccessType);
+    setAccessConfig(newConfig);
+    toast.success("Access settings saved!");
+  };
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -469,6 +516,15 @@ const StreamPreferencesPage: React.FC = () => {
               )}
             </div>
           </div>
+        </SectionCard>
+
+        {/* Token-gated stream access */}
+        <SectionCard>
+          <TokenGateSettings
+            currentAccessType={accessType}
+            currentConfig={accessConfig}
+            onSave={handleSaveAccessSettings}
+          />
         </SectionCard>
 
         <SectionCard className="flex w-full flex-col items-center-justify-center">
