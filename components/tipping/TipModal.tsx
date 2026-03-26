@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, XCircle, AlertTriangle } from "lucide-react";
+import { AddFundsButton } from "@/components/wallet/AddFundsButton";
 import {
   buildTipTransaction,
   submitTransaction,
@@ -33,6 +34,8 @@ interface TipModalProps {
   recipientPublicKey: string;
   recipientAvatar?: string;
   senderPublicKey: string;
+  /** Whether the sender is a Privy custodial user — used to contextualise the "Add Funds" nudge */
+  isPrivyUser?: boolean;
   onSuccess?: (txHash: string, amount: string) => void;
   onError?: (error: string) => void;
 }
@@ -56,6 +59,7 @@ export function TipModal({
   recipientPublicKey,
   recipientAvatar,
   senderPublicKey,
+  isPrivyUser = false,
   onSuccess,
   onError,
 }: TipModalProps) {
@@ -75,6 +79,7 @@ export function TipModal({
     details?: string;
     code?: string;
   } | null>(null);
+  const [isInsufficientBalance, setIsInsufficientBalance] = useState(false);
 
   const { kit } = useStellarWallet();
   const fee = calculateFeeEstimate();
@@ -113,6 +118,7 @@ export function TipModal({
     setTxHash(null);
     setIsConfirmationOpen(false);
     setStructuredError(null);
+    setIsInsufficientBalance(false);
   };
 
   const handlePresetClick = (presetAmount: number) => {
@@ -188,6 +194,7 @@ export function TipModal({
         setError(
           "Insufficient balance. Please ensure you have enough XLM to cover the tip and transaction fee."
         );
+        setIsInsufficientBalance(true);
         setTransactionState("error");
         if (onError) {
           onError("Insufficient balance");
@@ -489,6 +496,19 @@ export function TipModal({
               <div className="flex-1">
                 <p className="text-sm text-red-500">{error}</p>
               </div>
+            </div>
+          )}
+
+          {/* Add Funds nudge — shown when balance is too low */}
+          {isInsufficientBalance && transactionState === "error" && !isConfirmationOpen && (
+            <div className="flex items-center justify-between gap-3 p-3 bg-highlight/10 border border-highlight/20 rounded-lg">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Need more XLM? Top up your wallet instantly with fiat.
+              </p>
+              <AddFundsButton
+                walletAddress={senderPublicKey}
+                isPrivyUser={isPrivyUser}
+              />
             </div>
           )}
         </div>
