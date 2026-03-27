@@ -16,6 +16,7 @@
  *     "suggestions": ["alice_streams", "alice_tv", "thealice", "alice42"] }
  */
 
+import { randomInt } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { z } from "zod";
@@ -42,7 +43,7 @@ async function isAvailable(username: string): Promise<boolean> {
 
 /** Generates up to 4 available username suggestions for a taken/restricted username. */
 async function buildSuggestions(base: string): Promise<string[]> {
-  const randomTwoDigit = () => String(Math.floor(Math.random() * 90) + 10);
+  const randomTwoDigit = () => String(randomInt(10, 100));
 
   const candidates = [
     `${base}_streams`,
