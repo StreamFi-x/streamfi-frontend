@@ -45,6 +45,7 @@ export async function GET(
 
     // Filter sensitive fields from stream_access_config
     if (publicUser.stream_access_config?.password_hash) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password_hash, ...safeConfig } = publicUser.stream_access_config;
       publicUser.stream_access_config = safeConfig;
     }

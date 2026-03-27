@@ -25,8 +25,8 @@ export default function StreamAccessSettings({
 
   // Sync with initial props when they load
   useEffect(() => {
-    if (initialAccessType) setAccessType(initialAccessType);
-    if (initialAccessConfig) setConfig(initialAccessConfig);
+    if (initialAccessType) { setAccessType(initialAccessType); }
+    if (initialAccessConfig) { setConfig(initialAccessConfig); }
   }, [initialAccessType, initialAccessConfig]);
 
   const handleSave = () => {

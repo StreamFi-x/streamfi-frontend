@@ -276,6 +276,7 @@ const ViewStream = ({
   const [accessBlocked, setAccessBlocked] = useState(false);
   const [accessReason, setAccessReason] = useState<any>(null);
   const [accessConfig, setAccessConfig] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
 
   // Use custom hooks for Stellar wallet and tip modal state
@@ -370,7 +371,7 @@ const ViewStream = ({
   // Check stream access foundation [access-control 1/5]
   useEffect(() => {
     const checkAccess = async () => {
-      if (!username) return;
+      if (!username) { return; }
       
       try {
         setIsCheckingAccess(true);
