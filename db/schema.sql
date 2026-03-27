@@ -43,6 +43,22 @@ ADD COLUMN IF NOT EXISTS followers UUID[];
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS following UUID[];
 
+-- Chat moderation settings
+ALTER TABLE users ADD COLUMN IF NOT EXISTS slow_mode_seconds INT DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS follower_only_chat BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS link_blocking BOOLEAN DEFAULT false;
+
+-- Chat bans table
+CREATE TABLE IF NOT EXISTS chat_bans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    stream_owner TEXT NOT NULL REFERENCES users(username),
+    banned_user TEXT NOT NULL,
+    banned_at TIMESTAMPTZ DEFAULT now(),
+    expires_at TIMESTAMPTZ,
+    reason TEXT,
+    UNIQUE(stream_owner, banned_user)
+);
+
 CREATE TABLE IF NOT EXISTS stream_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -67,17 +83,18 @@ CREATE TABLE IF NOT EXISTS stream_sessions (
 );
 
 CREATE TABLE IF NOT EXISTS chat_messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id SERIAL PRIMARY KEY,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    username VARCHAR(255) NOT NULL,
     stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE CASCADE,
-    
+
     content TEXT NOT NULL,
-    message_type VARCHAR(20) DEFAULT 'message',  
-    
+    message_type VARCHAR(20) DEFAULT 'message',
+
     is_deleted BOOLEAN DEFAULT FALSE,
     is_moderated BOOLEAN DEFAULT FALSE,
     moderated_by UUID REFERENCES users(id),
-    
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -147,6 +164,9 @@ CREATE INDEX IF NOT EXISTS idx_stream_categories_title ON stream_categories(titl
 CREATE INDEX IF NOT EXISTS idx_stream_categories_active ON stream_categories(is_active);
 CREATE INDEX IF NOT EXISTS idx_tags_title ON tags(title);
 CREATE INDEX IF NOT EXISTS idx_tags_title_lower ON tags(LOWER(title));
+CREATE INDEX IF NOT EXISTS idx_chat_bans_stream_owner ON chat_bans(stream_owner);
+CREATE INDEX IF NOT EXISTS idx_chat_bans_banned_user ON chat_bans(banned_user);
+CREATE INDEX IF NOT EXISTS idx_chat_bans_expires_at ON chat_bans(expires_at);
 
 INSERT INTO stream_categories (title, description, tags) VALUES
 ('Gaming', 'Video game streaming and gameplay', ARRAY['gaming', 'esports', 'gameplay']),
