@@ -43,7 +43,25 @@ export interface UseChatReturn {
   messages: ChatMessage[];
   sendMessage: (content: string) => Promise<void>;
   deleteMessage: (messageId: number) => Promise<void>;
+  banUser: (username: string, durationMinutes?: number) => Promise<void>;
+  unbanUser: (username: string) => Promise<void>;
   isLoading: boolean;
   isSending: boolean;
   error: string | null;
+}
+
+/** Chat ban record */
+export interface ChatBan {
+  id: string;
+  bannedUser: string;
+  bannedAt: string;
+  expiresAt: string | null;
+  reason: string | null;
+}
+
+/** Stream chat settings */
+export interface StreamChatSettings {
+  slowModeSeconds: number;
+  followerOnlyChat: boolean;
+  linkBlocking: boolean;
 }
