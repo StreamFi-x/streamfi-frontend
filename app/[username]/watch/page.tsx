@@ -1,9 +1,10 @@
 "use client";
 
-import { use, useEffect, useState, useRef } from "react";
+import { use, useCallback, useEffect, useState, useRef } from "react";
 import { notFound } from "next/navigation";
 import ViewStream from "@/components/stream/view-stream";
 import { ViewStreamSkeleton } from "@/components/skeletons/ViewStreamSkeleton";
+import AccessGate from "@/components/stream/AccessGate";
 import { toast } from "sonner";
 
 interface PageProps {
@@ -23,6 +24,7 @@ interface UserData {
   follower_count: number;
   is_following: boolean;
   stellar_address: string | null;
+  is_password_protected: boolean;
 }
 
 const WatchPage = ({ params }: PageProps) => {
@@ -33,6 +35,11 @@ const WatchPage = ({ params }: PageProps) => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [loggedInUsername, setLoggedInUsername] = useState<string | null>(null);
+  const [accessGranted, setAccessGranted] = useState(false);
+
+  const handleAccessGranted = useCallback(() => {
+    setAccessGranted(true);
+  }, []);
 
   // Viewer tracking: one unique ID per page visit
   const viewerSessionId = useRef<string | null>(null);
@@ -202,6 +209,20 @@ const WatchPage = ({ params }: PageProps) => {
   }
 
   const isOwner = loggedInUsername?.toLowerCase() === username.toLowerCase();
+
+  // Show access gate if stream is password protected and viewer isn't the owner
+  const needsPassword =
+    userData.is_password_protected && !isOwner && !accessGranted;
+
+  if (needsPassword && userData.mux_playback_id) {
+    return (
+      <AccessGate
+        playbackId={userData.mux_playback_id}
+        username={username}
+        onAccessGranted={handleAccessGranted}
+      />
+    );
+  }
 
   const transformedUserData = {
     streamTitle: userData.creator?.title || `${username}'s Live Stream`,
