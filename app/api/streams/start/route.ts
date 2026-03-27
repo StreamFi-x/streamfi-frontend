@@ -3,6 +3,8 @@ import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
 import { verifySession } from "@/lib/auth/verify-session";
 import { writeNotification } from "@/lib/notifications";
+import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
+import { syncScheduleLiveStatusForCreator } from "@/lib/routes-f/schedule";
 
 export async function POST(req: NextRequest) {
   // Verify the caller is logged in
@@ -63,6 +65,7 @@ export async function POST(req: NextRequest) {
         INSERT INTO stream_sessions (user_id, mux_session_id, playback_id, started_at)
         VALUES (${updatedUser.id}, ${updatedUser.mux_stream_id}, ${updatedUser.mux_playback_id}, CURRENT_TIMESTAMP)
       `;
+      await syncScheduleLiveStatusForCreator(String(updatedUser.id));
     } catch (sessionError) {
       console.error("Failed to create stream session record:", sessionError);
     }
@@ -144,6 +147,7 @@ export async function DELETE(req: NextRequest) {
           ended_at = CURRENT_TIMESTAMP
         WHERE user_id = ${user.id} AND ended_at IS NULL
       `;
+      await evaluateAndAwardBadges(String(user.id));
     } catch (sessionError) {
       console.error("Failed to end stream session:", sessionError);
     }
