@@ -114,14 +114,21 @@ async function importFromTwitch(
   };
 }
 
-/** Decodes the handful of HTML entities that appear in meta-tag content. */
+/** Decodes HTML entities that appear in meta-tag content.
+ * Single-pass replacement prevents double-unescaping (e.g. &amp;lt; → &lt; → <). */
+const HTML_ENTITIES: Record<string, string> = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+};
+
 function decodeHTMLEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+  return text.replace(
+    /&amp;|&lt;|&gt;|&quot;|&#39;/g,
+    m => HTML_ENTITIES[m] ?? m
+  );
 }
 
 /**

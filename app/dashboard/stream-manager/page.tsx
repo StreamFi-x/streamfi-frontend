@@ -142,7 +142,7 @@ export default function StreamManagerPage() {
       });
       if (response.ok) {
         const result = await response.json();
-        setStreamData((prev) => ({
+        setStreamData(prev => ({
           ...prev,
           title: result.streamData.title || "",
           category: result.streamData.category || "",
@@ -171,7 +171,8 @@ export default function StreamManagerPage() {
       showToast("Wallet not connected");
       return;
     }
-    const userEmail = sessionStorage.getItem("userEmail") || privyWallet?.email || "";
+    const userEmail =
+      sessionStorage.getItem("userEmail") || privyWallet?.email || "";
     if (!userEmail) {
       showToast("Session expired, please refresh");
       return;
