@@ -8,11 +8,19 @@ import { ReactNode } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HomeIcon, BarChart2, Video, Coins, Settings } from "lucide-react";
+import {
+  HomeIcon,
+  BarChart2,
+  Video,
+  Coins,
+  Settings,
+  Bell,
+} from "lucide-react";
 
 const mobileNavItems = [
   { name: "Home", icon: HomeIcon, path: "/dashboard/home" },
   { name: "Stream", icon: BarChart2, path: "/dashboard/stream-manager" },
+  { name: "Alerts", icon: Bell, path: "/dashboard/notifications" },
   { name: "Recordings", icon: Video, path: "/dashboard/recordings" },
   { name: "Wallet", icon: Coins, path: "/dashboard/payout" },
   { name: "Settings", icon: Settings, path: "/dashboard/settings" },

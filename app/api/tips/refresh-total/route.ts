@@ -1,9 +1,20 @@
 // app/api/tips/refresh-total/route.ts
+import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { verifySession } from "@/lib/auth/verify-session";
+import {
+  createTipReceivedNotification,
+  withNotificationTransaction,
+} from "@/lib/notifications";
 import { fetchPaymentsReceived } from "@/lib/stellar/horizon";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const session = await verifySession(request);
+  if (!session.ok) {
+    return session.response;
+  }
+
   try {
     const { username } = await request.json();
 
@@ -14,14 +25,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // TODO: Add authentication check here
-    // Verify that the requesting user is the owner or admin
-
     // 1. Fetch user from database
     const userResult = await sql`
-      SELECT id, username, stellar_public_key
+      SELECT id, username, wallet AS stellar_public_key, last_tip_at
       FROM users
-      WHERE username = ${username}
+      WHERE LOWER(username) = LOWER(${username})
     `;
 
     if (userResult.rows.length === 0) {
@@ -29,6 +37,10 @@ export async function POST(request: Request) {
     }
 
     const user = userResult.rows[0];
+    if (user.id !== session.userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     if (!user.stellar_public_key) {
       return NextResponse.json(
         { error: "User has not configured Stellar wallet" },
@@ -66,17 +78,38 @@ export async function POST(request: Request) {
 
     const totalCount = allTips.length;
     const lastTipAt = allTips.length > 0 ? allTips[0].timestamp : null;
+    const shouldCreateTipNotifications = Boolean(user.last_tip_at);
+    const newTips = shouldCreateTipNotifications
+      ? allTips.filter(
+          tip =>
+            Date.parse(tip.timestamp) >= Date.parse(String(user.last_tip_at))
+        )
+      : [];
 
     // 4. Update database
-    await sql`
-      UPDATE users
-      SET 
-        total_tips_received = ${totalReceived},
-        total_tips_count = ${totalCount},
-        last_tip_at = ${lastTipAt},
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${user.id}
-    `;
+    await withNotificationTransaction(async client => {
+      await client.sql`
+        UPDATE users
+        SET 
+          total_tips_received = ${totalReceived},
+          total_tips_count = ${totalCount},
+          last_tip_at = ${lastTipAt},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${user.id}
+      `;
+
+      for (const tip of [...newTips].reverse()) {
+        await createTipReceivedNotification({
+          userId: user.id,
+          amount: tip.amount,
+          senderLabel: tip.sender,
+          senderWallet: tip.sender,
+          txHash: tip.txHash,
+          paymentId: tip.id,
+          client,
+        });
+      }
+    });
 
     // 5. Return updated statistics
     return NextResponse.json({
