@@ -113,7 +113,13 @@ describe("POST /api/routes-f/uploads/sign", () => {
         status: 401,
       }),
     });
-    const res = await POST(makeRequest({ type: "avatar", filename: "photo.jpg", content_type: "image/jpeg" }));
+    const res = await POST(
+      makeRequest({
+        type: "avatar",
+        filename: "photo.jpg",
+        content_type: "image/jpeg",
+      })
+    );
     expect(res.status).toBe(401);
   });
 
@@ -133,7 +139,11 @@ describe("POST /api/routes-f/uploads/sign", () => {
 
   it("returns 400 for invalid type", async () => {
     const res = await POST(
-      makeRequest({ type: "video", filename: "clip.mp4", content_type: "image/jpeg" })
+      makeRequest({
+        type: "video",
+        filename: "clip.mp4",
+        content_type: "image/jpeg",
+      })
     );
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -151,7 +161,11 @@ describe("POST /api/routes-f/uploads/sign", () => {
 
   it("returns 400 when filename is an empty string", async () => {
     const res = await POST(
-      makeRequest({ type: "avatar", filename: "   ", content_type: "image/jpeg" })
+      makeRequest({
+        type: "avatar",
+        filename: "   ",
+        content_type: "image/jpeg",
+      })
     );
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -160,7 +174,11 @@ describe("POST /api/routes-f/uploads/sign", () => {
 
   it("returns 400 when content_type is not allowed", async () => {
     const res = await POST(
-      makeRequest({ type: "avatar", filename: "photo.gif", content_type: "image/gif" })
+      makeRequest({
+        type: "avatar",
+        filename: "photo.gif",
+        content_type: "image/gif",
+      })
     );
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -183,7 +201,11 @@ describe("POST /api/routes-f/uploads/sign", () => {
   it("returns 500 when R2 env vars are not set", async () => {
     clearR2Env();
     const res = await POST(
-      makeRequest({ type: "avatar", filename: "photo.jpg", content_type: "image/jpeg" })
+      makeRequest({
+        type: "avatar",
+        filename: "photo.jpg",
+        content_type: "image/jpeg",
+      })
     );
     expect(res.status).toBe(500);
     const body = await res.json();
@@ -193,7 +215,11 @@ describe("POST /api/routes-f/uploads/sign", () => {
   it("returns 500 when only some R2 env vars are set", async () => {
     delete process.env.R2_SECRET_ACCESS_KEY;
     const res = await POST(
-      makeRequest({ type: "avatar", filename: "photo.jpg", content_type: "image/jpeg" })
+      makeRequest({
+        type: "avatar",
+        filename: "photo.jpg",
+        content_type: "image/jpeg",
+      })
     );
     expect(res.status).toBe(500);
   });
@@ -202,7 +228,11 @@ describe("POST /api/routes-f/uploads/sign", () => {
 
   it("returns 200 with upload_url, public_url, and expires_in for avatar", async () => {
     const res = await POST(
-      makeRequest({ type: "avatar", filename: "photo.jpg", content_type: "image/jpeg" })
+      makeRequest({
+        type: "avatar",
+        filename: "photo.jpg",
+        content_type: "image/jpeg",
+      })
     );
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -213,7 +243,11 @@ describe("POST /api/routes-f/uploads/sign", () => {
 
   it("returns 200 for banner type", async () => {
     const res = await POST(
-      makeRequest({ type: "banner", filename: "banner.png", content_type: "image/png" })
+      makeRequest({
+        type: "banner",
+        filename: "banner.png",
+        content_type: "image/png",
+      })
     );
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -222,7 +256,11 @@ describe("POST /api/routes-f/uploads/sign", () => {
 
   it("returns 200 for thumbnail type", async () => {
     const res = await POST(
-      makeRequest({ type: "thumbnail", filename: "thumb.webp", content_type: "image/webp" })
+      makeRequest({
+        type: "thumbnail",
+        filename: "thumb.webp",
+        content_type: "image/webp",
+      })
     );
     expect(res.status).toBe(200);
   });
@@ -231,7 +269,11 @@ describe("POST /api/routes-f/uploads/sign", () => {
 
   it("includes userId in the object key path", async () => {
     await POST(
-      makeRequest({ type: "avatar", filename: "photo.jpg", content_type: "image/jpeg" })
+      makeRequest({
+        type: "avatar",
+        filename: "photo.jpg",
+        content_type: "image/jpeg",
+      })
     );
     const commandArg = PutObjectCommandMock.mock.calls[0][0];
     expect(commandArg.Key).toContain("user-abc");
@@ -240,7 +282,11 @@ describe("POST /api/routes-f/uploads/sign", () => {
 
   it("uses correct folder prefix for banner", async () => {
     await POST(
-      makeRequest({ type: "banner", filename: "banner.png", content_type: "image/png" })
+      makeRequest({
+        type: "banner",
+        filename: "banner.png",
+        content_type: "image/png",
+      })
     );
     const commandArg = PutObjectCommandMock.mock.calls[0][0];
     expect(commandArg.Key).toMatch(/^banners\/user-abc\/.+\.png$/);
@@ -248,7 +294,11 @@ describe("POST /api/routes-f/uploads/sign", () => {
 
   it("uses correct folder prefix for thumbnail", async () => {
     await POST(
-      makeRequest({ type: "thumbnail", filename: "thumb.webp", content_type: "image/webp" })
+      makeRequest({
+        type: "thumbnail",
+        filename: "thumb.webp",
+        content_type: "image/webp",
+      })
     );
     const commandArg = PutObjectCommandMock.mock.calls[0][0];
     expect(commandArg.Key).toMatch(/^thumbnails\/user-abc\/.+\.webp$/);
@@ -256,15 +306,31 @@ describe("POST /api/routes-f/uploads/sign", () => {
 
   it("sets the correct ContentType on the PutObjectCommand", async () => {
     await POST(
-      makeRequest({ type: "avatar", filename: "photo.png", content_type: "image/png" })
+      makeRequest({
+        type: "avatar",
+        filename: "photo.png",
+        content_type: "image/png",
+      })
     );
     const commandArg = PutObjectCommandMock.mock.calls[0][0];
     expect(commandArg.ContentType).toBe("image/png");
   });
 
   it("generates a unique UUID per request (two calls produce different keys)", async () => {
-    await POST(makeRequest({ type: "avatar", filename: "a.jpg", content_type: "image/jpeg" }));
-    await POST(makeRequest({ type: "avatar", filename: "b.jpg", content_type: "image/jpeg" }));
+    await POST(
+      makeRequest({
+        type: "avatar",
+        filename: "a.jpg",
+        content_type: "image/jpeg",
+      })
+    );
+    await POST(
+      makeRequest({
+        type: "avatar",
+        filename: "b.jpg",
+        content_type: "image/jpeg",
+      })
+    );
     const key1 = PutObjectCommandMock.mock.calls[0][0].Key;
     const key2 = PutObjectCommandMock.mock.calls[1][0].Key;
     expect(key1).not.toBe(key2);
@@ -274,17 +340,27 @@ describe("POST /api/routes-f/uploads/sign", () => {
 
   it("constructs public_url from CDN_BASE_URL and object key", async () => {
     const res = await POST(
-      makeRequest({ type: "avatar", filename: "photo.jpg", content_type: "image/jpeg" })
+      makeRequest({
+        type: "avatar",
+        filename: "photo.jpg",
+        content_type: "image/jpeg",
+      })
     );
     const body = await res.json();
-    expect(body.public_url).toMatch(/^https:\/\/cdn\.streamfi\.media\/avatars\/user-abc\/.+\.jpg$/);
+    expect(body.public_url).toMatch(
+      /^https:\/\/cdn\.streamfi\.media\/avatars\/user-abc\/.+\.jpg$/
+    );
   });
 
   // ── S3 client configuration ─────────────────────────────────────────────────
 
   it("initialises S3Client with the R2 endpoint derived from R2_ACCOUNT_ID", async () => {
     await POST(
-      makeRequest({ type: "avatar", filename: "photo.jpg", content_type: "image/jpeg" })
+      makeRequest({
+        type: "avatar",
+        filename: "photo.jpg",
+        content_type: "image/jpeg",
+      })
     );
     const s3Config = S3ClientMock.mock.calls[0][0];
     expect(s3Config.endpoint).toBe(
@@ -297,7 +373,11 @@ describe("POST /api/routes-f/uploads/sign", () => {
 
   it("passes expiresIn: 300 to getSignedUrl", async () => {
     await POST(
-      makeRequest({ type: "avatar", filename: "photo.jpg", content_type: "image/jpeg" })
+      makeRequest({
+        type: "avatar",
+        filename: "photo.jpg",
+        content_type: "image/jpeg",
+      })
     );
     const options = getSignedUrlMock.mock.calls[0][2];
     expect(options.expiresIn).toBe(300);
@@ -308,7 +388,11 @@ describe("POST /api/routes-f/uploads/sign", () => {
   it("returns 500 when getSignedUrl throws", async () => {
     getSignedUrlMock.mockRejectedValueOnce(new Error("network failure"));
     const res = await POST(
-      makeRequest({ type: "avatar", filename: "photo.jpg", content_type: "image/jpeg" })
+      makeRequest({
+        type: "avatar",
+        filename: "photo.jpg",
+        content_type: "image/jpeg",
+      })
     );
     expect(res.status).toBe(500);
     const body = await res.json();

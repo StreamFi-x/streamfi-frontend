@@ -80,7 +80,13 @@ function getR2Config(): R2Config {
   const bucketName = process.env.R2_BUCKET_NAME;
   const cdnBaseUrl = process.env.CDN_BASE_URL;
 
-  if (!accountId || !accessKeyId || !secretAccessKey || !bucketName || !cdnBaseUrl) {
+  if (
+    !accountId ||
+    !accessKeyId ||
+    !secretAccessKey ||
+    !bucketName ||
+    !cdnBaseUrl
+  ) {
     throw new Error("R2 storage is not configured");
   }
 
