@@ -20,7 +20,9 @@ import { ensureDisputesTable } from "./_lib/disputes";
 export async function GET(req: NextRequest): Promise<NextResponse> {
   // 1. Auth + admin check
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   const adminCheck = await sql`
     SELECT 1 FROM users WHERE id = ${session.userId} AND is_admin = TRUE LIMIT 1
@@ -32,7 +34,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // 2. Validate query params
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, paginationSchema);
-  if (queryResult instanceof Response) {return queryResult;}
+  if (queryResult instanceof Response) {
+    return queryResult;
+  }
 
   const { limit, cursor } = queryResult.data;
 

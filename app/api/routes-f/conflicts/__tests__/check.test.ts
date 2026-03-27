@@ -98,7 +98,9 @@ describe("POST /api/routes-f/conflicts/check", () => {
   it("returns 500 on database error", async () => {
     classifyMock.mockRejectedValue(new Error("DB down"));
 
-    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     const res = await POST(makeRequest({ username: "alice99" }));
     expect(res.status).toBe(500);
     consoleSpy.mockRestore();

@@ -69,7 +69,12 @@ describe("POST /api/routes-f/conflicts/resolve", () => {
       }),
     });
     const res = await POST(
-      makeRequest({ claimed_username: "alice", claimant_user_id: VALID_UUID, reason: "r", action: "deny" })
+      makeRequest({
+        claimed_username: "alice",
+        claimant_user_id: VALID_UUID,
+        reason: "r",
+        action: "deny",
+      })
     );
     expect(res.status).toBe(401);
   });
@@ -79,7 +84,12 @@ describe("POST /api/routes-f/conflicts/resolve", () => {
     sqlMock.mockReset();
     sqlMock.mockResolvedValueOnce({ rows: [] }); // no admin row
     const res = await POST(
-      makeRequest({ claimed_username: "alice", claimant_user_id: VALID_UUID, reason: "r", action: "deny" })
+      makeRequest({
+        claimed_username: "alice",
+        claimant_user_id: VALID_UUID,
+        reason: "r",
+        action: "deny",
+      })
     );
     expect(res.status).toBe(403);
   });
@@ -93,7 +103,12 @@ describe("POST /api/routes-f/conflicts/resolve", () => {
 
   it("returns 400 for invalid action", async () => {
     const res = await POST(
-      makeRequest({ claimed_username: "alice", claimant_user_id: VALID_UUID, reason: "r", action: "steal" })
+      makeRequest({
+        claimed_username: "alice",
+        claimant_user_id: VALID_UUID,
+        reason: "r",
+        action: "steal",
+      })
     );
     expect(res.status).toBe(400);
   });
@@ -101,7 +116,9 @@ describe("POST /api/routes-f/conflicts/resolve", () => {
   it("records denied dispute and returns action: deny", async () => {
     // admin check ✓ (already mocked in beforeEach)
     // claimant exists
-    sqlMock.mockResolvedValueOnce({ rows: [{ id: VALID_UUID, username: "claimant" }] });
+    sqlMock.mockResolvedValueOnce({
+      rows: [{ id: VALID_UUID, username: "claimant" }],
+    });
     // INSERT dispute
     sqlMock.mockResolvedValueOnce({ rows: [] });
 
@@ -120,9 +137,13 @@ describe("POST /api/routes-f/conflicts/resolve", () => {
 
   it("transfers username and renames holder atomically", async () => {
     // claimant exists
-    sqlMock.mockResolvedValueOnce({ rows: [{ id: VALID_UUID, username: "claimant" }] });
+    sqlMock.mockResolvedValueOnce({
+      rows: [{ id: VALID_UUID, username: "claimant" }],
+    });
     // holder exists
-    sqlMock.mockResolvedValueOnce({ rows: [{ id: "holder-id", username: "alice" }] });
+    sqlMock.mockResolvedValueOnce({
+      rows: [{ id: "holder-id", username: "alice" }],
+    });
     // BEGIN, UPDATE holder, UPDATE claimant, INSERT dispute, COMMIT
     sqlMock.mockResolvedValue({ rows: [] });
 

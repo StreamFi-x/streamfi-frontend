@@ -73,7 +73,9 @@ describe("GET /api/routes-f/jobs", () => {
   it("returns 401 when not authenticated", async () => {
     verifySessionMock.mockResolvedValue({
       ok: false,
-      response: new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
+      response: new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+      }),
     });
     const res = await GET(makeGetRequest());
     expect(res.status).toBe(401);
@@ -81,7 +83,12 @@ describe("GET /api/routes-f/jobs", () => {
 
   it("returns a list of jobs for the current user", async () => {
     const mockJobs = [
-      { id: "job-1", type: "export", status: "completed", created_at: "2026-03-27T00:00:00Z" },
+      {
+        id: "job-1",
+        type: "export",
+        status: "completed",
+        created_at: "2026-03-27T00:00:00Z",
+      },
     ];
     sqlMock.mockResolvedValue({ rows: mockJobs });
 
@@ -112,7 +119,9 @@ describe("GET /api/routes-f/jobs", () => {
   });
 
   it("returns next_cursor: null when fewer jobs than limit", async () => {
-    sqlMock.mockResolvedValue({ rows: [{ id: "job-1", type: "export", status: "done" }] });
+    sqlMock.mockResolvedValue({
+      rows: [{ id: "job-1", type: "export", status: "done" }],
+    });
 
     const res = await GET(makeGetRequest("?limit=20"));
     const json = await res.json();
@@ -134,7 +143,9 @@ describe("POST /api/routes-f/jobs", () => {
   it("returns 401 when not authenticated", async () => {
     verifySessionMock.mockResolvedValue({
       ok: false,
-      response: new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
+      response: new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+      }),
     });
     const res = await POST(makePostRequest({ type: "export" }));
     expect(res.status).toBe(401);
@@ -142,7 +153,14 @@ describe("POST /api/routes-f/jobs", () => {
 
   it("enqueues a job and returns 201 with job id", async () => {
     sqlMock.mockResolvedValue({
-      rows: [{ id: "job-new", type: "export", status: "pending", created_at: "2026-03-27T00:00:00Z" }],
+      rows: [
+        {
+          id: "job-new",
+          type: "export",
+          status: "pending",
+          created_at: "2026-03-27T00:00:00Z",
+        },
+      ],
     });
 
     const res = await POST(makePostRequest({ type: "export" }));
@@ -164,11 +182,22 @@ describe("POST /api/routes-f/jobs", () => {
 
   it("accepts optional payload and max_attempts", async () => {
     sqlMock.mockResolvedValue({
-      rows: [{ id: "job-2", type: "batch_notify", status: "pending", created_at: "2026-03-27T00:00:00Z" }],
+      rows: [
+        {
+          id: "job-2",
+          type: "batch_notify",
+          status: "pending",
+          created_at: "2026-03-27T00:00:00Z",
+        },
+      ],
     });
 
     const res = await POST(
-      makePostRequest({ type: "batch_notify", payload: { event_type: "live" }, max_attempts: 5 })
+      makePostRequest({
+        type: "batch_notify",
+        payload: { event_type: "live" },
+        max_attempts: 5,
+      })
     );
     expect(res.status).toBe(201);
   });

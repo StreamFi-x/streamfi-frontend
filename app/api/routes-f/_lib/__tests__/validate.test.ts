@@ -32,7 +32,10 @@ describe("validateBody()", () => {
   }
 
   it("returns { data } for a valid body", async () => {
-    const result = await validateBody(makeRequest({ name: "Alice", age: 30 }), testSchema);
+    const result = await validateBody(
+      makeRequest({ name: "Alice", age: 30 }),
+      testSchema
+    );
     expect(result).not.toBeInstanceOf(Response);
     if (!(result instanceof Response)) {
       expect(result.data).toEqual({ name: "Alice", age: 30 });
@@ -40,7 +43,10 @@ describe("validateBody()", () => {
   });
 
   it("returns a 400 Response for an invalid body", async () => {
-    const result = await validateBody(makeRequest({ name: "", age: -1 }), testSchema);
+    const result = await validateBody(
+      makeRequest({ name: "", age: -1 }),
+      testSchema
+    );
     expect(result).toBeInstanceOf(Response);
     if (result instanceof Response) {
       expect(result.status).toBe(400);
@@ -52,7 +58,10 @@ describe("validateBody()", () => {
   });
 
   it("returns a 400 Response for malformed JSON", async () => {
-    const result = await validateBody(makeRequest("{not json}", "text/plain"), testSchema);
+    const result = await validateBody(
+      makeRequest("{not json}", "text/plain"),
+      testSchema
+    );
     expect(result).toBeInstanceOf(Response);
     if (result instanceof Response) {
       expect(result.status).toBe(400);
@@ -62,7 +71,10 @@ describe("validateBody()", () => {
   });
 
   it("includes per-field error messages", async () => {
-    const result = await validateBody(makeRequest({ name: "", age: 0 }), testSchema);
+    const result = await validateBody(
+      makeRequest({ name: "", age: 0 }),
+      testSchema
+    );
     if (result instanceof Response) {
       const json = await result.json();
       const fields = json.issues.map((i: { field: string }) => i.field);

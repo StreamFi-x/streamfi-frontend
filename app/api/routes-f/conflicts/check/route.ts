@@ -30,7 +30,9 @@ const checkBodySchema = z.object({
 /** Returns true when the username does not exist in users table and is not restricted. */
 async function isAvailable(username: string): Promise<boolean> {
   const restriction = await classifyRestriction(username);
-  if (restriction !== null) {return false;}
+  if (restriction !== null) {
+    return false;
+  }
 
   const { rows } = await sql`
     SELECT 1 FROM users WHERE LOWER(username) = LOWER(${username}) LIMIT 1
@@ -52,7 +54,9 @@ async function buildSuggestions(base: string): Promise<string[]> {
   const available: string[] = [];
   for (const candidate of candidates) {
     // Skip if the candidate itself is too long for the username schema
-    if (candidate.length > 30) {continue;}
+    if (candidate.length > 30) {
+      continue;
+    }
     try {
       if (await isAvailable(candidate)) {
         available.push(candidate);
@@ -67,7 +71,9 @@ async function buildSuggestions(base: string): Promise<string[]> {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const bodyResult = await validateBody(req, checkBodySchema);
-  if (bodyResult instanceof Response) {return bodyResult;}
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
   const { username } = bodyResult.data;
 

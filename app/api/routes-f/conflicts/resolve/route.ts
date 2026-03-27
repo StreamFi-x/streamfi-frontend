@@ -39,7 +39,9 @@ const resolveBodySchema = z.object({
 export async function POST(req: NextRequest): Promise<NextResponse> {
   // 1. Auth + admin check
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     const adminCheck = await sql`
@@ -58,9 +60,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // 2. Validate body
   const bodyResult = await validateBody(req, resolveBodySchema);
-  if (bodyResult instanceof Response) {return bodyResult;}
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
-  const { claimed_username, claimant_user_id, reason, action } = bodyResult.data;
+  const { claimed_username, claimant_user_id, reason, action } =
+    bodyResult.data;
 
   try {
     await ensureDisputesTable();
@@ -106,7 +111,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         VALUES
           (${claimed_username}, ${claimant_user_id}, ${reason}, 'resolved', ${session.userId}, 'transfer', now())
       `;
-      return NextResponse.json({ action: "transfer", username: claimed_username });
+      return NextResponse.json({
+        action: "transfer",
+        username: claimed_username,
+      });
     }
 
     const holderId: string = holderRows[0].id;

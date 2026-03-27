@@ -56,7 +56,9 @@ export async function classifyRestriction(
       WHERE word = ${lower}
       LIMIT 1
     `;
-    if (rows.length > 0) {return "banned";}
+    if (rows.length > 0) {
+      return "banned";
+    }
   } catch (err) {
     console.error("[conflicts] Error checking blocklist:", err);
     // Fail open — do not block a username because of a DB error

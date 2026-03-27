@@ -12,10 +12,12 @@ import { paginationSchema } from "@/app/api/routes-f/_lib/schemas";
 import { ensureJobsSchema, JOB_TYPES, type JobType } from "./_lib/db";
 
 const enqueueBodySchema = z.object({
-  type: z.string().refine(
-    (v): v is JobType => JOB_TYPES.has(v as JobType),
-    `type must be one of: ${[...JOB_TYPES].join(", ")}`
-  ),
+  type: z
+    .string()
+    .refine(
+      (v): v is JobType => JOB_TYPES.has(v as JobType),
+      `type must be one of: ${[...JOB_TYPES].join(", ")}`
+    ),
   payload: z.record(z.unknown()).optional(),
   max_attempts: z.number().int().min(1).max(10).optional(),
 });
@@ -30,11 +32,15 @@ const listQuerySchema = paginationSchema.extend({
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, listQuerySchema);
-  if (queryResult instanceof Response) {return queryResult;}
+  if (queryResult instanceof Response) {
+    return queryResult;
+  }
 
   const { limit, cursor, status } = queryResult.data;
 
@@ -104,10 +110,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   const bodyResult = await validateBody(req, enqueueBodySchema);
-  if (bodyResult instanceof Response) {return bodyResult;}
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
   const { type, payload = {}, max_attempts = 3 } = bodyResult.data;
 

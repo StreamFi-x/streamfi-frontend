@@ -20,9 +20,7 @@ import { ensureJobsSchema, type JobType, type Job } from "./db";
 
 type JobResult = Record<string, unknown>;
 
-async function handleExport(
-  job: Job
-): Promise<JobResult> {
+async function handleExport(job: Job): Promise<JobResult> {
   // Placeholder: generate CSV/JSON and upload to R2, return download URL.
   // Real implementation would use an R2 client and stream data from the DB.
   const format = (job.payload?.format as string) ?? "json";
@@ -33,18 +31,16 @@ async function handleExport(
   };
 }
 
-async function handleClipProcess(
-  job: Job
-): Promise<JobResult> {
+async function handleClipProcess(job: Job): Promise<JobResult> {
   // Placeholder: poll Mux asset status and update stream_recordings.
   const assetId = job.payload?.asset_id as string | undefined;
-  if (!assetId) {throw new Error("clip_process job missing payload.asset_id");}
+  if (!assetId) {
+    throw new Error("clip_process job missing payload.asset_id");
+  }
   return { asset_id: assetId, status: "ready" };
 }
 
-async function handleBatchNotify(
-  job: Job
-): Promise<JobResult> {
+async function handleBatchNotify(job: Job): Promise<JobResult> {
   // Placeholder: send bulk notifications to followers.
   const eventType = job.payload?.event_type as string | undefined;
   return { event_type: eventType, sent: 0 };
@@ -101,7 +97,9 @@ export async function processNextJob(): Promise<string | null> {
     RETURNING *
   `;
 
-  if (claimed.length === 0) {return null;}
+  if (claimed.length === 0) {
+    return null;
+  }
 
   const job = claimed[0] as Job;
   const handler = HANDLERS[job.type];

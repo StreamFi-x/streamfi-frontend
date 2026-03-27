@@ -28,10 +28,14 @@ export async function GET(
   { params }: RouteParams
 ): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   const idError = validateId(params.id);
-  if (idError) {return idError;}
+  if (idError) {
+    return idError;
+  }
 
   try {
     await ensureJobsSchema();
@@ -65,10 +69,14 @@ export async function DELETE(
   { params }: RouteParams
 ): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   const idError = validateId(params.id);
-  if (idError) {return idError;}
+  if (idError) {
+    return idError;
+  }
 
   try {
     await ensureJobsSchema();

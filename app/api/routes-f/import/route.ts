@@ -32,7 +32,6 @@ interface ImportOptions {
   overwrite_existing?: boolean;
 }
 
-
 /** Normalised profile data returned by each importer */
 interface ImportedProfile {
   bio?: string;
@@ -360,7 +359,9 @@ const importOptionsSchema = z
 
 const importBodySchema = z.object({
   source: z.enum(["twitch", "youtube", "json"], {
-    errorMap: () => ({ message: "source must be one of: twitch, youtube, json" }),
+    errorMap: () => ({
+      message: "source must be one of: twitch, youtube, json",
+    }),
   }),
   data: z
     .record(z.unknown())
@@ -396,7 +397,9 @@ export async function POST(req: NextRequest) {
 
   // 3. Validate body
   const bodyResult = await validateBody(req, importBodySchema);
-  if (bodyResult instanceof Response) {return bodyResult;}
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
   const { source, data, options = {} } = bodyResult.data;
 
@@ -522,7 +525,9 @@ export async function GET(req: NextRequest) {
   // 3. Validate job_id query param
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, jobIdQuerySchema);
-  if (queryResult instanceof Response) {return queryResult;}
+  if (queryResult instanceof Response) {
+    return queryResult;
+  }
   const { job_id: jobId } = queryResult.data;
 
   // 4. Fetch job (scoped to authenticated user — no cross-user leakage)

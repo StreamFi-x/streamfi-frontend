@@ -69,7 +69,9 @@ describe("GET /api/routes-f/jobs/[id]", () => {
   it("returns 401 when not authenticated", async () => {
     verifySessionMock.mockResolvedValue({
       ok: false,
-      response: new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
+      response: new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+      }),
     });
     const res = await GET(makeGetRequest(), VALID_PARAMS);
     expect(res.status).toBe(401);
@@ -120,7 +122,9 @@ describe("DELETE /api/routes-f/jobs/[id]", () => {
   });
 
   it("cancels a pending job and returns cancelled status", async () => {
-    sqlMock.mockResolvedValue({ rows: [{ id: VALID_JOB_ID, status: "cancelled" }] });
+    sqlMock.mockResolvedValue({
+      rows: [{ id: VALID_JOB_ID, status: "cancelled" }],
+    });
 
     const res = await DELETE(makeDeleteRequest(), VALID_PARAMS);
     expect(res.status).toBe(200);
@@ -132,7 +136,9 @@ describe("DELETE /api/routes-f/jobs/[id]", () => {
     // UPDATE returns 0 rows (job is not pending)
     sqlMock.mockResolvedValueOnce({ rows: [] });
     // SELECT returns the job with a non-pending status
-    sqlMock.mockResolvedValueOnce({ rows: [{ id: VALID_JOB_ID, status: "running" }] });
+    sqlMock.mockResolvedValueOnce({
+      rows: [{ id: VALID_JOB_ID, status: "running" }],
+    });
 
     const res = await DELETE(makeDeleteRequest(), VALID_PARAMS);
     expect(res.status).toBe(409);
