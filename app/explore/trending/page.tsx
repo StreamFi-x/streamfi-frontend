@@ -1,12 +1,13 @@
 "use client";
 
 import React from "react";
-import { Eye } from "lucide-react";
+import { Eye, TrendingUp as TrendingUpIcon } from "lucide-react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import useSWR from "swr";
 import Image from "next/image";
+import { getDefaultAvatar } from "@/lib/profile-icons";
 
 interface LiveStream {
   id: string;
@@ -115,21 +116,36 @@ export default function TrendingPage() {
   if (isLoading) {
     return (
       <div className="w-full py-6 px-4">
-        <h2 className="text-2xl font-bold mb-6 text-foreground">
-          Trending Now
-        </h2>
+        <div className="h-8 bg-muted rounded w-36 mb-2 animate-pulse" />
+        <div className="h-4 bg-muted rounded w-64 mb-6 animate-pulse" />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-6 md:gap-y-10">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-card p-2 pb-4 rounded-lg animate-pulse">
-              <div className="w-full aspect-video bg-muted rounded-lg mb-2" />
-              <div className="flex items-center gap-x-2 mb-2">
-                <div className="w-8 h-8 rounded bg-muted" />
-                <div className="h-4 bg-muted rounded w-20" />
+            <div
+              key={i}
+              className="bg-card p-2 pb-4 rounded-lg animate-pulse relative"
+            >
+              {/* Rank badge placeholder for top 3 */}
+              {i < 3 && (
+                <div className="absolute top-4 left-4 z-20 w-8 h-8 rounded-full bg-muted/70" />
+              )}
+              {/* Thumbnail with badge placeholders */}
+              <div className="relative rounded-lg overflow-hidden">
+                <div className="w-full aspect-video bg-muted rounded-lg" />
+                <div className="absolute top-2 left-2 h-5 w-9 bg-muted/60 rounded" />
+                <div className="absolute top-2 right-2 h-5 w-14 bg-muted/60 rounded" />
               </div>
-              <div className="h-5 bg-muted rounded w-3/4 mb-2" />
-              <div className="flex gap-2">
-                <div className="h-6 bg-muted rounded w-16" />
-                <div className="h-6 bg-muted rounded w-12" />
+              {/* Meta */}
+              <div className="mt-3 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-muted flex-shrink-0" />
+                  <div className="h-3 bg-muted rounded w-20" />
+                </div>
+                <div className="h-4 bg-muted rounded w-full" />
+                <div className="h-4 bg-muted rounded w-2/3" />
+                <div className="flex gap-2 mt-1">
+                  <div className="h-5 bg-muted rounded w-16" />
+                  <div className="h-5 bg-muted rounded w-12" />
+                </div>
               </div>
             </div>
           ))}
@@ -159,12 +175,13 @@ export default function TrendingPage() {
         <h2 className="text-2xl font-bold mb-6 text-foreground">
           Trending Now
         </h2>
-        <div className="text-center py-12">
-          <p className="text-muted-foreground text-lg">
-            No trending streams at the moment.
-          </p>
-          <p className="text-muted-foreground text-sm mt-2">
-            Check back later to see what&apos;s hot!
+        <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-dashed border-border bg-card/40 text-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+            <TrendingUpIcon className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <p className="text-foreground font-medium">No trending streams yet</p>
+          <p className="text-sm text-muted-foreground">
+            Trending streams will appear here once people go live.
           </p>
         </div>
       </div>
@@ -244,7 +261,7 @@ function StreamCard({
           <Image
             width={500}
             height={300}
-            src={stream.thumbnail || "/Images/user.png"}
+            src={stream.thumbnail || ""}
             alt={stream.title}
             className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
           />
@@ -275,7 +292,7 @@ function StreamCard({
               <Image
                 width={300}
                 height={300}
-                src={stream.avatar || "/Images/user.png"}
+                src={stream.avatar || getDefaultAvatar(stream.username)}
                 alt={stream.username}
                 className="w-full h-full object-cover"
               />

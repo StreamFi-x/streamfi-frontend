@@ -1,11 +1,21 @@
-export interface FeaturedStreamProps {
-  stream: {
-    title: string;
-    thumbnail: string;
-    isLive: boolean;
-    streamerThumbnail?: string;
-    playbackId?: string;
+export interface CarouselStream {
+  id: string;
+  title: string;
+  thumbnail: string;
+  playbackId?: string;
+  viewCount: string;
+  isLive: boolean;
+  streamer: {
+    name: string;
+    username: string;
+    logo: string;
   };
+  tags: string[];
+  location: string;
+}
+
+export interface FeaturedStreamProps {
+  streams: CarouselStream[];
 }
 export interface LiveStreamProps {
   title: string;

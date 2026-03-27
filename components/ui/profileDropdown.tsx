@@ -107,7 +107,7 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
             src={
               typeof avatar === "string"
                 ? avatar
-                : avatar?.src || "/Images/user.png"
+                : avatar?.src || "/Images/profile-icon/icon1.png"
             }
             alt="User avatar"
             // sizes="40px"
@@ -115,12 +115,12 @@ const UserProfile = ({ avatar, name, onClick }: UserProfileProps) => {
             onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
               // If image fails to load, replace with placeholder
               const target = e.target as HTMLImageElement;
-              target.src = "/Images/user.png";
+              target.src = "/Images/profile-icon/icon1.png";
             }}
           />
         ) : (
           <Image
-            src="/Images/user.png"
+            src="/Images/profile-icon/icon1.png"
             alt="Default avatar"
             fill
             sizes="40px"

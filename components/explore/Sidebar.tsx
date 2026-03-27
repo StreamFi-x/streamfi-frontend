@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { navItems } from "@/data/explore/sidebar";
 import Image from "next/image";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { getDefaultAvatar } from "@/lib/profile-icons";
 import useSWR from "swr";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
@@ -91,7 +92,7 @@ export default function Sidebar() {
     }
     return (
       <Image
-        src={avatarUrl || "/Images/user.png"}
+        src={avatarUrl || getDefaultAvatar(alt)}
         alt={alt}
         className="w-full h-full object-cover"
         width={32}
@@ -399,17 +400,19 @@ export default function Sidebar() {
                   >
                     <motion.div
                       variants={avatarVariants}
-                      className="relative w-8 h-8 rounded-full bg-tertiary overflow-hidden"
+                      className="relative w-8 h-8 flex-shrink-0"
                     >
-                      {renderAvatar(
-                        user.avatar ?? "/Images/user.png",
-                        user.username
-                      )}
+                      <div className="w-full h-full rounded-full bg-tertiary overflow-hidden">
+                        {renderAvatar(
+                          user.avatar ?? getDefaultAvatar(user.username),
+                          user.username
+                        )}
+                      </div>
                       {user.is_live && (
                         <motion.div
                           variants={liveIndicatorVariants}
                           animate="animate"
-                          className="absolute bottom-0 left-0 bg-red-500 text-white text-[6px] px-1 rounded shadow-lg"
+                          className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[6px] px-1 rounded shadow-lg"
                         >
                           LIVE
                         </motion.div>
@@ -498,17 +501,19 @@ export default function Sidebar() {
                   >
                     <motion.div
                       variants={avatarVariants}
-                      className="relative w-8 h-8 rounded-full bg-tertiary overflow-hidden"
+                      className="relative w-8 h-8 flex-shrink-0"
                     >
-                      {renderAvatar(
-                        user.avatar ?? "/Images/user.png",
-                        user.username
-                      )}
+                      <div className="w-full h-full rounded-full bg-tertiary overflow-hidden">
+                        {renderAvatar(
+                          user.avatar ?? getDefaultAvatar(user.username),
+                          user.username
+                        )}
+                      </div>
                       {user.is_live && (
                         <motion.div
                           variants={liveIndicatorVariants}
                           animate="animate"
-                          className="absolute bottom-0 left-0 bg-red-500 text-white text-[8px] px-1 rounded shadow-lg"
+                          className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[8px] px-1 rounded shadow-lg"
                         >
                           LIVE
                         </motion.div>
@@ -668,7 +673,10 @@ export default function Sidebar() {
               title={user.username}
             >
               <div className="w-9 h-9 rounded-full bg-tertiary overflow-hidden shadow-lg">
-                {renderAvatar(user.avatar ?? "/Images/user.png", user.username)}
+                {renderAvatar(
+                  user.avatar ?? getDefaultAvatar(user.username),
+                  user.username
+                )}
               </div>
               {user.is_live && (
                 <motion.div
@@ -711,7 +719,10 @@ export default function Sidebar() {
               title={user.username}
             >
               <div className="w-9 h-9 rounded-full bg-tertiary overflow-hidden shadow-lg">
-                {renderAvatar(user.avatar ?? "/Images/user.png", user.username)}
+                {renderAvatar(
+                  user.avatar ?? getDefaultAvatar(user.username),
+                  user.username
+                )}
               </div>
               {user.is_live && (
                 <motion.div

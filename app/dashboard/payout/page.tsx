@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getStellarExplorerUrl } from "@/lib/stellar/config";
+import { AddFundsButton } from "@/components/wallet/AddFundsButton";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
@@ -146,18 +147,27 @@ export default function PayoutPage() {
                     Stellar Balance
                   </span>
                 </div>
-                <button
-                  onClick={() => refreshBalance()}
-                  className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
-                  aria-label="Refresh balance"
-                >
-                  <RefreshCcw
-                    className={cn(
-                      "w-4 h-4",
-                      balanceLoading && "animate-spin text-highlight"
-                    )}
+                <div className="flex items-center gap-2">
+                  <AddFundsButton
+                    walletAddress={walletAddress}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs border-highlight/40 text-highlight hover:bg-highlight/10"
+                    onSuccess={() => refreshBalance()}
                   />
-                </button>
+                  <button
+                    onClick={() => refreshBalance()}
+                    className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
+                    aria-label="Refresh balance"
+                  >
+                    <RefreshCcw
+                      className={cn(
+                        "w-4 h-4",
+                        balanceLoading && "animate-spin text-highlight"
+                      )}
+                    />
+                  </button>
+                </div>
               </div>
 
               {/* Balance amount */}

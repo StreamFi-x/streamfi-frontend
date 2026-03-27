@@ -11,7 +11,7 @@ import type { SearchResult } from "@/types/explore";
 import { useAuth } from "@/components/auth/auth-provider";
 import ConnectModal from "../connectWallet";
 import ProfileModal from "./ProfileModal";
-import Avatar from "@/public/Images/user.png";
+import { getDefaultAvatar } from "@/lib/profile-icons";
 import ProfileDropdown from "../ui/profileDropdown";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
@@ -107,8 +107,8 @@ export default function Navbar({}: NavbarProps) {
       return storedUser.avatar;
     }
 
-    return Avatar;
-  }, [privyWallet, user?.avatar, getSessionData]);
+    return getDefaultAvatar(user?.username ?? privyWallet?.username);
+  }, [privyWallet, user?.avatar, user?.username, getSessionData]);
 
   const handleCloseProfileModal = () => {
     setProfileModalOpen(false);
@@ -174,7 +174,7 @@ export default function Navbar({}: NavbarProps) {
           (cat: Category) => ({
             id: cat.id,
             title: cat.title,
-            image: cat.imageurl || "/Images/user.png",
+            image: cat.imageurl || "",
             type: "category" as const,
           })
         );
@@ -183,7 +183,7 @@ export default function Navbar({}: NavbarProps) {
           (u: { id: string; username: string; avatar?: string }) => ({
             id: u.id,
             title: u.username,
-            image: u.avatar || "/Images/user.png",
+            image: u.avatar || getDefaultAvatar(u.username),
             type: "user" as const,
           })
         );
@@ -264,12 +264,12 @@ export default function Navbar({}: NavbarProps) {
         <div className="flex items-center gap-4">
           <Link href="/explore" className="flex items-center gap-2">
             <Image
-              src={StreamfiLogoLight || "/Images/user.png"}
+              src={StreamfiLogoLight}
               alt="Streamfi Logo"
               className="dark:hidden"
             />
             <Image
-              src={StreamfiLogoShort || "/Images/user.png"}
+              src={StreamfiLogoShort}
               alt="Streamfi Logo"
               className="hidden dark:block"
             />
@@ -323,7 +323,12 @@ export default function Navbar({}: NavbarProps) {
                         className={`w-10 h-10 bg-gray-700 overflow-hidden shrink-0 ${result.type === "user" ? "rounded-full" : "rounded"}`}
                       >
                         <Image
-                          src={result.image || "/Images/user.png"}
+                          src={
+                            result.image ||
+                            (result.type === "user"
+                              ? getDefaultAvatar(result.title)
+                              : "")
+                          }
                           alt={result.title}
                           className="w-full h-full object-cover"
                           width={40}
@@ -372,11 +377,15 @@ export default function Navbar({}: NavbarProps) {
                         />
                       ) : (
                         <Image
-                          src={Avatar}
+                          src={
+                            typeof userAvatar === "string"
+                              ? userAvatar
+                              : getDefaultAvatar(displayName)
+                          }
                           alt="Avatar"
                           width={32}
                           height={32}
-                          className="rounded-full"
+                          className="rounded-full object-cover"
                         />
                       )}
                     </>

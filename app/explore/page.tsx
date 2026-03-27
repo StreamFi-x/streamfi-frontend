@@ -1,5 +1,18 @@
+import type { Metadata } from "next";
 import { sql } from "@vercel/postgres";
 import { ExploreClient } from "./ExploreClient";
+
+export const metadata: Metadata = {
+  title: "Explore Live Streams",
+  description:
+    "Discover live streams from creators around the world. Watch gaming, music, art, IRL and more — all on StreamFi.",
+  openGraph: {
+    title: "Explore Live Streams | StreamFi",
+    description:
+      "Discover live streams from creators around the world. Watch gaming, music, art, IRL and more — all on StreamFi.",
+    url: "https://www.streamfi.media/explore",
+  },
+};
 
 // Fetch live streams directly from DB — no HTTP hop, no loading flash.
 export default async function Home() {
@@ -55,7 +68,10 @@ export default async function Home() {
     });
   } catch (err) {
     // If DB is unavailable, render the page with empty data — client SWR will recover.
-    console.error("[explore] failed to fetch initial streams:", err);
+    console.warn(
+      "[explore] DB unavailable on server render, SWR will recover:",
+      err
+    );
   }
 
   return <ExploreClient initialStreams={initialStreams} />;

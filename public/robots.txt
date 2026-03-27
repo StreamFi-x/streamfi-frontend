@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /settings/
+Disallow: /onboarding/
+
+Sitemap: https://www.streamfi.media/sitemap.xml

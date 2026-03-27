@@ -70,7 +70,7 @@ export function SocialLinksSection({
       case "instagram":
         return (
           <Image
-            src={InstagramIcon || "/Images/user.png"}
+            src={InstagramIcon || ""}
             alt="Instagram"
             width={20}
             height={20}
@@ -79,7 +79,7 @@ export function SocialLinksSection({
       case "twitter":
         return (
           <Image
-            src={TwitterIcon || "/Images/user.png"}
+            src={TwitterIcon || ""}
             alt="X (Twitter)"
             width={20}
             height={20}
@@ -88,7 +88,7 @@ export function SocialLinksSection({
       case "facebook":
         return (
           <Image
-            src={FacebookIcon || "/Images/user.png"}
+            src={FacebookIcon || ""}
             alt="Facebook"
             width={20}
             height={20}
@@ -96,17 +96,12 @@ export function SocialLinksSection({
         );
       case "youtube":
         return (
-          <Image
-            src={YoutubeIcon || "/Images/user.png"}
-            alt="YouTube"
-            width={20}
-            height={20}
-          />
+          <Image src={YoutubeIcon || ""} alt="YouTube" width={20} height={20} />
         );
       case "telegram":
         return (
           <Image
-            src={TelegramIcon || "/Images/user.png"}
+            src={TelegramIcon || ""}
             alt="Telegram"
             width={20}
             height={20}
@@ -114,21 +109,11 @@ export function SocialLinksSection({
         );
       case "discord":
         return (
-          <Image
-            src={DiscordIcon || "/Images/user.png"}
-            alt="Discord"
-            width={20}
-            height={20}
-          />
+          <Image src={DiscordIcon || ""} alt="Discord" width={20} height={20} />
         );
       case "tiktok":
         return (
-          <Image
-            src={TikTokIcon || "/Images/user.png"}
-            alt="TikTok"
-            width={20}
-            height={20}
-          />
+          <Image src={TikTokIcon || ""} alt="TikTok" width={20} height={20} />
         );
       default:
         return (
