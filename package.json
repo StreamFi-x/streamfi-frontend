@@ -26,6 +26,8 @@
     "prebuild": "npm run type-check"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1019.0",
+    "@aws-sdk/s3-request-presigner": "^3.1019.0",
     "@creit.tech/stellar-wallets-kit": "^1.9.5",
     "@fontsource/inter": "^5.1.1",
     "@hookform/resolvers": "^5.1.1",
