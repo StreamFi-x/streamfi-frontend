@@ -95,7 +95,9 @@ describe("POST /api/routes-f/import", () => {
     const res = await POST(req);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/source/i);
+    // Zod validation returns { error: "Validation failed", issues: [...] }
+    expect(body.error).toBe("Validation failed");
+    expect(JSON.stringify(body.issues)).toMatch(/source/i);
   });
 
   it("returns 400 when data is missing", async () => {
@@ -522,7 +524,9 @@ describe("GET /api/routes-f/import", () => {
     const res = await GET(req);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/job_id/i);
+    // Zod validation returns { error: "Validation failed", issues: [{field: "job_id", ...}] }
+    expect(body.error).toBe("Validation failed");
+    expect(JSON.stringify(body.issues)).toMatch(/job_id/i);
   });
 
   it("returns 400 for non-UUID job_id", async () => {
@@ -530,7 +534,9 @@ describe("GET /api/routes-f/import", () => {
     const res = await GET(req);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/invalid/i);
+    // Zod validation returns { error: "Validation failed", issues: [{message: "Invalid UUID", ...}] }
+    expect(body.error).toBe("Validation failed");
+    expect(JSON.stringify(body.issues)).toMatch(/invalid/i);
   });
 
   it("returns 404 when job belongs to a different user", async () => {

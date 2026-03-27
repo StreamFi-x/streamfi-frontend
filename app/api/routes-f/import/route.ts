@@ -12,15 +12,16 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { z } from "zod";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { verifySession } from "@/lib/auth/verify-session";
+import { validateBody, validateQuery } from "@/app/api/routes-f/_lib/validate";
+import { uuidSchema } from "@/app/api/routes-f/_lib/schemas";
 
 // 5 requests per minute per IP
 const isIpRateLimited = createRateLimiter(60_000, 5);
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-
-type ImportSource = "twitch" | "youtube" | "json";
 
 interface ImportOptions {
   import_avatar?: boolean;
@@ -31,11 +32,6 @@ interface ImportOptions {
   overwrite_existing?: boolean;
 }
 
-interface ImportRequest {
-  source: ImportSource;
-  data: Record<string, unknown>;
-  options?: ImportOptions;
-}
 
 /** Normalised profile data returned by each importer */
 interface ImportedProfile {
@@ -350,6 +346,32 @@ async function applyImport(
   `;
 }
 
+// ── Zod schema for import request body ────────────────────────────────────────
+
+const importOptionsSchema = z
+  .object({
+    import_avatar: z.boolean().optional(),
+    import_bio: z.boolean().optional(),
+    import_social_links: z.boolean().optional(),
+    import_categories: z.boolean().optional(),
+    overwrite_existing: z.boolean().optional(),
+  })
+  .optional();
+
+const importBodySchema = z.object({
+  source: z.enum(["twitch", "youtube", "json"], {
+    errorMap: () => ({ message: "source must be one of: twitch, youtube, json" }),
+  }),
+  data: z
+    .record(z.unknown())
+    .refine(v => !Array.isArray(v), "data must be a non-null object"),
+  options: importOptionsSchema,
+});
+
+const jobIdQuerySchema = z.object({
+  job_id: uuidSchema,
+});
+
 // ── POST /api/routes-f/import ─────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -372,36 +394,18 @@ export async function POST(req: NextRequest) {
     return session.response;
   }
 
-  // 3. Parse body
-  let body: ImportRequest;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  // 3. Validate body
+  const bodyResult = await validateBody(req, importBodySchema);
+  if (bodyResult instanceof Response) {return bodyResult;}
 
-  const { source, data, options = {} } = body;
-
-  if (!["twitch", "youtube", "json"].includes(source)) {
-    return NextResponse.json(
-      { error: "source must be one of: twitch, youtube, json" },
-      { status: 400 }
-    );
-  }
-
-  if (!data || typeof data !== "object" || Array.isArray(data)) {
-    return NextResponse.json(
-      { error: "data must be a non-null object" },
-      { status: 400 }
-    );
-  }
+  const { source, data, options = {} } = bodyResult.data;
 
   const resolvedOptions: Required<ImportOptions> = {
-    import_avatar: options.import_avatar ?? true,
-    import_bio: options.import_bio ?? true,
-    import_social_links: options.import_social_links ?? true,
-    import_categories: options.import_categories ?? true,
-    overwrite_existing: options.overwrite_existing ?? false,
+    import_avatar: options?.import_avatar ?? true,
+    import_bio: options?.import_bio ?? true,
+    import_social_links: options?.import_social_links ?? true,
+    import_categories: options?.import_categories ?? true,
+    overwrite_existing: options?.overwrite_existing ?? false,
   };
 
   // 4. User-level rate limit: 1 successful or in-flight import per 24 hours
@@ -515,22 +519,11 @@ export async function GET(req: NextRequest) {
     return session.response;
   }
 
-  // 3. Validate job_id
+  // 3. Validate job_id query param
   const { searchParams } = new URL(req.url);
-  const jobId = searchParams.get("job_id");
-
-  if (!jobId) {
-    return NextResponse.json({ error: "job_id is required" }, { status: 400 });
-  }
-
-  const uuidPattern =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidPattern.test(jobId)) {
-    return NextResponse.json(
-      { error: "Invalid job_id format" },
-      { status: 400 }
-    );
-  }
+  const queryResult = validateQuery(searchParams, jobIdQuerySchema);
+  if (queryResult instanceof Response) {return queryResult;}
+  const { job_id: jobId } = queryResult.data;
 
   // 4. Fetch job (scoped to authenticated user — no cross-user leakage)
   try {
