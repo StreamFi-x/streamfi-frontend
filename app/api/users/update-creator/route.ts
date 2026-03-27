@@ -19,6 +19,8 @@ export async function PATCH(req: Request) {
       category = "",
       payout = "",
       thumbnail = "",
+      stream_access_type,
+      stream_access_config,
     } = creator;
 
     const updatedCreator = {
@@ -32,6 +34,8 @@ export async function PATCH(req: Request) {
     const result = await sql`
       UPDATE users
       SET creator = ${JSON.stringify(updatedCreator)},
+          stream_access_type = COALESCE(${stream_access_type}, stream_access_type),
+          stream_access_config = COALESCE(${JSON.stringify(stream_access_config)}, stream_access_config),
           updated_at = CURRENT_TIMESTAMP
       WHERE email = ${email}
     `;

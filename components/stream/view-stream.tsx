@@ -41,6 +41,7 @@ import { useChat } from "@/hooks/useChat";
 import { TipButton, TipModalContainer } from "@/components/tipping";
 import { useTipModal } from "@/hooks/useTipModal";
 import { toast } from "sonner";
+import AccessGate from "./AccessGate";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,
@@ -272,6 +273,10 @@ const ViewStream = ({
   const [showReportModal, setShowReportModal] = useState(false);
   const [isSavingStreamInfo, setIsSavingStreamInfo] = useState(false);
   const [recordings, setRecordings] = useState<PastRecording[]>([]);
+  const [accessBlocked, setAccessBlocked] = useState(false);
+  const [accessReason, setAccessReason] = useState<any>(null);
+  const [accessConfig, setAccessConfig] = useState<any>(null);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
 
   // Use custom hooks for Stellar wallet and tip modal state
   const { publicKey, privyWallet } = useStellarWallet();
@@ -361,6 +366,45 @@ const ViewStream = ({
       })
       .catch(() => {});
   }, [username]);
+
+  // Check stream access foundation [access-control 1/5]
+  useEffect(() => {
+    const checkAccess = async () => {
+      if (!username) return;
+      
+      try {
+        setIsCheckingAccess(true);
+        const response = await fetch('/api/streams/access/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            streamer_username: username,
+            viewer_public_key: address
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (!data.allowed) {
+            setAccessBlocked(true);
+            setAccessReason(data.reason);
+            // The rest of the data is config (price, asset details, etc.)
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { allowed, reason, ...config } = data;
+            setAccessConfig(config);
+          } else {
+            setAccessBlocked(false);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to check stream access:", error);
+      } finally {
+        setIsCheckingAccess(false);
+      }
+    };
+
+    checkAccess();
+  }, [username, address]);
 
   // Detect portrait vs landscape from the native video element's metadata
   useEffect(() => {
@@ -535,7 +579,15 @@ const ViewStream = ({
                     : undefined
                 }
               >
-                {isLive && userData?.playbackId ? (
+                {accessBlocked ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-zinc-950 z-20 overflow-y-auto">
+                    <AccessGate 
+                      reason={accessReason} 
+                      streamerUsername={username} 
+                      accessConfig={accessConfig}
+                    />
+                  </div>
+                ) : isLive && userData?.playbackId ? (
                   <MuxPlayer
                     playbackId={userData.playbackId}
                     streamType="live:dvr"
