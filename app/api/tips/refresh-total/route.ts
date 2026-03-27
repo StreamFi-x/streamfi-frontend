@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { fetchPaymentsReceived } from "@/lib/stellar/horizon";
+import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
+import { getXlmUsdPrice } from "@/lib/routes-f/price";
 
 export async function POST(request: Request) {
   try {
@@ -19,9 +21,9 @@ export async function POST(request: Request) {
 
     // 1. Fetch user from database
     const userResult = await sql`
-      SELECT id, username, stellar_public_key
+      SELECT id, username, wallet AS stellar_public_key
       FROM users
-      WHERE username = ${username}
+      WHERE LOWER(username) = ${username.toLowerCase()}
     `;
 
     if (userResult.rows.length === 0) {
@@ -66,6 +68,38 @@ export async function POST(request: Request) {
 
     const totalCount = allTips.length;
     const lastTipAt = allTips.length > 0 ? allTips[0].timestamp : null;
+    const xlmUsdPrice = await getXlmUsdPrice();
+
+    for (const tip of allTips) {
+      const supporterResult = await sql`
+        SELECT id
+        FROM users
+        WHERE wallet = ${tip.sender}
+        LIMIT 1
+      `;
+
+      await sql`
+        INSERT INTO tip_transactions (
+          creator_id,
+          supporter_id,
+          amount_xlm,
+          price_usd,
+          tx_hash,
+          memo,
+          created_at
+        )
+        VALUES (
+          ${user.id},
+          ${supporterResult.rows[0]?.id ?? null},
+          ${tip.amount},
+          ${xlmUsdPrice},
+          ${tip.txHash},
+          'StreamFi Tip',
+          ${tip.timestamp}
+        )
+        ON CONFLICT (tx_hash) DO NOTHING
+      `;
+    }
 
     // 4. Update database
     await sql`
@@ -77,6 +111,8 @@ export async function POST(request: Request) {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${user.id}
     `;
+
+    await evaluateAndAwardBadges(String(user.id));
 
     // 5. Return updated statistics
     return NextResponse.json({
