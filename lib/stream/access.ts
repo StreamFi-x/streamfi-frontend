@@ -2,9 +2,14 @@ import { sql } from "@vercel/postgres";
 
 export type AccessResult =
   | { allowed: true }
-  | { 
-      allowed: false; 
-      reason: 'password' | 'invite_only' | 'paid' | 'token_gated' | 'subscription';
+  | {
+      allowed: false;
+      reason:
+        | "password"
+        | "invite_only"
+        | "paid"
+        | "token_gated"
+        | "subscription";
       config?: any;
     };
 
@@ -15,7 +20,7 @@ export type AccessResult =
  */
 export async function checkStreamAccess(
   streamerUsername: string,
-  viewerPublicKey: string | null,
+  viewerPublicKey: string | null
 ): Promise<AccessResult> {
   try {
     const result = await sql`
@@ -33,22 +38,22 @@ export async function checkStreamAccess(
     const accessType = row.stream_access_type;
     const config = row.stream_access_config || {};
 
-    if (accessType === 'public') {
+    if (accessType === "public") {
       return { allowed: true };
     }
 
     // Delegate to the relevant checker
     // Subsequent issues will implement the full logic for each type
     switch (accessType) {
-      case 'password':
+      case "password":
         return await checkPasswordAccess(config);
-      case 'invite_only':
+      case "invite_only":
         return await checkInviteOnlyAccess(streamerUsername, viewerPublicKey);
-      case 'paid':
+      case "paid":
         return await checkPaidAccess(streamerUsername, viewerPublicKey, config);
-      case 'token_gated':
+      case "token_gated":
         return await checkTokenGatedAccess(viewerPublicKey, config);
-      case 'subscription':
+      case "subscription":
         return await checkSubscriptionAccess(streamerUsername, viewerPublicKey);
       default:
         return { allowed: true };
@@ -62,40 +67,60 @@ export async function checkStreamAccess(
 }
 
 // Checker Skeletons - Full implementation added by subsequent issues (2-5)
-
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function checkPasswordAccess(_config: any): Promise<AccessResult> {
   // Requires password entry on the frontend
-  return { allowed: false, reason: 'password' };
+  return { allowed: false, reason: "password" };
 }
 
-async function checkInviteOnlyAccess(_streamerUsername: string, _viewerPublicKey: string | null): Promise<AccessResult> {
+async function checkInviteOnlyAccess(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _streamerUsername: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _viewerPublicKey: string | null
+): Promise<AccessResult> {
   // Requires explicit grant in stream_access_grants
-  return { allowed: false, reason: 'invite_only' };
+  return { allowed: false, reason: "invite_only" };
 }
 
-async function checkPaidAccess(_streamerUsername: string, _viewerPublicKey: string | null, config: any): Promise<AccessResult> {
+async function checkPaidAccess(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _streamerUsername: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _viewerPublicKey: string | null,
+  config: any
+): Promise<AccessResult> {
   // Requires payment proof (tx_hash) in stream_access_grants
-  return { 
-    allowed: false, 
-    reason: 'paid',
-    config: { price_usdc: config.price_usdc }
+  return {
+    allowed: false,
+    reason: "paid",
+    config: { price_usdc: config.price_usdc },
   };
 }
 
-async function checkTokenGatedAccess(_viewerPublicKey: string | null, config: any): Promise<AccessResult> {
+async function checkTokenGatedAccess(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _viewerPublicKey: string | null,
+  config: any
+): Promise<AccessResult> {
   // Requires holding specific Stellar asset
-  return { 
-    allowed: false, 
-    reason: 'token_gated',
-    config: { 
+  return {
+    allowed: false,
+    reason: "token_gated",
+    config: {
       asset_code: config.asset_code,
       asset_issuer: config.asset_issuer,
-      min_balance: config.min_balance
-    }
+      min_balance: config.min_balance,
+    },
   };
 }
 
-async function checkSubscriptionAccess(_streamerUsername: string, _viewerPublicKey: string | null): Promise<AccessResult> {
+async function checkSubscriptionAccess(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _streamerUsername: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _viewerPublicKey: string | null
+): Promise<AccessResult> {
   // Requires active subscription
-  return { allowed: false, reason: 'subscription' };
+  return { allowed: false, reason: "subscription" };
 }

@@ -142,13 +142,14 @@ export default function StreamManagerPage() {
       });
       if (response.ok) {
         const result = await response.json();
-        setStreamData({
+        setStreamData(prev => ({
+          ...prev,
           title: result.streamData.title || "",
           category: result.streamData.category || "",
           description: result.streamData.description || "",
           tags: result.streamData.tags || [],
           thumbnail: result.streamData.thumbnail || null,
-        });
+        }));
         setIsStreamInfoModalOpen(false);
         showToast("Stream info updated!");
       } else {
@@ -170,7 +171,8 @@ export default function StreamManagerPage() {
       showToast("Wallet not connected");
       return;
     }
-    const userEmail = sessionStorage.getItem("userEmail") || privyWallet?.email || "";
+    const userEmail =
+      sessionStorage.getItem("userEmail") || privyWallet?.email || "";
     if (!userEmail) {
       showToast("Session expired, please refresh");
       return;

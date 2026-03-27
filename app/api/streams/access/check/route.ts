@@ -4,13 +4,13 @@ import { checkStreamAccess } from "@/lib/stream/access";
 /**
  * Endpoint to check if a viewer has access to a stream.
  * Called by the client before rendering the StreamPlayer.
- * 
- * Request: 
+ *
+ * Request:
  * { "streamer_username": "alice", "viewer_public_key": "GABC..." }
- * 
+ *
  * Response (allowed):
  * { "allowed": true }
- * 
+ *
  * Response (blocked):
  * { "allowed": false, "reason": "paid", "price_usdc": "10.00" }
  */
@@ -36,9 +36,9 @@ export async function POST(req: Request) {
     }
 
     // Build response for blocked access
-    const responseBody: any = { 
-      allowed: false, 
-      reason: accessResult.reason 
+    const responseBody: any = {
+      allowed: false,
+      reason: accessResult.reason,
     };
 
     // Include config fields if available (e.g. price for paid streams)
