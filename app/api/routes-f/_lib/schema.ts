@@ -45,7 +45,21 @@ export async function ensureRoutesFSchema(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS idx_subscriptions_creator ON subscriptions(creator_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_vod_comments_recording ON vod_comments(recording_id, timestamp_seconds)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_announcements_creator ON announcements(creator_id, created_at DESC)`;
-  
+
+  // 5. Accessibility Settings Table
+  await sql`
+    CREATE TABLE IF NOT EXISTS accessibility_settings (
+      user_id             UUID        PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      captions_enabled    BOOLEAN     NOT NULL DEFAULT true,
+      caption_font_size   VARCHAR(10) NOT NULL DEFAULT 'medium',
+      high_contrast      BOOLEAN     NOT NULL DEFAULT false,
+      reduce_motion       BOOLEAN     NOT NULL DEFAULT false,
+      screen_reader_hints BOOLEAN     NOT NULL DEFAULT true,
+      autoplay            BOOLEAN     NOT NULL DEFAULT false,
+      updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
   // Add is_featured to users if it doesn't exist
   await sql`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT false
