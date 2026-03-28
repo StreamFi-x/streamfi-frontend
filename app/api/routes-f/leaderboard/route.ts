@@ -28,7 +28,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (queryResult instanceof Response) return queryResult;
 
   const { category, period, limit } = queryResult.data;
-  const since = periodToDate(period).toISOString();
+  const since = periodToDate(period ?? "7d").toISOString();
 
   try {
     let entries: unknown[] = [];
