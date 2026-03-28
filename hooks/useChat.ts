@@ -197,10 +197,72 @@ export function useChat(
     [wallet, mutate]
   );
 
+  const banUser = useCallback(
+    async (username: string, durationMinutes?: number) => {
+      if (!wallet) {
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/streams/chat/ban", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            streamOwnerWallet: wallet,
+            bannedUser: username,
+            durationMinutes,
+          }),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || "Failed to ban user");
+        }
+
+        // Revalidate messages to reflect the ban
+        await mutate();
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to ban user";
+        setSendError(errorMessage);
+      }
+    },
+    [wallet, mutate]
+  );
+
+  const unbanUser = useCallback(
+    async (username: string) => {
+      if (!wallet) {
+        return;
+      }
+
+      try {
+        const res = await fetch(
+          `/api/streams/chat/ban/${username}?streamOwnerWallet=${wallet}`,
+          {
+            method: "DELETE",
+          }
+        );
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || "Failed to unban user");
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to unban user";
+        setSendError(errorMessage);
+      }
+    },
+    [wallet]
+  );
+
   return {
     messages,
     sendMessage,
     deleteMessage,
+    banUser,
+    unbanUser,
     isLoading,
     isSending,
     error: error?.message || sendError,

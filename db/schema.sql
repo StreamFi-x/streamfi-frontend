@@ -1,3 +1,12 @@
+CREATE TYPE stream_access_type AS ENUM (
+  'public',        -- anyone can watch (default)
+  'password',      -- requires a password
+  'invite_only',   -- streamer manually whitelists viewers
+  'paid',          -- viewer pays a one-time USDC fee
+  'token_gated',   -- viewer must hold a specific Stellar asset
+  'subscription'   -- viewer must have an active subscription
+);
+
 CREATE TABLE IF NOT EXISTS waitlist (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -34,7 +43,9 @@ CREATE TABLE IF NOT EXISTS users (
     creator JSONB DEFAULT '{}',
     total_tips_received NUMERIC(20, 7) DEFAULT 0,
     total_tips_count INTEGER DEFAULT 0,
-    last_tip_at TIMESTAMP
+    last_tip_at TIMESTAMP,
+    stream_access_type stream_access_type NOT NULL DEFAULT 'public',
+    stream_access_config JSONB DEFAULT '{}'
 );
 
 ALTER TABLE users
@@ -42,6 +53,22 @@ ADD COLUMN IF NOT EXISTS followers UUID[];
 
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS following UUID[];
+
+-- Chat moderation settings
+ALTER TABLE users ADD COLUMN IF NOT EXISTS slow_mode_seconds INT DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS follower_only_chat BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS link_blocking BOOLEAN DEFAULT false;
+
+-- Chat bans table
+CREATE TABLE IF NOT EXISTS chat_bans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    stream_owner TEXT NOT NULL REFERENCES users(username),
+    banned_user TEXT NOT NULL,
+    banned_at TIMESTAMPTZ DEFAULT now(),
+    expires_at TIMESTAMPTZ,
+    reason TEXT,
+    UNIQUE(stream_owner, banned_user)
+);
 
 CREATE TABLE IF NOT EXISTS stream_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -67,17 +94,18 @@ CREATE TABLE IF NOT EXISTS stream_sessions (
 );
 
 CREATE TABLE IF NOT EXISTS chat_messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id SERIAL PRIMARY KEY,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    username VARCHAR(255) NOT NULL,
     stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE CASCADE,
-    
+
     content TEXT NOT NULL,
-    message_type VARCHAR(20) DEFAULT 'message',  
-    
+    message_type VARCHAR(20) DEFAULT 'message',
+
     is_deleted BOOLEAN DEFAULT FALSE,
     is_moderated BOOLEAN DEFAULT FALSE,
     moderated_by UUID REFERENCES users(id),
-    
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -120,6 +148,18 @@ CREATE TABLE IF NOT EXISTS tags (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS stream_access_grants (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  streamer_id  UUID REFERENCES users(id) ON DELETE CASCADE,
+  viewer_id    UUID REFERENCES users(id) ON DELETE CASCADE,
+  access_type  stream_access_type NOT NULL,
+  -- For paid: store the tx hash as proof of payment
+  tx_hash      TEXT,
+  granted_at   TIMESTAMPTZ DEFAULT now(),
+  expires_at   TIMESTAMPTZ,   -- NULL = permanent
+  UNIQUE(streamer_id, viewer_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_wallet ON users(wallet);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -147,6 +187,10 @@ CREATE INDEX IF NOT EXISTS idx_stream_categories_title ON stream_categories(titl
 CREATE INDEX IF NOT EXISTS idx_stream_categories_active ON stream_categories(is_active);
 CREATE INDEX IF NOT EXISTS idx_tags_title ON tags(title);
 CREATE INDEX IF NOT EXISTS idx_tags_title_lower ON tags(LOWER(title));
+CREATE INDEX IF NOT EXISTS idx_stream_access_grants_lookup ON stream_access_grants(streamer_id, viewer_id);
+CREATE INDEX IF NOT EXISTS idx_chat_bans_stream_owner ON chat_bans(stream_owner);
+CREATE INDEX IF NOT EXISTS idx_chat_bans_banned_user ON chat_bans(banned_user);
+CREATE INDEX IF NOT EXISTS idx_chat_bans_expires_at ON chat_bans(expires_at);
 
 INSERT INTO stream_categories (title, description, tags) VALUES
 ('Gaming', 'Video game streaming and gameplay', ARRAY['gaming', 'esports', 'gameplay']),

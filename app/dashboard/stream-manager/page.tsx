@@ -9,6 +9,8 @@ import ActivityFeed from "@/components/dashboard/stream-manager/ActivityFeed";
 import Chat from "@/components/dashboard/stream-manager/Chat";
 import StreamInfo from "@/components/dashboard/stream-manager/StreamInfo";
 import StreamSettings from "@/components/dashboard/stream-manager/StreamSettings";
+import StreamAccessSettings from "@/components/dashboard/stream-manager/StreamAccessSettings";
+import ChatModerationSettings from "@/components/dashboard/stream-manager/ChatModerationSettings";
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
 import { Users, UserPlus, Coins, Timer } from "lucide-react";
@@ -26,6 +28,8 @@ export default function StreamManagerPage() {
     description: "",
     tags: [] as string[],
     thumbnail: null as string | null,
+    accessType: "public",
+    accessConfig: {} as any,
   });
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -79,6 +83,8 @@ export default function StreamManagerPage() {
             description: creator.description || "",
             tags: creator.tags || [],
             thumbnail: creator.thumbnail || null,
+            accessType: data.streamData?.stream?.stream_access_type || "public",
+            accessConfig: data.streamData?.stream?.stream_access_config || {},
           });
         }
       } catch (error) {
@@ -136,13 +142,14 @@ export default function StreamManagerPage() {
       });
       if (response.ok) {
         const result = await response.json();
-        setStreamData({
+        setStreamData(prev => ({
+          ...prev,
           title: result.streamData.title || "",
           category: result.streamData.category || "",
           description: result.streamData.description || "",
           tags: result.streamData.tags || [],
           thumbnail: result.streamData.thumbnail || null,
-        });
+        }));
         setIsStreamInfoModalOpen(false);
         showToast("Stream info updated!");
       } else {
@@ -151,6 +158,54 @@ export default function StreamManagerPage() {
       }
     } catch {
       showToast("Failed to update stream info");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAccessPolicyUpdate = async (
+    accessType: string,
+    accessConfig: any
+  ) => {
+    if (!address) {
+      showToast("Wallet not connected");
+      return;
+    }
+    const userEmail =
+      sessionStorage.getItem("userEmail") || privyWallet?.email || "";
+    if (!userEmail) {
+      showToast("Session expired, please refresh");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/users/update-creator", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: userEmail,
+          creator: {
+            ...streamData,
+            stream_access_type: accessType,
+            stream_access_config: accessConfig,
+          },
+        }),
+      });
+
+      if (response.ok) {
+        setStreamData({
+          ...streamData,
+          accessType,
+          accessConfig,
+        });
+        showToast("Access policy updated!");
+      } else {
+        const err = await response.json();
+        showToast(err.error || "Failed to update access policy");
+      }
+    } catch {
+      showToast("Failed to update access policy");
     } finally {
       setIsSaving(false);
     }
@@ -205,7 +260,7 @@ export default function StreamManagerPage() {
           </div>
         </div>
 
-        {/* Right column: Chat + Stream info + Tip wallet */}
+        {/* Right column: Chat + Stream info + Chat moderation + Tip wallet */}
         <div className="col-span-12 lg:col-span-5 flex flex-col gap-3">
           <div className="h-96">
             <Chat />
@@ -217,6 +272,13 @@ export default function StreamManagerPage() {
             }}
             onEditClick={() => setIsStreamInfoModalOpen(true)}
           />
+          <StreamAccessSettings
+            initialAccessType={streamData.accessType}
+            initialAccessConfig={streamData.accessConfig}
+            onSave={handleAccessPolicyUpdate}
+            isSaving={isSaving}
+          />
+          <ChatModerationSettings />
           <StreamSettings />
         </div>
       </div>

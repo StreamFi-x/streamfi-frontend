@@ -66,7 +66,7 @@ export async function checkTokenGatedAccess(
       const cached = await redis.get<AccessResult>(
         cacheKey(streamerId, viewerPublicKey)
       );
-      if (cached) return cached;
+      if (cached) { return cached; }
     } catch {
       // Cache miss is non-fatal — proceed to live check
     }

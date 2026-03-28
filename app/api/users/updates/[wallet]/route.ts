@@ -167,6 +167,15 @@ export async function PUT(
         sociallinks = ${processedSocialLinks},
         emailverified = ${emailVerified},
         emailnotifications = ${emailNotifications},
+        notification_preferences = jsonb_set(
+          COALESCE(
+            notification_preferences,
+            '{"newFollower":true,"tipReceived":true,"streamLive":true,"recordingReady":true,"emailNotifications":true}'::jsonb
+          ),
+          '{emailNotifications}',
+          to_jsonb(${emailNotifications}),
+          true
+        ),
         creator = ${creator ? JSON.stringify(creator) : user.creator},
         enable_recording = ${enableRecording},
         updated_at = CURRENT_TIMESTAMP
