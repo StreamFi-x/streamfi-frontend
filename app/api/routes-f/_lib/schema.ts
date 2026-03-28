@@ -40,7 +40,20 @@ export async function ensureRoutesFSchema(): Promise<void> {
     )
   `;
 
-  // 4. Ensure indexes
+  // 4. User Privacy Table
+  await sql`
+    CREATE TABLE IF NOT EXISTS user_privacy (
+      user_id                UUID    PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      show_in_viewer_list    BOOLEAN NOT NULL DEFAULT true,
+      show_watch_history     BOOLEAN NOT NULL DEFAULT false,
+      show_following_list    BOOLEAN NOT NULL DEFAULT true,
+      allow_collab_requests  BOOLEAN NOT NULL DEFAULT true,
+      searchable_by_email    BOOLEAN NOT NULL DEFAULT false,
+      updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  // 5. Ensure indexes
   await sql`CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_subscriptions_creator ON subscriptions(creator_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_vod_comments_recording ON vod_comments(recording_id, timestamp_seconds)`;
@@ -59,6 +72,7 @@ export async function ensureRoutesFSchema(): Promise<void> {
       updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_user_privacy_user ON user_privacy(user_id)`;
 
   // Add is_featured to users if it doesn't exist
   await sql`

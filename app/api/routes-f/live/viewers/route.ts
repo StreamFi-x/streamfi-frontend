@@ -145,9 +145,16 @@ export async function POST(req: NextRequest) {
     // Check opt-out preference — best-effort, don't block on failure
     try {
       const { rows } = await sql`
-        SELECT hide_from_viewer_list FROM users WHERE id = ${userId} LIMIT 1
+        SELECT p.show_in_viewer_list, u.hide_from_viewer_list
+        FROM users u
+        LEFT JOIN user_privacy p ON u.id = p.user_id
+        WHERE u.id = ${userId}
+        LIMIT 1
       `;
-      hideFromList = rows[0]?.hide_from_viewer_list ?? false;
+      // User is hidden if show_in_viewer_list is false OR legacy hide_from_viewer_list is true
+      const showInList = rows[0]?.show_in_viewer_list ?? true;
+      const legacyHide = rows[0]?.hide_from_viewer_list ?? false;
+      hideFromList = !showInList || legacyHide;
     } catch {
       // Column may not exist yet — default to visible
     }
