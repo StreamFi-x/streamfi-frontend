@@ -10,7 +10,7 @@ import { uuidSchema } from "@/app/api/routes-f/_lib/schemas";
 import { ensureJobsSchema } from "../_lib/db";
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }> | { id: string };
 }
 
 function validateId(id: string): NextResponse | null {
@@ -25,14 +25,16 @@ function validateId(id: string): NextResponse | null {
 
 export async function GET(
   req: NextRequest,
-  { params }: RouteParams
+  context: RouteParams
 ): Promise<NextResponse> {
   const session = await verifySession(req);
   if (!session.ok) {
     return session.response;
   }
 
-  const idError = validateId(params.id);
+  const { id } = await context.params;
+
+  const idError = validateId(id);
   if (idError) {
     return idError;
   }
@@ -44,7 +46,7 @@ export async function GET(
       SELECT id, type, status, payload, result, error, attempts,
              max_attempts, created_at, started_at, completed_at
       FROM jobs
-      WHERE id = ${params.id} AND user_id = ${session.userId}
+      WHERE id = ${id} AND user_id = ${session.userId}
       LIMIT 1
     `;
 
@@ -66,14 +68,16 @@ export async function GET(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: RouteParams
+  context: RouteParams
 ): Promise<NextResponse> {
   const session = await verifySession(req);
   if (!session.ok) {
     return session.response;
   }
 
-  const idError = validateId(params.id);
+  const { id } = await context.params;
+
+  const idError = validateId(id);
   if (idError) {
     return idError;
   }
@@ -85,7 +89,7 @@ export async function DELETE(
     const { rows } = await sql`
       UPDATE jobs
       SET status = 'cancelled'
-      WHERE id = ${params.id}
+      WHERE id = ${id}
         AND user_id = ${session.userId}
         AND status = 'pending'
       RETURNING id, status
@@ -95,7 +99,7 @@ export async function DELETE(
       // Either job doesn't exist, doesn't belong to user, or isn't pending
       const { rows: existing } = await sql`
         SELECT id, status FROM jobs
-        WHERE id = ${params.id} AND user_id = ${session.userId}
+        WHERE id = ${id} AND user_id = ${session.userId}
         LIMIT 1
       `;
 
