@@ -3,6 +3,7 @@ import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { writeNotification } from "@/lib/notifications";
+import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
 
 // 30 follow/unfollow actions per IP per minute
 const isRateLimited = createRateLimiter(60_000, 30);
@@ -65,6 +66,12 @@ export async function POST(req: NextRequest) {
         VALUES (${callerId}, ${receiverId})
         ON CONFLICT DO NOTHING
       `;
+
+      try {
+        await evaluateAndAwardBadges(receiverId);
+      } catch (badgeErr) {
+        console.error("[follow] badge evaluation failed:", badgeErr);
+      }
 
       // Write notification — awaited so it completes before response is sent
       try {
