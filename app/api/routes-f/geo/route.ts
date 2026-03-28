@@ -36,6 +36,13 @@ function normalizeCodes(codes?: string[]) {
   return [...new Set(codes.map(code => code.toUpperCase()))];
 }
 
+function toPgTextArray(values: string[]): string {
+  if (values.length === 0) {
+    return "{}";
+  }
+  return `{${values.map(value => `"${value.replace(/"/g, '\\"')}"`).join(",")}}`;
+}
+
 function requestCountry(req: NextRequest): string | null {
   const candidate =
     req.headers.get("CF-IPCountry") ?? req.headers.get("X-Vercel-IP-Country");
@@ -194,6 +201,8 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       allowed ?? (existing[0]?.allowed_countries as string[] | undefined) ?? [];
     const nextBlocked =
       blocked ?? (existing[0]?.blocked_countries as string[] | undefined) ?? [];
+    const allowedLiteral = toPgTextArray(nextAllowed);
+    const blockedLiteral = toPgTextArray(nextBlocked);
 
     const { rows } = await sql`
       INSERT INTO creator_geo_restrictions (
@@ -204,8 +213,8 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       )
       VALUES (
         ${session.userId},
-        ${nextAllowed}::text[],
-        ${nextBlocked}::text[],
+        ${allowedLiteral}::text[],
+        ${blockedLiteral}::text[],
         NOW()
       )
       ON CONFLICT (creator_id)

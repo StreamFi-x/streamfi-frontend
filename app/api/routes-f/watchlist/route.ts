@@ -16,6 +16,13 @@ const listSchema = z.object({
   cursor: z.string().optional(),
 });
 
+type WatchlistRow = {
+  id: string;
+  item_id: string;
+  item_type: "stream" | "recording" | "clip";
+  created_at: string;
+};
+
 async function ensureWatchlistTable() {
   await sql`
     CREATE TABLE IF NOT EXISTS user_watchlist (
@@ -84,7 +91,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     await ensureWatchlistTable();
 
     const { rows } = cursor
-      ? await sql`
+      ? await sql<WatchlistRow>`
           SELECT id, item_id, item_type, created_at
           FROM user_watchlist
           WHERE user_id = ${session.userId}
@@ -92,7 +99,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           ORDER BY created_at DESC
           LIMIT ${limit}
         `
-      : await sql`
+      : await sql<WatchlistRow>`
           SELECT id, item_id, item_type, created_at
           FROM user_watchlist
           WHERE user_id = ${session.userId}
@@ -103,17 +110,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const itemChecks = await Promise.all(
       rows.map(async row => ({
         ...row,
-        exists: await itemExists(
-          row.item_id as string,
-          row.item_type as "stream" | "recording" | "clip"
-        ),
+        exists: await itemExists(row.item_id, row.item_type),
       }))
     );
 
     const staleItems = itemChecks.filter(item => !item.exists);
     if (staleItems.length > 0) {
-      const staleIds = staleItems.map(item => item.id as string);
-      await sql`DELETE FROM user_watchlist WHERE id = ANY(${staleIds}::uuid[])`;
+      await Promise.all(
+        staleItems.map(
+          item => sql`DELETE FROM user_watchlist WHERE id = ${item.id}`
+        )
+      );
     }
 
     const validItems = itemChecks
