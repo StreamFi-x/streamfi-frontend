@@ -7,12 +7,13 @@ import { verifySession } from "@/lib/auth/verify-session";
 // (currently: stream owner only — moderator table can extend this later).
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { messageId: string } }
+  { params }: { params: Promise<{ messageId: string }> }
 ) {
   const session = await verifySession(req);
   if (!session.ok) return session.response;
 
-  const messageId = parseInt(params.messageId, 10);
+  const { messageId: rawMessageId } = await params;
+  const messageId = parseInt(rawMessageId, 10);
   if (isNaN(messageId)) {
     return NextResponse.json({ error: "Invalid message ID" }, { status: 400 });
   }
