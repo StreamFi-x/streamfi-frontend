@@ -8,14 +8,14 @@ import { ensureRoutesFSchema } from "../../_lib/schema";
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await ensureRoutesFSchema();
     const session = await verifySession(req);
     if (!session.ok) return session.response;
 
-    const { id } = params;
+    const { id } = await params;
 
     // Fetch comment and associated recording creator
     const { rows } = await sql`
@@ -45,6 +45,9 @@ export async function DELETE(
     return NextResponse.json({ message: "Comment deleted successfully" });
   } catch (error) {
     console.error("Comment DELETE error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
