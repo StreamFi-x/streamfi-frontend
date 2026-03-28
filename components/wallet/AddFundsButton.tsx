@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { PlusCircle, Loader2, AlertTriangle, ExternalLink, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTransak, TRANSAK_ORDER_COMPLETE_EVENT } from "@/hooks/useTransak";
+import { useTransak } from "@/hooks/useTransak";
+import Link from "next/link";
 import type { TransakCryptoCurrency, TransakOrderData } from "@/types/transak";
 import { cn } from "@/lib/utils";
 
@@ -256,9 +257,9 @@ export function AddFundsButton({
             <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
               Your purchase landed in your StreamFi custodial wallet. To
               withdraw, export your private key from{" "}
-              <a href="/settings/privacy" className="underline text-highlight">
+              <Link href="/settings/privacy" className="underline text-highlight">
                 Settings → Privacy &amp; Security
-              </a>
+              </Link>
               .
             </p>
           </div>

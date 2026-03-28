@@ -87,7 +87,7 @@ export function useTransak({
 
         // ── Event listeners ────────────────────────────────────────────────
 
-        Transak.on(Transak.EVENTS.TRANSAK_WIDGET_CLOSE, (_data: unknown) => {
+        Transak.on(Transak.EVENTS.TRANSAK_WIDGET_CLOSE, () => {
           transak.cleanup();
           transakRef.current = null;
           onClose?.();
@@ -99,7 +99,7 @@ export function useTransak({
             // The SDK types the callback param as `unknown`; cast safely.
             const event = data as { status: TransakOrderData };
             const order = event?.status;
-            if (!order) return;
+            if (!order) { return; }
 
             // 1. Notify caller
             onOrderComplete?.(order);
