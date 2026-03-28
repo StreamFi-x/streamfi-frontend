@@ -59,7 +59,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const invalidatedPaths: string[] = [];
 
     if (bodyResult.data.tag) {
-      revalidateTag(bodyResult.data.tag);
+      revalidateTag(bodyResult.data.tag, "max");
       invalidatedTags.push(bodyResult.data.tag);
     }
 

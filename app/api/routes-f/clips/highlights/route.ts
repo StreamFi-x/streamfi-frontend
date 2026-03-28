@@ -94,13 +94,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ collections: [], next_cursor: null });
     }
 
-    const ids = collections.map(row => row.id as string);
-    const { rows: items } = await sql`
-      SELECT collection_id, clip_id, position
-      FROM clip_highlight_items
-      WHERE collection_id = ANY(${ids}::uuid[])
-      ORDER BY collection_id ASC, position ASC
-    `;
+    const items = (
+      await Promise.all(
+        collections.map(async row => {
+          const { rows } = await sql`
+            SELECT collection_id, clip_id, position
+            FROM clip_highlight_items
+            WHERE collection_id = ${row.id as string}
+            ORDER BY position ASC
+          `;
+          return rows;
+        })
+      )
+    ).flat();
 
     const grouped = new Map<
       string,

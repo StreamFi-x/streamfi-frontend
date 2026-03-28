@@ -33,7 +33,7 @@ async function ensureCreator(): Promise<{ id: string; username: string }> {
     RETURNING id, username
   `;
 
-  return rows[0];
+  return rows[0] as { id: string; username: string };
 }
 
 async function seedViewers(): Promise<number> {
