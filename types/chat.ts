@@ -43,6 +43,8 @@ export interface UseChatReturn {
   messages: ChatMessage[];
   sendMessage: (content: string) => Promise<void>;
   deleteMessage: (messageId: number) => Promise<void>;
+  /** Placeholder until chat moderation API exists */
+  banUser: (username: string, durationMinutes?: number) => Promise<void>;
   isLoading: boolean;
   isSending: boolean;
   error: string | null;

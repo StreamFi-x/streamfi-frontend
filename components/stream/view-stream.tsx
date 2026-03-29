@@ -42,9 +42,10 @@ import { TipButton, TipModalContainer } from "@/components/tipping";
 import { useTipModal } from "@/hooks/useTipModal";
 import { toast } from "sonner";
 import { AccessGate } from "./AccessGate";
+import { PaidAccessGate } from "./PaidAccessGate";
+import TokenGatedAccessGate from "./TokenGatedAccessGate";
 import { useStreamAccess } from "@/hooks/useStreamAccess";
 import { TipAlertOverlay, type TipAlert } from "./TipAlertOverlay";
-import { PaidAccessGate } from "./PaidAccessGate";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,
@@ -283,12 +284,15 @@ const ViewStream = ({
   const address = publicKey || privyWallet?.wallet || null;
   const tipModalState = useTipModal();
 
-  const { access, isLoading: isCheckingAccess, refresh } = useStreamAccess({
+  const {
+    access,
+    isLoading: isCheckingAccess,
+    refresh,
+  } = useStreamAccess({
     streamerUsername: username,
     viewerPublicKey: address,
     enabled: !isOwner,
   });
-  const isLocked = !isOwner && !!access && access.allowed === false;
   const isAllowed = isOwner || !access || access.allowed === true;
 
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -298,6 +302,8 @@ const ViewStream = ({
   const {
     messages: chatMessages,
     sendMessage,
+    deleteMessage,
+    banUser,
     isSending,
   } = useChat(userData?.playbackId, address, isLive, showChat || isFullscreen);
 
@@ -561,9 +567,12 @@ const ViewStream = ({
                 }
                 max={5}
               />
-              {!isAllowed && (
-                <div className="absolute inset-0 z-20 flex items-center justify-center p-4">
-                  {access && access.access_type === "paid" ? (
+              {!isAllowed && access && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center p-4 bg-black/80 overflow-y-auto">
+                  {access.access_type === "paid" &&
+                  "streamer_id" in access &&
+                  (access.reason === "paid" ||
+                    access.reason === "wallet_required") ? (
                     <PaidAccessGate
                       streamerUsername={username}
                       streamerId={access.streamer_id}
@@ -572,15 +581,22 @@ const ViewStream = ({
                       priceUsdc={access.price_usdc}
                       onVerified={() => void refresh()}
                     />
+                  ) : access.access_type === "token_gated" &&
+                    "asset_code" in access ? (
+                    <TokenGatedAccessGate
+                      streamerUsername={username}
+                      assetCode={access.asset_code}
+                      minBalance={access.min_balance}
+                      onRetry={() => void refresh()}
+                      isChecking={isCheckingAccess}
+                    />
                   ) : (
                     <AccessGate
                       isLoading={isCheckingAccess}
                       allowed={false}
                       title="This stream is locked"
                       description="You don't have access to this stream."
-                      onRetry={() => {
-                        void refresh();
-                      }}
+                      onRetry={() => void refresh()}
                     />
                   )}
                 </div>
@@ -847,12 +863,12 @@ const ViewStream = ({
                                 ? "Unfollow"
                                 : "Follow"}
                           </Button>
-                          {streamData.stellarAddress &&
+                          {streamData.starknetAddress &&
                           publicKey &&
-                          publicKey !== streamData.stellarAddress ? (
+                          publicKey !== streamData.starknetAddress ? (
                             <TipButton
                               recipientUsername={username}
-                              recipientPublicKey={streamData.stellarAddress}
+                              recipientPublicKey={streamData.starknetAddress}
                               onTipClick={tipModalState.openTipModal}
                               variant="outline"
                               className="bg-muted hover:bg-accent text-foreground border-border"
@@ -866,7 +882,7 @@ const ViewStream = ({
                               title={
                                 !publicKey
                                   ? "Connect Stellar wallet to tip"
-                                  : !streamData.stellarAddress
+                                  : !streamData.starknetAddress
                                     ? "Streamer hasn't set up Stellar wallet"
                                     : "Cannot tip yourself"
                               }
@@ -1024,6 +1040,8 @@ const ViewStream = ({
                 streamerPublicKey={streamData?.stellarAddress ?? null}
                 viewerPublicKey={address}
                 onOpenCustomTip={tipModalState.openTipModal}
+                onDeleteMessage={deleteMessage}
+                onBanUser={banUser}
                 isCollapsible={true}
                 isFullscreen={false}
                 className="h-full"
@@ -1031,6 +1049,7 @@ const ViewStream = ({
                 showChat={showChat}
                 isWalletConnected={!!address}
                 isSending={isSending}
+                isStreamOwner={isOwner}
               />
             </div>
           )}
@@ -1093,6 +1112,7 @@ const ViewStream = ({
         recipientPublicKey={streamData?.stellarAddress || ""}
         recipientAvatar={streamData?.avatarUrl}
         senderPublicKey={publicKey}
+        isPrivyUser={!!privyWallet && !publicKey}
         onSuccess={tipModalState.showSuccess}
         onError={tipModalState.showError}
         confirmationState={tipModalState.tipConfirmation}

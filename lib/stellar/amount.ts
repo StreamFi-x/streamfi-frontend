@@ -1,6 +1,4 @@
 export function parseStellarAmountToInt(amount: string): bigint {
-  // Stellar amounts are decimal strings with up to 7 fractional digits.
-  // We convert to an integer scaled by 1e7 for safe comparisons.
   if (typeof amount !== "string" || amount.trim() === "") {
     throw new Error("Invalid amount");
   }

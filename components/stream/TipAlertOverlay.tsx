@@ -15,9 +15,9 @@ export function TipAlertOverlay(props: {
   const { alerts, onExpire, max = 5 } = props;
 
   useEffect(() => {
-    const timers = alerts.slice(0, max).map(a =>
-      window.setTimeout(() => onExpire(a.id), 5000)
-    );
+    const timers = alerts
+      .slice(0, max)
+      .map(a => window.setTimeout(() => onExpire(a.id), 5000));
     return () => timers.forEach(t => window.clearTimeout(t));
   }, [alerts, onExpire, max]);
 
@@ -36,4 +36,3 @@ export function TipAlertOverlay(props: {
     </div>
   );
 }
-

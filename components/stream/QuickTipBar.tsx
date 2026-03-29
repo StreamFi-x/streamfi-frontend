@@ -25,7 +25,6 @@ export function QuickTipBar(props: {
 }) {
   const {
     playbackId,
-    streamerUsername,
     streamerPublicKey,
     viewerPublicKey,
     hidden = false,
@@ -43,8 +42,11 @@ export function QuickTipBar(props: {
   }
 
   const postTipSystemMessage = async (amount: string) => {
-    const username = sessionStorage.getItem("username") || "Someone";
-    const content = `💜 @${username} tipped ${amount} XLM`;
+    const uname =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem("username") || "Someone"
+        : "Someone";
+    const content = `💜 @${uname} tipped ${amount} XLM`;
     await fetch("/api/streams/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -97,7 +99,7 @@ export function QuickTipBar(props: {
   };
 
   return (
-    <div className="flex items-center gap-2 pb-2">
+    <div className="flex items-center gap-2 pb-2 flex-wrap">
       {PRESETS.map(preset => (
         <Button
           key={preset}
@@ -120,10 +122,11 @@ export function QuickTipBar(props: {
 
       {insufficient && (
         <div className="ml-auto">
-          <AddFundsButton walletAddress={viewerPublicKey}>Add XLM</AddFundsButton>
+          <AddFundsButton walletAddress={viewerPublicKey}>
+            Add XLM
+          </AddFundsButton>
         </div>
       )}
     </div>
   );
 }
-

@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, XCircle, AlertTriangle } from "lucide-react";
+import { AddFundsButton } from "@/components/wallet/AddFundsButton";
 import {
   buildTipTransaction,
   submitTransaction,
@@ -32,6 +33,7 @@ interface TipModalProps {
   recipientPublicKey: string;
   recipientAvatar?: string;
   senderPublicKey: string;
+  isPrivyUser?: boolean;
   onSuccess?: (txHash: string, amount: string) => void;
   onError?: (error: string) => void;
 }
@@ -41,11 +43,10 @@ type TransactionState =
   | "building"
   | "signing"
   | "submitting"
-  | "success"
   | "error";
 
 const PRESET_AMOUNTS = [1, 5, 10, 25];
-const MAX_TIP_AMOUNT = 10000; // 10,000 XLM cap
+const MAX_TIP_AMOUNT = 10000;
 const MIN_TIP_AMOUNT = 0.0000001;
 
 export function TipModal({
@@ -55,25 +56,24 @@ export function TipModal({
   recipientPublicKey,
   recipientAvatar,
   senderPublicKey,
+  isPrivyUser = false,
   onSuccess,
   onError,
 }: TipModalProps) {
-  // Fix #3 - Single state for amount (no more DRY violation)
   const [amount, setAmount] = useState<string>("");
   const [transactionState, setTransactionState] =
     useState<TransactionState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [xlmPrice, setXlmPrice] = useState<number>(0);
   const [isLoadingPrice, setIsLoadingPrice] = useState<boolean>(false);
-  // Fix #5 - Track price fetch failures
   const [priceFetchFailed, setPriceFetchFailed] = useState<boolean>(false);
+  const [isInsufficientBalance, setIsInsufficientBalance] = useState(false);
 
   const { kit } = useStellarWallet();
   const fee = calculateFeeEstimate();
   const usdEquivalent =
     xlmPrice && amount ? (parseFloat(amount) * xlmPrice).toFixed(2) : "0.00";
 
-  // Fix #5 - Fetch XLM price with failure tracking
   useEffect(() => {
     if (isOpen) {
       setIsLoadingPrice(true);
@@ -91,7 +91,6 @@ export function TipModal({
     }
   }, [isOpen]);
 
-  // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
       resetModal();
@@ -102,22 +101,23 @@ export function TipModal({
     setAmount("");
     setTransactionState("idle");
     setError(null);
+    setIsInsufficientBalance(false);
   };
 
   const handlePresetClick = (presetAmount: number) => {
     setAmount(presetAmount.toString());
     setError(null);
+    setIsInsufficientBalance(false);
   };
 
   const handleAmountChange = (value: string) => {
-    // Only allow valid decimal numbers
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
       setAmount(value);
       setError(null);
+      setIsInsufficientBalance(false);
     }
   };
 
-  // Fix #4 - Validate Stellar public key format
   const isValidStellarPublicKey = (key: string): boolean => {
     return key.startsWith("G") && key.length === 56;
   };
@@ -135,7 +135,6 @@ export function TipModal({
       return false;
     }
 
-    // Fix #4 - Max amount validation
     if (parsedAmount > MAX_TIP_AMOUNT) {
       setError(
         `Amount is too large. Maximum is ${MAX_TIP_AMOUNT.toLocaleString()} XLM`
@@ -143,7 +142,6 @@ export function TipModal({
       return false;
     }
 
-    // Fix #4 - Validate Stellar public keys
     if (!isValidStellarPublicKey(recipientPublicKey)) {
       setError("Invalid recipient Stellar address");
       return false;
@@ -158,15 +156,14 @@ export function TipModal({
   };
 
   const handleSubmit = async () => {
-    // Validate amount
     if (!validateAmount()) {
       return;
     }
 
     setError(null);
+    setIsInsufficientBalance(false);
 
     try {
-      // Check for sufficient balance
       setTransactionState("building");
       const insufficientBalance = await hasInsufficientBalance(
         senderPublicKey,
@@ -177,14 +174,11 @@ export function TipModal({
         setError(
           "Insufficient balance. Please ensure you have enough XLM to cover the tip and transaction fee."
         );
+        setIsInsufficientBalance(true);
         setTransactionState("error");
-        if (onError) {
-          onError("Insufficient balance");
-        }
         return;
       }
 
-      // Build transaction
       const network =
         process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet"
           ? "mainnet"
@@ -196,7 +190,6 @@ export function TipModal({
         network: network as "testnet" | "mainnet",
       });
 
-      // Sign transaction with connected wallet
       setTransactionState("signing");
       const walletNetwork =
         network === "mainnet" ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
@@ -211,7 +204,6 @@ export function TipModal({
         networkPassphrase
       );
 
-      // Submit signed transaction
       setTransactionState("submitting");
       const result = await submitTransaction(
         signedTransaction as any,
@@ -219,20 +211,17 @@ export function TipModal({
       );
 
       if (result.success) {
-        setTransactionState("success");
-        // Call onSuccess callback if provided
         if (onSuccess && result.hash) {
           onSuccess(result.hash, amount);
         }
-      } else {
-        throw result.error
-          ? new Error(result.error)
-          : new Error("Transaction failed");
+        return;
       }
+      throw result.error
+        ? new Error(result.error)
+        : new Error("Transaction failed");
     } catch (err: unknown) {
       console.error("Transaction error:", err);
 
-      // Fix #6 - Better error handling for balance issues in submit flow
       let errorMessage = "An unexpected error occurred. Please try again.";
 
       if (err instanceof Error) {
@@ -247,6 +236,7 @@ export function TipModal({
         ) {
           errorMessage =
             "Insufficient balance. Your balance may have changed. Please try a smaller amount.";
+          setIsInsufficientBalance(true);
         } else if (err.message.includes("timeout")) {
           errorMessage = "Transaction timed out. Please try again.";
         } else if (
@@ -262,20 +252,13 @@ export function TipModal({
 
       setError(errorMessage);
       setTransactionState("error");
-      // Call onError callback if provided
       if (onError) {
         onError(errorMessage);
       }
     }
   };
 
-  const handleRetry = () => {
-    setError(null);
-    setTransactionState("idle");
-  };
-
   const handleClose = () => {
-    // Prevent closing during signing/submitting
     if (transactionState === "signing" || transactionState === "submitting") {
       return;
     }
@@ -290,8 +273,6 @@ export function TipModal({
         return "Please approve the transaction in your wallet";
       case "submitting":
         return "Submitting transaction to network...";
-      case "success":
-        return "Tip sent successfully!";
       case "error":
         return "Transaction failed";
       default:
@@ -312,13 +293,10 @@ export function TipModal({
         <DialogHeader>
           <DialogTitle>Send Tip</DialogTitle>
           <DialogDescription>
-            {transactionState === "success"
-              ? "Your tip has been sent successfully!"
-              : `Send a tip to @${recipientUsername}`}
+            Send a tip to @{recipientUsername}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-6 py-4">
-          {/* Recipient Info */}
           <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
             <Avatar className="h-12 w-12">
               <AvatarImage src={recipientAvatar} alt={recipientUsername} />
@@ -326,57 +304,14 @@ export function TipModal({
                 {recipientUsername.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div>
+            <div className="min-w-0">
               <p className="font-semibold">@{recipientUsername}</p>
-              <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+              <p className="text-xs text-muted-foreground truncate max-w-[220px]">
                 {recipientPublicKey}
               </p>
             </div>
-
-            {/* Amount Summary */}
-            {amount !== "" && parseFloat(amount) > 0 && (
-              <div className="space-y-2 p-3 bg-muted rounded-lg text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Amount:</span>
-                  <span className="font-semibold">{amount} XLM</span>
-                </div>
-                {xlmPrice > 0 && !isLoadingPrice && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">USD Value:</span>
-                    <span className="font-semibold">≈ ${usdEquivalent}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Network Fee:</span>
-                  <span className="font-semibold">{fee.toFixed(7)} XLM</span>
-                </div>
-                <div className="border-t border-border pt-2 flex justify-between font-semibold">
-                  <span>Total:</span>
-                  <span>{(parseFloat(amount) + fee).toFixed(7)} XLM</span>
-                </div>
-              </div>
-            )}
-
-            {/* State Messages */}
-            {isProcessing && (
-              <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                <p className="text-sm text-blue-500">{getStateMessage()}</p>
-              </div>
-            )}
-
-            {/* Error Message (validation or transaction error) */}
-            {error && (
-              <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm text-red-500">{error}</p>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Fix #5 - Price fetch failure warning */}
           {priceFetchFailed && !isLoadingPrice && (
             <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
               <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0" />
@@ -386,7 +321,6 @@ export function TipModal({
             </div>
           )}
 
-          {/* Preset Amounts */}
           <div className="space-y-2">
             <Label>Select Amount</Label>
             <div className="grid grid-cols-4 gap-2">
@@ -406,7 +340,6 @@ export function TipModal({
             </div>
           </div>
 
-          {/* Custom Amount */}
           <div className="space-y-2">
             <Label htmlFor="custom-amount">Or Enter Custom Amount</Label>
             <div className="relative">
@@ -428,7 +361,6 @@ export function TipModal({
             </p>
           </div>
 
-          {/* Amount Summary */}
           {amount !== "" && parseFloat(amount) > 0 && (
             <div className="space-y-2 p-3 bg-muted rounded-lg text-sm">
               <div className="flex justify-between">
@@ -452,7 +384,6 @@ export function TipModal({
             </div>
           )}
 
-          {/* State Messages */}
           {isProcessing && (
             <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
               <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
@@ -460,13 +391,24 @@ export function TipModal({
             </div>
           )}
 
-          {/* Error Message */}
           {error && transactionState === "error" && (
             <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
               <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
                 <p className="text-sm text-red-500">{error}</p>
               </div>
+            </div>
+          )}
+
+          {isInsufficientBalance && transactionState === "error" && (
+            <div className="flex items-center justify-between gap-3 p-3 bg-highlight/10 border border-highlight/20 rounded-lg">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Need more XLM? Top up your wallet with fiat.
+              </p>
+              <AddFundsButton
+                walletAddress={senderPublicKey}
+                isPrivyUser={isPrivyUser}
+              />
             </div>
           )}
         </div>
