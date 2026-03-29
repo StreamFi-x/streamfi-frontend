@@ -82,6 +82,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   const result = await validateBody(req, activateSchema);
   if (result instanceof NextResponse) return result;
   const { message, estimated_end, affects, block_new_streams } = result.data;
+  const impactAreas = [...(affects ?? ["all"])];
+  const serializedImpactAreas = JSON.stringify(impactAreas);
 
   await ensureMaintenanceTable();
 
@@ -98,7 +100,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       ${message},
       NOW(),
       ${estimated_end?.toISOString() ?? null},
-      ${affects as string[]},
+      ARRAY(
+        SELECT jsonb_array_elements_text(${serializedImpactAreas}::jsonb)
+      ),
       ${auth.session.userId}
     )
     RETURNING *
@@ -106,7 +110,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // Store block_new_streams flag in metadata-style column if needed —
   // persisted in the affects array as a convention marker
-  if (block_new_streams && !affects.includes("streaming")) {
+  if (block_new_streams && !impactAreas.includes("streaming")) {
     await sql`
       UPDATE maintenance_windows
       SET affects = array_append(affects, 'streaming')

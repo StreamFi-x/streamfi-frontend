@@ -6,6 +6,7 @@ import {
   createRecordingReadyNotification,
   withNotificationTransaction,
 } from "@/lib/notifications";
+import { aggregateAndFlushStreamReactions } from "@/app/api/routes-f/reactions/_lib/reactions";
 
 /**
  * Mux Webhook Handler
@@ -207,6 +208,18 @@ export async function POST(req: Request) {
 
           if (userResult.rows.length > 0) {
             const user = userResult.rows[0];
+            const sessionResult = await sql<{ id: string }>`
+              SELECT id
+              FROM stream_sessions
+              WHERE user_id = ${user.id} AND ended_at IS NULL
+              ORDER BY started_at DESC
+              LIMIT 1
+            `;
+
+            if (sessionResult.rows.length > 0) {
+              await aggregateAndFlushStreamReactions(sessionResult.rows[0].id);
+            }
+
             await sql`
               UPDATE stream_sessions SET ended_at = CURRENT_TIMESTAMP
               WHERE user_id = ${user.id} AND ended_at IS NULL

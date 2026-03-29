@@ -41,7 +41,7 @@ import { useChat } from "@/hooks/useChat";
 import { TipButton, TipModalContainer } from "@/components/tipping";
 import { useTipModal } from "@/hooks/useTipModal";
 import { toast } from "sonner";
-import AccessGate from "./AccessGate";
+import { AccessGate } from "./AccessGate";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,
@@ -585,9 +585,23 @@ const ViewStream = ({
                 {accessBlocked ? (
                   <div className="absolute inset-0 flex items-center justify-center bg-zinc-950 z-20 overflow-y-auto">
                     <AccessGate
-                      reason={accessReason}
                       streamerUsername={username}
-                      accessConfig={accessConfig}
+                      assetCode={
+                        accessConfig?.asset_code ??
+                        accessConfig?.assetCode ??
+                        "TOKEN"
+                      }
+                      minBalance={String(
+                        accessConfig?.min_balance ??
+                          accessConfig?.minBalance ??
+                          accessReason?.min_balance ??
+                          "1"
+                      )}
+                      onRetry={() => {
+                        setIsCheckingAccess(true);
+                        setAccessBlocked(false);
+                      }}
+                      isChecking={isCheckingAccess}
                     />
                   </div>
                 ) : isLive && userData?.playbackId ? (
