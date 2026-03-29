@@ -35,15 +35,13 @@ const submitFeedbackSchema = z
     metadata: z.record(z.unknown()).optional(),
   })
   .refine(
-    (d) => d.type !== "nps" || (d.rating !== null && d.rating !== undefined),
+    d => d.type !== "nps" || (d.rating !== null && d.rating !== undefined),
     { message: "rating is required for nps type", path: ["rating"] }
   );
 
 const listFeedbackSchema = z.object({
   type: z.enum(FEEDBACK_TYPES).optional(),
-  status: z
-    .enum(["new", "read", "actioned", "dismissed"])
-    .optional(),
+  status: z.enum(["new", "read", "actioned", "dismissed"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
@@ -118,13 +116,18 @@ export async function GET(req: NextRequest): Promise<Response> {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
 
-  const result = validateQuery(new URL(req.url).searchParams, listFeedbackSchema);
+  const result = validateQuery(
+    new URL(req.url).searchParams,
+    listFeedbackSchema
+  );
   if (result instanceof NextResponse) return result;
   const { type, status, page, limit } = result.data;
+  const pageNumber = page ?? 1;
+  const pageLimit = limit ?? 20;
 
   await ensureFeedbackTable();
 
-  const offset = (page - 1) * limit;
+  const offset = (pageNumber - 1) * pageLimit;
 
   const { rows } = await sql`
     SELECT
@@ -135,7 +138,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     WHERE (${type ?? null}::text IS NULL OR f.type = ${type ?? null})
       AND (${status ?? null}::text IS NULL OR f.status = ${status ?? null})
     ORDER BY f.created_at DESC
-    LIMIT ${limit} OFFSET ${offset}
+    LIMIT ${pageLimit} OFFSET ${offset}
   `;
 
   const { rows: countRows } = await sql`
@@ -148,7 +151,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   return NextResponse.json({
     items: rows,
     total: Number(countRows[0]?.total ?? 0),
-    page,
-    limit,
+    page: pageNumber,
+    limit: pageLimit,
   });
 }

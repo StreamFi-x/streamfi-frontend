@@ -66,12 +66,13 @@ export async function GET(req: NextRequest): Promise<Response> {
   const result = validateQuery(new URL(req.url).searchParams, querySchema);
   if (result instanceof NextResponse) return result;
   const { user, type, from, to, limit, cursor } = result.data;
+  const pageLimit = limit ?? 50;
 
   await ensureAuditTable();
 
-  const fromDate = from ? new Date(from) : null;
-  const toDate = to ? new Date(to) : null;
-  const cursorDate = cursor ? new Date(cursor) : null;
+  const fromDate = from ? new Date(from).toISOString() : null;
+  const toDate = to ? new Date(to).toISOString() : null;
+  const cursorDate = cursor ? new Date(cursor).toISOString() : null;
 
   const { rows: events } = await sql`
     SELECT
@@ -92,11 +93,11 @@ export async function GET(req: NextRequest): Promise<Response> {
       AND (${toDate ?? null}::timestamptz IS NULL OR al.created_at <= ${toDate ?? null})
       AND (${cursorDate ?? null}::timestamptz IS NULL OR al.created_at < ${cursorDate ?? null})
     ORDER BY al.created_at DESC
-    LIMIT ${limit + 1}
+    LIMIT ${pageLimit + 1}
   `;
 
-  const hasMore = events.length > limit;
-  const page = hasMore ? events.slice(0, limit) : events;
+  const hasMore = events.length > pageLimit;
+  const page = hasMore ? events.slice(0, pageLimit) : events;
   const nextCursor = hasMore ? page[page.length - 1].created_at : null;
 
   const { rows: countRows } = await sql`
@@ -110,7 +111,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   `;
 
   return NextResponse.json({
-    events: page.map((e) => ({
+    events: page.map(e => ({
       id: e.id,
       event_type: e.event_type,
       user: e.subject_username ? { username: e.subject_username } : null,
