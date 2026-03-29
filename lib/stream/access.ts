@@ -1,126 +1,155 @@
-import { sql } from "@vercel/postgres";
+/**
+ * Stream access-control logic.
+ *
+ * All checks run server-side — the viewer's wallet address is never trusted
+ * from the client without server verification.
+ *
+ * Caching: access results are cached in Redis (Upstash) for 60 seconds per
+ * viewer per streamer to avoid hammering Stellar Horizon on every page load.
+ * Falls back gracefully to no-cache when Redis is not configured.
+ */
 
-export type AccessResult =
-  | { allowed: true }
-  | {
-      allowed: false;
-      reason:
-        | "password"
-        | "invite_only"
-        | "paid"
-        | "token_gated"
-        | "subscription";
-      config?: any;
-    };
+import * as StellarSdk from "@stellar/stellar-sdk";
+import { getHorizonUrl, getStellarNetwork } from "@/lib/stellar/config";
+import type { AccessResult, TokenGateConfig } from "@/types/stream-access";
+
+// ── Redis cache (optional) ─────────────────────────────────────────────────
+
+let _redis: import("@upstash/redis").Redis | null = null;
+
+async function getRedis(): Promise<import("@upstash/redis").Redis | null> {
+  if (
+    !process.env.UPSTASH_REDIS_REST_URL ||
+    !process.env.UPSTASH_REDIS_REST_TOKEN
+  ) {
+    return null;
+  }
+  if (!_redis) {
+    const { Redis } = await import("@upstash/redis");
+    _redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+  }
+  return _redis;
+}
+
+const CACHE_TTL_SECONDS = 60;
+
+function cacheKey(streamerId: string, viewerPublicKey: string): string {
+  return `token-gate:${streamerId}:${viewerPublicKey}`;
+}
+
+// ── Core access check ──────────────────────────────────────────────────────
 
 /**
- * Checks if a viewer has access to a streamer's private stream.
- * @param streamerUsername The username of the streamer
- * @param viewerPublicKey The Stellar public key of the viewer (null if not connected)
+ * Check whether a viewer holds enough of a Stellar asset to access a
+ * token-gated stream.
+ *
+ * @param config          Token gate settings (asset_code, asset_issuer, min_balance)
+ * @param viewerPublicKey Stellar public key of the viewer (null if no wallet connected)
+ * @param streamerId      Used only as part of the cache key
  */
-export async function checkStreamAccess(
-  streamerUsername: string,
-  viewerPublicKey: string | null
+export async function checkTokenGatedAccess(
+  config: TokenGateConfig,
+  viewerPublicKey: string | null,
+  streamerId: string
+): Promise<AccessResult> {
+  if (!viewerPublicKey) {
+    return { allowed: false, reason: "no_wallet" };
+  }
+
+  // Check cache first
+  const redis = await getRedis();
+  if (redis) {
+    try {
+      const cached = await redis.get<AccessResult>(
+        cacheKey(streamerId, viewerPublicKey)
+      );
+      if (cached) { return cached; }
+    } catch {
+      // Cache miss is non-fatal — proceed to live check
+    }
+  }
+
+  const result = await fetchTokenBalance(config, viewerPublicKey);
+
+  // Write result to cache
+  if (redis) {
+    try {
+      await redis.setex(
+        cacheKey(streamerId, viewerPublicKey),
+        CACHE_TTL_SECONDS,
+        JSON.stringify(result)
+      );
+    } catch {
+      // Cache write failure is non-fatal
+    }
+  }
+
+  return result;
+}
+
+async function fetchTokenBalance(
+  config: TokenGateConfig,
+  viewerPublicKey: string
 ): Promise<AccessResult> {
   try {
-    const result = await sql`
-      SELECT stream_access_type, stream_access_config
-      FROM users
-      WHERE LOWER(username) = LOWER(${streamerUsername})
-    `;
+    const network = getStellarNetwork();
+    const server = new StellarSdk.Horizon.Server(getHorizonUrl(network));
+    const account = await server.accounts().accountId(viewerPublicKey).call();
 
-    if (result.rowCount === 0) {
-      // If user not found, default to public (safe fallback)
-      return { allowed: true };
-    }
+    const balance = (account.balances as any[]).find(
+      b =>
+        b.asset_type !== "native" &&
+        b.asset_code === config.asset_code &&
+        b.asset_issuer === config.asset_issuer
+    );
 
-    const row = result.rows[0];
-    const accessType = row.stream_access_type;
-    const config = row.stream_access_config || {};
+    const held = parseFloat(balance?.balance ?? "0");
+    const required = parseFloat(config.min_balance ?? "1");
 
-    if (accessType === "public") {
-      return { allowed: true };
-    }
-
-    // Delegate to the relevant checker
-    // Subsequent issues will implement the full logic for each type
-    switch (accessType) {
-      case "password":
-        return await checkPasswordAccess(config);
-      case "invite_only":
-        return await checkInviteOnlyAccess(streamerUsername, viewerPublicKey);
-      case "paid":
-        return await checkPaidAccess(streamerUsername, viewerPublicKey, config);
-      case "token_gated":
-        return await checkTokenGatedAccess(viewerPublicKey, config);
-      case "subscription":
-        return await checkSubscriptionAccess(streamerUsername, viewerPublicKey);
-      default:
-        return { allowed: true };
-    }
-  } catch (error) {
-    console.error("Error checking stream access:", error);
-    // On error, we default to allowed: true to avoid blocking streams due to DB issues,
-    // though in a production app you might want to be stricter.
-    return { allowed: true };
+    return held >= required
+      ? { allowed: true }
+      : { allowed: false, reason: "token_gated" };
+  } catch {
+    // Account not found on Stellar = no balance
+    return { allowed: false, reason: "token_gated" };
   }
 }
 
-// Checker Skeletons - Full implementation added by subsequent issues (2-5)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function checkPasswordAccess(_config: any): Promise<AccessResult> {
-  // Requires password entry on the frontend
-  return { allowed: false, reason: "password" };
+// ── Asset existence check ──────────────────────────────────────────────────
+
+/**
+ * Verify that a Stellar asset has been issued (has at least one trustline).
+ * Used by the dashboard "Verify asset" button.
+ */
+export async function verifyAssetExists(
+  assetCode: string,
+  assetIssuer: string
+): Promise<boolean> {
+  try {
+    const network = getStellarNetwork();
+    const server = new StellarSdk.Horizon.Server(getHorizonUrl(network));
+    const assets = await server
+      .assets()
+      .forCode(assetCode)
+      .forIssuer(assetIssuer)
+      .limit(1)
+      .call();
+    return assets.records.length > 0;
+  } catch {
+    return false;
+  }
 }
 
-async function checkInviteOnlyAccess(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _streamerUsername: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _viewerPublicKey: string | null
-): Promise<AccessResult> {
-  // Requires explicit grant in stream_access_grants
-  return { allowed: false, reason: "invite_only" };
+// ── Input validation ───────────────────────────────────────────────────────
+
+export function isValidAssetCode(code: string): boolean {
+  // Stellar asset codes: 1–12 alphanumeric characters
+  return /^[A-Za-z0-9]{1,12}$/.test(code);
 }
 
-async function checkPaidAccess(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _streamerUsername: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _viewerPublicKey: string | null,
-  config: any
-): Promise<AccessResult> {
-  // Requires payment proof (tx_hash) in stream_access_grants
-  return {
-    allowed: false,
-    reason: "paid",
-    config: { price_usdc: config.price_usdc },
-  };
-}
-
-async function checkTokenGatedAccess(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _viewerPublicKey: string | null,
-  config: any
-): Promise<AccessResult> {
-  // Requires holding specific Stellar asset
-  return {
-    allowed: false,
-    reason: "token_gated",
-    config: {
-      asset_code: config.asset_code,
-      asset_issuer: config.asset_issuer,
-      min_balance: config.min_balance,
-    },
-  };
-}
-
-async function checkSubscriptionAccess(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _streamerUsername: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _viewerPublicKey: string | null
-): Promise<AccessResult> {
-  // Requires active subscription
-  return { allowed: false, reason: "subscription" };
+export function isValidStellarIssuer(key: string): boolean {
+  return /^G[A-Z2-7]{55}$/.test(key);
 }
