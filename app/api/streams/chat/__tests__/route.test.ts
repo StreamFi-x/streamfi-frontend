@@ -165,16 +165,23 @@ describe("POST /api/streams/chat", () => {
     const wallet = makeStellarKey();
     sqlMock
       .mockResolvedValueOnce({
-        // combined lookup
+        // combined lookup with moderation settings
         rows: [
           {
             sender_id: 1,
             sender_username: "Alice",
+            streamer_id: 2,
+            streamer_username: "Bob",
             is_live: true,
             session_id: 10,
+            slow_mode_seconds: 0,
+            follower_only_chat: false,
+            link_blocking: false,
           },
         ],
       })
+      .mockResolvedValueOnce({ rows: [] }) // permanent ban check
+      .mockResolvedValueOnce({ rows: [] }) // timeout check
       .mockResolvedValueOnce({
         // INSERT
         rows: [{ id: 99, created_at: "2025-01-01T00:00:00Z" }],
@@ -197,7 +204,25 @@ describe("POST /api/streams/chat", () => {
   });
 
   it("returns 500 on unexpected database error", async () => {
-    sqlMock.mockRejectedValueOnce(new Error("DB down"));
+    sqlMock
+      .mockResolvedValueOnce({
+        // combined lookup succeeds
+        rows: [
+          {
+            sender_id: 1,
+            sender_username: "Alice",
+            streamer_id: 2,
+            streamer_username: "Bob",
+            is_live: true,
+            session_id: 10,
+            slow_mode_seconds: 0,
+            follower_only_chat: false,
+            link_blocking: false,
+          },
+        ],
+      })
+      .mockRejectedValueOnce(new Error("DB down")); // ban check fails
+
     const req = makeRequest("POST", {
       wallet: makeStellarKey(),
       playbackId: "pb1",

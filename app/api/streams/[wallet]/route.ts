@@ -32,6 +32,8 @@ export async function GET(
         u.creator,
         u.socialLinks,
         u.created_at,
+        u.stream_access_type,
+        u.stream_access_config,
         (SELECT COUNT(*)::int FROM user_follows WHERE followee_id = u.id) AS follower_count,
         -- Get latest session data
         ss.id as session_id,
@@ -86,6 +88,8 @@ export async function GET(
         category: streamData.creator?.category || "",
         tags: streamData.creator?.tags || [],
         thumbnail: streamData.creator?.thumbnail || "",
+        stream_access_type: streamData.stream_access_type,
+        stream_access_config: streamData.stream_access_config,
 
         currentViewers: streamData.current_viewers || 0,
         totalViews: streamData.total_views || 0,

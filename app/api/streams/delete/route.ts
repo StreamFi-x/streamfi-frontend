@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { deleteMuxStream } from "@/lib/mux/server";
 import { verifySession } from "@/lib/auth/verify-session";
+import { aggregateAndFlushStreamReactions } from "@/app/api/routes-f/reactions/_lib/reactions";
 
 export async function DELETE(req: NextRequest) {
   // Verify caller is authenticated — identity comes from the server-side session
@@ -49,6 +50,18 @@ export async function DELETE(req: NextRequest) {
     }
 
     try {
+      const { rows: sessionRows } = await sql<{ id: string }>`
+        SELECT id
+        FROM stream_sessions
+        WHERE user_id = ${user.id} AND ended_at IS NULL
+        ORDER BY started_at DESC
+        LIMIT 1
+      `;
+
+      if (sessionRows.length > 0) {
+        await aggregateAndFlushStreamReactions(sessionRows[0].id);
+      }
+
       await sql`
         UPDATE stream_sessions SET
           ended_at = CURRENT_TIMESTAMP

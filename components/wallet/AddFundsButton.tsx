@@ -67,6 +67,7 @@ export function AddFundsButton({
     email,
     onOrderComplete: handleOrderComplete,
     onError: message => {
+      // If the error looks like a configuration / network failure, show fallback
       if (
         message.includes("not configured") ||
         message.includes("Failed to load") ||
@@ -219,6 +220,7 @@ export function AddFundsButton({
         </div>
       )}
 
+      {/* Fallback message (widget load failure / missing API key) */}
       {(showFallback || error) && !showUsdcWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full shadow-xl">

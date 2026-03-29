@@ -49,3 +49,19 @@ export interface UseChatReturn {
   isSending: boolean;
   error: string | null;
 }
+
+/** Chat ban record */
+export interface ChatBan {
+  id: string;
+  bannedUser: string;
+  bannedAt: string;
+  expiresAt: string | null;
+  reason: string | null;
+}
+
+/** Stream chat settings */
+export interface StreamChatSettings {
+  slowModeSeconds: number;
+  followerOnlyChat: boolean;
+  linkBlocking: boolean;
+}
