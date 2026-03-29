@@ -30,7 +30,7 @@
     --border: 220 14% 96%; /* gray-100 */
     --input: 240 5% 96%; /* gray-100 */
     --ring: 270 91% 60%; /* purple-600 */
-    --highlight: 270 91% 60%; /* purple-600 */
+    --highlight: 0 84% 48%; /* swiss-red #E42313 */
     --warning: 45 93% 47%; /* yellow-500 */
     --error: 0, 91%, 60%; /* red-500 */
     --success: 142 76% 36%; /* green-600 */
