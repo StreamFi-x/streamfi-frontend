@@ -12,6 +12,7 @@ interface TipModalContainerProps {
   recipientPublicKey: string;
   recipientAvatar?: string;
   senderPublicKey: string | null;
+  isPrivyUser?: boolean;
   onSuccess: (txHash: string, amount: string) => void;
   onError: (error: string) => void;
 
@@ -32,6 +33,7 @@ export function TipModalContainer({
   recipientPublicKey,
   recipientAvatar,
   senderPublicKey,
+  isPrivyUser,
   onSuccess,
   onError,
   confirmationState,
@@ -48,6 +50,7 @@ export function TipModalContainer({
           recipientPublicKey={recipientPublicKey}
           recipientAvatar={recipientAvatar}
           senderPublicKey={senderPublicKey}
+          isPrivyUser={isPrivyUser}
           onSuccess={onSuccess}
           onError={onError}
         />

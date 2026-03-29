@@ -5,6 +5,10 @@ import { createRateLimiter } from "@/lib/rate-limit";
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
 
+function isValidStellarPublicKey(key: unknown): key is string {
+  return typeof key === "string" && /^G[A-Z0-9]{55}$/.test(key);
+}
+
 export async function POST(req: NextRequest) {
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
@@ -28,6 +32,13 @@ export async function POST(req: NextRequest) {
     if (!wallet || !playbackId || !content) {
       return NextResponse.json(
         { error: "Wallet, playback ID, and content are required" },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidStellarPublicKey(wallet)) {
+      return NextResponse.json(
+        { error: "Invalid Stellar public key" },
         { status: 400 }
       );
     }
@@ -325,6 +336,13 @@ export async function DELETE(req: Request) {
     if (!messageId || !moderatorWallet) {
       return NextResponse.json(
         { error: "Message ID and moderator wallet are required" },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidStellarPublicKey(moderatorWallet)) {
+      return NextResponse.json(
+        { error: "Invalid Stellar public key" },
         { status: 400 }
       );
     }

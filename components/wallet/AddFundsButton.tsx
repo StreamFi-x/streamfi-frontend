@@ -1,30 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { PlusCircle, Loader2, AlertTriangle, ExternalLink, X } from "lucide-react";
+import { useState, useMemo, type ReactNode } from "react";
+import {
+  PlusCircle,
+  Loader2,
+  AlertTriangle,
+  ExternalLink,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTransak } from "@/hooks/useTransak";
 import Link from "next/link";
 import type { TransakCryptoCurrency, TransakOrderData } from "@/types/transak";
 import { cn } from "@/lib/utils";
 
-interface AddFundsButtonProps {
+export interface AddFundsButtonProps {
   walletAddress: string;
   email?: string;
   isPrivyUser?: boolean;
-  /** Called after a successful Transak order completes */
   onOrderComplete?: (order: TransakOrderData) => void;
   className?: string;
+  /** Merged into Transak query (e.g. `cryptoCurrencyCode` for deep links) */
+  paramOverrides?: Record<string, string>;
+  children?: ReactNode;
 }
 
 /**
- * AddFundsButton — launches the Transak on-ramp widget.
- *
- * - Lets the user choose between XLM and USDC before opening Transak.
- * - For USDC, shows a trustline warning before proceeding.
- * - Shows a fallback message if the API key is missing or the widget fails to load.
- * - For Privy (custodial) users, shows a toast after completion explaining
- *   that funds landed in their custodial wallet.
+ * Transak on-ramp: currency picker, USDC trustline warning, and link fallback.
+ * `paramOverrides` can pin a currency (e.g. paid streams: USDC only).
  */
 export function AddFundsButton({
   walletAddress,
@@ -32,17 +35,30 @@ export function AddFundsButton({
   isPrivyUser = false,
   onOrderComplete,
   className,
+  paramOverrides,
+  children,
 }: AddFundsButtonProps) {
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [showUsdcWarning, setShowUsdcWarning] = useState(false);
   const [showPrivyToast, setShowPrivyToast] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
 
+  const pinnedCurrency = useMemo((): TransakCryptoCurrency | null => {
+    const code = paramOverrides?.cryptoCurrencyCode?.toUpperCase();
+    if (code === "USDC") {
+      return "USDC";
+    }
+    if (code === "XLM") {
+      return "XLM";
+    }
+    return null;
+  }, [paramOverrides]);
+
   const handleOrderComplete = (order: TransakOrderData) => {
     onOrderComplete?.(order);
     if (isPrivyUser) {
       setShowPrivyToast(true);
-      setTimeout(() => setShowPrivyToast(false), 8000);
+      window.setTimeout(() => setShowPrivyToast(false), 8000);
     }
   };
 
@@ -62,26 +78,48 @@ export function AddFundsButton({
     },
   });
 
+  const openWithOverrides = (currency: TransakCryptoCurrency) => {
+    const rest = { ...(paramOverrides ?? {}) };
+    delete rest.cryptoCurrencyCode;
+    openTransak(currency, rest);
+  };
+
   const handleCurrencySelect = (currency: TransakCryptoCurrency) => {
     setShowCurrencyPicker(false);
     if (currency === "USDC") {
       setShowUsdcWarning(true);
     } else {
-      openTransak("XLM");
+      openWithOverrides("XLM");
     }
   };
 
   const handleUsdcProceed = () => {
     setShowUsdcWarning(false);
-    openTransak("USDC");
+    openWithOverrides("USDC");
   };
+
+  const handlePrimaryClick = () => {
+    if (pinnedCurrency === "USDC") {
+      setShowUsdcWarning(true);
+      return;
+    }
+    if (pinnedCurrency === "XLM") {
+      openWithOverrides("XLM");
+      return;
+    }
+    setShowCurrencyPicker(true);
+  };
+
+  const hrefFallback = `https://global.transak.com/?${new URLSearchParams({
+    walletAddress,
+    ...(paramOverrides ?? {}),
+  }).toString()}`;
 
   return (
     <div className="relative">
-      {/* Main button */}
       <Button
         size="sm"
-        onClick={() => setShowCurrencyPicker(true)}
+        onClick={handlePrimaryClick}
         disabled={isLoading}
         className={cn(
           "flex items-center gap-1.5 bg-highlight hover:bg-highlight/90 text-white",
@@ -93,16 +131,16 @@ export function AddFundsButton({
         ) : (
           <PlusCircle className="w-3.5 h-3.5" />
         )}
-        Add Funds
+        {children ?? "Add Funds"}
       </Button>
 
-      {/* Currency picker */}
       {showCurrencyPicker && (
         <div className="absolute top-full right-0 mt-2 z-50 w-48 bg-card border border-border rounded-xl shadow-lg p-2 flex flex-col gap-1">
           <p className="text-xs text-muted-foreground px-2 py-1 font-medium">
             Select currency
           </p>
           <button
+            type="button"
             onClick={() => handleCurrencySelect("XLM")}
             className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition-colors text-sm text-left"
           >
@@ -110,6 +148,7 @@ export function AddFundsButton({
             <span className="text-muted-foreground">Stellar Lumens</span>
           </button>
           <button
+            type="button"
             onClick={() => handleCurrencySelect("USDC")}
             className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition-colors text-sm text-left"
           >
@@ -117,6 +156,7 @@ export function AddFundsButton({
             <span className="text-muted-foreground">USD Coin</span>
           </button>
           <button
+            type="button"
             onClick={() => setShowCurrencyPicker(false)}
             className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors text-left"
           >
@@ -125,7 +165,6 @@ export function AddFundsButton({
         </div>
       )}
 
-      {/* USDC trustline warning dialog */}
       {showUsdcWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full shadow-xl">
@@ -193,9 +232,8 @@ export function AddFundsButton({
                 </h3>
               </div>
               <button
-                onClick={() => {
-                  setShowFallback(false);
-                }}
+                type="button"
+                onClick={() => setShowFallback(false)}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <X className="w-4 h-4" />
@@ -206,10 +244,18 @@ export function AddFundsButton({
               network issue, an unsupported region, or a missing API key.
             </p>
             <p className="text-xs text-muted-foreground mb-3">
-              You can purchase XLM directly from an exchange and send it to your
-              wallet address:
+              You can still open Transak in a new tab or buy XLM on an exchange
+              and send it to your wallet:
             </p>
             <div className="flex flex-col gap-2">
+              <a
+                href={hrefFallback}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-highlight underline"
+              >
+                Open Transak <ExternalLink className="w-3 h-3" />
+              </a>
               <a
                 href="https://www.coinbase.com"
                 target="_blank"
@@ -226,14 +272,6 @@ export function AddFundsButton({
               >
                 Buy on Kraken <ExternalLink className="w-3 h-3" />
               </a>
-              <a
-                href="https://www.binance.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-highlight underline"
-              >
-                Buy on Binance <ExternalLink className="w-3 h-3" />
-              </a>
             </div>
             <Button
               variant="outline"
@@ -247,7 +285,6 @@ export function AddFundsButton({
         </div>
       )}
 
-      {/* Privy custodial wallet toast */}
       {showPrivyToast && (
         <div className="fixed bottom-6 right-6 z-50 max-w-xs bg-card border border-border rounded-xl shadow-xl p-4 flex items-start gap-3">
           <div className="flex-1">
@@ -257,13 +294,17 @@ export function AddFundsButton({
             <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
               Your purchase landed in your StreamFi custodial wallet. To
               withdraw, export your private key from{" "}
-              <Link href="/settings/privacy" className="underline text-highlight">
+              <Link
+                href="/settings/privacy"
+                className="underline text-highlight"
+              >
                 Settings → Privacy &amp; Security
               </Link>
               .
             </p>
           </div>
           <button
+            type="button"
             onClick={() => setShowPrivyToast(false)}
             className="text-muted-foreground hover:text-foreground shrink-0"
           >

@@ -8,8 +8,10 @@ jest.mock("swr", () => ({
 }));
 
 import useSWR from "swr";
+import { Keypair } from "@stellar/stellar-sdk";
 
 const mockMutate = jest.fn();
+const makeStellarKey = () => Keypair.random().publicKey();
 
 const makeSwrReturn = (overrides = {}) => ({
   data: [],
@@ -28,7 +30,7 @@ describe("useChat", () => {
 
   describe("fetching behaviour", () => {
     it("passes correct SWR cache key when playbackId and isLive are set", () => {
-      renderHook(() => useChat("playback-abc", "0xWALLET", true));
+      renderHook(() => useChat("playback-abc", makeStellarKey(), true));
 
       expect(useSWR).toHaveBeenCalledWith(
         "/api/streams/chat?playbackId=playback-abc&limit=200",
@@ -38,7 +40,7 @@ describe("useChat", () => {
     });
 
     it("passes null SWR key when playbackId is missing", () => {
-      renderHook(() => useChat(null, "0xWALLET", true));
+      renderHook(() => useChat(null, makeStellarKey(), true));
 
       expect(useSWR).toHaveBeenCalledWith(
         null,
@@ -49,7 +51,7 @@ describe("useChat", () => {
 
     it("still fetches history (non-null key) when stream is offline", () => {
       // History is always loaded when playbackId exists — isLive only gates polling.
-      renderHook(() => useChat("playback-abc", "0xWALLET", false));
+      renderHook(() => useChat("playback-abc", makeStellarKey(), false));
 
       expect(useSWR).toHaveBeenCalledWith(
         expect.stringContaining("playback-abc"),
@@ -59,7 +61,19 @@ describe("useChat", () => {
     });
 
     it("disables polling (refreshInterval=0) when stream is offline", () => {
-      renderHook(() => useChat("playback-abc", "0xWALLET", false));
+      renderHook(() => useChat("playback-abc", makeStellarKey(), false));
+
+      expect(useSWR).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Function),
+        expect.objectContaining({ refreshInterval: 0 })
+      );
+    });
+
+    it("disables polling when pollEnabled is false", () => {
+      renderHook(() =>
+        useChat("playback-abc", makeStellarKey(), true, false)
+      );
 
       expect(useSWR).toHaveBeenCalledWith(
         expect.any(String),
@@ -69,7 +83,7 @@ describe("useChat", () => {
     });
 
     it("polls at 1000ms when stream is live", () => {
-      renderHook(() => useChat("playback-abc", "0xWALLET", true));
+      renderHook(() => useChat("playback-abc", makeStellarKey(), true));
 
       expect(useSWR).toHaveBeenCalledWith(
         expect.any(String),
@@ -102,7 +116,7 @@ describe("useChat", () => {
       (useSWR as jest.Mock).mockReturnValue(makeSwrReturn({ data: messages }));
 
       const { result } = renderHook(() =>
-        useChat("playback-abc", "0xWALLET", true)
+        useChat("playback-abc", makeStellarKey(), true)
       );
 
       expect(result.current.messages).toEqual(messages);
@@ -112,7 +126,7 @@ describe("useChat", () => {
       (useSWR as jest.Mock).mockReturnValue(makeSwrReturn({ isLoading: true }));
 
       const { result } = renderHook(() =>
-        useChat("playback-abc", "0xWALLET", true)
+        useChat("playback-abc", makeStellarKey(), true)
       );
 
       expect(result.current.isLoading).toBe(true);
@@ -131,7 +145,7 @@ describe("useChat", () => {
     });
 
     it("does nothing when playbackId is missing", async () => {
-      const { result } = renderHook(() => useChat(null, "0xWALLET", true));
+      const { result } = renderHook(() => useChat(null, makeStellarKey(), true));
 
       await act(async () => {
         await result.current.sendMessage("hello");
@@ -142,7 +156,7 @@ describe("useChat", () => {
 
     it("does nothing when content is empty/whitespace", async () => {
       const { result } = renderHook(() =>
-        useChat("playback-abc", "0xWALLET", true)
+        useChat("playback-abc", makeStellarKey(), true)
       );
 
       await act(async () => {
@@ -154,7 +168,7 @@ describe("useChat", () => {
 
     it("sets sendError and does not call API when message exceeds 500 chars", async () => {
       const { result } = renderHook(() =>
-        useChat("playback-abc", "0xWALLET", true)
+        useChat("playback-abc", makeStellarKey(), true)
       );
 
       await act(async () => {
@@ -173,9 +187,10 @@ describe("useChat", () => {
         json: async () => ({ chatMessage: { id: 99 } }),
       });
       mockMutate.mockResolvedValue(undefined);
+      const wallet = makeStellarKey();
 
       const { result } = renderHook(() =>
-        useChat("playback-abc", "0xWALLET", true)
+        useChat("playback-abc", wallet, true)
       );
 
       await act(async () => {
@@ -188,7 +203,7 @@ describe("useChat", () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            wallet: "0xWALLET",
+            wallet,
             playbackId: "playback-abc",
             content: "hello world",
             messageType: "message",
@@ -205,7 +220,7 @@ describe("useChat", () => {
       mockMutate.mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
-        useChat("playback-abc", "0xWALLET", true)
+        useChat("playback-abc", makeStellarKey(), true)
       );
 
       await act(async () => {
@@ -232,7 +247,7 @@ describe("useChat", () => {
       mockMutate.mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
-        useChat("playback-abc", "0xWALLET", true)
+        useChat("playback-abc", makeStellarKey(), true)
       );
 
       expect(result.current.isSending).toBe(false);
@@ -269,9 +284,10 @@ describe("useChat", () => {
         json: async () => ({ message: "deleted" }),
       });
       mockMutate.mockResolvedValue(undefined);
+      const wallet = makeStellarKey();
 
       const { result } = renderHook(() =>
-        useChat("playback-abc", "0xWALLET", true)
+        useChat("playback-abc", wallet, true)
       );
 
       await act(async () => {
@@ -284,7 +300,7 @@ describe("useChat", () => {
           method: "DELETE",
           body: JSON.stringify({
             messageId: 42,
-            moderatorWallet: "0xWALLET",
+            moderatorWallet: wallet,
           }),
         })
       );
@@ -298,7 +314,7 @@ describe("useChat", () => {
       mockMutate.mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
-        useChat("playback-abc", "0xWALLET", true)
+        useChat("playback-abc", makeStellarKey(), true)
       );
 
       await act(async () => {
@@ -317,7 +333,7 @@ describe("useChat", () => {
       );
 
       const { result } = renderHook(() =>
-        useChat("playback-abc", "0xWALLET", true)
+        useChat("playback-abc", makeStellarKey(), true)
       );
 
       expect(result.current.error).toBe("Network error");

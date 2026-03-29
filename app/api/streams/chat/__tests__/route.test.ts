@@ -22,6 +22,7 @@ jest.mock("@vercel/postgres", () => ({
 
 import { sql } from "@vercel/postgres";
 import { POST, GET, DELETE } from "../route";
+import { Keypair } from "@stellar/stellar-sdk";
 
 // Helper to build a minimal Request cast to NextRequest.
 // The route handlers only use standard Request APIs (json(), url) so this cast is safe.
@@ -35,6 +36,7 @@ const makeRequest = (method: string, body?: object, search?: string) =>
 const sqlMock = sql as unknown as jest.Mock;
 
 let consoleErrorSpy: jest.SpyInstance;
+const makeStellarKey = () => Keypair.random().publicKey();
 
 describe("POST /api/streams/chat", () => {
   beforeEach(() => {
@@ -54,20 +56,38 @@ describe("POST /api/streams/chat", () => {
   });
 
   it("returns 400 when playbackId is missing", async () => {
-    const req = makeRequest("POST", { wallet: "0xABC", content: "hello" });
+    const req = makeRequest("POST", {
+      wallet: makeStellarKey(),
+      content: "hello",
+    });
     const res = await POST(req);
     expect(res.status).toBe(400);
   });
 
   it("returns 400 when content is missing", async () => {
-    const req = makeRequest("POST", { wallet: "0xABC", playbackId: "pb1" });
+    const req = makeRequest("POST", {
+      wallet: makeStellarKey(),
+      playbackId: "pb1",
+    });
     const res = await POST(req);
     expect(res.status).toBe(400);
   });
 
-  it("returns 400 when message exceeds 500 characters", async () => {
+  it("returns 400 when wallet is not a Stellar public key", async () => {
     const req = makeRequest("POST", {
       wallet: "0xABC",
+      playbackId: "pb1",
+      content: "hello",
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/stellar/i);
+  });
+
+  it("returns 400 when message exceeds 500 characters", async () => {
+    const req = makeRequest("POST", {
+      wallet: makeStellarKey(),
       playbackId: "pb1",
       content: "a".repeat(501),
     });
@@ -79,7 +99,7 @@ describe("POST /api/streams/chat", () => {
 
   it("returns 400 for invalid messageType", async () => {
     const req = makeRequest("POST", {
-      wallet: "0xABC",
+      wallet: makeStellarKey(),
       playbackId: "pb1",
       content: "hello",
       messageType: "shout",
@@ -93,7 +113,7 @@ describe("POST /api/streams/chat", () => {
   it("returns 404 when user or stream not found", async () => {
     sqlMock.mockResolvedValueOnce({ rows: [] }); // combined query returns nothing
     const req = makeRequest("POST", {
-      wallet: "0xABC",
+      wallet: makeStellarKey(),
       playbackId: "pb1",
       content: "hello",
     });
@@ -113,7 +133,7 @@ describe("POST /api/streams/chat", () => {
       ],
     });
     const req = makeRequest("POST", {
-      wallet: "0xABC",
+      wallet: makeStellarKey(),
       playbackId: "pb1",
       content: "hello",
     });
@@ -133,7 +153,7 @@ describe("POST /api/streams/chat", () => {
       ],
     });
     const req = makeRequest("POST", {
-      wallet: "0xABC",
+      wallet: makeStellarKey(),
       playbackId: "pb1",
       content: "hello",
     });
@@ -142,6 +162,7 @@ describe("POST /api/streams/chat", () => {
   });
 
   it("returns 201 and chatMessage on success", async () => {
+    const wallet = makeStellarKey();
     sqlMock
       .mockResolvedValueOnce({
         // combined lookup with moderation settings
@@ -168,7 +189,7 @@ describe("POST /api/streams/chat", () => {
       .mockResolvedValueOnce({ rows: [] }); // UPDATE total_messages
 
     const req = makeRequest("POST", {
-      wallet: "0xABC",
+      wallet,
       playbackId: "pb1",
       content: "hello",
     });
@@ -179,7 +200,7 @@ describe("POST /api/streams/chat", () => {
     expect(body.chatMessage.id).toBe(99);
     expect(body.chatMessage.content).toBe("hello");
     expect(body.chatMessage.user.username).toBe("Alice");
-    expect(body.chatMessage.user.wallet).toBe("0xABC");
+    expect(body.chatMessage.user.wallet).toBe(wallet);
   });
 
   it("returns 500 on unexpected database error", async () => {
@@ -203,7 +224,7 @@ describe("POST /api/streams/chat", () => {
       .mockRejectedValueOnce(new Error("DB down")); // ban check fails
 
     const req = makeRequest("POST", {
-      wallet: "0xABC",
+      wallet: makeStellarKey(),
       playbackId: "pb1",
       content: "hello",
     });
@@ -237,6 +258,7 @@ describe("GET /api/streams/chat", () => {
   });
 
   it("returns messages for an active session", async () => {
+    const wallet = makeStellarKey();
     sqlMock
       .mockResolvedValueOnce({ rows: [{ session_id: 10 }] }) // session lookup
       .mockResolvedValueOnce({
@@ -248,7 +270,7 @@ describe("GET /api/streams/chat", () => {
             message_type: "message",
             created_at: "2025-01-01T00:00:00Z",
             username: "Alice",
-            wallet: "0xABC",
+            wallet,
             avatar: null,
           },
         ],
@@ -299,7 +321,7 @@ describe("DELETE /api/streams/chat", () => {
   });
 
   it("returns 400 when messageId is missing", async () => {
-    const req = makeRequest("DELETE", { moderatorWallet: "0xABC" });
+    const req = makeRequest("DELETE", { moderatorWallet: makeStellarKey() });
     const res = await DELETE(req);
     expect(res.status).toBe(400);
   });
@@ -314,7 +336,7 @@ describe("DELETE /api/streams/chat", () => {
     sqlMock.mockResolvedValueOnce({ rows: [] }); // moderator lookup
     const req = makeRequest("DELETE", {
       messageId: 42,
-      moderatorWallet: "0xABC",
+      moderatorWallet: makeStellarKey(),
     });
     const res = await DELETE(req);
     expect(res.status).toBe(404);
@@ -327,7 +349,7 @@ describe("DELETE /api/streams/chat", () => {
 
     const req = makeRequest("DELETE", {
       messageId: 42,
-      moderatorWallet: "0xABC",
+      moderatorWallet: makeStellarKey(),
     });
     const res = await DELETE(req);
     expect(res.status).toBe(404);
@@ -342,7 +364,7 @@ describe("DELETE /api/streams/chat", () => {
 
     const req = makeRequest("DELETE", {
       messageId: 42,
-      moderatorWallet: "0xABC",
+      moderatorWallet: makeStellarKey(),
     });
     const res = await DELETE(req);
     expect(res.status).toBe(403);
@@ -358,7 +380,7 @@ describe("DELETE /api/streams/chat", () => {
 
     const req = makeRequest("DELETE", {
       messageId: 42,
-      moderatorWallet: "0xSTREAMOWNER",
+      moderatorWallet: makeStellarKey(),
     });
     const res = await DELETE(req);
     expect(res.status).toBe(200);
@@ -374,7 +396,7 @@ describe("DELETE /api/streams/chat", () => {
 
     const req = makeRequest("DELETE", {
       messageId: 42,
-      moderatorWallet: "0xAUTHOR",
+      moderatorWallet: makeStellarKey(),
     });
     const res = await DELETE(req);
     expect(res.status).toBe(200);
@@ -384,7 +406,7 @@ describe("DELETE /api/streams/chat", () => {
     sqlMock.mockRejectedValueOnce(new Error("DB error"));
     const req = makeRequest("DELETE", {
       messageId: 42,
-      moderatorWallet: "0xABC",
+      moderatorWallet: makeStellarKey(),
     });
     const res = await DELETE(req);
     expect(res.status).toBe(500);
