@@ -52,6 +52,7 @@
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^14.5.0",
     "@testing-library/dom": "^10.4.1",
+    "@transak/transak-sdk": "^4.0.2",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.4",
     "@vercel/postgres": "^0.10.0",

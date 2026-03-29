@@ -6,6 +6,8 @@ import useSWR from "swr";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { TipCounter } from "@/components/tipping";
+import { AddFundsButton } from "@/components/wallet/AddFundsButton";
+import { TRANSAK_ORDER_COMPLETE_EVENT } from "@/hooks/useTransak";
 import {
   Wallet,
   Copy,
@@ -85,6 +87,15 @@ export default function PayoutPage() {
     return () => clearInterval(interval);
   }, [fetchPrice]);
 
+  // Refresh balance automatically after a completed Transak order
+  useEffect(() => {
+    const handler = () => {
+      void refreshBalance();
+    };
+    window.addEventListener(TRANSAK_ORDER_COMPLETE_EVENT, handler);
+    return () => window.removeEventListener(TRANSAK_ORDER_COMPLETE_EVENT, handler);
+  }, [refreshBalance]);
+
   const handleCopy = () => {
     if (!walletAddress) {
       return;
@@ -146,18 +157,27 @@ export default function PayoutPage() {
                     Stellar Balance
                   </span>
                 </div>
-                <button
-                  onClick={() => refreshBalance()}
-                  className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
-                  aria-label="Refresh balance"
-                >
-                  <RefreshCcw
-                    className={cn(
-                      "w-4 h-4",
-                      balanceLoading && "animate-spin text-highlight"
-                    )}
-                  />
-                </button>
+                <div className="flex items-center gap-2">
+                  {walletAddress && (
+                    <AddFundsButton
+                      walletAddress={walletAddress}
+                      email={privyWallet?.email ?? undefined}
+                      isPrivyUser={isPrivyUser}
+                    />
+                  )}
+                  <button
+                    onClick={() => refreshBalance()}
+                    className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
+                    aria-label="Refresh balance"
+                  >
+                    <RefreshCcw
+                      className={cn(
+                        "w-4 h-4",
+                        balanceLoading && "animate-spin text-highlight"
+                      )}
+                    />
+                  </button>
+                </div>
               </div>
 
               {/* Balance amount */}
