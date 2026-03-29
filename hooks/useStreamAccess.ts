@@ -3,7 +3,7 @@
 import useSWR from "swr";
 
 export type StreamAccessResult =
-  | { allowed: true; access_type: "public" | "paid" | "password" | "invite" }
+  | { allowed: true; access_type: "public" | "paid" | "token_gated" }
   | {
       allowed: false;
       access_type: "paid";
@@ -14,14 +14,25 @@ export type StreamAccessResult =
     }
   | {
       allowed: false;
+      access_type: "token_gated";
+      reason: "no_wallet" | "token_gated";
+      asset_code: string;
+      min_balance: string;
+    }
+  | {
+      allowed: false;
       access_type: "password" | "invite";
       reason: "password" | "invite";
     };
 
-async function fetcher(url: string, body: unknown): Promise<StreamAccessResult> {
+async function fetcher(
+  url: string,
+  body: unknown
+): Promise<StreamAccessResult> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -48,7 +59,10 @@ export function useStreamAccess(params: {
     enabled && !pause && streamerUsername
       ? [
           "/api/streams/access/check",
-          { streamer_username: streamerUsername, viewer_public_key: viewerPublicKey ?? null },
+          {
+            streamer_username: streamerUsername,
+            viewer_public_key: viewerPublicKey ?? null,
+          },
         ]
       : null;
 
@@ -58,6 +72,10 @@ export function useStreamAccess(params: {
     { revalidateOnFocus: false }
   );
 
-  return { access: data, error: error?.message ?? null, isLoading, refresh: mutate };
+  return {
+    access: data,
+    error: error?.message ?? null,
+    isLoading,
+    refresh: mutate,
+  };
 }
-

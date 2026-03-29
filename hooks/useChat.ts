@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import useSWR from "swr";
+import { toast } from "sonner";
 import type { ChatMessage, ChatMessageAPI, UseChatReturn } from "@/types/chat";
 
 const MAX_MESSAGES = 200;
@@ -60,12 +61,14 @@ const chatFetcher = async (url: string): Promise<ChatMessage[]> => {
  *
  * @param playbackId  - Mux playback ID for the stream (null disables fetching)
  * @param wallet      - Connected wallet address (required to send messages)
- * @param isLive      - Whether the stream is currently live (stops polling when false)
+ * @param isLive         - Whether the stream is currently live (stops polling when false)
+ * @param enablePolling  - When false, loads history once without refresh interval (e.g. chat panel hidden)
  */
 export function useChat(
   playbackId: string | null | undefined,
   wallet: string | null | undefined,
-  isLive: boolean = true
+  isLive: boolean = true,
+  enablePolling: boolean = true
 ): UseChatReturn {
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -77,7 +80,7 @@ export function useChat(
   const cacheKey = playbackId
     ? `/api/streams/chat?playbackId=${playbackId}&limit=${MAX_MESSAGES}`
     : null;
-  const shouldPoll = !!playbackId && isLive;
+  const shouldPoll = !!playbackId && isLive && enablePolling;
 
   const { data, error, isLoading, mutate } = useSWR<ChatMessage[]>(
     cacheKey,
@@ -197,10 +200,20 @@ export function useChat(
     [wallet, mutate]
   );
 
+  const banUser = useCallback(
+    async (username: string, durationMinutes?: number) => {
+      void username;
+      void durationMinutes;
+      toast.message("User timeouts and bans are not available yet.");
+    },
+    []
+  );
+
   return {
     messages,
     sendMessage,
     deleteMessage,
+    banUser,
     isLoading,
     isSending,
     error: error?.message || sendError,

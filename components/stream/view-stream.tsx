@@ -41,6 +41,11 @@ import { useChat } from "@/hooks/useChat";
 import { TipButton, TipModalContainer } from "@/components/tipping";
 import { useTipModal } from "@/hooks/useTipModal";
 import { toast } from "sonner";
+import { AccessGate } from "./AccessGate";
+import { PaidAccessGate } from "./PaidAccessGate";
+import TokenGatedAccessGate from "./TokenGatedAccessGate";
+import { useStreamAccess } from "@/hooks/useStreamAccess";
+import { TipAlertOverlay, type TipAlert } from "./TipAlertOverlay";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,
@@ -279,6 +284,17 @@ const ViewStream = ({
   const address = publicKey || privyWallet?.wallet || null;
   const tipModalState = useTipModal();
 
+  const {
+    access,
+    isLoading: isCheckingAccess,
+    refresh,
+  } = useStreamAccess({
+    streamerUsername: username,
+    viewerPublicKey: address,
+    enabled: !isOwner,
+  });
+  const isAllowed = isOwner || !access || access.allowed === true;
+
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
   const overlayScrollRef = useRef<HTMLDivElement>(null);
@@ -286,8 +302,31 @@ const ViewStream = ({
   const {
     messages: chatMessages,
     sendMessage,
+    deleteMessage,
+    banUser,
     isSending,
-  } = useChat(userData?.playbackId, address, isLive);
+  } = useChat(userData?.playbackId, address, isLive, showChat || isFullscreen);
+
+  const [tipAlerts, setTipAlerts] = useState<TipAlert[]>([]);
+  const lastTipMessageId = useRef<number | null>(null);
+
+  useEffect(() => {
+    const last = chatMessages[chatMessages.length - 1];
+    if (!last || last.messageType !== "system") {
+      return;
+    }
+    if (lastTipMessageId.current === last.id) {
+      return;
+    }
+    if (!last.message.startsWith("💜")) {
+      return;
+    }
+    lastTipMessageId.current = last.id;
+    setTipAlerts(prev => {
+      const next = [{ id: String(last.id), text: last.message }, ...prev];
+      return next.slice(0, 5);
+    });
+  }, [chatMessages]);
 
   // Stable refs so the native keydown listener always reads current values
   const chatOverlayMessageRef = useRef(chatOverlayMessage);
@@ -521,6 +560,47 @@ const ViewStream = ({
               ref={videoContainerRef}
               className={`relative bg-black overflow-hidden group ${isFullscreen ? "flex h-screen" : "w-full aspect-video min-h-[56vw] lg:min-h-[360px]"}`}
             >
+              <TipAlertOverlay
+                alerts={tipAlerts}
+                onExpire={id =>
+                  setTipAlerts(prev => prev.filter(a => a.id !== id))
+                }
+                max={5}
+              />
+              {!isAllowed && access && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center p-4 bg-black/80 overflow-y-auto">
+                  {access.access_type === "paid" &&
+                  "streamer_id" in access &&
+                  (access.reason === "paid" ||
+                    access.reason === "wallet_required") ? (
+                    <PaidAccessGate
+                      streamerUsername={username}
+                      streamerId={access.streamer_id}
+                      streamerPublicKey={access.streamer_public_key}
+                      viewerPublicKey={address}
+                      priceUsdc={access.price_usdc}
+                      onVerified={() => void refresh()}
+                    />
+                  ) : access.access_type === "token_gated" &&
+                    "asset_code" in access ? (
+                    <TokenGatedAccessGate
+                      streamerUsername={username}
+                      assetCode={access.asset_code}
+                      minBalance={access.min_balance}
+                      onRetry={() => void refresh()}
+                      isChecking={isCheckingAccess}
+                    />
+                  ) : (
+                    <AccessGate
+                      isLoading={isCheckingAccess}
+                      allowed={false}
+                      title="This stream is locked"
+                      description="You don't have access to this stream."
+                      onRetry={() => void refresh()}
+                    />
+                  )}
+                </div>
+              )}
               {/* Video content area */}
               <div
                 className={`relative ${isFullscreen ? "flex-1" : "w-full h-full"}`}
@@ -533,7 +613,7 @@ const ViewStream = ({
                     : undefined
                 }
               >
-                {isLive && userData?.playbackId ? (
+                {isAllowed && isLive && userData?.playbackId ? (
                   <MuxPlayer
                     playbackId={userData.playbackId}
                     streamType="live:dvr"
@@ -955,6 +1035,13 @@ const ViewStream = ({
               <ChatSection
                 messages={chatMessages}
                 onSendMessage={sendMessage}
+                playbackId={userData?.playbackId ?? null}
+                streamerUsername={username}
+                streamerPublicKey={streamData?.stellarAddress ?? null}
+                viewerPublicKey={address}
+                onOpenCustomTip={tipModalState.openTipModal}
+                onDeleteMessage={deleteMessage}
+                onBanUser={banUser}
                 isCollapsible={true}
                 isFullscreen={false}
                 className="h-full"
@@ -962,6 +1049,7 @@ const ViewStream = ({
                 showChat={showChat}
                 isWalletConnected={!!address}
                 isSending={isSending}
+                isStreamOwner={isOwner}
               />
             </div>
           )}
@@ -1024,6 +1112,7 @@ const ViewStream = ({
         recipientPublicKey={streamData?.stellarAddress || ""}
         recipientAvatar={streamData?.avatarUrl}
         senderPublicKey={publicKey}
+        isPrivyUser={!!privyWallet && !publicKey}
         onSuccess={tipModalState.showSuccess}
         onError={tipModalState.showError}
         confirmationState={tipModalState.tipConfirmation}
