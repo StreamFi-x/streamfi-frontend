@@ -24,6 +24,17 @@ export interface UseTransakReturn {
   isOpen: boolean;
 }
 
+type TransakSdkModule = typeof import("@transak/transak-sdk");
+
+async function loadTransakSdk(): Promise<TransakSdkModule> {
+  const dynamicImport = new Function(
+    "modulePath",
+    "return import(modulePath);"
+  ) as (modulePath: string) => Promise<TransakSdkModule>;
+
+  return dynamicImport("@transak/transak-sdk");
+}
+
 /**
  * useTransak — manages the Transak v4 on-ramp widget lifecycle.
  *
@@ -66,7 +77,7 @@ export function useTransak({
     }
 
     // Dynamic import keeps the SDK out of the SSR bundle
-    const { Transak } = await import("@transak/transak-sdk");
+    const { Transak } = await loadTransakSdk();
 
     // In v4, Transak.on() is static — register listeners only once
     if (!listenersRegistered.current) {
