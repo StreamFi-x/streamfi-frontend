@@ -252,11 +252,9 @@ const WatchPage = ({ params }: PageProps) => {
       <div className="flex items-center justify-center min-h-screen p-6 bg-secondary">
         <div className="w-full max-w-md">
           <AccessGate
-            streamerUsername={username}
-            assetCode={userData.stream_access_config.asset_code}
-            minBalance={userData.stream_access_config.min_balance}
+            isLoading={accessChecking}
+            allowed={accessAllowed ?? false}
             onRetry={checkAccess}
-            isChecking={accessChecking}
           />
         </div>
       </div>

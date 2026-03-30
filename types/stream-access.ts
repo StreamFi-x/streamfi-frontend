@@ -15,7 +15,7 @@ export interface TokenGateConfig {
   asset_code: string;
   min_balance: string;
   /** Stellar issuer public key; omit for native XLM */
-  issuer?: string;
+  asset_issuer?: string;
 }
 
 export type StreamAccessConfig = TokenGateConfig;

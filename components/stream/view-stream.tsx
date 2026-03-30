@@ -291,7 +291,7 @@ const ViewStream = ({
 
   const {
     access,
-    isLoading: isCheckingAccess,
+    isLoading: isChecking,
     refresh,
   } = useStreamAccess({
     streamerUsername: username,
