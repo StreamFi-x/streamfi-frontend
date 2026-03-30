@@ -101,12 +101,23 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 
     content TEXT NOT NULL,
     message_type VARCHAR(20) DEFAULT 'message',
+    metadata JSONB DEFAULT '{}'::jsonb,
 
     is_deleted BOOLEAN DEFAULT FALSE,
     is_moderated BOOLEAN DEFAULT FALSE,
     moderated_by UUID REFERENCES users(id),
 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS gifts (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    emoji TEXT NOT NULL,
+    usd_value NUMERIC(10,2) NOT NULL,
+    sort_order INT NOT NULL,
+    animation TEXT NOT NULL,
+    active BOOLEAN DEFAULT TRUE
 );
 
 CREATE TABLE IF NOT EXISTS stream_viewers (

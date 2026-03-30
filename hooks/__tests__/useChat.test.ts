@@ -212,6 +212,54 @@ describe("useChat", () => {
       );
     });
 
+    it("calls POST /api/streams/chat with gift metadata", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ chatMessage: { id: 100 } }),
+      });
+      mockMutate.mockResolvedValue(undefined);
+      const wallet = makeStellarKey();
+
+      const { result } = renderHook(() =>
+        useChat("playback-abc", wallet, true)
+      );
+
+      await act(async () => {
+        await result.current.sendGiftMessage({
+          wallet,
+          playbackId: "playback-abc",
+          content: "🐉 sent a Dragon",
+          metadata: {
+            gift_name: "Dragon",
+            gift_emoji: "🐉",
+            usd_value: "500.00",
+            tx_hash: "abc123",
+            animation: "dragon",
+          },
+        });
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/streams/chat",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            wallet,
+            playbackId: "playback-abc",
+            content: "🐉 sent a Dragon",
+            messageType: "gift",
+            metadata: {
+              gift_name: "Dragon",
+              gift_emoji: "🐉",
+              usd_value: "500.00",
+              tx_hash: "abc123",
+              animation: "dragon",
+            },
+          }),
+        })
+      );
+    });
+
     it("rolls back optimistic update and sets error on API failure", async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
