@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 
 const SCENARIOS = [
@@ -47,7 +47,7 @@ export async function GET(): Promise<Response> {
   return NextResponse.json({ scenarios: SCENARIOS });
 }
 
-export async function DELETE(_req: NextRequest): Promise<Response> {
+export async function DELETE(): Promise<Response> {
   if (isMainnet()) {
     return NextResponse.json(
       { error: "Not available in production" },

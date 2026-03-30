@@ -64,6 +64,15 @@ async function requireAdmin(req: NextRequest) {
   return { ok: true as const, session };
 }
 
+function isUniqueViolation(err: unknown): boolean {
+  if (!err || typeof err !== "object") {
+    return false;
+  }
+
+  const code = "code" in err ? (err as { code?: unknown }).code : undefined;
+  return code === "23505";
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -187,6 +196,13 @@ export async function PATCH(
 
     return NextResponse.json(rows[0]);
   } catch (err) {
+    if (isUniqueViolation(err)) {
+      return NextResponse.json(
+        { error: "Category already exists" },
+        { status: 409 }
+      );
+    }
+
     console.error("[categories/:slug] PATCH error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
