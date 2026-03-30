@@ -1,6 +1,8 @@
 /**
  * Stream access types shared by `/api/streams/access/check` and token-gate helpers.
+ * Used by lib/stream/access.ts, API routes, and UI components.
  */
+
 export type StreamAccessType =
   | "public"
   | "paid"
@@ -13,17 +15,7 @@ export interface TokenGateConfig {
   asset_code: string;
   min_balance: string;
   /** Stellar issuer public key; omit for native XLM */
-  issuer?: string;
- * Types for the stream access-control system.
- * Used by lib/stream/access.ts, API routes, and UI components.
- */
-
-export type StreamAccessType = "public" | "token_gated";
-
-export interface TokenGateConfig {
-  asset_code: string;    // Stellar asset code, max 12 chars (e.g. "STREAM")
-  asset_issuer: string;  // Stellar public key of the issuing account
-  min_balance: string;   // Minimum token balance required (default "1")
+  asset_issuer?: string;
 }
 
 export type StreamAccessConfig = TokenGateConfig;
@@ -31,7 +23,7 @@ export type StreamAccessConfig = TokenGateConfig;
 export interface AccessResult {
   allowed: boolean;
   /** Present when allowed is false */
-  reason?: "token_gated" | "no_wallet";
+  reason?: "token_gated" | "no_wallet" | "public";
 }
 
 /** Shape stored in users.creator JSONB for access control */

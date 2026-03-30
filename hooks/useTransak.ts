@@ -3,6 +3,8 @@
 import { useCallback, useState } from "react";
 import type { TransakCryptoCurrency } from "@/types/transak";
 
+export const TRANSAK_ORDER_COMPLETE_EVENT = "TRANSAK_ORDER_SUCCESS";
+
 type UseTransakOptions = {
   walletAddress: string;
   email?: string;
