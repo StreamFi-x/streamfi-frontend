@@ -1,20 +1,4 @@
 export type TransakCryptoCurrency = "XLM" | "USDC";
-
-/** Minimal order shape when the embedded flow reports completion */
-export type TransakOrderData = {
-  id?: string;
-  status?: string;
-};
-/**
- * Transak on-ramp integration types.
- * Covers widget config, lifecycle events, and webhook payloads.
- *
- * Note: @transak/transak-sdk v4 takes { widgetUrl, referrer } and appends
- * all configuration as query params. The types here cover our app-level
- * config building and the data returned by events / webhooks.
- */
-
-export type TransakCryptoCurrency = "XLM" | "USDC";
 export type TransakFiatCurrency = string; // e.g. "USD", "EUR", "GBP"
 export type TransakEnvironment = "STAGING" | "PRODUCTION";
 
