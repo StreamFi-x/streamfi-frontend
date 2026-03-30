@@ -1,11 +1,22 @@
 import { StellarPublicKey } from "@/types/user";
 
+export interface GiftMessageMetadata {
+  gift_name: string;
+  gift_emoji: string;
+  usd_value: string;
+  tx_hash: string;
+  animation?: string;
+}
+
+export type ChatMessageType = "message" | "emote" | "system" | "gift";
+
 /** Message as returned by the chat API */
 export interface ChatMessageAPI {
   id: number;
   content: string;
-  messageType: "message" | "emote" | "system";
+  messageType: ChatMessageType;
   createdAt: string;
+  metadata?: GiftMessageMetadata | null;
   user: {
     username: string;
     /** Stellar public key (G..., 56 characters) */
@@ -23,8 +34,9 @@ export interface ChatMessage {
   avatar?: string | null;
   /** Stellar public key (G..., 56 characters) */
   wallet?: StellarPublicKey;
-  messageType: "message" | "emote" | "system";
+  messageType: ChatMessageType;
   createdAt: string;
+  metadata?: GiftMessageMetadata | null;
   /** True while an optimistic message is being confirmed by the API */
   isPending?: boolean;
 }
@@ -35,13 +47,22 @@ export interface SendChatMessagePayload {
   wallet: StellarPublicKey;
   playbackId: string;
   content: string;
-  messageType?: "message" | "emote" | "system";
+  messageType?: ChatMessageType;
+  metadata?: GiftMessageMetadata;
+}
+
+export interface SendGiftMessagePayload {
+  wallet: StellarPublicKey;
+  playbackId: string;
+  content: string;
+  metadata: GiftMessageMetadata;
 }
 
 /** Return type of the useChat hook */
 export interface UseChatReturn {
   messages: ChatMessage[];
   sendMessage: (content: string) => Promise<void>;
+  sendGiftMessage: (payload: SendGiftMessagePayload) => Promise<void>;
   deleteMessage: (messageId: number) => Promise<void>;
   /** Placeholder until chat moderation API exists */
   banUser: (username: string, durationMinutes?: number) => Promise<void>;
