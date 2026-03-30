@@ -90,6 +90,23 @@ export async function POST(req: NextRequest) {
       return updated;
     });
 
+    // Activity event — non-blocking
+    try {
+      await sql`
+        INSERT INTO route_f_activity_events (user_id, type, metadata)
+        VALUES (
+          ${updatedUser.id},
+          'stream_started',
+          ${JSON.stringify({
+            stream_id: updatedUser.mux_stream_id,
+            playback_id: updatedUser.mux_playback_id,
+          })}::jsonb
+        )
+      `;
+    } catch (activityErr) {
+      console.error("[stream start] activity insert error:", activityErr);
+    }
+
     return NextResponse.json(
       {
         message: "Stream started successfully",
@@ -161,6 +178,32 @@ export async function DELETE(req: NextRequest) {
       `;
     } catch (sessionError) {
       console.error("Failed to end stream session:", sessionError);
+    }
+
+    // Activity event — non-blocking
+    try {
+      // Retrieve the just-ended session for duration and peak viewers
+      const { rows: sessionRows } = await sql`
+        SELECT duration_seconds, peak_viewers
+        FROM stream_sessions
+        WHERE user_id = ${user.id}
+        ORDER BY ended_at DESC NULLS LAST
+        LIMIT 1
+      `;
+      const sess = sessionRows[0];
+      await sql`
+        INSERT INTO route_f_activity_events (user_id, type, metadata)
+        VALUES (
+          ${user.id},
+          'stream_ended',
+          ${JSON.stringify({
+            duration_s: sess?.duration_seconds ?? 0,
+            peak_viewers: sess?.peak_viewers ?? 0,
+          })}::jsonb
+        )
+      `;
+    } catch (activityErr) {
+      console.error("[stream stop] activity insert error:", activityErr);
     }
 
     return NextResponse.json(
