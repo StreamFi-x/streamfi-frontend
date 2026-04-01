@@ -33,6 +33,10 @@ export async function verifyAssetExists(
   assetCode: string,
   issuer: string
 ): Promise<boolean> {
+  if (isNativeAsset(assetCode)) {
+    return true;
+  }
+
   if (!isValidAssetCode(assetCode) || !isValidStellarIssuer(issuer)) {
     return false;
   }
@@ -48,7 +52,8 @@ export async function verifyAssetExists(
       .call();
 
     return Array.isArray(response.records) && response.records.length > 0;
-  } catch {
+  } catch (err) {
+    console.error("[verifyAssetExists] error:", err);
     return false;
   }
 }

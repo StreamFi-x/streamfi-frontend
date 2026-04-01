@@ -9,6 +9,26 @@ function isValidStellarPublicKey(key: unknown): key is string {
   return typeof key === "string" && /^G[A-Z0-9]{55}$/.test(key);
 }
 
+function isGiftMetadata(metadata: unknown): metadata is {
+  gift_name: string;
+  gift_emoji: string;
+  usd_value: string;
+  tx_hash: string;
+  animation?: string;
+} {
+  if (!metadata || typeof metadata !== "object") {
+    return false;
+  }
+
+  const candidate = metadata as Record<string, unknown>;
+  return (
+    typeof candidate.gift_name === "string" &&
+    typeof candidate.gift_emoji === "string" &&
+    typeof candidate.usd_value === "string" &&
+    typeof candidate.tx_hash === "string"
+  );
+}
+
 export async function POST(req: NextRequest) {
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
@@ -27,6 +47,7 @@ export async function POST(req: NextRequest) {
       playbackId,
       content,
       messageType = "message",
+      metadata = null,
     } = await req.json();
 
     if (!wallet || !playbackId || !content) {
@@ -50,9 +71,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!["message", "emote", "system"].includes(messageType)) {
+    if (!["message", "emote", "system", "gift"].includes(messageType)) {
       return NextResponse.json(
         { error: "Invalid message type" },
+        { status: 400 }
+      );
+    }
+
+    if (messageType === "gift" && !isGiftMetadata(metadata)) {
+      return NextResponse.json(
+        { error: "Gift messages require gift metadata" },
         { status: 400 }
       );
     }
@@ -219,10 +247,11 @@ export async function POST(req: NextRequest) {
         stream_session_id,
         content,
         message_type,
+        metadata,
         created_at
       )
-      VALUES (${sender_id}, ${sender_username}, ${session_id}, ${content}, ${messageType}, CURRENT_TIMESTAMP)
-      RETURNING id, created_at
+      VALUES (${sender_id}, ${sender_username}, ${session_id}, ${content}, ${messageType}, ${metadata}, CURRENT_TIMESTAMP)
+      RETURNING id, created_at, metadata
     `;
 
     const newMessage = messageResult.rows[0];
@@ -240,6 +269,7 @@ export async function POST(req: NextRequest) {
           id: newMessage.id,
           content,
           messageType,
+          metadata: newMessage.metadata,
           user: {
             username: sender_username,
             wallet: wallet,
@@ -294,6 +324,7 @@ export async function GET(req: Request) {
         cm.id,
         cm.content,
         cm.message_type,
+        cm.metadata,
         cm.created_at,
         u.username,
         u.wallet,
@@ -311,6 +342,7 @@ export async function GET(req: Request) {
       id: msg.id,
       content: msg.content,
       messageType: msg.message_type,
+        metadata: msg.metadata,
       createdAt: msg.created_at,
       user: {
         username: msg.username,

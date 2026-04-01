@@ -1,6 +1,8 @@
 /**
- * Stream access types shared across access routes, helpers, and UI code.
+ * Stream access types shared by `/api/streams/access/check` and token-gate helpers.
+ * Used by lib/stream/access.ts, API routes, and UI components.
  */
+
 export type StreamAccessType =
   | "public"
   | "paid"
@@ -17,6 +19,7 @@ export interface TokenGateConfig {
   asset_code: string;
   min_balance: string;
   issuer?: string;
+  /** Stellar issuer public key; omit for native XLM */
   asset_issuer?: string;
 }
 
@@ -24,7 +27,8 @@ export type StreamAccessConfig = TokenGateConfig;
 
 export interface AccessResult {
   allowed: boolean;
-  reason?: "token_gated" | "no_wallet";
+  /** Present when allowed is false */
+  reason?: "token_gated" | "no_wallet" | "public";
 }
 
 export interface CreatorAccessSettings {

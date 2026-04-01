@@ -110,6 +110,17 @@ describe("POST /api/streams/chat", () => {
     expect(body.error).toMatch(/invalid message type/i);
   });
 
+  it("returns 400 when a gift message is missing metadata", async () => {
+    const req = makeRequest("POST", {
+      wallet: makeStellarKey(),
+      playbackId: "pb1",
+      content: "sent a gift",
+      messageType: "gift",
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
   it("returns 404 when user or stream not found", async () => {
     sqlMock.mockResolvedValueOnce({ rows: [] }); // combined query returns nothing
     const req = makeRequest("POST", {
@@ -203,6 +214,63 @@ describe("POST /api/streams/chat", () => {
     expect(body.chatMessage.user.wallet).toBe(wallet);
   });
 
+  it("stores and returns gift metadata on success", async () => {
+    const wallet = makeStellarKey();
+    sqlMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            sender_id: 1,
+            sender_username: "Alice",
+            streamer_id: 2,
+            streamer_username: "Bob",
+            is_live: true,
+            session_id: 10,
+            slow_mode_seconds: 0,
+            follower_only_chat: false,
+            link_blocking: false,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 100,
+            created_at: "2025-01-01T00:00:00Z",
+            metadata: {
+              gift_name: "Lion",
+              gift_emoji: "🦁",
+              usd_value: "100.00",
+              tx_hash: "hash123",
+              animation: "roar",
+            },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = makeRequest("POST", {
+      wallet,
+      playbackId: "pb1",
+      content: "🦁 sent a Lion",
+      messageType: "gift",
+      metadata: {
+        gift_name: "Lion",
+        gift_emoji: "🦁",
+        usd_value: "100.00",
+        tx_hash: "hash123",
+        animation: "roar",
+      },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.chatMessage.metadata.gift_name).toBe("Lion");
+  });
+
   it("returns 500 on unexpected database error", async () => {
     sqlMock
       .mockResolvedValueOnce({
@@ -268,6 +336,7 @@ describe("GET /api/streams/chat", () => {
             id: 1,
             content: "hello",
             message_type: "message",
+            metadata: null,
             created_at: "2025-01-01T00:00:00Z",
             username: "Alice",
             wallet,
@@ -284,6 +353,37 @@ describe("GET /api/streams/chat", () => {
     expect(body.messages).toHaveLength(1);
     expect(body.messages[0].content).toBe("hello");
     expect(body.messages[0].user.username).toBe("Alice");
+  });
+
+  it("returns gift metadata in message history", async () => {
+    const wallet = makeStellarKey();
+    sqlMock
+      .mockResolvedValueOnce({ rows: [{ session_id: 10 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 2,
+            content: "🐉 sent a Dragon",
+            message_type: "gift",
+            metadata: {
+              gift_name: "Dragon",
+              gift_emoji: "🐉",
+              usd_value: "500.00",
+              tx_hash: "hash999",
+              animation: "dragon",
+            },
+            created_at: "2025-01-01T00:00:00Z",
+            username: "Alice",
+            wallet,
+            avatar: null,
+          },
+        ],
+      });
+
+    const req = makeRequest("GET", undefined, "?playbackId=pb1");
+    const res = await GET(req);
+    const body = await res.json();
+    expect(body.messages[0].metadata.gift_name).toBe("Dragon");
   });
 
   it("respects the limit query param", async () => {

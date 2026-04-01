@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import type { ChatMessage } from "@/types/chat";
 import { QuickTipBar } from "./QuickTipBar";
+import { GiftMessage } from "./GiftMessage";
 
 interface ChatSectionProps {
   messages: ChatMessage[];
@@ -26,6 +27,7 @@ interface ChatSectionProps {
   streamerPublicKey?: string | null;
   viewerPublicKey?: string | null;
   onOpenCustomTip?: () => void;
+  onOpenGiftPicker?: () => void;
   onDeleteMessage?: (messageId: number) => void;
   onBanUser?: (username: string, durationMinutes?: number) => void;
   isCollapsible?: boolean;
@@ -46,6 +48,7 @@ const ChatSection = ({
   streamerPublicKey = null,
   viewerPublicKey = null,
   onOpenCustomTip,
+  onOpenGiftPicker,
   onDeleteMessage,
   onBanUser,
   isCollapsible = true,
@@ -222,15 +225,21 @@ const ChatSection = ({
                   style={{ backgroundColor: message.color }}
                 />
                 <div className="flex-1 min-w-0">
-                  <span
-                    className="font-medium"
-                    style={{ color: message.color }}
-                  >
-                    {message.messageType === "system"
-                      ? "System: "
-                      : `${message.username}: `}
-                  </span>
-                  <span>{message.message}</span>
+                  {message.messageType === "gift" ? (
+                    <GiftMessage message={message} />
+                  ) : (
+                    <>
+                      <span
+                        className="font-medium"
+                        style={{ color: message.color }}
+                      >
+                        {message.messageType === "system"
+                          ? "System: "
+                          : `${message.username}: `}
+                      </span>
+                      <span>{message.message}</span>
+                    </>
+                  )}
                 </div>
                 {isStreamOwner && (
                   <button
@@ -303,6 +312,7 @@ const ChatSection = ({
                 <button
                   type="button"
                   className="text-muted-foreground hover:text-foreground"
+                  onClick={onOpenGiftPicker}
                 >
                   <GiftIcon className="h-4 w-4" />
                 </button>

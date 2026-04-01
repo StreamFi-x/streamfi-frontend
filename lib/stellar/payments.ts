@@ -1,14 +1,12 @@
 import {
-  TransactionBuilder,
   Networks,
-  Operation,
   Asset,
   BASE_FEE,
-  Memo,
   Transaction,
   Horizon,
 } from "@stellar/stellar-sdk";
 import { buildPaymentTransaction } from "./transactions";
+import { getUsdcAsset } from "./usdc";
 
 const Server = Horizon.Server;
 
@@ -16,6 +14,13 @@ interface BuildTipTransactionParams {
   sourcePublicKey: string; // Viewer's Stellar wallet
   destinationPublicKey: string; // Creator's Stellar wallet
   amount: string; // XLM amount (e.g., "10.0000000")
+  network: "testnet" | "mainnet";
+}
+
+interface BuildGiftTransactionParams {
+  sourcePublicKey: string;
+  destinationPublicKey: string;
+  usdcAmount: string;
   network: "testnet" | "mainnet";
 }
 
@@ -77,6 +82,29 @@ export async function buildTipTransaction(
       throw new Error(`Failed to build transaction: ${error.message}`);
     }
     throw new Error("Failed to build transaction: Unknown error");
+  }
+}
+
+export async function buildGiftTransaction(
+  params: BuildGiftTransactionParams
+): Promise<Transaction> {
+  const { sourcePublicKey, destinationPublicKey, usdcAmount, network } = params;
+
+  try {
+    return await buildPaymentTransaction({
+      sourcePublicKey,
+      destinationPublicKey,
+      asset: getUsdcAsset(network),
+      amount: usdcAmount,
+      memoText: "StreamFi Gift",
+      network,
+      timeoutSeconds: 30,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Failed to build gift transaction: ${error.message}`);
+    }
+    throw new Error("Failed to build gift transaction: Unknown error");
   }
 }
 

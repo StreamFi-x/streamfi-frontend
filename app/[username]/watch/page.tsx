@@ -259,7 +259,6 @@ const WatchPage = ({ params }: PageProps) => {
             assetCode={userData.stream_access_config.asset_code}
             minBalance={userData.stream_access_config.min_balance}
             onRetry={checkAccess}
-            isChecking={accessChecking}
           />
         </div>
       </div>

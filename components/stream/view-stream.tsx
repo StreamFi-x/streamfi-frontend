@@ -46,6 +46,8 @@ import { PaidAccessGate } from "./PaidAccessGate";
 import TokenGatedAccessGate from "./TokenGatedAccessGate";
 import { useStreamAccess } from "@/hooks/useStreamAccess";
 import { TipAlertOverlay, type TipAlert } from "./TipAlertOverlay";
+import { GiftPicker } from "./GiftPicker";
+import type { GiftMessageMetadata } from "@/types/chat";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,
@@ -274,6 +276,7 @@ const ViewStream = ({
   const [chatOverlayMessage, setChatOverlayMessage] = useState("");
   const [showStreamInfoModal, setShowStreamInfoModal] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
+  const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [isSavingStreamInfo, setIsSavingStreamInfo] = useState(false);
   const [recordings, setRecordings] = useState<PastRecording[]>([]);
@@ -301,6 +304,7 @@ const ViewStream = ({
   const {
     messages: chatMessages,
     sendMessage,
+    sendGiftMessage,
     deleteMessage,
     banUser,
     isSending,
@@ -308,6 +312,13 @@ const ViewStream = ({
 
   const [tipAlerts, setTipAlerts] = useState<TipAlert[]>([]);
   const lastTipMessageId = useRef<number | null>(null);
+  const [giftQueue, setGiftQueue] = useState<
+    Array<GiftMessageMetadata & { id: number; username: string }>
+  >([]);
+  const [activeGiftOverlay, setActiveGiftOverlay] = useState<
+    (GiftMessageMetadata & { id: number; username: string }) | null
+  >(null);
+  const lastGiftMessageId = useRef<number | null>(null);
 
   useEffect(() => {
     const last = chatMessages[chatMessages.length - 1];
@@ -326,6 +337,53 @@ const ViewStream = ({
       return next.slice(0, 5);
     });
   }, [chatMessages]);
+
+  useEffect(() => {
+    const last = chatMessages[chatMessages.length - 1];
+    if (!last || last.messageType !== "gift" || !last.metadata) {
+      return;
+    }
+    if (lastGiftMessageId.current === last.id) {
+      return;
+    }
+    if (!["roar", "dragon"].includes(last.metadata.animation ?? "")) {
+      return;
+    }
+    const { gift_name, gift_emoji, usd_value, tx_hash, animation } =
+      last.metadata;
+    if (!gift_name || !gift_emoji || usd_value == null || !tx_hash) {
+      return;
+    }
+    lastGiftMessageId.current = last.id;
+    setGiftQueue(prev => [
+      ...prev,
+      {
+        gift_name,
+        gift_emoji,
+        usd_value,
+        tx_hash,
+        animation,
+        id: last.id,
+        username: last.username,
+      },
+    ]);
+  }, [chatMessages]);
+
+  useEffect(() => {
+    if (activeGiftOverlay || giftQueue.length === 0) {
+      return;
+    }
+
+    const [nextGift, ...rest] = giftQueue;
+    setActiveGiftOverlay(nextGift);
+    setGiftQueue(rest);
+
+    const timeout = window.setTimeout(() => {
+      setActiveGiftOverlay(null);
+    }, 4000);
+
+    return () => window.clearTimeout(timeout);
+  }, [activeGiftOverlay, giftQueue]);
 
   // Stable refs so the native keydown listener always reads current values
   const chatOverlayMessageRef = useRef(chatOverlayMessage);
@@ -566,6 +624,41 @@ const ViewStream = ({
                 }
                 max={5}
               />
+              <AnimatePresence>
+                {activeGiftOverlay && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -24, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -20, scale: 0.98 }}
+                    className={`pointer-events-none absolute inset-x-4 top-4 z-20 overflow-hidden rounded-2xl border px-6 py-5 text-white shadow-2xl ${
+                      activeGiftOverlay.animation === "dragon"
+                        ? "bg-gradient-to-r from-fuchsia-700/90 via-amber-500/80 to-orange-500/90 border-fuchsia-300/40"
+                        : "bg-gradient-to-r from-orange-700/90 via-amber-500/80 to-yellow-500/90 border-orange-200/40"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="text-5xl leading-none">
+                        {activeGiftOverlay.gift_emoji}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/80">
+                          {activeGiftOverlay.animation === "dragon"
+                            ? "Dragon Gift"
+                            : "Lion Gift"}
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold">
+                          @{activeGiftOverlay.username} sent a{" "}
+                          {activeGiftOverlay.gift_name}
+                        </p>
+                        <p className="mt-1 text-sm text-white/80">
+                          ${activeGiftOverlay.usd_value} USDC just landed
+                          on-chain.
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               {!isAllowed && access && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center p-4 bg-black/80 overflow-y-auto">
                   {access.access_type === "paid" &&
@@ -1039,6 +1132,7 @@ const ViewStream = ({
                 streamerPublicKey={streamData?.stellarAddress ?? null}
                 viewerPublicKey={address}
                 onOpenCustomTip={tipModalState.openTipModal}
+                onOpenGiftPicker={() => setShowGiftPicker(true)}
                 onDeleteMessage={deleteMessage}
                 onBanUser={banUser}
                 isCollapsible={true}
@@ -1118,6 +1212,18 @@ const ViewStream = ({
         onConfirmationClose={tipModalState.closeConfirmation}
         onRetry={tipModalState.retryFromConfirmation}
       />
+
+      {!!userData?.playbackId && !!address && !!streamData?.stellarAddress && (
+        <GiftPicker
+          isOpen={showGiftPicker}
+          onClose={() => setShowGiftPicker(false)}
+          playbackId={userData.playbackId}
+          viewerPublicKey={address}
+          streamerPublicKey={streamData.stellarAddress}
+          streamerUsername={username}
+          onSendGiftMessage={sendGiftMessage}
+        />
+      )}
     </>
   );
 };
