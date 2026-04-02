@@ -1,6 +1,8 @@
 /** Stellar public key — 56-character Base32 string starting with 'G' */
 export type StellarPublicKey = string;
 
+import type { NotificationPreferences } from "@/types/notifications";
+
 export interface SocialLink {
   socialTitle: string;
   socialLink: string;
@@ -30,6 +32,7 @@ export interface User {
   updated_at: string;
   /** When true, Mux records live streams and makes them available as VOD. Default false. */
   enable_recording?: boolean;
+  notificationPreferences?: NotificationPreferences;
 }
 
 export interface UserRegistrationInput {
@@ -39,6 +42,7 @@ export interface UserRegistrationInput {
   wallet: StellarPublicKey;
   socialLinks?: SocialLink[];
   emailNotifications?: boolean;
+  notificationPreferences?: NotificationPreferences;
   creator?: Partial<Creator>;
 }
 
@@ -53,6 +57,7 @@ export type UserUpdateInput = {
   streamkey?: string;
   emailVerified?: boolean;
   emailNotifications?: boolean;
+  notificationPreferences?: NotificationPreferences;
   socialLinks?: Record<string, string>;
   creator?: Creator;
   enable_recording?: boolean;

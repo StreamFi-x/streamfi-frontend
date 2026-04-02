@@ -1,19 +1,19 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { StreamfiLogoLight, StreamfiLogoShort } from "@/public/icons";
-import { Search, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import NotificationBell from "@/components/shared/NotificationBell";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import type { SearchResult } from "@/types/explore";
 import { useAuth } from "@/components/auth/auth-provider";
 import ConnectModal from "../connectWallet";
 import ProfileModal from "./ProfileModal";
-import { getDefaultAvatar } from "@/lib/profile-icons";
+import Avatar from "@/public/Images/user.png";
 import ProfileDropdown from "../ui/profileDropdown";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { SearchBar } from "@/components/search/SearchBar";
 
 interface NavbarProps {
   onConnectWallet?: () => void;
@@ -21,21 +21,11 @@ interface NavbarProps {
   onConnect?: () => void;
 }
 
-type Category = {
-  id: string;
-  title: string;
-  imageurl?: string;
-};
-
 export default function Navbar({}: NavbarProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { publicKey, isConnected, disconnect, privyWallet } =
     useStellarWallet();
   const { user, isLoading: authLoading, isError: authError } = useAuth();
-  const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
   const [connectStep, setConnectStep] = useState<
@@ -107,8 +97,8 @@ export default function Navbar({}: NavbarProps) {
       return storedUser.avatar;
     }
 
-    return getDefaultAvatar(user?.username ?? privyWallet?.username);
-  }, [privyWallet, user?.avatar, user?.username, getSessionData]);
+    return Avatar;
+  }, [privyWallet, user?.avatar, getSessionData]);
 
   const handleCloseProfileModal = () => {
     setProfileModalOpen(false);
@@ -139,63 +129,14 @@ export default function Navbar({}: NavbarProps) {
       if (
         !target.closest(".profile-dropdown-container") &&
         !target.closest(".avatar-container") &&
-        !target.closest("#search-input") &&
-        !target.closest("#search-dropdown")
+        !target.closest("[data-search-root]")
       ) {
         setIsProfileDropdownOpen(false);
-        setIsSearchDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // Search results fetch with debounce — categories + users in parallel
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    const timeout = setTimeout(async () => {
-      try {
-        const q = encodeURIComponent(searchQuery);
-        const [catRes, userRes] = await Promise.all([
-          fetch(`/api/category?title=${q}`),
-          fetch(`/api/search-username?q=${q}`),
-        ]);
-
-        const [catData, userData] = await Promise.all([
-          catRes.json(),
-          userRes.json(),
-        ]);
-
-        const categories: SearchResult[] = (catData.categories ?? []).map(
-          (cat: Category) => ({
-            id: cat.id,
-            title: cat.title,
-            image: cat.imageurl || "",
-            type: "category" as const,
-          })
-        );
-
-        const users: SearchResult[] = (userData.users ?? []).map(
-          (u: { id: string; username: string; avatar?: string }) => ({
-            id: u.id,
-            title: u.username,
-            image: u.avatar || getDefaultAvatar(u.username),
-            type: "user" as const,
-          })
-        );
-
-        setSearchResults([...users, ...categories]);
-      } catch {
-        setSearchResults([]);
-      }
-    }, 300);
-
-    return () => clearTimeout(timeout);
-  }, [searchQuery]);
 
   const handleConnectWallet = () => {
     if (isConnected) {
@@ -264,92 +205,22 @@ export default function Navbar({}: NavbarProps) {
         <div className="flex items-center gap-4">
           <Link href="/explore" className="flex items-center gap-2">
             <Image
-              src={StreamfiLogoLight}
+              src={StreamfiLogoLight || "/Images/user.png"}
               alt="Streamfi Logo"
               className="dark:hidden"
             />
             <Image
-              src={StreamfiLogoShort}
+              src={StreamfiLogoShort || "/Images/user.png"}
               alt="Streamfi Logo"
               className="hidden dark:block"
             />
           </Link>
         </div>
 
-        <div className="hidden md:block flex-1 items-center max-w-xl mx-4 relative">
-          <div className="relative">
-            <input
-              id="search-input"
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={e => {
-                setSearchQuery(e.target.value);
-                setIsSearchDropdownOpen(true);
-              }}
-              onFocus={() =>
-                searchResults.length && setIsSearchDropdownOpen(true)
-              }
-              className="w-full bg-input rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:ring-1 focus:ring-highlight"
-            />
-            <Search
-              className="absolute left-3 top-[47%] transform -translate-y-1/2 text-gray-400"
-              size={16}
-            />
+        <div className="flex flex-1 items-center justify-end gap-3 md:mx-4 md:max-w-xl md:justify-center">
+          <div data-search-root className="w-full max-w-xl">
+            <SearchBar showMobileTrigger={true} />
           </div>
-
-          <AnimatePresence>
-            {isSearchDropdownOpen && searchResults.length > 0 && (
-              <motion.div
-                id="search-dropdown"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="absolute top-full left-0 right-0 mt-2 bg-dropdown border border-border shadow-lg rounded-md z-20"
-              >
-                <div className="p-2">
-                  {searchResults.map(result => (
-                    <Link
-                      key={result.id}
-                      className="flex items-center gap-3 p-2 hover:bg-surface-hover rounded-md cursor-pointer"
-                      href={
-                        result.type === "user"
-                          ? `/${result.title}`
-                          : `/browse/${result.type}/${result.title.toLowerCase()}`
-                      }
-                    >
-                      <div
-                        className={`w-10 h-10 bg-gray-700 overflow-hidden shrink-0 ${result.type === "user" ? "rounded-full" : "rounded"}`}
-                      >
-                        <Image
-                          src={
-                            result.image ||
-                            (result.type === "user"
-                              ? getDefaultAvatar(result.title)
-                              : "")
-                          }
-                          alt={result.title}
-                          className="w-full h-full object-cover"
-                          width={40}
-                          height={40}
-                          unoptimized
-                        />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-foreground">
-                          {result.title}
-                        </div>
-                        <div className="text-xs text-muted-foreground capitalize">
-                          {result.type}
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
         <div className="flex items-center gap-4">
@@ -377,15 +248,11 @@ export default function Navbar({}: NavbarProps) {
                         />
                       ) : (
                         <Image
-                          src={
-                            typeof userAvatar === "string"
-                              ? userAvatar
-                              : getDefaultAvatar(displayName)
-                          }
+                          src={Avatar}
                           alt="Avatar"
                           width={32}
                           height={32}
-                          className="rounded-full object-cover"
+                          className="rounded-full"
                         />
                       )}
                     </>

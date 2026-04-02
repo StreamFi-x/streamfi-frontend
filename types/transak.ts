@@ -1,32 +1,15 @@
-// Matches the actual @transak/transak-sdk v4 TransakConfig type
-export interface TransakConfig {
-  widgetUrl: string; // Full URL with all params as query string
-  referrer: string; // Your app's origin, e.g. "https://streamfi.xyz"
-  widgetWidth?: string;
-  widgetHeight?: string;
-  containerId?: string;
-  themeColor?: string;
-}
-
-// Parameters that get baked into the widgetUrl query string
-export interface TransakWidgetParams {
-  apiKey: string;
-  network: TransakNetwork;
-  cryptoCurrencyCode?: TransakCryptoCurrency;
-  walletAddress?: string;
-  disableWalletAddressForm?: boolean;
-  fiatAmount?: number;
-  fiatCurrency?: string;
-  email?: string;
-  themeColor?: string; // hex without #
-  environment?: TransakEnvironment;
-}
-
-export type TransakEnvironment = "STAGING" | "PRODUCTION";
-
-export type TransakNetwork = "stellar";
+/**
+ * Transak on-ramp integration types.
+ * Covers widget config, lifecycle events, and webhook payloads.
+ *
+ * Note: @transak/transak-sdk v4 takes { widgetUrl, referrer } and appends
+ * all configuration as query params. The types here cover our app-level
+ * config building and the data returned by events / webhooks.
+ */
 
 export type TransakCryptoCurrency = "XLM" | "USDC";
+export type TransakFiatCurrency = string; // e.g. "USD", "EUR", "GBP"
+export type TransakEnvironment = "STAGING" | "PRODUCTION";
 
 export type TransakOrderStatus =
   | "AWAITING_PAYMENT_FROM_USER"
@@ -40,23 +23,54 @@ export type TransakOrderStatus =
   | "REFUNDED"
   | "EXPIRED";
 
+/** Shape of order data included in Transak widget events */
 export interface TransakOrderData {
   id: string;
   status: TransakOrderStatus;
-  cryptoAmount: number;
+  cryptoAmount: number | null;
   cryptoCurrency: TransakCryptoCurrency;
   fiatAmount: number;
-  fiatCurrency: string;
-  network: TransakNetwork;
+  fiatCurrency: TransakFiatCurrency;
   walletAddress: string;
-  paymentOptionId: string;
+  network: string;
+  transactionHash: string | null;
+  isBuyOrSell: "BUY" | "SELL";
   createdAt: string;
   updatedAt: string;
-  completedAt?: string;
-  transactionHash?: string;
+  conversionPrice?: number;
+  totalFeeInFiat?: number;
+  partnerOrderId?: string;
+  partnerCustomerId?: string;
 }
 
-export interface TransakEventPayload {
-  eventName: string;
-  status: TransakOrderData;
+/** Webhook payload from Transak (server-side) */
+export interface TransakWebhookPayload {
+  webhookData: {
+    id: string;
+    status: TransakOrderStatus;
+    cryptoAmount: number | null;
+    cryptoCurrency: TransakCryptoCurrency;
+    fiatAmount: number;
+    fiatCurrency: TransakFiatCurrency;
+    walletAddress: string;
+    network: string;
+    transactionHash: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+/** Row stored in the transak_orders DB table */
+export interface TransakOrderRow {
+  id: string;
+  user_id: string;
+  status: TransakOrderStatus;
+  crypto_amount: number | null;
+  crypto_currency: TransakCryptoCurrency;
+  fiat_amount: number;
+  fiat_currency: TransakFiatCurrency;
+  wallet_address: string;
+  tx_hash: string | null;
+  created_at: string;
+  updated_at: string;
 }

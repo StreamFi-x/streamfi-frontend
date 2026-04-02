@@ -1,78 +1,28 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Bell, UserPlus, Radio, X } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { Bell, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { usePrivy } from "@privy-io/react-auth";
-
-interface Notification {
-  id: string;
-  type: "follow" | "live" | string;
-  title: string;
-  text: string;
-  read: boolean;
-  created_at: string;
-}
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) {
-    return "just now";
-  }
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
-function NotificationIcon({ type }: { type: string }) {
-  if (type === "follow") {
-    return <UserPlus size={14} className="text-highlight" />;
-  }
-  if (type === "live") {
-    return <Radio size={14} className="text-red-500" />;
-  }
-  return <Bell size={14} className="text-muted-foreground" />;
-}
+import NotificationListItem from "@/components/notifications/NotificationListItem";
+import { useNotifications } from "@/hooks/use-notifications";
+import { getNotificationHref } from "@/lib/notification-utils";
+import type { Notification } from "@/types/notifications";
 
 export default function NotificationBell() {
-  const { authenticated } = usePrivy();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const res = await fetch("/api/users/notifications", {
-        credentials: "include",
-      });
-      if (!res.ok) {
-        return;
-      }
-      const data = await res.json();
-      setNotifications(data.notifications ?? []);
-      setUnreadCount(data.unreadCount ?? 0);
-    } catch {
-      // silently ignore — bell is non-critical
-    }
-  }, []);
-
-  // Only poll when authenticated — avoids noisy 401s for logged-out users
-  useEffect(() => {
-    if (!authenticated) {
-      return;
-    }
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30_000);
-    return () => clearInterval(interval);
-  }, [authenticated, fetchNotifications]);
+  const {
+    notifications,
+    unreadCount,
+    isLoading,
+    isSessionActive,
+    markAllAsRead,
+    markAsRead,
+  } = useNotifications({ limit: 5, stream: true });
 
   // Close on outside click
   useEffect(() => {
@@ -90,30 +40,36 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const markAllRead = useCallback(async () => {
+  const handleSelect = async (notification: Notification) => {
     try {
-      await fetch("/api/users/notifications", {
-        method: "PATCH",
-        credentials: "include",
-      });
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      setUnreadCount(0);
-    } catch {
-      // silent fail
+      if (!notification.read) {
+        await markAsRead(notification.id);
+      }
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
     }
-  }, []);
+
+    setOpen(false);
+    router.push(getNotificationHref(notification));
+  };
 
   const handleOpen = () => {
     setOpen(prev => {
       const next = !prev;
       if (next && unreadCount > 0) {
-        void markAllRead();
+        void markAllAsRead().catch(error => {
+          console.error("Failed to mark all notifications as read:", error);
+        });
       }
       return next;
     });
   };
 
   const badgeLabel = unreadCount > 9 ? "9+" : String(unreadCount);
+
+  if (!isLoading && !isSessionActive) {
+    return null;
+  }
 
   return (
     <div className="relative">
@@ -141,7 +97,6 @@ export default function NotificationBell() {
             transition={{ duration: 0.15 }}
             className="absolute right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden"
           >
-            {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <span className="text-sm font-semibold text-foreground">
                 Notifications
@@ -149,7 +104,9 @@ export default function NotificationBell() {
               <div className="flex items-center gap-2">
                 {notifications.some(n => !n.read) && (
                   <button
-                    onClick={markAllRead}
+                    onClick={() => {
+                      void markAllAsRead();
+                    }}
                     className="text-xs text-highlight hover:underline"
                   >
                     Mark all read
@@ -164,41 +121,44 @@ export default function NotificationBell() {
               </div>
             </div>
 
-            {/* List */}
-            <div className="max-h-80 overflow-y-auto divide-y divide-border">
-              {notifications.length === 0 ? (
+            <div className="max-h-80 overflow-y-auto p-3">
+              {isLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="h-20 animate-pulse rounded-2xl bg-muted/50"
+                    />
+                  ))}
+                </div>
+              ) : notifications.length === 0 ? (
                 <div className="py-10 text-center text-muted-foreground text-sm">
                   No notifications yet
                 </div>
               ) : (
-                notifications.map(n => (
-                  <div
-                    key={n.id}
-                    className={`flex gap-3 px-4 py-3 hover:bg-muted/50 transition-colors ${
-                      n.read === false
-                        ? "border-l-2 border-highlight"
-                        : "border-l-2 border-transparent"
-                    }`}
-                  >
-                    <div className="mt-0.5 shrink-0">
-                      <NotificationIcon type={n.type} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-foreground truncate">
-                        {n.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {n.text}
-                      </p>
-                    </div>
-                    {n.created_at && (
-                      <span className="text-[10px] text-muted-foreground shrink-0 mt-0.5">
-                        {relativeTime(n.created_at)}
-                      </span>
-                    )}
-                  </div>
-                ))
+                <div className="space-y-2">
+                  {notifications.map(notification => (
+                    <NotificationListItem
+                      key={notification.id}
+                      notification={notification}
+                      compact
+                      onSelect={selected => {
+                        void handleSelect(selected);
+                      }}
+                    />
+                  ))}
+                </div>
               )}
+            </div>
+
+            <div className="border-t border-border px-4 py-3 text-right">
+              <Link
+                href="/dashboard/notifications"
+                onClick={() => setOpen(false)}
+                className="text-sm font-medium text-highlight hover:underline"
+              >
+                View all
+              </Link>
             </div>
           </motion.div>
         )}

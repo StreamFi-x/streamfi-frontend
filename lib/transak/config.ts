@@ -1,71 +1,67 @@
-import type {
-  TransakConfig,
-  TransakEnvironment,
-  TransakWidgetParams,
-} from "@/types/transak";
+import type { TransakCryptoCurrency, TransakEnvironment } from "@/types/transak";
 
-// Widget base URLs
+/**
+ * Returns the correct Transak environment based on NEXT_PUBLIC_STELLAR_NETWORK.
+ * testnet → STAGING, mainnet → PRODUCTION
+ */
+export function getTransakEnvironment(): TransakEnvironment {
+  return process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet"
+    ? "PRODUCTION"
+    : "STAGING";
+}
+
+/**
+ * The Transak widget base URLs for each environment.
+ */
 const TRANSAK_WIDGET_URLS: Record<TransakEnvironment, string> = {
   STAGING: "https://global-stg.transak.com",
   PRODUCTION: "https://global.transak.com",
 };
 
-// Mirror Stellar network setting — testnet → STAGING, mainnet → PRODUCTION
-export const TRANSAK_ENVIRONMENT: TransakEnvironment =
-  process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet"
-    ? "PRODUCTION"
-    : "STAGING";
+interface BuildTransakUrlOptions {
+  walletAddress: string;
+  cryptoCurrency?: TransakCryptoCurrency;
+  /** User email for pre-filling KYC fields (optional) */
+  email?: string;
+}
 
 /**
- * Build a Transak v4 config for StreamFi.
+ * Build the full Transak widget URL with all query parameters.
  *
- * In v4, all payment parameters (apiKey, walletAddress, network, etc.)
- * are baked into the widgetUrl as query params. The TransakConfig object
- * itself only contains widget display options.
+ * The @transak/transak-sdk v4 accepts `{ widgetUrl, referrer }` and renders
+ * an iframe. All configuration is encoded as query params in widgetUrl.
  *
- * @throws if NEXT_PUBLIC_TRANSAK_API_KEY is not set
+ * - Defaults to XLM; pass `cryptoCurrency: "USDC"` for USDC purchases.
+ * - Brand colour is the StreamFi highlight (#7C3AED — purple).
+ * - apiKey must be set via NEXT_PUBLIC_TRANSAK_API_KEY.
  */
-export function buildTransakConfig(
-  walletAddress: string,
-  paramOverrides: Partial<TransakWidgetParams> = {}
-): TransakConfig {
+export function buildTransakWidgetUrl(options: BuildTransakUrlOptions): string {
+  const { walletAddress, cryptoCurrency = "XLM", email } = options;
+
   const apiKey = process.env.NEXT_PUBLIC_TRANSAK_API_KEY;
   if (!apiKey) {
-    throw new Error(
-      "NEXT_PUBLIC_TRANSAK_API_KEY is not configured. " +
-        "Add it to your .env.local file."
-    );
+    throw new Error("NEXT_PUBLIC_TRANSAK_API_KEY is not set");
   }
 
-  const environment = TRANSAK_ENVIRONMENT;
+  const environment = getTransakEnvironment();
   const baseUrl = TRANSAK_WIDGET_URLS[environment];
 
-  const params: TransakWidgetParams = {
+  const params = new URLSearchParams({
     apiKey,
-    network: "stellar",
-    cryptoCurrencyCode: "XLM",
     walletAddress,
-    disableWalletAddressForm: true,
-    themeColor: "ac39f2", // StreamFi brand purple (no #)
-    environment,
-    ...paramOverrides,
-  };
+    cryptoCurrencyCode: cryptoCurrency,
+    // Allow user to switch between XLM and USDC in the widget
+    cryptoCurrencyList: "XLM,USDC",
+    network: "stellar",
+    themeColor: "7C3AED",
+    defaultFiatCurrency: "USD",
+    defaultFiatAmount: "50",
+  });
 
-  // Build query string — omit undefined values
-  const query = new URLSearchParams(
-    Object.entries(params)
-      .filter(([, v]) => v !== undefined)
-      .map(([k, v]) => [k, String(v)])
-  ).toString();
+  if (email) {
+    params.set("email", email);
+    params.set("isAutoFillUserData", "true");
+  }
 
-  const referrer =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : (process.env.NEXT_PUBLIC_APP_URL ?? "https://streamfi.xyz");
-
-  return {
-    widgetUrl: `${baseUrl}?${query}`,
-    referrer,
-    themeColor: "#ac39f2",
-  };
+  return `${baseUrl}?${params.toString()}`;
 }

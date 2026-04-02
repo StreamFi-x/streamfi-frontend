@@ -1,6 +1,13 @@
 import { useState, useCallback, useRef } from "react";
 import useSWR from "swr";
-import type { ChatMessage, ChatMessageAPI, UseChatReturn } from "@/types/chat";
+import { toast } from "sonner";
+import type {
+  ChatMessage,
+  ChatMessageAPI,
+  SendChatMessagePayload,
+  SendGiftMessagePayload,
+  UseChatReturn,
+} from "@/types/chat";
 
 const MAX_MESSAGES = 200;
 const POLL_INTERVAL_MS = 1000;
@@ -42,6 +49,7 @@ function normalizeMessage(msg: ChatMessageAPI): ChatMessage {
     wallet: msg.user.wallet,
     messageType: msg.messageType,
     createdAt: msg.createdAt,
+    metadata: msg.metadata ?? null,
   };
 }
 
@@ -60,12 +68,14 @@ const chatFetcher = async (url: string): Promise<ChatMessage[]> => {
  *
  * @param playbackId  - Mux playback ID for the stream (null disables fetching)
  * @param wallet      - Connected wallet address (required to send messages)
- * @param isLive      - Whether the stream is currently live (stops polling when false)
+ * @param isLive         - Whether the stream is currently live (stops polling when false)
+ * @param enablePolling  - When false, loads history once without refresh interval (e.g. chat panel hidden)
  */
 export function useChat(
   playbackId: string | null | undefined,
   wallet: string | null | undefined,
-  isLive: boolean = true
+  isLive: boolean = true,
+  enablePolling: boolean = true
 ): UseChatReturn {
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -77,7 +87,7 @@ export function useChat(
   const cacheKey = playbackId
     ? `/api/streams/chat?playbackId=${playbackId}&limit=${MAX_MESSAGES}`
     : null;
-  const shouldPoll = !!playbackId && isLive;
+  const shouldPoll = !!playbackId && isLive && enablePolling;
 
   const { data, error, isLoading, mutate } = useSWR<ChatMessage[]>(
     cacheKey,
@@ -93,12 +103,12 @@ export function useChat(
 
   const messages = data ? data.slice(-MAX_MESSAGES) : [];
 
-  const sendMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim() || !wallet || !playbackId) {
+  const sendChatPayload = useCallback(
+    async (payload: SendChatMessagePayload) => {
+      if (!payload.content.trim() || !payload.wallet || !payload.playbackId) {
         return;
       }
-      if (content.length > 500) {
+      if (payload.content.length > 500) {
         setSendError("Message must be 500 characters or less");
         return;
       }
@@ -106,19 +116,18 @@ export function useChat(
       setSendError(null);
       setIsSending(true);
 
-      // Optimistic update — add message locally before API confirms
       const optimisticId = optimisticIdCounter.current--;
       const optimisticMessage: ChatMessage = {
         id: optimisticId,
         username: "You",
-        message: content.trim(),
+        message: payload.content.trim(),
         color: "#9333ea",
-        messageType: "message",
+        messageType: payload.messageType ?? "message",
         createdAt: new Date().toISOString(),
+        metadata: payload.metadata ?? null,
         isPending: true,
       };
 
-      // Optimistically update the cache
       await mutate(
         current => {
           const updated = [...(current || []), optimisticMessage];
@@ -132,10 +141,8 @@ export function useChat(
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            wallet,
-            playbackId,
-            content: content.trim(),
-            messageType: "message",
+            ...payload,
+            content: payload.content.trim(),
           }),
         });
 
@@ -144,10 +151,8 @@ export function useChat(
           throw new Error(errorData.error || "Failed to send message");
         }
 
-        // Revalidate to get the confirmed message from the server
         await mutate();
       } catch (err) {
-        // Rollback optimistic update
         await mutate(
           current => (current || []).filter(m => m.id !== optimisticId),
           { revalidate: true }
@@ -159,7 +164,29 @@ export function useChat(
         setIsSending(false);
       }
     },
-    [wallet, playbackId, mutate]
+    [mutate]
+  );
+
+  const sendMessage = useCallback(
+    async (content: string) => {
+      await sendChatPayload({
+        wallet: wallet as SendChatMessagePayload["wallet"],
+        playbackId: playbackId ?? "",
+        content,
+        messageType: "message",
+      });
+    },
+    [playbackId, sendChatPayload, wallet]
+  );
+
+  const sendGiftMessage = useCallback(
+    async (payload: SendGiftMessagePayload) => {
+      await sendChatPayload({
+        ...payload,
+        messageType: "gift",
+      });
+    },
+    [sendChatPayload]
   );
 
   const deleteMessage = useCallback(
@@ -197,10 +224,21 @@ export function useChat(
     [wallet, mutate]
   );
 
+  const banUser = useCallback(
+    async (username: string, durationMinutes?: number) => {
+      void username;
+      void durationMinutes;
+      toast.message("User timeouts and bans are not available yet.");
+    },
+    []
+  );
+
   return {
     messages,
     sendMessage,
+    sendGiftMessage,
     deleteMessage,
+    banUser,
     isLoading,
     isSending,
     error: error?.message || sendError,

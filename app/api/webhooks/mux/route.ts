@@ -1,6 +1,12 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import {
+  createLiveNotificationsForFollowers,
+  createRecordingReadyNotification,
+  withNotificationTransaction,
+} from "@/lib/notifications";
+import { aggregateAndFlushStreamReactions } from "@/app/api/routes-f/reactions/_lib/reactions";
 
 /**
  * Mux Webhook Handler
@@ -104,54 +110,68 @@ export async function POST(req: Request) {
       case "video.live_stream.active": {
         console.log(`🔴 Stream ACTIVE (broadcasting): ${streamId}`);
 
-        await sql`
-          UPDATE users SET
-            is_live = true,
-            stream_started_at = CURRENT_TIMESTAMP,
-            current_viewers = 0,
-            updated_at = CURRENT_TIMESTAMP
-          WHERE mux_stream_id = ${streamId}
-        `;
-
-        // Create stream session record — only one per broadcast
-        try {
-          const userResult = await sql`
-            SELECT id, mux_playback_id, creator FROM users WHERE mux_stream_id = ${streamId}
+        await withNotificationTransaction(async client => {
+          const userResult = await client.sql<{
+            id: string;
+            is_live: boolean;
+            mux_playback_id: string | null;
+            creator: { title?: string; streamTitle?: string } | null;
+          }>`
+            SELECT id, is_live, mux_playback_id, creator
+            FROM users
+            WHERE mux_stream_id = ${streamId}
+            LIMIT 1
           `;
 
-          if (userResult.rows.length > 0) {
-            const user = userResult.rows[0];
-
-            // Dedup: skip if an active session already exists
-            const existingSession = await sql`
-              SELECT id FROM stream_sessions WHERE user_id = ${user.id} AND ended_at IS NULL LIMIT 1
-            `;
-
-            if (existingSession.rows.length === 0) {
-              const streamTitle =
-                user.creator?.title ||
-                user.creator?.streamTitle ||
-                "Live Stream";
-
-              await sql`
-                INSERT INTO stream_sessions (user_id, title, playback_id, started_at, mux_session_id)
-                VALUES (${user.id}, ${streamTitle}, ${user.mux_playback_id}, CURRENT_TIMESTAMP, ${streamId})
-              `;
-              console.log("✅ New stream session created");
-            } else {
-              console.log(
-                "⏭️ Active session already exists, skipping creation"
-              );
-            }
+          const user = userResult.rows[0];
+          if (!user) {
+            console.warn("⚠️ No user found for Mux stream", streamId);
+            return;
           }
-        } catch (sessionError) {
-          console.error(
-            "⚠️ Failed to create stream session (non-critical):",
-            sessionError instanceof Error
-              ? sessionError.message
-              : String(sessionError)
-          );
-        }
+
+          const updateResult = await client.sql<{
+            id: string;
+            username: string;
+            mux_playback_id: string | null;
+            stream_started_at: Date;
+          }>`
+            UPDATE users SET
+              is_live = true,
+              stream_started_at = COALESCE(stream_started_at, CURRENT_TIMESTAMP),
+              current_viewers = 0,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${user.id}
+            RETURNING id, username, mux_playback_id, stream_started_at
+          `;
+
+          const updatedUser = updateResult.rows[0];
+          const existingSession = await client.sql`
+            SELECT id FROM stream_sessions WHERE user_id = ${user.id} AND ended_at IS NULL LIMIT 1
+          `;
+
+          if (existingSession.rows.length === 0) {
+            const streamTitle =
+              user.creator?.title || user.creator?.streamTitle || "Live Stream";
+
+            await client.sql`
+              INSERT INTO stream_sessions (user_id, title, playback_id, started_at, mux_session_id)
+              VALUES (${user.id}, ${streamTitle}, ${user.mux_playback_id}, ${updatedUser.stream_started_at.toISOString()}, ${streamId})
+            `;
+            console.log("✅ New stream session created");
+          } else {
+            console.log("⏭️ Active session already exists, skipping creation");
+          }
+
+          if (!user.is_live) {
+            await createLiveNotificationsForFollowers({
+              creatorId: updatedUser.id,
+              creatorUsername: updatedUser.username,
+              playbackId: updatedUser.mux_playback_id,
+              dedupeKey: `stream-live:${updatedUser.id}:${updatedUser.stream_started_at.toISOString()}`,
+              client,
+            });
+          }
+        });
 
         console.log(`✅ Stream marked as LIVE`);
         break;
@@ -188,6 +208,18 @@ export async function POST(req: Request) {
 
           if (userResult.rows.length > 0) {
             const user = userResult.rows[0];
+            const sessionResult = await sql<{ id: string }>`
+              SELECT id
+              FROM stream_sessions
+              WHERE user_id = ${user.id} AND ended_at IS NULL
+              ORDER BY started_at DESC
+              LIMIT 1
+            `;
+
+            if (sessionResult.rows.length > 0) {
+              await aggregateAndFlushStreamReactions(sessionResult.rows[0].id);
+            }
+
             await sql`
               UPDATE stream_sessions SET ended_at = CURRENT_TIMESTAMP
               WHERE user_id = ${user.id} AND ended_at IS NULL
@@ -234,60 +266,71 @@ export async function POST(req: Request) {
         }
 
         try {
-          let userId: string | null = null;
-          let streamSessionId: string | null = null;
-          let sessionTitle: string | null = "Stream Recording";
+          await withNotificationTransaction(async client => {
+            let userId: string | null = null;
+            let streamSessionId: string | null = null;
+            let sessionTitle: string | null = "Stream Recording";
 
-          if (liveStreamId) {
-            const userResult = await sql`
-              SELECT id, mux_playback_id, creator FROM users WHERE mux_stream_id = ${liveStreamId}
-            `;
-            if (userResult.rows.length > 0) {
-              const u = userResult.rows[0];
-              userId = u.id;
-              sessionTitle =
-                u.creator?.streamTitle ?? u.creator?.title ?? sessionTitle;
-              const sessionResult = await sql`
-                SELECT id FROM stream_sessions
-                WHERE user_id = ${u.id} AND ended_at IS NOT NULL
-                ORDER BY ended_at DESC LIMIT 1
+            if (liveStreamId) {
+              const userResult = await client.sql<{
+                id: string;
+                creator: { streamTitle?: string; title?: string } | null;
+              }>`
+                SELECT id, creator FROM users WHERE mux_stream_id = ${liveStreamId}
               `;
-              if (sessionResult.rows.length > 0) {
-                streamSessionId = sessionResult.rows[0].id;
+              if (userResult.rows.length > 0) {
+                const u = userResult.rows[0];
+                userId = u.id;
+                sessionTitle =
+                  u.creator?.streamTitle ?? u.creator?.title ?? sessionTitle;
+                const sessionResult = await client.sql<{ id: string }>`
+                  SELECT id FROM stream_sessions
+                  WHERE user_id = ${u.id} AND ended_at IS NOT NULL
+                  ORDER BY ended_at DESC LIMIT 1
+                `;
+                if (sessionResult.rows.length > 0) {
+                  streamSessionId = sessionResult.rows[0].id;
+                }
               }
             }
-          }
 
-          if (!userId) {
-            console.warn(
-              "⚠️ video.asset.ready: could not resolve user for asset",
-              assetId
-            );
-            break;
-          }
+            if (!userId) {
+              console.warn(
+                "⚠️ video.asset.ready: could not resolve user for asset",
+                assetId
+              );
+              return;
+            }
 
-          // Insert new recording with needs_review=true so the owner is prompted.
-          // ON CONFLICT: update status/duration only — preserve needs_review in case
-          // the user already dismissed or deleted the prompt.
-          await sql`
-            INSERT INTO stream_recordings (
-              user_id, stream_session_id, mux_asset_id, playback_id,
-              title, duration, status, needs_review
-            )
-            VALUES (
-              ${userId},
-              ${streamSessionId},
-              ${assetId},
-              ${playbackId},
-              ${sessionTitle},
-              ${duration ?? 0},
-              'ready',
-              true
-            )
-            ON CONFLICT (mux_asset_id) DO UPDATE SET
-              status = 'ready',
-              duration = COALESCE(EXCLUDED.duration, stream_recordings.duration)
-          `;
+            await client.sql`
+              INSERT INTO stream_recordings (
+                user_id, stream_session_id, mux_asset_id, playback_id,
+                title, duration, status, needs_review
+              )
+              VALUES (
+                ${userId},
+                ${streamSessionId},
+                ${assetId},
+                ${playbackId},
+                ${sessionTitle},
+                ${duration ?? 0},
+                'ready',
+                true
+              )
+              ON CONFLICT (mux_asset_id) DO UPDATE SET
+                status = 'ready',
+                duration = COALESCE(EXCLUDED.duration, stream_recordings.duration)
+            `;
+
+            await createRecordingReadyNotification({
+              userId,
+              title: "Recording ready",
+              recordingId: assetId,
+              playbackId,
+              client,
+            });
+          });
+
           console.log(`✅ Stream recording saved: ${assetId}`);
         } catch (recErr) {
           console.error("❌ Failed to save stream recording:", recErr);

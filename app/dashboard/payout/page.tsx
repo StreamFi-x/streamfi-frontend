@@ -6,6 +6,8 @@ import useSWR from "swr";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { TipCounter } from "@/components/tipping";
+import { AddFundsButton } from "@/components/wallet/AddFundsButton";
+import { TRANSAK_ORDER_COMPLETE_EVENT } from "@/hooks/useTransak";
 import {
   Wallet,
   Copy,
@@ -17,7 +19,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getStellarExplorerUrl } from "@/lib/stellar/config";
-import { AddFundsButton } from "@/components/wallet/AddFundsButton";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
@@ -86,6 +87,15 @@ export default function PayoutPage() {
     return () => clearInterval(interval);
   }, [fetchPrice]);
 
+  // Refresh balance automatically after a completed Transak order
+  useEffect(() => {
+    const handler = () => {
+      void refreshBalance();
+    };
+    window.addEventListener(TRANSAK_ORDER_COMPLETE_EVENT, handler);
+    return () => window.removeEventListener(TRANSAK_ORDER_COMPLETE_EVENT, handler);
+  }, [refreshBalance]);
+
   const handleCopy = () => {
     if (!walletAddress) {
       return;
@@ -148,13 +158,13 @@ export default function PayoutPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <AddFundsButton
-                    walletAddress={walletAddress}
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs border-highlight/40 text-highlight hover:bg-highlight/10"
-                    onSuccess={() => refreshBalance()}
-                  />
+                  {walletAddress && (
+                    <AddFundsButton
+                      walletAddress={walletAddress}
+                      email={privyWallet?.email ?? undefined}
+                      isPrivyUser={isPrivyUser}
+                    />
+                  )}
                   <button
                     onClick={() => refreshBalance()}
                     className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"

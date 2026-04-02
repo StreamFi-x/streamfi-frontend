@@ -1,9 +1,10 @@
 "use client";
 
-import { use, useEffect, useState, useRef } from "react";
+import { use, useEffect, useState, useRef, useCallback } from "react";
 import { notFound } from "next/navigation";
 import ViewStream from "@/components/stream/view-stream";
 import { ViewStreamSkeleton } from "@/components/skeletons/ViewStreamSkeleton";
+import { AccessGate } from "@/components/stream/AccessGate";
 import { toast } from "sonner";
 
 interface PageProps {
@@ -23,6 +24,12 @@ interface UserData {
   follower_count: number;
   is_following: boolean;
   stellar_address: string | null;
+  stream_access_type?: string;
+  stream_access_config?: {
+    asset_code: string;
+    asset_issuer: string;
+    min_balance: string;
+  } | null;
 }
 
 const WatchPage = ({ params }: PageProps) => {
@@ -34,6 +41,10 @@ const WatchPage = ({ params }: PageProps) => {
   const [followLoading, setFollowLoading] = useState(false);
   const [loggedInUsername, setLoggedInUsername] = useState<string | null>(null);
 
+  // Access control state
+  const [accessAllowed, setAccessAllowed] = useState<boolean | null>(null);
+  const [accessChecking, setAccessChecking] = useState(false);
+
   // Viewer tracking: one unique ID per page visit
   const viewerSessionId = useRef<string | null>(null);
   const viewerPlaybackId = useRef<string | null>(null);
@@ -42,6 +53,35 @@ const WatchPage = ({ params }: PageProps) => {
   useEffect(() => {
     setLoggedInUsername(sessionStorage.getItem("username"));
   }, []);
+
+  const checkAccess = useCallback(async () => {
+    if (!userData) return;
+    // Public streams are always allowed — skip the network call
+    if (!userData.stream_access_type || userData.stream_access_type === "public") {
+      setAccessAllowed(true);
+      return;
+    }
+    setAccessChecking(true);
+    try {
+      const res = await fetch("/api/streams/access/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ streamerUsername: username }),
+      });
+      const data = await res.json();
+      setAccessAllowed(data.allowed === true);
+    } catch {
+      // On network failure, fail open rather than lock everyone out
+      setAccessAllowed(true);
+    } finally {
+      setAccessChecking(false);
+    }
+  }, [userData, username]);
+
+  useEffect(() => {
+    checkAccess();
+  }, [checkAccess]);
 
   // Poll user/stream data every 5s
   useEffect(() => {
@@ -199,6 +239,26 @@ const WatchPage = ({ params }: PageProps) => {
   }
   if (notFound404 || !userData) {
     return notFound();
+  }
+
+  // Still waiting for access check result
+  if (accessAllowed === null || (accessChecking && accessAllowed === null)) {
+    return <ViewStreamSkeleton />;
+  }
+
+  // Access denied — show gate
+  if (!accessAllowed && userData.stream_access_config) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-6 bg-secondary">
+        <div className="w-full max-w-md">
+          <AccessGate
+            isLoading={accessChecking}
+            allowed={accessAllowed ?? false}
+            onRetry={checkAccess}
+          />
+        </div>
+      </div>
+    );
   }
 
   const isOwner = loggedInUsername?.toLowerCase() === username.toLowerCase();

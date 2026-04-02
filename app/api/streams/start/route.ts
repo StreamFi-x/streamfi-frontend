@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
 import { verifySession } from "@/lib/auth/verify-session";
-import { writeNotification } from "@/lib/notifications";
+import {
+  createLiveNotificationsForFollowers,
+  withNotificationTransaction,
+} from "@/lib/notifications";
 
 export async function POST(req: NextRequest) {
   // Verify the caller is logged in
@@ -46,40 +49,46 @@ export async function POST(req: NextRequest) {
       console.error("Stream health check failed:", healthError);
     }
 
-    const result = await sql`
-      UPDATE users SET
-        is_live = true,
-        stream_started_at = CURRENT_TIMESTAMP,
-        current_viewers = 0,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${user.id}
-      RETURNING id, username, mux_stream_id, mux_playback_id
-    `;
-
-    const updatedUser = result.rows[0];
-
-    try {
-      await sql`
-        INSERT INTO stream_sessions (user_id, mux_session_id, playback_id, started_at)
-        VALUES (${updatedUser.id}, ${updatedUser.mux_stream_id}, ${updatedUser.mux_playback_id}, CURRENT_TIMESTAMP)
+    const updatedUser = await withNotificationTransaction(async client => {
+      const result = await client.sql<{
+        id: string;
+        username: string;
+        mux_stream_id: string;
+        mux_playback_id: string | null;
+        stream_started_at: Date;
+      }>`
+        UPDATE users SET
+          is_live = true,
+          stream_started_at = CURRENT_TIMESTAMP,
+          current_viewers = 0,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${user.id} AND is_live = false
+        RETURNING id, username, mux_stream_id, mux_playback_id, stream_started_at
       `;
-    } catch (sessionError) {
-      console.error("Failed to create stream session record:", sessionError);
-    }
 
-    // Fire-and-forget live notifications to all followers via join table
-    sql`SELECT follower_id FROM user_follows WHERE followee_id = ${updatedUser.id}`
-      .then(({ rows }) => {
-        for (const { follower_id } of rows) {
-          writeNotification(
-            follower_id,
-            "live",
-            `${updatedUser.username} is live!`,
-            `${updatedUser.username} just started streaming`
-          ).catch(() => {});
-        }
-      })
-      .catch(() => {});
+      const updated = result.rows[0];
+      if (!updated) {
+        throw new Error("Stream is already live");
+      }
+
+      await client.sql`
+        INSERT INTO stream_sessions (user_id, mux_session_id, playback_id, started_at)
+        SELECT ${updated.id}, ${updated.mux_stream_id}, ${updated.mux_playback_id}, ${updated.stream_started_at.toISOString()}
+        WHERE NOT EXISTS (
+          SELECT 1 FROM stream_sessions WHERE user_id = ${updated.id} AND ended_at IS NULL
+        )
+      `;
+
+      await createLiveNotificationsForFollowers({
+        creatorId: updated.id,
+        creatorUsername: updated.username,
+        playbackId: updated.mux_playback_id,
+        dedupeKey: `stream-live:${updated.id}:${updated.stream_started_at.toISOString()}`,
+        client,
+      });
+
+      return updated;
+    });
 
     return NextResponse.json(
       {
@@ -89,13 +98,19 @@ export async function POST(req: NextRequest) {
           streamId: updatedUser.mux_stream_id,
           playbackId: updatedUser.mux_playback_id,
           username: updatedUser.username,
-          startedAt: new Date().toISOString(),
+          startedAt: updatedUser.stream_started_at.toISOString(),
         },
       },
       { status: 200 }
     );
   } catch (error) {
     console.error("Stream start error:", error);
+    if (error instanceof Error && error.message === "Stream is already live") {
+      return NextResponse.json(
+        { error: "Stream is already live" },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
       { error: "Failed to start stream" },
       { status: 500 }

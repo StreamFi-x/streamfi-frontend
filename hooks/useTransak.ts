@@ -1,108 +1,64 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import type {
-  TransakOrderData,
-  TransakEventPayload,
-  TransakWidgetParams,
-} from "@/types/transak";
-import { buildTransakConfig } from "@/lib/transak/config";
+import { useCallback, useState } from "react";
+import type { TransakCryptoCurrency, TransakOrderData } from "@/types/transak";
 
-interface UseTransakOptions {
-  walletAddress: string | null;
-  /** Called when the user completes a successful purchase */
-  onSuccess?: (order: TransakOrderData) => void;
-  /** Called when the widget is closed (success or not) */
-  onClose?: () => void;
-  /** Optional overrides for widget URL params (e.g. cryptoCurrencyCode: "USDC") */
-  paramOverrides?: Partial<TransakWidgetParams>;
-}
+export const TRANSAK_ORDER_COMPLETE_EVENT = "TRANSAK_ORDER_SUCCESS";
 
-export interface UseTransakReturn {
-  openTransak: () => Promise<void>;
-  closeTransak: () => void;
-  isOpen: boolean;
-}
-
-type TransakSdkModule = typeof import("@transak/transak-sdk");
-
-async function loadTransakSdk(): Promise<TransakSdkModule> {
-  const dynamicImport = new Function(
-    "modulePath",
-    "return import(modulePath);"
-  ) as (modulePath: string) => Promise<TransakSdkModule>;
-
-  return dynamicImport("@transak/transak-sdk");
-}
+type UseTransakOptions = {
+  walletAddress: string;
+  email?: string;
+  onOrderComplete?: (order: TransakOrderData) => void;
+  onError?: (message: string) => void;
+};
 
 /**
- * useTransak — manages the Transak v4 on-ramp widget lifecycle.
- *
- * v4 differences from older versions:
- * - All payment params go into the widgetUrl query string (not the config object)
- * - Transak.on() is a STATIC method — registered once, not per instance
- * - SDK is dynamically imported to keep it out of the SSR bundle
+ * Opens Transak in a new tab with StreamFi defaults.
+ * Full widget SDK can replace this later; order completion is not observed for the tab flow.
  */
 export function useTransak({
   walletAddress,
-  onSuccess,
-  onClose,
-  paramOverrides,
-}: UseTransakOptions): UseTransakReturn {
-  const [isOpen, setIsOpen] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const transakRef = useRef<any>(null);
-  const listenersRegistered = useRef(false);
+  email,
+  onOrderComplete,
+  onError,
+}: UseTransakOptions) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const closeTransak = useCallback(() => {
-    if (transakRef.current) {
-      transakRef.current.cleanup();
-      transakRef.current = null;
-    }
-    setIsOpen(false);
-  }, []);
+  const openTransak = useCallback(
+    (currency: TransakCryptoCurrency, extraParams?: Record<string, string>) => {
+      const apiKey = process.env.NEXT_PUBLIC_TRANSAK_API_KEY;
+      if (!apiKey) {
+        const msg =
+          "Transak API key is not configured. Set NEXT_PUBLIC_TRANSAK_API_KEY.";
+        setError(msg);
+        onError?.(msg);
+        return;
+      }
 
-  const openTransak = useCallback(async () => {
-    if (!walletAddress) {
-      console.warn("useTransak: walletAddress is required to open the widget");
-      return;
-    }
+      setIsLoading(true);
+      setError(null);
 
-    let config;
-    try {
-      config = buildTransakConfig(walletAddress, paramOverrides);
-    } catch (err) {
-      console.error("useTransak: failed to build config —", err);
-      return;
-    }
+      try {
+        const params = new URLSearchParams({
+          apiKey,
+          walletAddress,
+          defaultCryptoCurrency: currency,
+          ...(email ? { email } : {}),
+          ...(extraParams ?? {}),
+        });
+        const href = `https://global.transak.com/?${params.toString()}`;
+        window.open(href, "_blank", "noopener,noreferrer");
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Failed to open Transak";
+        setError(msg);
+        onError?.(msg);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [walletAddress, email, onError, onOrderComplete]
+  );
 
-    // Dynamic import keeps the SDK out of the SSR bundle
-    const { Transak } = await loadTransakSdk();
-
-    // In v4, Transak.on() is static — register listeners only once
-    if (!listenersRegistered.current) {
-      Transak.on(Transak.EVENTS.TRANSAK_WIDGET_CLOSE, () => {
-        transakRef.current = null;
-        setIsOpen(false);
-        onClose?.();
-      });
-
-      Transak.on(
-        Transak.EVENTS.TRANSAK_ORDER_SUCCESSFUL,
-        (payload: unknown) => {
-          const data = payload as TransakEventPayload;
-          onSuccess?.(data.status);
-        }
-      );
-
-      listenersRegistered.current = true;
-    }
-
-    const transak = new Transak(config);
-    transakRef.current = transak;
-    transak.init();
-    setIsOpen(true);
-  }, [walletAddress, paramOverrides, onSuccess, onClose]);
-
-  return { openTransak, closeTransak, isOpen };
+  return { openTransak, isLoading, error };
 }

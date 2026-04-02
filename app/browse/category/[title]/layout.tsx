@@ -1,23 +1,28 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import React from "react";
 
-interface Props {
+const BASE = process.env.NEXT_PUBLIC_APP_URL || "https://streamfi.com";
+
+export async function generateMetadata({
+  params,
+}: {
   params: Promise<{ title: string }>;
-  children: ReactNode;
-}
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+}): Promise<Metadata> {
   const { title } = await params;
-  const name = decodeURIComponent(title);
-  const display = name.charAt(0).toUpperCase() + name.slice(1);
+  const decodedTitle = decodeURIComponent(title);
+  const canonical = `${BASE}/browse/category/${title}`;
 
   return {
-    title: `${display} Streams`,
-    description: `Watch live ${display} streams on StreamFi. Find the best ${display} content from creators worldwide.`,
+    title: `${decodedTitle} streams`,
+    description: `Watch the best ${decodedTitle} streams live on StreamFi`,
+    alternates: {
+      canonical,
+    },
     openGraph: {
-      title: `${display} Streams | StreamFi`,
-      description: `Watch live ${display} streams on StreamFi. Find the best ${display} content from creators worldwide.`,
-      url: `https://www.streamfi.media/browse/category/${title}`,
+      title: `${decodedTitle} streams — StreamFi`,
+      description: `Watch the best ${decodedTitle} streams live on StreamFi`,
+      url: canonical,
+      type: "website",
     },
   };
 }
@@ -25,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default function CategoryTitleLayout({
   children,
 }: {
-  children: ReactNode;
+  children: React.ReactNode;
 }) {
   return <>{children}</>;
 }

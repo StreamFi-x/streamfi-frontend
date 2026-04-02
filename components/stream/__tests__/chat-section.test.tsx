@@ -59,6 +59,26 @@ describe("ChatSection", () => {
       expect(messageEl).toBeInTheDocument();
     });
 
+    it("renders gift messages with the gift summary", () => {
+      const messages = [
+        makeMessage({
+          id: 2,
+          messageType: "gift",
+          metadata: {
+            gift_name: "Dragon",
+            gift_emoji: "🐉",
+            usd_value: "500.00",
+            tx_hash: "abc123",
+            animation: "dragon",
+          },
+        }),
+      ];
+
+      render(<ChatSection {...defaultProps} messages={messages} />);
+      expect(screen.getByText(/sent a 🐉 Dragon/i)).toBeInTheDocument();
+      expect(screen.getByText(/\$500.00 USDC/i)).toBeInTheDocument();
+    });
+
     it("renders normal messages without opacity-50 class", () => {
       const messages = [makeMessage({ id: 1, isPending: false })];
       const { container } = render(
@@ -83,13 +103,7 @@ describe("ChatSection", () => {
     });
 
     it("shows 'Log in or sign up to chat' when wallet is not connected", () => {
-      render(
-        <ChatSection
-          {...defaultProps}
-          isWalletConnected={false}
-          onLoginClick={jest.fn()}
-        />
-      );
+      render(<ChatSection {...defaultProps} isWalletConnected={false} />);
       expect(screen.getByText("Log in or sign up to chat")).toBeInTheDocument();
       expect(
         screen.queryByPlaceholderText("Send a message")

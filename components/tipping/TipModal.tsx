@@ -25,7 +25,6 @@ import {
 import { TransactionBuilder, Networks } from "@stellar/stellar-sdk";
 import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
-import { TipConfirmation } from "./TipConfirmation";
 
 interface TipModalProps {
   isOpen: boolean;
@@ -34,6 +33,7 @@ interface TipModalProps {
   recipientPublicKey: string;
   recipientAvatar?: string;
   senderPublicKey: string;
+  isPrivyUser?: boolean;
   onSuccess?: (txHash: string, amount: string) => void;
   onError?: (error: string) => void;
 }
@@ -43,7 +43,6 @@ type TransactionState =
   | "building"
   | "signing"
   | "submitting"
-  | "success"
   | "error";
 
 const PRESET_AMOUNTS = [1, 5, 10, 25];
@@ -57,6 +56,7 @@ export function TipModal({
   recipientPublicKey,
   recipientAvatar,
   senderPublicKey,
+  isPrivyUser = false,
   onSuccess,
   onError,
 }: TipModalProps) {
@@ -64,16 +64,10 @@ export function TipModal({
   const [transactionState, setTransactionState] =
     useState<TransactionState>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [txHash, setTxHash] = useState<string | null>(null);
   const [xlmPrice, setXlmPrice] = useState<number>(0);
   const [isLoadingPrice, setIsLoadingPrice] = useState<boolean>(false);
   const [priceFetchFailed, setPriceFetchFailed] = useState<boolean>(false);
-  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
-  const [structuredError, setStructuredError] = useState<{
-    message: string;
-    details?: string;
-    code?: string;
-  } | null>(null);
+  const [isInsufficientBalance, setIsInsufficientBalance] = useState(false);
 
   const { kit } = useStellarWallet();
   const fee = calculateFeeEstimate();
@@ -107,20 +101,20 @@ export function TipModal({
     setAmount("");
     setTransactionState("idle");
     setError(null);
-    setTxHash(null);
-    setIsConfirmationOpen(false);
-    setStructuredError(null);
+    setIsInsufficientBalance(false);
   };
 
   const handlePresetClick = (presetAmount: number) => {
     setAmount(presetAmount.toString());
     setError(null);
+    setIsInsufficientBalance(false);
   };
 
   const handleAmountChange = (value: string) => {
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
       setAmount(value);
       setError(null);
+      setIsInsufficientBalance(false);
     }
   };
 
@@ -167,6 +161,7 @@ export function TipModal({
     }
 
     setError(null);
+    setIsInsufficientBalance(false);
 
     try {
       setTransactionState("building");
@@ -176,11 +171,11 @@ export function TipModal({
       );
 
       if (insufficientBalance) {
-        setError("insufficient_balance");
+        setError(
+          "Insufficient balance. Please ensure you have enough XLM to cover the tip and transaction fee."
+        );
+        setIsInsufficientBalance(true);
         setTransactionState("error");
-        if (onError) {
-          onError("Insufficient balance");
-        }
         return;
       }
 
@@ -216,17 +211,14 @@ export function TipModal({
       );
 
       if (result.success) {
-        setTransactionState("success");
-        setTxHash(result.hash ?? null);
-        setIsConfirmationOpen(true);
         if (onSuccess && result.hash) {
           onSuccess(result.hash, amount);
         }
-      } else {
-        throw result.error
-          ? new Error(result.error)
-          : new Error("Transaction failed");
+        return;
       }
+      throw result.error
+        ? new Error(result.error)
+        : new Error("Transaction failed");
     } catch (err: unknown) {
       console.error("Transaction error:", err);
 
@@ -244,6 +236,7 @@ export function TipModal({
         ) {
           errorMessage =
             "Insufficient balance. Your balance may have changed. Please try a smaller amount.";
+          setIsInsufficientBalance(true);
         } else if (err.message.includes("timeout")) {
           errorMessage = "Transaction timed out. Please try again.";
         } else if (
@@ -258,22 +251,11 @@ export function TipModal({
       }
 
       setError(errorMessage);
-      setStructuredError({
-        message: errorMessage,
-        details: err instanceof Error ? err.stack || err.message : String(err),
-        code: (err as any)?.code || (err as any)?.status?.toString(),
-      });
       setTransactionState("error");
-      setIsConfirmationOpen(true);
       if (onError) {
         onError(errorMessage);
       }
     }
-  };
-
-  const handleRetry = () => {
-    setError(null);
-    setTransactionState("idle");
   };
 
   const handleClose = () => {
@@ -283,9 +265,6 @@ export function TipModal({
     onClose();
   };
 
-  const currentConfirmationState =
-    transactionState === "success" ? "success" : "error";
-
   const getStateMessage = () => {
     switch (transactionState) {
       case "building":
@@ -293,9 +272,7 @@ export function TipModal({
       case "signing":
         return "Please approve the transaction in your wallet";
       case "submitting":
-        return "Submitting to Stellar network...";
-      case "success":
-        return "Tip sent successfully!";
+        return "Submitting transaction to network...";
       case "error":
         return "Transaction failed";
       default:
@@ -312,80 +289,59 @@ export function TipModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[440px] bg-card border-border">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="text-foreground text-lg font-bold">
-            Send a Tip
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground text-sm">
-            {transactionState === "success"
-              ? "Your tip has been sent!"
-              : `Supporting @${recipientUsername} with XLM`}
+          <DialogTitle>Send Tip</DialogTitle>
+          <DialogDescription>
+            Send a tip to @{recipientUsername}
           </DialogDescription>
         </DialogHeader>
-
-        <div className="space-y-5 py-2">
-          {/* Recipient row */}
-          <div className="flex items-center gap-3 p-3 bg-secondary border border-border rounded-xl">
-            <Avatar className="h-11 w-11 ring-2 ring-highlight/20">
+        <div className="space-y-6 py-4">
+          <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+            <Avatar className="h-12 w-12">
               <AvatarImage src={recipientAvatar} alt={recipientUsername} />
-              <AvatarFallback className="bg-highlight/10 text-highlight font-semibold">
+              <AvatarFallback>
                 {recipientUsername.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="font-semibold text-foreground">
-                @{recipientUsername}
-              </p>
-              <p className="text-xs text-muted-foreground font-mono truncate max-w-[240px]">
-                {recipientPublicKey.slice(0, 14)}…
-                {recipientPublicKey.slice(-10)}
+              <p className="font-semibold">@{recipientUsername}</p>
+              <p className="text-xs text-muted-foreground truncate max-w-[220px]">
+                {recipientPublicKey}
               </p>
             </div>
           </div>
 
-          {/* XLM price warning */}
           {priceFetchFailed && !isLoadingPrice && (
-            <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-              <p className="text-xs text-amber-500">
-                Unable to load XLM price — USD estimate unavailable.
+            <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+              <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+              <p className="text-sm text-yellow-600 dark:text-yellow-500">
+                Unable to load current XLM price. USD conversion unavailable.
               </p>
             </div>
           )}
 
-          {/* Preset amounts */}
           <div className="space-y-2">
-            <Label className="text-foreground text-sm font-medium">
-              Select Amount
-            </Label>
+            <Label>Select Amount</Label>
             <div className="grid grid-cols-4 gap-2">
               {PRESET_AMOUNTS.map(presetAmount => (
                 <Button
                   key={presetAmount}
-                  variant="outline"
+                  variant={
+                    amount === presetAmount.toString() ? "default" : "outline"
+                  }
                   onClick={() => handlePresetClick(presetAmount)}
                   disabled={isProcessing}
-                  className={
-                    amount === presetAmount.toString()
-                      ? "border-highlight bg-highlight/10 text-highlight hover:bg-highlight/20 font-bold"
-                      : "border-border text-muted-foreground hover:border-highlight/50 hover:text-foreground"
-                  }
+                  className="font-semibold"
                 >
-                  {presetAmount}
+                  {presetAmount} XLM
                 </Button>
               ))}
             </div>
           </div>
 
-          {/* Custom amount */}
           <div className="space-y-2">
-            <Label
-              htmlFor="custom-amount"
-              className="text-foreground text-sm font-medium"
-            >
-              Custom Amount
-            </Label>
+            <Label htmlFor="custom-amount">Or Enter Custom Amount</Label>
             <div className="relative">
               <Input
                 id="custom-amount"
@@ -394,87 +350,65 @@ export function TipModal({
                 value={amount}
                 onChange={e => handleAmountChange(e.target.value)}
                 disabled={isProcessing}
-                className="pr-14 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-highlight/60"
+                className="pr-12"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
                 XLM
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Max: {MAX_TIP_AMOUNT.toLocaleString()} XLM
+              Maximum: {MAX_TIP_AMOUNT.toLocaleString()} XLM
             </p>
           </div>
 
-          {/* Amount breakdown */}
           {amount !== "" && parseFloat(amount) > 0 && (
-            <div className="space-y-2 p-3 bg-secondary border border-border rounded-xl text-sm">
+            <div className="space-y-2 p-3 bg-muted rounded-lg text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Tip amount</span>
-                <span className="font-semibold text-foreground">
-                  {amount} XLM
-                </span>
+                <span className="text-muted-foreground">Amount:</span>
+                <span className="font-semibold">{amount} XLM</span>
               </div>
               {xlmPrice > 0 && !isLoadingPrice && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">≈ USD</span>
-                  <span className="text-muted-foreground">
-                    ${usdEquivalent}
-                  </span>
+                  <span className="text-muted-foreground">USD Value:</span>
+                  <span className="font-semibold">≈ ${usdEquivalent}</span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Network fee</span>
-                <span className="text-muted-foreground">
-                  {fee.toFixed(7)} XLM
-                </span>
+                <span className="text-muted-foreground">Network Fee:</span>
+                <span className="font-semibold">{fee.toFixed(7)} XLM</span>
               </div>
               <div className="border-t border-border pt-2 flex justify-between font-semibold">
-                <span className="text-foreground">Total</span>
-                <span className="text-highlight">
-                  {(parseFloat(amount) + fee).toFixed(7)} XLM
-                </span>
+                <span>Total:</span>
+                <span>{(parseFloat(amount) + fee).toFixed(7)} XLM</span>
               </div>
             </div>
           )}
 
-          {/* Processing state */}
           {isProcessing && (
-            <div className="flex items-center gap-2.5 p-3 bg-highlight/10 border border-highlight/20 rounded-xl">
-              <Loader2 className="w-4 h-4 animate-spin text-highlight flex-shrink-0" />
-              <p className="text-sm text-highlight">{getStateMessage()}</p>
+            <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+              <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+              <p className="text-sm text-blue-500">{getStateMessage()}</p>
             </div>
           )}
 
-          {/* Validation / transaction error */}
-          {error && transactionState === "error" && !isConfirmationOpen && (
-            <div className="flex items-start gap-2.5 p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
-              <XCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
-              <div className="flex-1 space-y-2">
-                {error === "insufficient_balance" ? (
-                  <>
-                    <p className="text-sm text-destructive">
-                      Insufficient balance — you don&apos;t have enough XLM to
-                      cover this tip and the network fee.
-                    </p>
-                    <AddFundsButton
-                      walletAddress={senderPublicKey}
-                      variant="outline"
-                      size="sm"
-                      className="border-highlight/40 text-highlight hover:bg-highlight/10 h-8 text-xs"
-                    />
-                  </>
-                ) : (
-                  <p className="text-sm text-destructive">{error}</p>
-                )}
+          {error && transactionState === "error" && (
+            <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm text-red-500">{error}</p>
               </div>
             </div>
           )}
 
-          {/* Inline validation error (idle state) */}
-          {error && transactionState === "idle" && (
-            <div className="flex items-start gap-2.5 p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
-              <XCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-destructive">{error}</p>
+          {isInsufficientBalance && transactionState === "error" && (
+            <div className="flex items-center justify-between gap-3 p-3 bg-highlight/10 border border-highlight/20 rounded-lg">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Need more XLM? Top up your wallet with fiat.
+              </p>
+              <AddFundsButton
+                walletAddress={senderPublicKey}
+                isPrivyUser={isPrivyUser}
+              />
             </div>
           )}
         </div>
@@ -485,14 +419,14 @@ export function TipModal({
               variant="outline"
               onClick={handleClose}
               disabled={isProcessing}
-              className="flex-1 border-border text-muted-foreground hover:text-foreground"
+              className="flex-1"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={!canSubmit || isProcessing}
-              className="flex-1 bg-highlight hover:bg-highlight/90 text-white font-semibold"
+              className="flex-1"
             >
               {isProcessing ? (
                 <>
@@ -506,29 +440,6 @@ export function TipModal({
           </div>
         </DialogFooter>
       </DialogContent>
-
-      <TipConfirmation
-        isOpen={isConfirmationOpen}
-        onClose={() => {
-          setIsConfirmationOpen(false);
-          if (transactionState === "success") {
-            onClose();
-          }
-        }}
-        state={currentConfirmationState}
-        amount={amount}
-        recipientUsername={recipientUsername}
-        txHash={txHash || undefined}
-        error={structuredError || undefined}
-        onRetry={() => {
-          setIsConfirmationOpen(false);
-          handleRetry();
-        }}
-        onSendAnother={() => {
-          setIsConfirmationOpen(false);
-          resetModal();
-        }}
-      />
     </Dialog>
   );
 }
