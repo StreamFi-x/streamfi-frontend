@@ -156,8 +156,8 @@ export default function StreamTokenUtility() {
                     "0 0 0 8px rgba(124,58,237,0.08), 0 0 40px rgba(124,58,237,0.3)",
                 }}
               >
-                <span className="font-pp-neue font-bold text-white/90 text-xl tracking-tight">
-                  $S
+                <span className="font-pp-neue font-bold text-white/90 text-3xl tracking-tight">
+                  $
                 </span>
               </div>
             </div>

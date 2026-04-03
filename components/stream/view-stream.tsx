@@ -318,8 +318,12 @@ const ViewStream = ({
 
   const [tipAlerts, setTipAlerts] = useState<TipAlert[]>([]);
   const lastTipMessageId = useRef<number | null>(null);
-  const [giftQueue, setGiftQueue] = useState<Array<GiftMessageMetadata & { id: number; username: string }>>([]);
-  const [activeGiftOverlay, setActiveGiftOverlay] = useState<(GiftMessageMetadata & { id: number; username: string }) | null>(null);
+  const [giftQueue, setGiftQueue] = useState<
+    Array<GiftMessageMetadata & { id: number; username: string }>
+  >([]);
+  const [activeGiftOverlay, setActiveGiftOverlay] = useState<
+    (GiftMessageMetadata & { id: number; username: string }) | null
+  >(null);
   const lastGiftMessageId = useRef<number | null>(null);
 
   useEffect(() => {
@@ -345,6 +349,14 @@ const ViewStream = ({
     if (!last || last.messageType !== "gift" || !last.metadata) {
       return;
     }
+    if (
+      !last.metadata.gift_name ||
+      !last.metadata.gift_emoji ||
+      !last.metadata.usd_value ||
+      !last.metadata.tx_hash
+    ) {
+      return;
+    }
     if (lastGiftMessageId.current === last.id) {
       return;
     }
@@ -352,14 +364,19 @@ const ViewStream = ({
       return;
     }
     lastGiftMessageId.current = last.id;
-    setGiftQueue(prev => [
-      ...prev,
-      {
-        ...last.metadata,
-        id: last.id,
-        username: last.username,
-      },
-    ]);
+    const giftPayload: GiftMessageMetadata & {
+      id: number;
+      username: string;
+    } = {
+      gift_name: last.metadata.gift_name,
+      gift_emoji: last.metadata.gift_emoji,
+      usd_value: last.metadata.usd_value,
+      tx_hash: last.metadata.tx_hash,
+      animation: last.metadata.animation,
+      id: last.id,
+      username: last.username,
+    };
+    setGiftQueue(prev => [...prev, giftPayload]);
   }, [chatMessages]);
 
   useEffect(() => {
@@ -681,10 +698,12 @@ const ViewStream = ({
                             : "Lion Gift"}
                         </p>
                         <p className="mt-1 text-2xl font-semibold">
-                          @{activeGiftOverlay.username} sent a {activeGiftOverlay.gift_name}
+                          @{activeGiftOverlay.username} sent a{" "}
+                          {activeGiftOverlay.gift_name}
                         </p>
                         <p className="mt-1 text-sm text-white/80">
-                          ${activeGiftOverlay.usd_value} USDC just landed on-chain.
+                          ${activeGiftOverlay.usd_value} USDC just landed
+                          on-chain.
                         </p>
                       </div>
                     </div>

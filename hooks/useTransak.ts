@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import type { TransakCryptoCurrency } from "@/types/transak";
+import type { TransakCryptoCurrency, TransakOrderData } from "@/types/transak";
 
 export const TRANSAK_ORDER_COMPLETE_EVENT = "TRANSAK_ORDER_SUCCESS";
 
 type UseTransakOptions = {
   walletAddress: string;
   email?: string;
-  onOrderComplete?: (order: { id?: string; status?: string }) => void;
+  onOrderComplete?: (order: TransakOrderData) => void;
   onError?: (message: string) => void;
 };
 

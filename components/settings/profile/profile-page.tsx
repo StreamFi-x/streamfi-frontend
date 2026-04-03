@@ -4,7 +4,7 @@ import type React from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import profileImage from "@/public/Images/profile.png";
-import Avatar from "@/public/icons/avatar.svg";
+import { PROFILE_ICONS } from "@/lib/profile-icons";
 import VerificationPopup from "./popup";
 import AvatarSelectionModal from "./avatar-modal";
 import type {
@@ -26,12 +26,13 @@ import { useToast } from "@/components/ui/toast-provider";
 
 export default function ProfileSettings() {
   const { user, isLoading, updateUserProfile } = useAuth();
-  const avatarOptions = [Avatar, Avatar, Avatar, Avatar, Avatar];
+  const avatarOptions = [...PROFILE_ICONS];
   const { showToast } = useToast();
 
   const [avatar, setAvatar] = useState<StaticImageData | string | File>(
     profileImage
   );
+  const [banner, setBanner] = useState<File | string | null>(null);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
 
   const [, setUsedPlatforms] = useState<Platform[]>([]);
@@ -175,6 +176,10 @@ export default function ProfileSettings() {
         setAvatar(user.avatar);
       }
 
+      if ((user as any).banner) {
+        setBanner((user as any).banner);
+      }
+
       // Handle social links
       if (user.socialLinks) {
         const convertedLinks = convertBackendSocialLinks(user.socialLinks);
@@ -208,6 +213,10 @@ export default function ProfileSettings() {
 
           if (parsedUserData.avatar) {
             setAvatar(parsedUserData.avatar);
+          }
+
+          if (parsedUserData.banner) {
+            setBanner(parsedUserData.banner);
           }
 
           // Handle social links from sessionStorage
@@ -408,14 +417,18 @@ export default function ProfileSettings() {
         avatarData = avatar;
       }
 
-      const success = await updateUserProfile({
+      const bannerData: File | undefined =
+        banner instanceof File ? banner : undefined;
+
+      const result = await updateUserProfile({
         username: formState.username,
         bio: formState.bio,
         socialLinks: socialLinksObj,
         avatar: avatarData,
+        banner: bannerData,
       });
 
-      if (success) {
+      if (result.success) {
         showToast("Profile updated successfully!", "success");
         updateUiState({ saveSuccess: true });
 
@@ -433,8 +446,9 @@ export default function ProfileSettings() {
           sessionStorage.setItem("userData", JSON.stringify(updatedUser));
         }
       } else {
-        showToast("Failed to save changes. Please try again.", "error");
-        updateUiState({ saveError: "Failed to save changes" });
+        const msg = result.error ?? "Failed to save changes. Please try again.";
+        showToast(msg, "error");
+        updateUiState({ saveError: msg });
       }
     } catch (error) {
       console.error("Error saving profile:", error);
@@ -448,8 +462,13 @@ export default function ProfileSettings() {
   return (
     <div className="min-h-screen bg-secondary text-foreground pb-8">
       <div className="mx-auto max-w-8xl">
-        {/* Avatar Section */}
-        <ProfileHeader avatar={avatar} onAvatarClick={handleAvatarClick} />
+        {/* Avatar + Banner Section */}
+        <ProfileHeader
+          avatar={avatar}
+          onAvatarClick={handleAvatarClick}
+          banner={banner}
+          onBannerChange={setBanner}
+        />
 
         {/* Basic Settings Section */}
         <BasicSettingsSection

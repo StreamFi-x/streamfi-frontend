@@ -14,6 +14,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import type { User, UserUpdateInput } from "@/types/user";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import UsernamePromptModal from "@/components/modals/UsernamePromptModal";
 
 const SESSION_REFRESH_INTERVAL = 30 * 60 * 1000;
 
@@ -25,7 +26,9 @@ type AuthContextType = {
   error: string | null;
   logout: () => void;
   refreshUser: (walletAddress?: string) => Promise<User | null>;
-  updateUserProfile: (userData: UserUpdateInput) => Promise<boolean>;
+  updateUserProfile: (
+    userData: UserUpdateInput
+  ) => Promise<{ success: boolean; error?: string }>;
   isWalletConnecting: boolean;
 };
 
@@ -37,7 +40,7 @@ const AuthContext = createContext<AuthContextType>({
   error: null,
   logout: () => {},
   refreshUser: async () => null,
-  updateUserProfile: async () => false,
+  updateUserProfile: async () => ({ success: false }),
   isWalletConnecting: false,
 });
 
@@ -159,9 +162,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           new CustomEvent("privy-wallet-set", { detail: { user: data.user } })
         );
 
-        // If onboarding isn't complete, redirect to finish it
+        // Redirect: new users to onboarding, returning users to explore
         if (data.needsOnboarding) {
           router.push("/onboarding");
+        } else {
+          router.push("/explore");
         }
       } catch (err) {
         // Use warn not error — the overlay only surfaces console.error calls
@@ -447,8 +452,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return result ?? null;
         },
         updateUserProfile: async (userData: UserUpdateInput) => {
-          if (!user) {
-            return false;
+          // Determine the API endpoint.
+          // Wallet users: PUT /api/users/updates/[wallet]
+          // Google (Privy) users: PUT /api/users/updates/privy/[privyId]
+          let endpoint: string | null = null;
+          let isPrivyUser = false;
+
+          if (user?.wallet) {
+            endpoint = `/api/users/updates/${user.wallet}`;
+          } else {
+            // No wallet — check sessionStorage for a Privy-authenticated user
+            try {
+              const raw = sessionStorage.getItem("privy_user");
+              if (raw) {
+                const privyUser = JSON.parse(raw);
+                if (privyUser?.privyId) {
+                  endpoint = `/api/users/updates/privy/${privyUser.privyId}`;
+                  isPrivyUser = true;
+                }
+              }
+            } catch {
+              // sessionStorage unavailable (SSR guard)
+            }
+          }
+
+          if (!endpoint) {
+            return { success: false, error: "Not authenticated" };
           }
 
           try {
@@ -468,6 +497,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             if (userData.avatar && userData.avatar instanceof File) {
               formData.append("avatar", userData.avatar);
+            } else if (userData.avatar && typeof userData.avatar === "string") {
+              // Preset icon or external URL — send as plain string, no Cloudinary upload needed
+              formData.append("avatarUrl", userData.avatar);
+            }
+            if (userData.banner instanceof File) {
+              formData.append("banner", userData.banner);
             }
             if (userData.socialLinks) {
               formData.append(
@@ -479,7 +514,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               formData.append("creator", JSON.stringify(userData.creator));
             }
 
-            const response = await fetch(`/api/users/updates/${user.wallet}`, {
+            const response = await fetch(endpoint, {
               method: "PUT",
               body: formData,
             });
@@ -488,32 +523,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const result = await response.json();
               const updatedUser = result.user;
 
-              await mutateUser(updatedUser, false);
+              if (!isPrivyUser && user?.wallet) {
+                await mutateUser(updatedUser, false);
+                localStorage.setItem(
+                  `user_${user.wallet}`,
+                  JSON.stringify(updatedUser)
+                );
+                localStorage.setItem(
+                  `user_timestamp_${user.wallet}`,
+                  Date.now().toString()
+                );
+              } else {
+                // Merge updated fields back into privy_user sessionStorage
+                try {
+                  const existing = JSON.parse(
+                    sessionStorage.getItem("privy_user") ?? "{}"
+                  );
+                  sessionStorage.setItem(
+                    "privy_user",
+                    JSON.stringify({ ...existing, ...updatedUser })
+                  );
+                  if (updatedUser.username) {
+                    sessionStorage.setItem("username", updatedUser.username);
+                  }
+                } catch {
+                  // best-effort
+                }
+              }
 
-              localStorage.setItem(
-                `user_${user.wallet}`,
-                JSON.stringify(updatedUser)
-              );
-              localStorage.setItem(
-                `user_timestamp_${user.wallet}`,
-                Date.now().toString()
-              );
-
-              return true;
+              return { success: true };
             }
 
-            const responseError = await response.json();
-            console.error("Error response from API:", responseError);
-            return false;
+            // Surface the real API error message to the caller
+            const responseBody = await response.json().catch(() => ({}));
+            const apiError =
+              responseBody?.error ??
+              (response.status === 413
+                ? "Image file is too large. Please choose a smaller image."
+                : response.status === 400
+                  ? "Invalid data. Please check your inputs."
+                  : `Server error (${response.status}). Please try again.`);
+            console.error("Error response from API:", responseBody);
+            return { success: false, error: apiError };
           } catch (updateError) {
             console.error("Error updating user profile:", updateError);
-            return false;
+            return {
+              success: false,
+              error: "Network error. Please try again.",
+            };
           }
         },
         isWalletConnecting,
       }}
     >
       {children}
+      <UsernamePromptModal />
       {/* Email-conflict error banner — shown when a Privy email is already
           claimed by a wallet account. Auto-dismisses after 8s. */}
       {error && (

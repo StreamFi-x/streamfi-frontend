@@ -1,13 +1,17 @@
 "use client";
 
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { Suspense, startTransition, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { SearchBar } from "@/components/search/SearchBar";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SearchResponse } from "@/components/search/types";
-import { getCategoryHref, getStreamHref, getUserHref } from "@/components/search/utils";
+import {
+  getCategoryHref,
+  getStreamHref,
+  getUserHref,
+} from "@/components/search/utils";
 
 type SearchTab = "all" | "users" | "streams" | "categories";
 
@@ -36,7 +40,7 @@ function LoadingGrid() {
   );
 }
 
-export default function SearchPage() {
+function SearchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const query = searchParams.get("q") ?? "";
@@ -57,7 +61,9 @@ export default function SearchPage() {
 
     setIsLoading(true);
 
-    fetch(`/api/search?q=${encodeURIComponent(query.trim())}&type=${encodeURIComponent(activeTab)}&limit=12`)
+    fetch(
+      `/api/search?q=${encodeURIComponent(query.trim())}&type=${encodeURIComponent(activeTab)}&limit=12`
+    )
       .then(async response => {
         if (!response.ok) {
           throw new Error("Search request failed");
@@ -71,7 +77,13 @@ export default function SearchPage() {
       })
       .catch(() => {
         if (active) {
-          setResults({ query, type: activeTab, users: [], streams: [], categories: [] });
+          setResults({
+            query,
+            type: activeTab,
+            users: [],
+            streams: [],
+            categories: [],
+          });
         }
       })
       .finally(() => {
@@ -112,10 +124,15 @@ export default function SearchPage() {
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8 rounded-[2rem] border border-border/70 bg-gradient-to-br from-background via-muted/30 to-background p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Search</p>
-          <h1 className="mt-2 text-3xl font-semibold text-foreground">Find creators, live streams, and categories</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Search
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold text-foreground">
+            Find creators, live streams, and categories
+          </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Search is shareable with the URL, so you can link people directly to what they want to watch.
+            Search is shareable with the URL, so you can link people directly to
+            what they want to watch.
           </p>
           <div className="mt-6 max-w-3xl">
             <SearchBar
@@ -147,96 +164,198 @@ export default function SearchPage() {
 
         {!query.trim() ? (
           <div className="rounded-2xl border border-dashed border-border p-10 text-center">
-            <p className="text-lg font-medium text-foreground">Start with a search query</p>
-            <p className="mt-2 text-sm text-muted-foreground">Try a creator like alice, a stream title like valorant ranked, or a category like gaming.</p>
+            <p className="text-lg font-medium text-foreground">
+              Start with a search query
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Try a creator like alice, a stream title like valorant ranked, or
+              a category like gaming.
+            </p>
           </div>
         ) : isLoading ? (
           <LoadingGrid />
         ) : empty ? (
           <div className="rounded-2xl border border-dashed border-border p-10 text-center">
-            <p className="text-lg font-medium text-foreground">No results for &quot;{query}&quot;</p>
-            <p className="mt-2 text-sm text-muted-foreground">Try a broader keyword or switch tabs to narrow the scope.</p>
+            <p className="text-lg font-medium text-foreground">
+              No results for &quot;{query}&quot;
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Try a broader keyword or switch tabs to narrow the scope.
+            </p>
           </div>
         ) : (
           <div className="space-y-8">
-            {results && (activeTab === "all" || activeTab === "streams") && results.streams.length > 0 && (
-              <section className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-foreground">Live Now</h2>
-                  <span className="text-sm text-muted-foreground">{results.streams.length} results</span>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {results.streams.map(stream => (
-                    <Link key={`stream-${stream.id}`} href={getStreamHref(stream)} className="rounded-2xl border border-border/70 p-4 transition-colors hover:bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted">
-                          <Image src={stream.avatar || "/Images/user.png"} alt={stream.username} fill className="object-cover" unoptimized />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="truncate font-semibold text-foreground">{stream.stream_title}</h3>
-                            <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
+            {results &&
+              (activeTab === "all" || activeTab === "streams") &&
+              results.streams.length > 0 && (
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-semibold text-foreground">
+                      Live Now
+                    </h2>
+                    <span className="text-sm text-muted-foreground">
+                      {results.streams.length} results
+                    </span>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {results.streams.map(stream => (
+                      <Link
+                        key={`stream-${stream.id}`}
+                        href={getStreamHref(stream)}
+                        className="rounded-2xl border border-border/70 p-4 transition-colors hover:bg-muted/50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted">
+                            <Image
+                              src={stream.avatar || "/Images/user.png"}
+                              alt={stream.username}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
                           </div>
-                          <p className="truncate text-sm text-muted-foreground">@{stream.username} in {stream.category}</p>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">{stream.tags.join(" • ")}</p>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {results && (activeTab === "all" || activeTab === "users") && results.users.length > 0 && (
-              <section className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-foreground">Creators</h2>
-                  <span className="text-sm text-muted-foreground">{results.users.length} results</span>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {results.users.map(user => (
-                    <Link key={`user-${user.id}`} href={getUserHref(user)} className="rounded-2xl border border-border/70 p-4 transition-colors hover:bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted">
-                          <Image src={user.avatar || "/Images/user.png"} alt={user.username} fill className="object-cover" unoptimized />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="truncate font-semibold text-foreground">@{user.username}</h3>
-                            {user.is_live && <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="truncate font-semibold text-foreground">
+                                {stream.stream_title}
+                              </h3>
+                              <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
+                            </div>
+                            <p className="truncate text-sm text-muted-foreground">
+                              @{stream.username} in {stream.category}
+                            </p>
+                            <p className="mt-1 truncate text-xs text-muted-foreground">
+                              {stream.tags.join(" • ")}
+                            </p>
                           </div>
-                          <p className="truncate text-sm text-muted-foreground">{user.bio || "No bio yet"}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{user.follower_count.toLocaleString()} followers</p>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )}
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
 
-            {results && (activeTab === "all" || activeTab === "categories") && results.categories.length > 0 && (
-              <section className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-foreground">Categories</h2>
-                  <span className="text-sm text-muted-foreground">{results.categories.length} results</span>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {results.categories.map(category => (
-                    <Link key={`category-${category.id}`} href={getCategoryHref(category)} className="rounded-2xl border border-border/70 p-4 transition-colors hover:bg-muted/50">
-                      <div className="relative mb-3 h-36 overflow-hidden rounded-2xl bg-muted">
-                        <Image src={category.imageurl || "/Images/user.png"} alt={category.title} fill className="object-cover" unoptimized />
-                      </div>
-                      <h3 className="font-semibold text-foreground">{category.title}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">{category.tags.join(" • ")}</p>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )}
+            {results &&
+              (activeTab === "all" || activeTab === "users") &&
+              results.users.length > 0 && (
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-semibold text-foreground">
+                      Creators
+                    </h2>
+                    <span className="text-sm text-muted-foreground">
+                      {results.users.length} results
+                    </span>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {results.users.map(user => (
+                      <Link
+                        key={`user-${user.id}`}
+                        href={getUserHref(user)}
+                        className="rounded-2xl border border-border/70 p-4 transition-colors hover:bg-muted/50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted">
+                            <Image
+                              src={user.avatar || "/Images/user.png"}
+                              alt={user.username}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="truncate font-semibold text-foreground">
+                                @{user.username}
+                              </h3>
+                              {user.is_live && (
+                                <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
+                              )}
+                            </div>
+                            <p className="truncate text-sm text-muted-foreground">
+                              {user.bio || "No bio yet"}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {user.follower_count.toLocaleString()} followers
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+            {results &&
+              (activeTab === "all" || activeTab === "categories") &&
+              results.categories.length > 0 && (
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-semibold text-foreground">
+                      Categories
+                    </h2>
+                    <span className="text-sm text-muted-foreground">
+                      {results.categories.length} results
+                    </span>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {results.categories.map(category => (
+                      <Link
+                        key={`category-${category.id}`}
+                        href={getCategoryHref(category)}
+                        className="rounded-2xl border border-border/70 p-4 transition-colors hover:bg-muted/50"
+                      >
+                        <div className="relative mb-3 h-36 overflow-hidden rounded-2xl bg-muted">
+                          <Image
+                            src={category.imageurl || "/Images/user.png"}
+                            alt={category.title}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        </div>
+                        <h3 className="font-semibold text-foreground">
+                          {category.title}
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {category.tags.join(" • ")}
+                        </p>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
           </div>
         )}
       </div>
     </main>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-background">
+          <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="mb-8 rounded-[2rem] border border-border/70 bg-gradient-to-br from-background via-muted/30 to-background p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Search
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold text-foreground">
+                Find creators, live streams, and categories
+              </h1>
+              <div className="mt-6 max-w-3xl">
+                <Skeleton className="h-12 w-full rounded-2xl" />
+              </div>
+            </div>
+            <LoadingGrid />
+          </div>
+        </main>
+      }
+    >
+      <SearchPageContent />
+    </Suspense>
   );
 }

@@ -65,19 +65,20 @@ export function ReportBugForm() {
     },
   });
 
-  function onSubmit(data: FormData) {
-    const submissionData = {
-      ...data,
-      screenshot: uploadedFile
-        ? {
-            name: uploadedFile.name,
-            size: uploadedFile.size,
-            type: uploadedFile.type,
-          }
-        : null,
-    };
-
-    console.log("Bug report submitted:", submissionData);
+  async function onSubmit(data: FormData) {
+    try {
+      await fetch("/api/admin/reports/bug/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: data.feedbackType,
+          description: `${data.title}\n\n${data.description}`,
+          severity: "medium",
+        }),
+      });
+    } catch {
+      // Silent fail — don't block the UI on a network error
+    }
 
     // Reset form after submission
     form.reset();

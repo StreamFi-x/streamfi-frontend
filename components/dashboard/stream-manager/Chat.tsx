@@ -6,6 +6,7 @@ import { MessageSquare, X, Send, Smile } from "lucide-react";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { useStreamData } from "@/hooks/useStreamData";
 import { useChat } from "@/hooks/useChat";
+import { EMOJI_CATEGORIES, CATEGORY_LABELS } from "@/lib/emoji-categories";
 
 export default function Chat() {
   const { publicKey, privyWallet } = useStellarWallet();
@@ -19,8 +20,25 @@ export default function Chat() {
 
   const [newMessage, setNewMessage] = React.useState("");
   const [isMinimized, setIsMinimized] = React.useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = React.useState(false);
+  const [activeCategory, setActiveCategory] = React.useState("😊");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(e.target as Node)
+      ) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Auto-scroll when new messages arrive
   useEffect(() => {
@@ -135,32 +153,79 @@ export default function Chat() {
         )}
       </div>
 
-      <form
-        onSubmit={handleSendMessage}
-        className="p-2 bg-background border-border border-t flex items-center space-x-2"
-      >
-        <input
-          type="text"
-          value={newMessage}
-          onChange={e => setNewMessage(e.target.value)}
-          placeholder="Send a message"
-          disabled={isSending}
-          className="flex-1 bg-input border border-border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-highlight focus:outline-none text-foreground disabled:opacity-50"
-        />
-        <button
-          type="button"
-          className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+      <div className="p-2 bg-background border-border border-t relative">
+        {/* Emoji picker */}
+        {showEmojiPicker && (
+          <div
+            ref={emojiPickerRef}
+            className="absolute bottom-full left-0 right-0 mb-1 mx-2 bg-background border border-border rounded-lg shadow-xl z-20 overflow-hidden"
+          >
+            <div className="flex border-b border-border">
+              {Object.keys(EMOJI_CATEGORIES).map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setActiveCategory(cat)}
+                  title={CATEGORY_LABELS[cat]}
+                  className={`flex-1 py-1.5 text-sm transition-colors ${
+                    activeCategory === cat
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-8 gap-0.5 p-2">
+              {EMOJI_CATEGORIES[activeCategory].map(emoji => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => setNewMessage(prev => prev + emoji)}
+                  className="text-lg p-1 rounded hover:bg-accent transition-colors leading-none"
+                  title={emoji}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <form
+          onSubmit={handleSendMessage}
+          className="flex items-center space-x-2"
         >
-          <Smile size={20} />
-        </button>
-        <button
-          type="submit"
-          className="p-2 bg-highlight hover:bg-highlight/80 text-primary-foreground rounded-md transition-colors disabled:opacity-50"
-          disabled={!newMessage.trim() || isSending}
-        >
-          <Send size={20} />
-        </button>
-      </form>
+          <input
+            type="text"
+            value={newMessage}
+            onChange={e => setNewMessage(e.target.value)}
+            placeholder="Send a message"
+            disabled={isSending}
+            className="flex-1 bg-input border border-border rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-highlight focus:outline-none text-foreground disabled:opacity-50"
+          />
+          <button
+            type="button"
+            onClick={() => setShowEmojiPicker(p => !p)}
+            className={`p-2 transition-colors ${
+              showEmojiPicker
+                ? "text-highlight"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            aria-label="Toggle emoji picker"
+          >
+            <Smile size={20} />
+          </button>
+          <button
+            type="submit"
+            className="p-2 bg-highlight hover:bg-highlight/80 text-primary-foreground rounded-md transition-colors disabled:opacity-50"
+            disabled={!newMessage.trim() || isSending}
+          >
+            <Send size={20} />
+          </button>
+        </form>
+      </div>
     </motion.div>
   );
 }

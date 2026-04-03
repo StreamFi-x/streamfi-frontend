@@ -47,6 +47,15 @@ const nextConfig = {
   // Security headers — defense-in-depth
   async headers() {
     return [
+      // Noindex private routes (layouts are "use client" so metadata API can't be used there)
+      {
+        source: "/dashboard/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+      {
+        source: "/settings/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
       {
         source: "/(.*)",
         headers: [
