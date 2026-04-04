@@ -20,7 +20,10 @@ async function isAdmin(userId: string): Promise<boolean> {
 
 function generateCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return Array.from(
+    { length: 12 },
+    () => chars[Math.floor(Math.random() * chars.length)]
+  ).join("");
 }
 
 /**
@@ -29,7 +32,9 @@ function generateCode(): string {
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   if (!(await isAdmin(session.userId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -62,7 +67,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ vouchers: rows });
   } catch (error) {
     console.error("[routes-f credits/admin GET]", error);
-    return NextResponse.json({ error: "Failed to fetch vouchers" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch vouchers" },
+      { status: 500 }
+    );
   }
 }
 
@@ -72,19 +80,26 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   if (!(await isAdmin(session.userId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const bodyResult = await validateBody(req, issueVoucherSchema);
-  if (bodyResult instanceof Response) return bodyResult;
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
   const { amount_usd, max_redemptions, expires_at } = bodyResult.data;
 
   if (expires_at && new Date(expires_at) <= new Date()) {
-    return NextResponse.json({ error: "expires_at must be in the future" }, { status: 400 });
+    return NextResponse.json(
+      { error: "expires_at must be in the future" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -104,7 +119,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         break;
       } catch (e: unknown) {
         const err = e as { code?: string };
-        if (err?.code === "23505" && attempt < 4) continue; // unique violation, retry
+        if (err?.code === "23505" && attempt < 4) {
+          continue;
+        } // unique violation, retry
         throw e;
       }
     }
@@ -112,6 +129,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(rows[0], { status: 201 });
   } catch (error) {
     console.error("[routes-f credits/admin POST]", error);
-    return NextResponse.json({ error: "Failed to issue voucher" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to issue voucher" },
+      { status: 500 }
+    );
   }
 }

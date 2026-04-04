@@ -17,15 +17,21 @@ const leaderboardQuerySchema = z.object({
 });
 
 function periodToDate(period: "7d" | "30d" | "all"): Date {
-  if (period === "7d") return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  if (period === "30d") return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  if (period === "7d") {
+    return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  }
+  if (period === "30d") {
+    return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  }
   return new Date(0); // epoch — effectively "no filter"
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, leaderboardQuerySchema);
-  if (queryResult instanceof Response) return queryResult;
+  if (queryResult instanceof Response) {
+    return queryResult;
+  }
 
   const { category, period, limit } = queryResult.data;
   const since = periodToDate(period ?? "7d").toISOString();

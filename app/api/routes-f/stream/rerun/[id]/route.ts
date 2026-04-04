@@ -23,7 +23,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { id } = await params;
 
@@ -48,7 +50,10 @@ export async function DELETE(
     }
 
     if (rerun.cancelled) {
-      return NextResponse.json({ error: "Rerun already cancelled" }, { status: 409 });
+      return NextResponse.json(
+        { error: "Rerun already cancelled" },
+        { status: 409 }
+      );
     }
 
     await sql`
@@ -58,6 +63,9 @@ export async function DELETE(
     return NextResponse.json({ message: "Rerun cancelled" });
   } catch (error) {
     console.error("[routes-f stream/rerun/:id DELETE]", error);
-    return NextResponse.json({ error: "Failed to cancel rerun" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to cancel rerun" },
+      { status: 500 }
+    );
   }
 }

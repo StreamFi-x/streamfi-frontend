@@ -9,7 +9,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAssetExists, isValidAssetCode, isValidStellarIssuer } from "@/lib/stream/access";
+import {
+  verifyAssetExists,
+  isValidAssetCode,
+  isValidStellarIssuer,
+} from "@/lib/stream/access";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

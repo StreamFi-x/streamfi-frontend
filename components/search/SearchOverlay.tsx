@@ -5,7 +5,12 @@ import Link from "next/link";
 import { RadioTower, UserRound, Tag, Search as SearchIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SearchResponse } from "./types";
-import { getCategoryHref, getSearchPageHref, getStreamHref, getUserHref } from "./utils";
+import {
+  getCategoryHref,
+  getSearchPageHref,
+  getStreamHref,
+  getUserHref,
+} from "./utils";
 
 interface SearchOverlayProps {
   query: string;
@@ -16,7 +21,11 @@ interface SearchOverlayProps {
   onClose?: () => void;
 }
 
-function SectionHeader(props: { icon: React.ReactNode; title: string; count: number }) {
+function SectionHeader(props: {
+  icon: React.ReactNode;
+  title: string;
+  count: number;
+}) {
   return (
     <div className="flex items-center justify-between px-1 py-1">
       <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -32,7 +41,10 @@ function LoadingRows() {
   return (
     <div className="space-y-3 p-3">
       {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="flex items-center gap-3 rounded-xl border border-border/60 p-3">
+        <div
+          key={index}
+          className="flex items-center gap-3 rounded-xl border border-border/60 p-3"
+        >
           <Skeleton className="h-11 w-11 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-32" />
@@ -68,7 +80,13 @@ export function SearchOverlay({
 
   return (
     <div className={containerClass}>
-      <div className={fullscreen ? "mx-auto flex h-full max-w-3xl flex-col px-4 pb-6 pt-24" : "max-h-[70vh] overflow-y-auto"}>
+      <div
+        className={
+          fullscreen
+            ? "mx-auto flex h-full max-w-3xl flex-col px-4 pb-6 pt-24"
+            : "max-h-[70vh] overflow-y-auto"
+        }
+      >
         {isLoading ? (
           <LoadingRows />
         ) : !query.trim() ? (
@@ -76,13 +94,21 @@ export function SearchOverlay({
             <div className="mb-4 rounded-full border border-border p-3 text-muted-foreground">
               <SearchIcon className="h-5 w-5" />
             </div>
-            <p className="text-sm font-medium text-foreground">Search for creators, live streams, or categories</p>
-            <p className="mt-1 text-sm text-muted-foreground">Type at least 2 characters to start searching.</p>
+            <p className="text-sm font-medium text-foreground">
+              Search for creators, live streams, or categories
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Type at least 2 characters to start searching.
+            </p>
           </div>
         ) : !hasResults ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-sm font-medium text-foreground">No results for &quot;{query}&quot;</p>
-            <p className="mt-1 text-sm text-muted-foreground">Try a creator name, stream title, or category tag.</p>
+            <p className="text-sm font-medium text-foreground">
+              No results for &quot;{query}&quot;
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Try a creator name, stream title, or category tag.
+            </p>
           </div>
         ) : (
           <div className="space-y-4 p-3">
@@ -111,10 +137,14 @@ export function SearchOverlay({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="truncate text-sm font-semibold text-foreground">{stream.stream_title}</span>
+                        <span className="truncate text-sm font-semibold text-foreground">
+                          {stream.stream_title}
+                        </span>
                         <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
                       </div>
-                      <p className="truncate text-sm text-muted-foreground">@{stream.username} in {stream.category}</p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        @{stream.username} in {stream.category}
+                      </p>
                     </div>
                     <span className="rounded-full bg-highlight/10 px-2.5 py-1 text-xs font-medium text-highlight">
                       {stream.current_viewers} watching
@@ -149,14 +179,21 @@ export function SearchOverlay({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="truncate text-sm font-semibold text-foreground">@{user.username}</span>
-                        {user.is_live && <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />}
+                        <span className="truncate text-sm font-semibold text-foreground">
+                          @{user.username}
+                        </span>
+                        {user.is_live && (
+                          <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
+                        )}
                       </div>
                       <p className="truncate text-sm text-muted-foreground">
-                        {user.bio || `${user.follower_count.toLocaleString()} followers`}
+                        {user.bio ||
+                          `${user.follower_count.toLocaleString()} followers`}
                       </p>
                     </div>
-                    <span className="text-xs text-muted-foreground">{user.follower_count.toLocaleString()} followers</span>
+                    <span className="text-xs text-muted-foreground">
+                      {user.follower_count.toLocaleString()} followers
+                    </span>
                   </Link>
                 ))}
               </section>
@@ -186,9 +223,12 @@ export function SearchOverlay({
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-foreground">{category.title}</p>
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {category.title}
+                      </p>
                       <p className="truncate text-sm text-muted-foreground">
-                        {(category.tags || []).slice(0, 3).join(" • ") || "Browse category"}
+                        {(category.tags || []).slice(0, 3).join(" • ") ||
+                          "Browse category"}
                       </p>
                     </div>
                   </Link>
@@ -199,7 +239,11 @@ export function SearchOverlay({
         )}
 
         {query.trim() && (
-          <div className={fullscreen ? "mt-auto pt-4" : "border-t border-border/80 p-3"}>
+          <div
+            className={
+              fullscreen ? "mt-auto pt-4" : "border-t border-border/80 p-3"
+            }
+          >
             <Link
               href={getSearchPageHref(query)}
               className="flex w-full items-center justify-center rounded-xl bg-highlight px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90"

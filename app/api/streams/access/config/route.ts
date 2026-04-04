@@ -17,7 +17,10 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const wallet = searchParams.get("wallet");
     if (!wallet) {
-      return NextResponse.json({ error: "wallet is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "wallet is required" },
+        { status: 400 }
+      );
     }
 
     const streamer = await sql`
@@ -35,10 +38,12 @@ export async function GET(req: Request) {
       LIMIT 1
     `;
 
-    const access_type = (configRes.rows[0]?.access_type ?? "public") as AccessType;
+    const access_type = (configRes.rows[0]?.access_type ??
+      "public") as AccessType;
     const config = (configRes.rows[0]?.config ?? {}) as Record<string, unknown>;
 
-    const price_usdc = typeof config.price_usdc === "string" ? config.price_usdc : null;
+    const price_usdc =
+      typeof config.price_usdc === "string" ? config.price_usdc : null;
 
     const paidStats = await sql`
       SELECT
@@ -56,7 +61,9 @@ export async function GET(req: Request) {
     });
   } catch (e) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed to fetch access config" },
+      {
+        error: e instanceof Error ? e.message : "Failed to fetch access config",
+      },
       { status: 500 }
     );
   }
@@ -71,7 +78,10 @@ export async function PATCH(req: Request) {
     };
 
     if (!wallet) {
-      return NextResponse.json({ error: "wallet is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "wallet is required" },
+        { status: 400 }
+      );
     }
 
     if (!access_type || !["public", "paid"].includes(access_type)) {
@@ -93,7 +103,9 @@ export async function PATCH(req: Request) {
       access_type === "paid"
         ? (() => {
             if (!isValidPrice(price_usdc)) {
-              throw new Error("price_usdc must be between 1 and 999 (2 decimals max)");
+              throw new Error(
+                "price_usdc must be between 1 and 999 (2 decimals max)"
+              );
             }
             return { price_usdc };
           })()
@@ -111,9 +123,11 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed to update access config" },
+      {
+        error:
+          e instanceof Error ? e.message : "Failed to update access config",
+      },
       { status: 500 }
     );
   }
 }
-

@@ -67,7 +67,9 @@ async function ensureAccountTables(): Promise<void> {
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     await ensureAccountTables();
@@ -143,7 +145,9 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     await ensureAccountTables();
@@ -177,12 +181,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       deletion_scheduled_at: user.deletion_scheduled_at,
       deactivated_at: user.deactivated_at,
       created_at: user.created_at,
-      pending_deletion: deletionRows.length > 0
-        ? {
-            deletion_id: deletionRows[0].id,
-            scrub_after: deletionRows[0].scrub_after,
-          }
-        : null,
+      pending_deletion:
+        deletionRows.length > 0
+          ? {
+              deletion_id: deletionRows[0].id,
+              scrub_after: deletionRows[0].scrub_after,
+            }
+          : null,
     });
   } catch (error) {
     console.error("[routes-f/account] GET error:", error);

@@ -15,10 +15,14 @@ const redeemSchema = z.object({
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const bodyResult = await validateBody(req, redeemSchema);
-  if (bodyResult instanceof Response) return bodyResult;
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
   const { code } = bodyResult.data;
 
@@ -34,19 +38,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     `;
 
     if (voucherRows.length === 0) {
-      return NextResponse.json({ error: "Invalid voucher code" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Invalid voucher code" },
+        { status: 404 }
+      );
     }
 
     const voucher = voucherRows[0];
 
     // 2. Check expiry
     if (voucher.expires_at && new Date(voucher.expires_at) < new Date()) {
-      return NextResponse.json({ error: "Voucher has expired" }, { status: 410 });
+      return NextResponse.json(
+        { error: "Voucher has expired" },
+        { status: 410 }
+      );
     }
 
     // 3. Check redemption limit
     if (voucher.redemption_count >= voucher.max_redemptions) {
-      return NextResponse.json({ error: "Voucher has reached its redemption limit" }, { status: 409 });
+      return NextResponse.json(
+        { error: "Voucher has reached its redemption limit" },
+        { status: 409 }
+      );
     }
 
     // 4. Check if user already redeemed this voucher
@@ -57,7 +70,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     `;
 
     if (alreadyRedeemed.length > 0) {
-      return NextResponse.json({ error: "You have already redeemed this voucher" }, { status: 409 });
+      return NextResponse.json(
+        { error: "You have already redeemed this voucher" },
+        { status: 409 }
+      );
     }
 
     // 5. Record redemption, increment counter, and credit user — all in one transaction
@@ -90,6 +106,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
   } catch (error) {
     console.error("[routes-f credits/redeem POST]", error);
-    return NextResponse.json({ error: "Failed to redeem voucher" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to redeem voucher" },
+      { status: 500 }
+    );
   }
 }

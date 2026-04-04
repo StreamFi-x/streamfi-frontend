@@ -96,7 +96,9 @@ export function SearchBar({
 
     setIsLoading(true);
 
-    fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}&type=all&limit=6`)
+    fetch(
+      `/api/search?q=${encodeURIComponent(debouncedQuery)}&type=all&limit=6`
+    )
       .then(async response => {
         if (!response.ok) {
           throw new Error("Search request failed");
@@ -110,7 +112,13 @@ export function SearchBar({
       })
       .catch(() => {
         if (active) {
-          setResults({ query: debouncedQuery, type: "all", users: [], streams: [], categories: [] });
+          setResults({
+            query: debouncedQuery,
+            type: "all",
+            users: [],
+            streams: [],
+            categories: [],
+          });
         }
       })
       .finally(() => {

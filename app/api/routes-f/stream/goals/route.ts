@@ -92,7 +92,9 @@ async function markCompletedGoals(
   metrics: GoalMetrics
 ): Promise<void> {
   const completedGoalIds = goals
-    .filter(goal => !goal.completed_at && metrics[goal.type] >= toNumber(goal.target))
+    .filter(
+      goal => !goal.completed_at && metrics[goal.type] >= toNumber(goal.target)
+    )
     .map(goal => goal.id);
 
   if (completedGoalIds.length === 0) {
@@ -100,12 +102,14 @@ async function markCompletedGoals(
   }
 
   await Promise.all(
-    completedGoalIds.map(goalId => sql`
+    completedGoalIds.map(
+      goalId => sql`
       UPDATE route_f_stream_goals
       SET completed_at = NOW(), updated_at = NOW()
       WHERE id = ${goalId}
         AND completed_at IS NULL
-    `)
+    `
+    )
   );
 }
 
@@ -302,7 +306,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     `;
 
     const goal = rows[0] as GoalRow;
-    const metrics = await getLiveGoalMetrics(goal.creator_id, goal.stream_started_at);
+    const metrics = await getLiveGoalMetrics(
+      goal.creator_id,
+      goal.stream_started_at
+    );
 
     if (!goal.completed_at && metrics[goal.type] >= toNumber(goal.target)) {
       await sql`

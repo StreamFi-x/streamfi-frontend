@@ -10,4 +10,3 @@ export function parseStellarAmountToInt(amount: string): bigint {
   const frac = (fracRaw + "0000000").slice(0, 7);
   return BigInt(whole) * BigInt(10_000_000) + BigInt(frac);
 }
-

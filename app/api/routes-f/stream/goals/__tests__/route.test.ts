@@ -146,11 +146,9 @@ describe("routes-f stream/goals", () => {
   });
 
   it("forbids deleting someone else's goal", async () => {
-    sqlMock
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{ id: GOAL_ID, creator_id: "another-creator-id" }],
-      });
+    sqlMock.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({
+      rows: [{ id: GOAL_ID, creator_id: "another-creator-id" }],
+    });
 
     const res = await DELETE(
       makeRequest("DELETE", `/api/routes-f/stream/goals/${GOAL_ID}`),

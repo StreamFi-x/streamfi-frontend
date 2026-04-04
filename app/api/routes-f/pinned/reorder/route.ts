@@ -47,9 +47,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    if (
-      !orderedIds.every(id => typeof id === "string" && UUID_RE.test(id))
-    ) {
+    if (!orderedIds.every(id => typeof id === "string" && UUID_RE.test(id))) {
       return NextResponse.json(
         { error: "ordered_ids must contain valid UUIDs" },
         { status: 400 }

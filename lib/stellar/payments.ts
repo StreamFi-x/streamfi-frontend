@@ -1,10 +1,4 @@
-import {
-  Networks,
-  Asset,
-  BASE_FEE,
-  Transaction,
-  Horizon,
-} from "@stellar/stellar-sdk";
+import { Asset, BASE_FEE, Transaction, Horizon } from "@stellar/stellar-sdk";
 import { buildPaymentTransaction } from "./transactions";
 import { getUsdcAsset } from "./usdc";
 
@@ -42,13 +36,6 @@ function getServer(network: "testnet" | "mainnet"): typeof Server.prototype {
       : "https://horizon.stellar.org";
 
   return new Server(horizonUrl);
-}
-
-/**
- * Get Stellar network passphrase based on network type
- */
-function getNetworkPassphrase(network: "testnet" | "mainnet"): string {
-  return network === "testnet" ? Networks.TESTNET : Networks.PUBLIC;
 }
 
 /**

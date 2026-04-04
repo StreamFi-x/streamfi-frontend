@@ -8,7 +8,9 @@ const MAX_SCHEDULED_RERUNS = 3;
 
 const scheduleRerunSchema = z.object({
   recording_id: z.string().min(1).max(255),
-  scheduled_at: z.string().datetime({ message: "scheduled_at must be an ISO 8601 datetime" }),
+  scheduled_at: z
+    .string()
+    .datetime({ message: "scheduled_at must be an ISO 8601 datetime" }),
   notify_followers: z.boolean().default(false),
 });
 
@@ -35,7 +37,9 @@ async function ensureRerunsTable() {
 /** GET /api/routes-f/stream/rerun — list scheduled reruns for authenticated creator */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     await ensureRerunsTable();
@@ -51,17 +55,24 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ reruns: rows });
   } catch (error) {
     console.error("[routes-f stream/rerun GET]", error);
-    return NextResponse.json({ error: "Failed to fetch reruns" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch reruns" },
+      { status: 500 }
+    );
   }
 }
 
 /** POST /api/routes-f/stream/rerun — schedule a rerun */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const bodyResult = await validateBody(req, scheduleRerunSchema);
-  if (bodyResult instanceof Response) return bodyResult;
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
   const { recording_id, scheduled_at, notify_followers } = bodyResult.data;
 
@@ -89,7 +100,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const count = Number(countRows[0]?.total ?? 0);
     if (count >= MAX_SCHEDULED_RERUNS) {
       return NextResponse.json(
-        { error: `Maximum of ${MAX_SCHEDULED_RERUNS} scheduled reruns allowed at once` },
+        {
+          error: `Maximum of ${MAX_SCHEDULED_RERUNS} scheduled reruns allowed at once`,
+        },
         { status: 400 }
       );
     }
@@ -113,13 +126,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         )
       `.catch(() => {
         // notification_jobs table may not exist yet — non-fatal
-        console.warn("[routes-f stream/rerun] Could not queue notification job");
+        console.warn(
+          "[routes-f stream/rerun] Could not queue notification job"
+        );
       });
     }
 
     return NextResponse.json(rerun, { status: 201 });
   } catch (error) {
     console.error("[routes-f stream/rerun POST]", error);
-    return NextResponse.json({ error: "Failed to schedule rerun" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to schedule rerun" },
+      { status: 500 }
+    );
   }
 }

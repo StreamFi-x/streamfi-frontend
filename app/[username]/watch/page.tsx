@@ -55,7 +55,9 @@ const WatchPage = ({ params }: PageProps) => {
   }, []);
 
   const checkAccess = useCallback(async () => {
-    if (!userData) return;
+    if (!userData) {
+      return;
+    }
     // Public streams are always allowed — skip the network call
     if (
       !userData.stream_access_type ||

@@ -37,10 +37,14 @@ async function ensureSubmissionsTable() {
 /** POST /api/routes-f/clips/submit — submit a clip for featured review */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const bodyResult = await validateBody(req, submitClipSchema);
-  if (bodyResult instanceof Response) return bodyResult;
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
   const { clip_id, creator_note } = bodyResult.data;
 
@@ -54,7 +58,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (existing.length > 0) {
       return NextResponse.json(
-        { error: "This clip has already been submitted", status: existing[0].status },
+        {
+          error: "This clip has already been submitted",
+          status: existing[0].status,
+        },
         { status: 409 }
       );
     }
@@ -68,14 +75,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(rows[0], { status: 201 });
   } catch (error) {
     console.error("[routes-f clips/submit POST]", error);
-    return NextResponse.json({ error: "Failed to submit clip" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to submit clip" },
+      { status: 500 }
+    );
   }
 }
 
 /** GET /api/routes-f/clips/submit — list own submitted clips and their review status */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     await ensureSubmissionsTable();
@@ -90,6 +102,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ submissions: rows });
   } catch (error) {
     console.error("[routes-f clips/submit GET]", error);
-    return NextResponse.json({ error: "Failed to fetch submissions" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch submissions" },
+      { status: 500 }
+    );
   }
 }

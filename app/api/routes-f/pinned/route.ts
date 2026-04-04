@@ -160,7 +160,9 @@ export async function POST(req: NextRequest) {
     const payload = await req.json();
     const itemId = payload?.item_id;
     const itemType = payload?.item_type;
-    const requestedPosition = Number(payload?.position ?? Number.MAX_SAFE_INTEGER);
+    const requestedPosition = Number(
+      payload?.position ?? Number.MAX_SAFE_INTEGER
+    );
 
     if (typeof itemId !== "string" || !UUID_RE.test(itemId)) {
       return NextResponse.json(

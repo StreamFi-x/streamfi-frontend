@@ -11,21 +11,28 @@ function isValidStellarPublicKey(key: unknown): key is string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { streamer_username, viewer_public_key, tx_hash } = (await req.json()) as {
-      streamer_username?: string;
-      viewer_public_key?: string;
-      tx_hash?: string;
-    };
+    const { streamer_username, viewer_public_key, tx_hash } =
+      (await req.json()) as {
+        streamer_username?: string;
+        viewer_public_key?: string;
+        tx_hash?: string;
+      };
 
     if (!streamer_username || !viewer_public_key || !tx_hash) {
       return NextResponse.json(
-        { error: "streamer_username, viewer_public_key, and tx_hash are required" },
+        {
+          error:
+            "streamer_username, viewer_public_key, and tx_hash are required",
+        },
         { status: 400 }
       );
     }
 
     if (!isValidStellarPublicKey(viewer_public_key)) {
-      return NextResponse.json({ error: "Invalid viewer_public_key" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid viewer_public_key" },
+        { status: 400 }
+      );
     }
 
     // Resolve streamer + access config
@@ -36,7 +43,10 @@ export async function POST(req: NextRequest) {
       LIMIT 1
     `;
     if (streamerResult.rows.length === 0) {
-      return NextResponse.json({ error: "Streamer not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Streamer not found" },
+        { status: 404 }
+      );
     }
     const streamerId = streamerResult.rows[0].id as string;
     const streamerWallet = streamerResult.rows[0].wallet as string | null;
@@ -53,16 +63,27 @@ export async function POST(req: NextRequest) {
       WHERE streamer_id = ${streamerId}
       LIMIT 1
     `;
-    const accessType = (configResult.rows[0]?.access_type ?? "public") as string;
-    const config = (configResult.rows[0]?.config ?? {}) as Record<string, unknown>;
+    const accessType = (configResult.rows[0]?.access_type ??
+      "public") as string;
+    const config = (configResult.rows[0]?.config ?? {}) as Record<
+      string,
+      unknown
+    >;
 
     if (accessType !== "paid") {
-      return NextResponse.json({ error: "Stream is not configured as paid" }, { status: 409 });
+      return NextResponse.json(
+        { error: "Stream is not configured as paid" },
+        { status: 409 }
+      );
     }
 
-    const priceUsdc = typeof config.price_usdc === "string" ? config.price_usdc : null;
+    const priceUsdc =
+      typeof config.price_usdc === "string" ? config.price_usdc : null;
     if (!priceUsdc) {
-      return NextResponse.json({ error: "Missing stream price" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Missing stream price" },
+        { status: 500 }
+      );
     }
 
     // Replay protection / idempotency: tx_hash cannot be reused
@@ -90,18 +111,31 @@ export async function POST(req: NextRequest) {
     const tx = await server.transactions().transaction(tx_hash).call();
 
     if (tx.source_account !== viewer_public_key) {
-      return NextResponse.json({ error: "Transaction source_account mismatch" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Transaction source_account mismatch" },
+        { status: 400 }
+      );
     }
 
     const expectedMemo = `streamfi-access:${streamerId}`;
     if (tx.memo_type !== "text" || tx.memo !== expectedMemo) {
-      return NextResponse.json({ error: "Transaction memo mismatch" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Transaction memo mismatch" },
+        { status: 400 }
+      );
     }
 
-    const ops = await server.operations().forTransaction(tx_hash).limit(200).call();
+    const ops = await server
+      .operations()
+      .forTransaction(tx_hash)
+      .limit(200)
+      .call();
     const payments = ops.records.filter((op: any) => op.type === "payment");
     if (payments.length === 0) {
-      return NextResponse.json({ error: "No payment operation found" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No payment operation found" },
+        { status: 400 }
+      );
     }
 
     const usdc = getUsdcAssetConfig(network);
@@ -126,7 +160,9 @@ export async function POST(req: NextRequest) {
 
     if (!matching) {
       return NextResponse.json(
-        { error: "Payment does not match destination/asset/amount requirements" },
+        {
+          error: "Payment does not match destination/asset/amount requirements",
+        },
         { status: 400 }
       );
     }
@@ -151,4 +187,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

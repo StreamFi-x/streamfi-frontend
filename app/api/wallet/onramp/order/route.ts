@@ -50,7 +50,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing order id" }, { status: 400 });
   }
   if (!status || typeof status !== "string") {
-    return NextResponse.json({ error: "Missing order status" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing order status" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -83,6 +86,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[onramp/order] DB error:", err);
-    return NextResponse.json({ error: "Failed to save order" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to save order" },
+      { status: 500 }
+    );
   }
 }

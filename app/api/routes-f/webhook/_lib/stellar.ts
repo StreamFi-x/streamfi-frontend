@@ -8,7 +8,9 @@
  * these are callbacks from our own Horizon subscription,
  * so we rely on the endpoint being secret/internal.
  */
-export async function handleStellarEvent(payload: Record<string, unknown>): Promise<{
+export async function handleStellarEvent(
+  payload: Record<string, unknown>
+): Promise<{
   handled: boolean;
   detail: string;
 }> {

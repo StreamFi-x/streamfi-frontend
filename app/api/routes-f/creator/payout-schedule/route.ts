@@ -50,14 +50,16 @@ function computeNextPayoutDate(frequency: string): string {
   switch (frequency) {
     case "weekly": {
       const next = new Date(now);
-      next.setDate(now.getDate() + (7 - now.getDay()) % 7 || 7);
+      next.setDate(now.getDate() + ((7 - now.getDay()) % 7) || 7);
       next.setHours(0, 0, 0, 0);
       return next.toISOString();
     }
     case "biweekly": {
       const next = new Date(now);
       next.setDate(now.getDate() + 14 - ((now.getDay() || 7) - 1));
-      if (next <= now) {next.setDate(next.getDate() + 14);}
+      if (next <= now) {
+        next.setDate(next.getDate() + 14);
+      }
       next.setHours(0, 0, 0, 0);
       return next.toISOString();
     }
@@ -76,7 +78,9 @@ function computeNextPayoutDate(frequency: string): string {
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     await ensurePayoutScheduleTable();
@@ -121,13 +125,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
 export async function PATCH(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   const bodyResult = await validateBody(req, updatePayoutScheduleSchema);
-  if (bodyResult instanceof NextResponse) {return bodyResult;}
+  if (bodyResult instanceof NextResponse) {
+    return bodyResult;
+  }
 
-  const { frequency, minimum_threshold_usdc, wallet_address } =
-    bodyResult.data;
+  const { frequency, minimum_threshold_usdc, wallet_address } = bodyResult.data;
 
   // Require at least one field to update
   if (
@@ -159,7 +166,8 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     };
 
     const newFrequency = frequency ?? current.frequency;
-    const newThreshold = minimum_threshold_usdc ?? Number(current.minimum_threshold_usdc);
+    const newThreshold =
+      minimum_threshold_usdc ?? Number(current.minimum_threshold_usdc);
     const newWallet = wallet_address ?? current.wallet_address;
     const nextPayout = computeNextPayoutDate(newFrequency);
 

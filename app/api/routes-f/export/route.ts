@@ -4,7 +4,13 @@ import { verifySession } from "@/lib/auth/verify-session";
 import { validateBody, validateQuery } from "@/app/api/routes-f/_lib/validate";
 import { z } from "zod";
 
-const EXPORT_TYPES = ["earnings", "streams", "followers", "tips", "full"] as const;
+const EXPORT_TYPES = [
+  "earnings",
+  "streams",
+  "followers",
+  "tips",
+  "full",
+] as const;
 const EXPORT_FORMATS = ["csv", "json"] as const;
 const MAX_EXPORTS_PER_DAY = 3;
 
@@ -37,10 +43,14 @@ const pollSchema = z.object({
 
 export async function POST(req: NextRequest): Promise<Response> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const result = await validateBody(req, createExportSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {
+    return result;
+  }
   const { type, format, from, to } = result.data;
 
   await ensureExportTable();
@@ -80,10 +90,14 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 export async function GET(req: NextRequest): Promise<Response> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const result = validateQuery(new URL(req.url).searchParams, pollSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {
+    return result;
+  }
   const { job_id } = result.data;
 
   await ensureExportTable();
@@ -205,15 +219,19 @@ async function processExportJob(
 }
 
 function toCsv(rows: Record<string, unknown>[]): string {
-  if (rows.length === 0) return "";
+  if (rows.length === 0) {
+    return "";
+  }
   const headers = Object.keys(rows[0]);
   const lines = [
     headers.join(","),
-    ...rows.map((row) =>
+    ...rows.map(row =>
       headers
-        .map((h) => {
+        .map(h => {
           const val = row[h];
-          if (val === null || val === undefined) return "";
+          if (val === null || val === undefined) {
+            return "";
+          }
           const str = String(val);
           return str.includes(",") || str.includes('"') || str.includes("\n")
             ? `"${str.replace(/"/g, '""')}"`

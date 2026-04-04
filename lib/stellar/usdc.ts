@@ -1,5 +1,9 @@
 import * as StellarSdk from "@stellar/stellar-sdk";
-import { getHorizonUrl, getNetworkPassphrase, type StellarNetwork } from "./config";
+import {
+  getHorizonUrl,
+  getNetworkPassphrase,
+  type StellarNetwork,
+} from "./config";
 
 export type UsdcAssetConfig = {
   code: "USDC";
@@ -44,7 +48,9 @@ export async function hasUsdcTrustline(params: {
     if (b.asset_type !== "credit_alphanum4") {
       return false;
     }
-    return (b as any).asset_code === "USDC" && (b as any).asset_issuer === issuer;
+    return (
+      (b as any).asset_code === "USDC" && (b as any).asset_issuer === issuer
+    );
   });
 }
 
@@ -59,7 +65,9 @@ export async function getUsdcBalance(params: {
     if (b.asset_type !== "credit_alphanum4") {
       return false;
     }
-    return (b as any).asset_code === "USDC" && (b as any).asset_issuer === issuer;
+    return (
+      (b as any).asset_code === "USDC" && (b as any).asset_issuer === issuer
+    );
   });
   return bal ? String((bal as any).balance ?? "0") : "0";
 }
@@ -87,4 +95,3 @@ export async function buildUsdcTrustlineTransaction(params: {
     .setTimeout(30)
     .build();
 }
-

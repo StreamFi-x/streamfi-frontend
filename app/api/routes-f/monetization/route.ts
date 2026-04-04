@@ -38,7 +38,9 @@ const DEFAULT_SETTINGS = {
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     await ensureMonetizationSchema();
@@ -54,7 +56,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(settings);
   } catch (error) {
     console.error("[routes-f monetization GET]", error);
-    return NextResponse.json({ error: "Failed to fetch monetization settings" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch monetization settings" },
+      { status: 500 }
+    );
   }
 }
 
@@ -64,15 +69,27 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
  */
 export async function PATCH(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const bodyResult = await validateBody(req, patchMonetizationSchema);
-  if (bodyResult instanceof Response) return bodyResult;
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
-  const { tipping_enabled, min_tip_amount, subscription_price, gift_cooldown_seconds } = bodyResult.data;
+  const {
+    tipping_enabled,
+    min_tip_amount,
+    subscription_price,
+    gift_cooldown_seconds,
+  } = bodyResult.data;
 
   if (Object.keys(bodyResult.data).length === 0) {
-    return NextResponse.json({ error: "No fields provided to update" }, { status: 400 });
+    return NextResponse.json(
+      { error: "No fields provided to update" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -102,6 +119,9 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(rows[0]);
   } catch (error) {
     console.error("[routes-f monetization PATCH]", error);
-    return NextResponse.json({ error: "Failed to update monetization settings" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update monetization settings" },
+      { status: 500 }
+    );
   }
 }

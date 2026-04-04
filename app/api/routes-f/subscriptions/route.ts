@@ -12,7 +12,9 @@ export async function GET(req: NextRequest) {
   try {
     await ensureRoutesFSchema();
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+      return session.response;
+    }
 
     // List active subscribers for authenticated creator
     const { rows } = await sql`
@@ -24,19 +26,22 @@ export async function GET(req: NextRequest) {
         AND s.expires_at > NOW()
       ORDER BY s.created_at DESC
     `;
-    
+
     const subscriberCount = rows.length;
     // Assume 5 USDC flat fee for MRR
-    const mrrEstimate = subscriberCount * 5; 
+    const mrrEstimate = subscriberCount * 5;
 
     return NextResponse.json({
       subscribers: rows,
       count: subscriberCount,
-      mrr_estimate: mrrEstimate
+      mrr_estimate: mrrEstimate,
     });
   } catch (error) {
     console.error("Subscription GET error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -45,11 +50,16 @@ export async function POST(req: NextRequest) {
   try {
     await ensureRoutesFSchema();
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+      return session.response;
+    }
 
     const { creator_id } = await req.json();
     if (!creator_id) {
-      return NextResponse.json({ error: "creator_id is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "creator_id is required" },
+        { status: 400 }
+      );
     }
 
     // Check for existing active subscription
@@ -63,7 +73,10 @@ export async function POST(req: NextRequest) {
     `;
 
     if (existing.rows.length > 0) {
-      return NextResponse.json({ error: "Already subscribed" }, { status: 409 });
+      return NextResponse.json(
+        { error: "Already subscribed" },
+        { status: 409 }
+      );
     }
 
     const expiresAt = new Date();
@@ -78,6 +91,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(rows[0]);
   } catch (error) {
     console.error("Subscription POST error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

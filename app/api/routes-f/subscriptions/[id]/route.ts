@@ -13,7 +13,9 @@ export async function DELETE(
   try {
     await ensureRoutesFSchema();
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+      return session.response;
+    }
 
     const { id } = await params;
 
@@ -31,7 +33,9 @@ export async function DELETE(
 
     const subscription = rows[0];
     const ownershipError = assertOwnership(session, null, subscription.user_id);
-    if (ownershipError) return ownershipError;
+    if (ownershipError) {
+      return ownershipError;
+    }
 
     if (subscription.status === "cancelled") {
       return NextResponse.json({ message: "Subscription already cancelled" });

@@ -79,17 +79,24 @@ export async function POST(req: NextRequest) {
 
   const streamId =
     typeof body.stream_id === "string" ? body.stream_id.trim() : "";
-  const streamer = typeof body.streamer === "string" ? body.streamer.trim() : "";
+  const streamer =
+    typeof body.streamer === "string" ? body.streamer.trim() : "";
   const reason = body.reason;
   const details =
     typeof body.details === "string" ? body.details.trim() : undefined;
 
   if (!streamId) {
-    return NextResponse.json({ error: "stream_id is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "stream_id is required" },
+      { status: 400 }
+    );
   }
 
   if (!streamer) {
-    return NextResponse.json({ error: "streamer is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "streamer is required" },
+      { status: 400 }
+    );
   }
 
   if (!isValidReason(reason)) {

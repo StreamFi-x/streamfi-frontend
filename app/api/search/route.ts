@@ -156,9 +156,6 @@ export async function GET(req: NextRequest) {
     );
   } catch (error) {
     console.error("Search API error:", error);
-    return NextResponse.json(
-      { error: "Failed to search" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to search" }, { status: 500 });
   }
 }

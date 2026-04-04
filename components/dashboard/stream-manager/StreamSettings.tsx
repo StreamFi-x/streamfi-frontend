@@ -61,7 +61,9 @@ export default function StreamSettings() {
         setPaidViewers(data.stats?.paid_viewers ?? 0);
         setEarnedUsdc(data.stats?.earned_usdc ?? "0");
       } catch (e) {
-        setAccessError(e instanceof Error ? e.message : "Failed to load settings");
+        setAccessError(
+          e instanceof Error ? e.message : "Failed to load settings"
+        );
       }
     };
     void load();
@@ -98,7 +100,9 @@ export default function StreamSettings() {
         setEarnedUsdc(data.stats?.earned_usdc ?? "0");
       }
     } catch (e) {
-      setAccessError(e instanceof Error ? e.message : "Failed to save settings");
+      setAccessError(
+        e instanceof Error ? e.message : "Failed to save settings"
+      );
     } finally {
       setIsSavingAccess(false);
     }
@@ -220,7 +224,9 @@ export default function StreamSettings() {
                     Viewers pay once and can rewatch the recording.
                   </p>
                   {earningsText && (
-                    <p className="text-xs text-muted-foreground">{earningsText}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {earningsText}
+                    </p>
                   )}
                 </div>
               )}

@@ -41,7 +41,9 @@ export async function ensureCreditsSchema(): Promise<void> {
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     await ensureCreditsSchema();
@@ -60,6 +62,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(rows[0]);
   } catch (error) {
     console.error("[routes-f credits GET]", error);
-    return NextResponse.json({ error: "Failed to fetch credits" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch credits" },
+      { status: 500 }
+    );
   }
 }

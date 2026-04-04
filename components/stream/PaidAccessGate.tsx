@@ -35,7 +35,7 @@ export function PaidAccessGate(props: {
     onVerified,
   } = props;
 
-  const { kit, connect, isConnected } = useStellarWallet();
+  const { kit, connect } = useStellarWallet();
   const network = useMemo(() => getStellarNetwork(), []);
 
   const [hasTrustline, setHasTrustline] = useState<boolean | null>(null);
@@ -44,7 +44,10 @@ export function PaidAccessGate(props: {
   const [error, setError] = useState<string | null>(null);
 
   const canPay =
-    !!viewerPublicKey && !!streamerPublicKey && !!priceUsdc && hasTrustline === true;
+    !!viewerPublicKey &&
+    !!streamerPublicKey &&
+    !!priceUsdc &&
+    hasTrustline === true;
 
   const refresh = async () => {
     if (!viewerPublicKey) {
@@ -53,7 +56,10 @@ export function PaidAccessGate(props: {
       return;
     }
     try {
-      const tl = await hasUsdcTrustline({ publicKey: viewerPublicKey, network });
+      const tl = await hasUsdcTrustline({
+        publicKey: viewerPublicKey,
+        network,
+      });
       setHasTrustline(tl);
       if (tl) {
         const b = await getUsdcBalance({ publicKey: viewerPublicKey, network });
@@ -213,4 +219,3 @@ export function PaidAccessGate(props: {
     </div>
   );
 }
-

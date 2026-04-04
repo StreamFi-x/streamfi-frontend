@@ -13,7 +13,9 @@ export async function DELETE(
   try {
     await ensureRoutesFSchema();
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+      return session.response;
+    }
 
     const { id } = await params;
 

@@ -77,10 +77,14 @@ export async function GET(): Promise<Response> {
 /** Admin only — activate maintenance mode. */
 export async function POST(req: NextRequest): Promise<Response> {
   const auth = await requireAdmin(req);
-  if (!auth.ok) return auth.response;
+  if (!auth.ok) {
+    return auth.response;
+  }
 
   const result = await validateBody(req, activateSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {
+    return result;
+  }
   const { message, estimated_end, affects, block_new_streams } = result.data;
   const impactAreas = [...(affects ?? ["all"])];
   const serializedImpactAreas = JSON.stringify(impactAreas);
@@ -124,7 +128,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 /** Admin only — deactivate maintenance mode and purge cache. */
 export async function DELETE(req: NextRequest): Promise<Response> {
   const auth = await requireAdmin(req);
-  if (!auth.ok) return auth.response;
+  if (!auth.ok) {
+    return auth.response;
+  }
 
   await ensureMaintenanceTable();
 

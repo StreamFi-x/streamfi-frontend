@@ -5,7 +5,6 @@ import { verifySession } from "@/lib/auth/verify-session";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
 
 const SUPPORTED_PLATFORMS = ["discord", "youtube", "twitter"] as const;
-type Platform = (typeof SUPPORTED_PLATFORMS)[number];
 
 const connectIntegrationSchema = z.object({
   platform: z.enum(SUPPORTED_PLATFORMS),
@@ -34,7 +33,9 @@ async function ensureIntegrationsSchema(): Promise<void> {
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     await ensureIntegrationsSchema();
@@ -49,7 +50,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ integrations: rows });
   } catch (error) {
     console.error("[routes-f integrations GET]", error);
-    return NextResponse.json({ error: "Failed to fetch integrations" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch integrations" },
+      { status: 500 }
+    );
   }
 }
 
@@ -59,10 +63,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const bodyResult = await validateBody(req, connectIntegrationSchema);
-  if (bodyResult instanceof Response) return bodyResult;
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
   const { platform, access_token, refresh_token } = bodyResult.data;
 
@@ -82,6 +90,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(rows[0], { status: 201 });
   } catch (error) {
     console.error("[routes-f integrations POST]", error);
-    return NextResponse.json({ error: "Failed to connect integration" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to connect integration" },
+      { status: 500 }
+    );
   }
 }

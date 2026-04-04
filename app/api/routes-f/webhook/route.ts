@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifyMuxSignature, handleMuxEvent } from "./_lib/mux";
-import {
-  verifyTransakSignature,
-  handleTransakEvent,
-} from "./_lib/transak";
+import { verifyTransakSignature, handleTransakEvent } from "./_lib/transak";
 import { handleStellarEvent } from "./_lib/stellar";
 
 // ────────────────────────────────────────────────────────────────
@@ -145,9 +142,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     await ensureWebhookAuditTable();
 
     const eventType =
-      (payload.type as string) ??
-      (payload.eventID as string) ??
-      "unknown";
+      (payload.type as string) ?? (payload.eventID as string) ?? "unknown";
 
     await sql`
       INSERT INTO route_f_webhook_events (provider, event_type, payload, handled, detail)

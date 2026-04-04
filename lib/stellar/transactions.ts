@@ -1,5 +1,9 @@
 import * as StellarSdk from "@stellar/stellar-sdk";
-import { getHorizonUrl, getNetworkPassphrase, type StellarNetwork } from "./config";
+import {
+  getHorizonUrl,
+  getNetworkPassphrase,
+  type StellarNetwork,
+} from "./config";
 
 export async function buildPaymentTransaction(params: {
   sourcePublicKey: string;
@@ -31,4 +35,3 @@ export async function buildPaymentTransaction(params: {
 
   return builder.setTimeout(params.timeoutSeconds ?? 30).build();
 }
-

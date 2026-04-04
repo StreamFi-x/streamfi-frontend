@@ -10,7 +10,9 @@ export async function DELETE(
   { params }: { params: Promise<{ messageId: string }> }
 ) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { messageId: rawMessageId } = await params;
   const messageId = parseInt(rawMessageId, 10);

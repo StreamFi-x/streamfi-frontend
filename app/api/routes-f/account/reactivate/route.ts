@@ -9,7 +9,9 @@ import { verifySession } from "@/lib/auth/verify-session";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     // Ensure columns exist
@@ -36,7 +38,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (currentStatus === "pending_deletion") {
       return NextResponse.json(
-        { error: "Cannot reactivate account pending deletion. Cancel deletion first." },
+        {
+          error:
+            "Cannot reactivate account pending deletion. Cancel deletion first.",
+        },
         { status: 409 }
       );
     }

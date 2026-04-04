@@ -10,13 +10,18 @@ export async function GET(req: NextRequest) {
   try {
     await ensureRoutesFSchema();
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+      return session.response;
+    }
 
     const { searchParams } = new URL(req.url);
     const creatorId = searchParams.get("creator");
 
     if (!creatorId) {
-      return NextResponse.json({ error: "creator query param is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "creator query param is required" },
+        { status: 400 }
+      );
     }
 
     // Check subscription status to a specific creator
@@ -32,10 +37,13 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       is_subscribed: rows.length > 0,
-      subscription: rows[0] || null
+      subscription: rows[0] || null,
     });
   } catch (error) {
     console.error("Subscription status GET error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

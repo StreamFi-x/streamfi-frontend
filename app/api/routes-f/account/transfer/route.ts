@@ -56,10 +56,14 @@ async function ensureTransferTable(): Promise<void> {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   const bodyResult = await validateBody(req, initiateTransferSchema);
-  if (bodyResult instanceof NextResponse) {return bodyResult;}
+  if (bodyResult instanceof NextResponse) {
+    return bodyResult;
+  }
 
   const { to_username, verification_code } = bodyResult.data;
 

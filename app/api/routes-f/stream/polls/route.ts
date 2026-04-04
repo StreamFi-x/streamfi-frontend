@@ -54,14 +54,15 @@ async function ensurePollsTables() {
   `;
 }
 
-function isPollActive(poll: { ends_at: string; ended_early: boolean }): boolean {
-  return !poll.ended_early && new Date(poll.ends_at) > new Date();
-}
-
 /** GET /api/routes-f/stream/polls?stream_id= — list active and recent polls (public) */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const queryResult = validateQuery(new URL(req.url).searchParams, pollsQuerySchema);
-  if (queryResult instanceof Response) return queryResult;
+  const queryResult = validateQuery(
+    new URL(req.url).searchParams,
+    pollsQuerySchema
+  );
+  if (queryResult instanceof Response) {
+    return queryResult;
+  }
 
   const { stream_id } = queryResult.data;
 
@@ -100,24 +101,33 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ polls });
   } catch (error) {
     console.error("[routes-f stream/polls GET]", error);
-    return NextResponse.json({ error: "Failed to fetch polls" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch polls" },
+      { status: 500 }
+    );
   }
 }
 
 /** POST /api/routes-f/stream/polls — creator creates a poll */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const bodyResult = await validateBody(req, createPollSchema);
-  if (bodyResult instanceof Response) return bodyResult;
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
   const { stream_id, question, options, duration_seconds } = bodyResult.data;
 
   try {
     await ensurePollsTables();
 
-    const ends_at = new Date(Date.now() + duration_seconds * 1000).toISOString();
+    const ends_at = new Date(
+      Date.now() + duration_seconds * 1000
+    ).toISOString();
 
     const { rows } = await sql`
       INSERT INTO stream_polls (stream_id, creator_id, question, options, duration_seconds, ends_at)
@@ -135,6 +145,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(rows[0], { status: 201 });
   } catch (error) {
     console.error("[routes-f stream/polls POST]", error);
-    return NextResponse.json({ error: "Failed to create poll" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create poll" },
+      { status: 500 }
+    );
   }
 }

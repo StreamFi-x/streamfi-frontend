@@ -6,7 +6,8 @@ import { signToken } from "@/lib/auth/sign-token";
 /**
  * Valid hostname regex covering standard domain names.
  */
-const HOSTNAME_REGEX = /^(?:[a-zA-Z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,10}$/i;
+const HOSTNAME_REGEX =
+  /^(?:[a-zA-Z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,10}$/i;
 
 function isValidHostname(hostname: string): boolean {
   return HOSTNAME_REGEX.test(hostname);
@@ -18,20 +19,26 @@ function isValidHostname(hostname: string): boolean {
 function generateEmbedData(username: string, origin: string, settings: any) {
   const secret = process.env.SESSION_SECRET || "fallback-secret-streamfi";
   const token = signToken(
-    { 
+    {
       creator: username,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 // 30 day expiration
-    }, 
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30, // 30 day expiration
+    },
     secret
   );
 
   const params = new URLSearchParams();
   params.set("token", token);
-  
+
   // Embed viewer flags
-  if (settings.autoplay) params.set("autoplay", "1");
-  if (settings.muted_by_default) params.set("muted", "1");
-  if (settings.chat_enabled === false) params.set("chat", "0");
+  if (settings.autoplay) {
+    params.set("autoplay", "1");
+  }
+  if (settings.muted_by_default) {
+    params.set("muted", "1");
+  }
+  if (settings.chat_enabled === false) {
+    params.set("chat", "0");
+  }
 
   const embed_url = `${origin}/embed/${username}?${params.toString()}`;
   const suggested_html = `<iframe src="${embed_url}" width="100%" height="100%" frameborder="0" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
@@ -46,7 +53,10 @@ export async function GET(req: NextRequest) {
   const username = searchParams.get("creator");
 
   if (!username) {
-    return NextResponse.json({ error: "Missing creator parameter" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing creator parameter" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -67,16 +77,23 @@ export async function GET(req: NextRequest) {
     };
 
     const origin = req.nextUrl.origin;
-    const { embed_url, suggested_html } = generateEmbedData(username, origin, embedSettings);
+    const { embed_url, suggested_html } = generateEmbedData(
+      username,
+      origin,
+      embedSettings
+    );
 
     return NextResponse.json({
       settings: embedSettings,
       embed_url,
-      suggested_html
+      suggested_html,
     });
   } catch (err) {
     console.error("[stream/embed:GET] error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -84,7 +101,9 @@ export async function GET(req: NextRequest) {
 // Creator updates their embed settings.
 export async function PATCH(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   let body: {
     allowed_domains?: string[];
@@ -104,23 +123,38 @@ export async function PATCH(req: NextRequest) {
   // ── Validation ────────────────────────────────────────────────────────────
   if (allowed_domains !== undefined) {
     if (!Array.isArray(allowed_domains)) {
-      return NextResponse.json({ error: "allowed_domains must be an array" }, { status: 400 });
+      return NextResponse.json(
+        { error: "allowed_domains must be an array" },
+        { status: 400 }
+      );
     }
     for (const domain of allowed_domains) {
       if (typeof domain !== "string" || !isValidHostname(domain)) {
-        return NextResponse.json({ error: `Invalid domain format: ${domain}` }, { status: 400 });
+        return NextResponse.json(
+          { error: `Invalid domain format: ${domain}` },
+          { status: 400 }
+        );
       }
     }
   }
 
   if (chat_enabled !== undefined && typeof chat_enabled !== "boolean") {
-    return NextResponse.json({ error: "chat_enabled must be a boolean" }, { status: 400 });
+    return NextResponse.json(
+      { error: "chat_enabled must be a boolean" },
+      { status: 400 }
+    );
   }
   if (autoplay !== undefined && typeof autoplay !== "boolean") {
-    return NextResponse.json({ error: "autoplay must be a boolean" }, { status: 400 });
+    return NextResponse.json(
+      { error: "autoplay must be a boolean" },
+      { status: 400 }
+    );
   }
   if (muted_by_default !== undefined && typeof muted_by_default !== "boolean") {
-    return NextResponse.json({ error: "muted_by_default must be a boolean" }, { status: 400 });
+    return NextResponse.json(
+      { error: "muted_by_default must be a boolean" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -161,16 +195,23 @@ export async function PATCH(req: NextRequest) {
     `;
 
     const origin = req.nextUrl.origin;
-    const { embed_url, suggested_html } = generateEmbedData(username, origin, updatedEmbedSettings);
+    const { embed_url, suggested_html } = generateEmbedData(
+      username,
+      origin,
+      updatedEmbedSettings
+    );
 
     return NextResponse.json({
       ok: true,
       settings: updatedEmbedSettings,
       embed_url,
-      suggested_html
+      suggested_html,
     });
   } catch (err) {
     console.error("[stream/embed:PATCH] error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

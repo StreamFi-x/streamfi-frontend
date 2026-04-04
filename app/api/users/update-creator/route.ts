@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import {
-  isValidAssetCode,
-  isValidStellarIssuer,
-} from "@/lib/stream/access";
+import { isValidAssetCode, isValidStellarIssuer } from "@/lib/stream/access";
 import type { StreamAccessType, TokenGateConfig } from "@/types/stream-access";
 
 export async function PATCH(req: Request) {
@@ -32,7 +29,10 @@ export async function PATCH(req: Request) {
     const accessType: StreamAccessType = stream_access_type ?? "public";
     if (accessType !== "public" && accessType !== "token_gated") {
       return NextResponse.json(
-        { error: "Invalid stream_access_type. Must be 'public' or 'token_gated'." },
+        {
+          error:
+            "Invalid stream_access_type. Must be 'public' or 'token_gated'.",
+        },
         { status: 400 }
       );
     }
@@ -54,7 +54,9 @@ export async function PATCH(req: Request) {
 
       if (!isValidAssetCode(cfg.asset_code)) {
         return NextResponse.json(
-          { error: "Invalid asset_code. Must be 1–12 alphanumeric characters." },
+          {
+            error: "Invalid asset_code. Must be 1–12 alphanumeric characters.",
+          },
           { status: 400 }
         );
       }
