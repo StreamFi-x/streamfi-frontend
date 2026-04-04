@@ -1,0 +1,16 @@
+{
+  "name": "StreamFi",
+  "short_name": "StreamFi",
+  "description": "Own Your Stream. Own Your Earnings.",
+  "start_url": "/explore",
+  "display": "standalone",
+  "background_color": "#07060f",
+  "theme_color": "#ac39f2",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

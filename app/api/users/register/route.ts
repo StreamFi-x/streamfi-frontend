@@ -4,6 +4,7 @@ import { sql } from "@vercel/postgres";
 import { sendWelcomeRegistrationEmail } from "@/utils/send-email";
 import { createMuxStream } from "@/lib/mux/server";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { getRandomProfileIcon } from "@/lib/profile-icons";
 
 // Registration creates a Mux stream + DB write — strict limit to prevent abuse
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 5); // 5 per hour per IP
@@ -159,7 +160,7 @@ async function handler(req: NextRequest) {
         ${muxStream?.id ?? null},
         ${muxStream?.playbackId ?? null},
         ${muxStream?.streamKey ?? null},
-        '/Images/user.png'
+        ${getRandomProfileIcon()}
       )
     `;
 

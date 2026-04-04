@@ -351,22 +351,29 @@ const ViewStream = ({
     }
     const { gift_name, gift_emoji, usd_value, tx_hash, animation } =
       last.metadata;
-    if (!gift_name || !gift_emoji || usd_value == null || !tx_hash) {
+    if (
+      !gift_name ||
+      !gift_emoji ||
+      usd_value === null ||
+      usd_value === undefined ||
+      !tx_hash
+    ) {
       return;
     }
     lastGiftMessageId.current = last.id;
-    setGiftQueue(prev => [
-      ...prev,
-      {
-        gift_name,
-        gift_emoji,
-        usd_value,
-        tx_hash,
-        animation,
-        id: last.id,
-        username: last.username,
-      },
-    ]);
+    const giftPayload: GiftMessageMetadata & {
+      id: number;
+      username: string;
+    } = {
+      gift_name,
+      gift_emoji,
+      usd_value,
+      tx_hash,
+      animation,
+      id: last.id,
+      username: last.username,
+    };
+    setGiftQueue(prev => [...prev, giftPayload]);
   }, [chatMessages]);
 
   useEffect(() => {

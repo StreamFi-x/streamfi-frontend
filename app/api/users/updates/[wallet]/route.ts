@@ -16,7 +16,7 @@ export async function PUT(
 
     // Fetching current user data
     const existingResult = await sql`
-      SELECT id, username, email, bio, streamkey, avatar, sociallinks,
+      SELECT id, username, email, bio, streamkey, avatar, banner, sociallinks,
              emailverified, emailnotifications, creator, enable_recording,
              mux_stream_id, wallet
       FROM users WHERE LOWER(wallet) = LOWER(${normalizedWallet})
@@ -140,9 +140,11 @@ export async function PUT(
       }
     }
 
-    // Handle avatar upload — stream directly to Cloudinary, no disk I/O
+    // Handle avatar — file upload (→ Cloudinary) or preset icon URL string
     let avatarUrl = user.avatar;
     const avatarFile = formData.get("avatar");
+    const avatarUrlField = formData.get("avatarUrl");
+
     if (avatarFile instanceof Blob) {
       const buffer = Buffer.from(await avatarFile.arrayBuffer());
       const uploadResult = await uploadImageFromBuffer(buffer);
@@ -150,6 +152,32 @@ export async function PUT(
 
       if (user.avatar) {
         const oldPublicId = extractPublicIdFromUrl(user.avatar);
+        if (oldPublicId) {
+          await deleteImage(oldPublicId);
+        }
+      }
+    } else if (typeof avatarUrlField === "string" && avatarUrlField.trim()) {
+      avatarUrl = avatarUrlField.trim();
+      // Clean up old Cloudinary photo if switching to a preset icon
+      if (user.avatar) {
+        const oldPublicId = extractPublicIdFromUrl(user.avatar);
+        if (oldPublicId) {
+          await deleteImage(oldPublicId);
+        }
+      }
+    }
+
+    // Handle banner — file upload (→ Cloudinary)
+    let bannerUrl = user.banner;
+    const bannerFile = formData.get("banner");
+
+    if (bannerFile instanceof Blob) {
+      const buffer = Buffer.from(await bannerFile.arrayBuffer());
+      const uploadResult = await uploadImageFromBuffer(buffer);
+      bannerUrl = uploadResult.secure_url;
+
+      if (user.banner) {
+        const oldPublicId = extractPublicIdFromUrl(user.banner);
         if (oldPublicId) {
           await deleteImage(oldPublicId);
         }
@@ -162,6 +190,7 @@ export async function PUT(
         username = ${username},
         email = ${email},
         avatar = ${avatarUrl},
+        banner = ${bannerUrl},
         bio = ${bio},
         streamkey = ${streamkey},
         sociallinks = ${processedSocialLinks},
@@ -180,7 +209,7 @@ export async function PUT(
         enable_recording = ${enableRecording},
         updated_at = CURRENT_TIMESTAMP
       WHERE LOWER(wallet) = LOWER(${normalizedWallet})
-      RETURNING id, username, email, streamkey, avatar, bio, sociallinks, emailverified, emailnotifications, creator, wallet, enable_recording, created_at, updated_at
+      RETURNING id, username, email, streamkey, avatar, banner, bio, sociallinks, emailverified, emailnotifications, creator, wallet, enable_recording, created_at, updated_at
     `;
 
     // Sync recording preference to Mux if it changed and the user has a stream

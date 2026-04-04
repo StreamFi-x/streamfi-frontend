@@ -219,11 +219,14 @@ export default function ConnectWalletModal({
               {/* Google — primary CTA */}
               {!isConnecting && (
                 <button
-                  onClick={() => {
+                  onClick={e => {
+                    e.stopPropagation();
                     if (privyAuthenticated) {
                       setIsModalOpen(false);
                       router.push("/explore");
                     } else {
+                      // Close our modal first so it can't block Privy's OAuth flow on mobile
+                      setIsModalOpen(false);
                       signInWithGoogle();
                     }
                   }}

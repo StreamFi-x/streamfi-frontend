@@ -2,7 +2,8 @@
 
 import { use, useState, useEffect, useRef } from "react";
 import { notFound, useRouter } from "next/navigation";
-import { Play, Clock, Calendar, Trash2 } from "lucide-react";
+import { Play, Clock, Calendar, Trash2, Share2 } from "lucide-react";
+import { toast } from "sonner";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
@@ -65,6 +66,7 @@ function RecordingCard({
   onDeleteRequest,
   onDeleteConfirm,
   onDeleteCancel,
+  onShare,
 }: {
   rec: Recording;
   isOwner: boolean;
@@ -73,6 +75,7 @@ function RecordingCard({
   onDeleteRequest: () => void;
   onDeleteConfirm: () => void;
   onDeleteCancel: () => void;
+  onShare: () => void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
@@ -154,6 +157,20 @@ function RecordingCard({
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-mono pointer-events-none">
             {formatDuration(rec.duration)}
           </div>
+        )}
+
+        {/* Share button — always visible on hover */}
+        {!confirmingDelete && (
+          <button
+            onClick={e => {
+              e.stopPropagation();
+              onShare();
+            }}
+            className={`absolute top-2 p-1.5 rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 hover:bg-white/20 transition-all ${isOwner ? "right-10" : "right-2"}`}
+            title="Copy link"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
         )}
 
         {/* Owner delete button — visible on hover */}
@@ -325,6 +342,15 @@ const ClipsPage = ({ params }: PageProps) => {
               onDeleteRequest={() => setConfirmingDeleteId(rec.id)}
               onDeleteConfirm={() => handleDelete(rec.id)}
               onDeleteCancel={() => setConfirmingDeleteId(null)}
+              onShare={async () => {
+                const url = `${window.location.origin}/${username}/clips/${rec.id}`;
+                try {
+                  await navigator.clipboard.writeText(url);
+                  toast.success("Link copied to clipboard");
+                } catch {
+                  toast.error("Could not copy link");
+                }
+              }}
             />
           ))}
         </div>

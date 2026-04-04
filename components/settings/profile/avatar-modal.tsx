@@ -73,6 +73,7 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
 
   const handleSelectAvatar = (selectedAvatar: any) => {
     setPreviewAvatar(selectedAvatar);
+    setPreviewSrc(selectedAvatar); // keep preview circle and highlight in sync
     setUploadedFile(null);
     setUploadedFileUrl(null);
   };
@@ -145,7 +146,7 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
           or choose from the avatars below
         </p>
 
-        <div className="grid grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-4 mb-6">
           {avatarOptions.map((avatar, index) => (
             <button
               key={index}

@@ -36,7 +36,7 @@ function parseTokenGateConfig(raw: unknown): TokenGateConfig | null {
       : typeof o.asset_issuer === "string"
         ? o.asset_issuer
         : undefined;
-  return { asset_code, min_balance, issuer };
+  return { asset_code, min_balance, asset_issuer: issuer };
 }
 
 export async function POST(req: NextRequest) {

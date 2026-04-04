@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import About from "@/components/landing-page/about";
 import Benefits from "@/components/landing-page/Benefits";
 import Community from "@/components/landing-page/Community";
@@ -8,6 +9,20 @@ import Navbar from "@/components/landing-page/Navbar";
 import StreamTokenUtility from "@/components/landing-page/stream-token-utility";
 import Testimonials from "@/components/landing-page/Testimonials";
 import Waitlist from "@/components/landing-page/Waitlist";
+
+export const metadata: Metadata = {
+  // absolute bypasses the root layout template ("%s | StreamFi") to avoid duplication
+  title: { absolute: "StreamFi – Own Your Stream. Own Your Earnings" },
+  description:
+    "Stream without limits, engage your community, and earn instantly with a blockchain-powered ecosystem that ensures true ownership, decentralized rewards, and frictionless transactions.",
+  openGraph: {
+    title: "StreamFi – Own Your Stream. Own Your Earnings",
+    description:
+      "Stream without limits, engage your community, and earn instantly with a blockchain-powered ecosystem that ensures true ownership, decentralized rewards, and frictionless transactions.",
+    url: "https://www.streamfi.media",
+    type: "website",
+  },
+};
 
 export default function Home() {
   return (

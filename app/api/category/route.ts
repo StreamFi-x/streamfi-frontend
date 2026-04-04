@@ -1,8 +1,14 @@
 import { NextResponse, NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
+import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
 
 //TO CREATE A CATEGORY
 export async function POST(req: NextRequest) {
+  const isAdmin = await verifyAdminSession();
+  if (!isAdmin) {
+    return adminUnauthorized();
+  }
+
   try {
     const { title, description, tags, imageurl } = await req.json();
 
@@ -161,6 +167,11 @@ export async function GET(req: Request) {
 
 // TO UPDATE A CATEGORY
 export async function PATCH(req: Request) {
+  const isAdmin = await verifyAdminSession();
+  if (!isAdmin) {
+    return adminUnauthorized();
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const titleParams = searchParams.get("id");
@@ -196,8 +207,13 @@ export async function PATCH(req: Request) {
   }
 }
 
-// TO DELETE A CATEORY
+// TO DELETE A CATEGORY
 export async function DELETE(req: Request) {
+  const isAdmin = await verifyAdminSession();
+  if (!isAdmin) {
+    return adminUnauthorized();
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const title = searchParams.get("id");

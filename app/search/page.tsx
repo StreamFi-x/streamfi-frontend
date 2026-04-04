@@ -339,6 +339,17 @@ export default function SearchPage() {
       fallback={
         <main className="min-h-screen bg-background">
           <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="mb-8 rounded-[2rem] border border-border/70 bg-gradient-to-br from-background via-muted/30 to-background p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Search
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold text-foreground">
+                Find creators, live streams, and categories
+              </h1>
+              <div className="mt-6 max-w-3xl">
+                <Skeleton className="h-12 w-full rounded-2xl" />
+              </div>
+            </div>
             <LoadingGrid />
           </div>
         </main>

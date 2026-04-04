@@ -6,14 +6,15 @@ interface BannerProps {
   username: string;
   isLive: boolean;
   streamTitle?: string;
+  bannerUrl?: string;
 }
 
-const Banner = ({ username, isLive, streamTitle }: BannerProps) => {
+const Banner = ({ username, isLive, streamTitle, bannerUrl }: BannerProps) => {
   return (
     <div
       className="relative font-inter w-full h-[200px] lg:h-[280px] xl:h-[320px] bg-gradient-to-r from-gray-900 to-gray-800 overflow-hidden bg-center bg-no-repeat bg-cover"
       style={{
-        backgroundImage: `url('/images/banner-bg.png')`,
+        backgroundImage: `url('${bannerUrl || "/Images/banner-bg.png"}')`,
       }}
     >
       <div className="absolute top-0 left-0 w-1/3 h-full bg-gradient-to-r from-[#17191A]/90 to-transparent z-10" />

@@ -155,7 +155,7 @@ export default function LivePage() {
       processedStreams.map(stream => ({
         id: stream.id,
         title: stream.title,
-        thumbnailUrl: stream.thumbnail || "/Images/user.png",
+        thumbnailUrl: stream.thumbnail || "",
         username: stream.username,
         category: stream.category || "General",
         tags: stream.tags,
