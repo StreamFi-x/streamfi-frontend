@@ -22,7 +22,9 @@ import { GET } from "../route";
 const sqlMock = sql as unknown as jest.Mock;
 
 const makeRequest = (search = "") =>
-  new Request(`http://localhost/api/search${search}`) as unknown as import("next/server").NextRequest;
+  new Request(
+    `http://localhost/api/search${search}`
+  ) as unknown as import("next/server").NextRequest;
 
 let consoleErrorSpy: jest.SpyInstance;
 
@@ -110,7 +112,16 @@ describe("GET /api/search", () => {
 
   it("skips unrelated queries when filtering to users", async () => {
     sqlMock.mockResolvedValueOnce({
-      rows: [{ id: "user-1", username: "alice", avatar: null, is_live: false, follower_count: 7, bio: null }],
+      rows: [
+        {
+          id: "user-1",
+          username: "alice",
+          avatar: null,
+          is_live: false,
+          follower_count: 7,
+          bio: null,
+        },
+      ],
     });
 
     const res = await GET(makeRequest("?q=alice&type=users"));

@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, CheckCircle2, XCircle, Loader2, Info } from "lucide-react";
+import {
+  ExternalLink,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Info,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,9 +42,8 @@ export function TokenGateSettings({
   currentConfig,
   onSave,
 }: TokenGateSettingsProps) {
-  const [accessType, setAccessType] = useState<StreamAccessType>(
-    currentAccessType
-  );
+  const [accessType, setAccessType] =
+    useState<StreamAccessType>(currentAccessType);
   const [assetCode, setAssetCode] = useState(currentConfig?.asset_code ?? "");
   const [assetIssuer, setAssetIssuer] = useState(
     currentConfig?.asset_issuer ?? ""
@@ -51,7 +56,9 @@ export function TokenGateSettings({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleVerify = async () => {
-    if (!assetCode.trim() || !assetIssuer.trim()) return;
+    if (!assetCode.trim() || !assetIssuer.trim()) {
+      return;
+    }
     setVerifyState("verifying");
     try {
       const res = await fetch(
@@ -245,17 +252,15 @@ export function TokenGateSettings({
                 Create one in Stellar Laboratory
                 <ExternalLink className="w-3 h-3 inline ml-0.5" />
               </a>
-              . Issue a custom asset, distribute it to your community, then paste
-              the asset code and issuer address above.
+              . Issue a custom asset, distribute it to your community, then
+              paste the asset code and issuer address above.
             </span>
           </div>
         </div>
       )}
 
       {/* Save */}
-      {saveError && (
-        <p className="text-xs text-destructive">{saveError}</p>
-      )}
+      {saveError && <p className="text-xs text-destructive">{saveError}</p>}
       <Button
         onClick={handleSave}
         disabled={!canSave}

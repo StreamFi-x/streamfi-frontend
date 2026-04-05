@@ -22,12 +22,17 @@ function getSessionTokenHash(req: NextRequest): string | null {
     req.cookies.get("privy_session")?.value ??
     req.cookies.get("wallet")?.value ??
     null;
-  if (!token) return null;
+  if (!token) {
+    return null;
+  }
   let h = 0;
   for (let i = 0; i < token.length; i++) {
     h = (Math.imul(31, h) + token.charCodeAt(i)) | 0;
   }
-  return Math.abs(h).toString(16).padStart(8, "0") + token.slice(-24).replace(/[^a-zA-Z0-9]/g, "x");
+  return (
+    Math.abs(h).toString(16).padStart(8, "0") +
+    token.slice(-24).replace(/[^a-zA-Z0-9]/g, "x")
+  );
 }
 
 /** DELETE /api/routes-f/sessions/[id] — revoke a specific session */
@@ -36,7 +41,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { id } = await params;
 
@@ -74,6 +81,9 @@ export async function DELETE(
     return NextResponse.json({ message: "Session revoked" });
   } catch (error) {
     console.error("[routes-f sessions/:id DELETE]", error);
-    return NextResponse.json({ error: "Failed to revoke session" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to revoke session" },
+      { status: 500 }
+    );
   }
 }

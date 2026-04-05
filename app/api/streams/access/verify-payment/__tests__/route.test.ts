@@ -55,10 +55,7 @@ describe("POST /api/streams/access/verify-payment", () => {
     process.env.NEXT_PUBLIC_STELLAR_USDC_ISSUER_TESTNET = makeStellarKey();
   });
 
-  function mockHorizonTx(params: {
-    source: string;
-    memo: string;
-  }) {
+  function mockHorizonTx(params: { source: string; memo: string }) {
     mockServerInstance.transactions.mockReturnValue({
       transaction: () => ({
         call: async () => ({
@@ -106,7 +103,9 @@ describe("POST /api/streams/access/verify-payment", () => {
     const streamerId = "streamer-uuid";
 
     sqlMock
-      .mockResolvedValueOnce({ rows: [{ id: streamerId, wallet: streamerWallet }] }) // streamer
+      .mockResolvedValueOnce({
+        rows: [{ id: streamerId, wallet: streamerWallet }],
+      }) // streamer
       .mockResolvedValueOnce({
         rows: [{ access_type: "paid", config: { price_usdc: "25.00" } }],
       }) // config
@@ -131,7 +130,9 @@ describe("POST /api/streams/access/verify-payment", () => {
     const usdcIssuer = process.env.NEXT_PUBLIC_STELLAR_USDC_ISSUER_TESTNET!;
 
     sqlMock
-      .mockResolvedValueOnce({ rows: [{ id: streamerId, wallet: streamerWallet }] }) // streamer
+      .mockResolvedValueOnce({
+        rows: [{ id: streamerId, wallet: streamerWallet }],
+      }) // streamer
       .mockResolvedValueOnce({
         rows: [{ access_type: "paid", config: { price_usdc: "25.00" } }],
       }) // config
@@ -140,7 +141,11 @@ describe("POST /api/streams/access/verify-payment", () => {
       .mockResolvedValueOnce({ rows: [] }); // insert
 
     mockHorizonTx({ source: viewer, memo: `streamfi-access:${streamerId}` });
-    mockHorizonPaymentOp({ to: streamerWallet, amount: "25.0000000", issuer: usdcIssuer });
+    mockHorizonPaymentOp({
+      to: streamerWallet,
+      amount: "25.0000000",
+      issuer: usdcIssuer,
+    });
 
     const res = await POST(
       makeRequest({
@@ -155,4 +160,3 @@ describe("POST /api/streams/access/verify-payment", () => {
     expect(body.ok).toBe(true);
   });
 });
-

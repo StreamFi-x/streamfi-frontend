@@ -15,7 +15,10 @@ export async function GET(req: NextRequest) {
     const recordingId = searchParams.get("recording_id");
 
     if (!recordingId) {
-      return NextResponse.json({ error: "recording_id is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "recording_id is required" },
+        { status: 400 }
+      );
     }
 
     const { rows } = await sql`
@@ -29,7 +32,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ comments: rows });
   } catch (error) {
     console.error("Comments GET error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -38,12 +44,17 @@ export async function POST(req: NextRequest) {
   try {
     await ensureRoutesFSchema();
     const session = await verifySession(req);
-    if (!session.ok) return session.response; // 401 for unauthenticated
+    if (!session.ok) {
+      return session.response;
+    } // 401 for unauthenticated
 
     const { recording_id, timestamp_seconds, body } = await req.json();
 
     if (!recording_id || timestamp_seconds === undefined || !body) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
     // Check recording duration
@@ -53,7 +64,10 @@ export async function POST(req: NextRequest) {
     `;
 
     if (rec.rows.length > 0 && timestamp_seconds > rec.rows[0].duration) {
-      return NextResponse.json({ error: "Timestamp exceeds recording duration" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Timestamp exceeds recording duration" },
+        { status: 400 }
+      );
     }
 
     const { rows } = await sql`
@@ -65,6 +79,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(rows[0]);
   } catch (error) {
     console.error("Comments POST error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

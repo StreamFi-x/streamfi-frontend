@@ -9,7 +9,9 @@ import { verifySession } from "@/lib/auth/verify-session";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) {return session.response;}
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     // Ensure columns exist

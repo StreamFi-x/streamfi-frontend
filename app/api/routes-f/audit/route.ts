@@ -64,7 +64,9 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
 
   const result = validateQuery(new URL(req.url).searchParams, querySchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {
+    return result;
+  }
   const { user, type, from, to, limit, cursor } = result.data;
   const pageLimit = limit ?? 50;
 

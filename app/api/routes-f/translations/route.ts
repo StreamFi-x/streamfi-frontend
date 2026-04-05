@@ -45,7 +45,9 @@ const upsertBodySchema = z.object({
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, getQuerySchema);
-  if (queryResult instanceof Response) return queryResult;
+  if (queryResult instanceof Response) {
+    return queryResult;
+  }
 
   const { locale } = queryResult.data;
 
@@ -92,7 +94,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 export async function POST(req: NextRequest): Promise<NextResponse> {
   // Admin-only
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const adminCheck = await sql`
     SELECT 1 FROM users WHERE id = ${session.userId} AND is_admin = TRUE LIMIT 1
@@ -102,7 +106,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const bodyResult = await validateBody(req, upsertBodySchema);
-  if (bodyResult instanceof Response) return bodyResult;
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
   const { locale, key, value } = bodyResult.data;
 

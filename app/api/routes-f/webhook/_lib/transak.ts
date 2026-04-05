@@ -36,7 +36,9 @@ interface TransakOrderData {
 /**
  * Handle Transak webhook events.
  */
-export async function handleTransakEvent(payload: Record<string, unknown>): Promise<{
+export async function handleTransakEvent(
+  payload: Record<string, unknown>
+): Promise<{
   handled: boolean;
   detail: string;
 }> {
@@ -54,13 +56,13 @@ export async function handleTransakEvent(payload: Record<string, unknown>): Prom
     case "ORDER_FAILED": {
       // Look up user by wallet address
       const userId: string | null = order.walletAddress
-        ? (
+        ? ((
             await sql`
               SELECT id FROM users
               WHERE wallet = ${order.walletAddress}
               LIMIT 1
             `
-          ).rows[0]?.id ?? null
+          ).rows[0]?.id ?? null)
         : null;
 
       // Ensure transak_orders table exists

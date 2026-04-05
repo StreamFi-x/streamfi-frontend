@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         LIMIT ${limit}
       `;
       rows = res.rows;
-      
+
       // Simple cursor filtering after query for composite scores since it's hard to filter on calculated score in one go with the cursor being an ID
       if (cursor) {
         const cursorIndex = rows.findIndex((r: any) => r.id === cursor);
@@ -82,10 +82,13 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       data: rows,
-      next_cursor: nextCursor
+      next_cursor: nextCursor,
     });
   } catch (error) {
     console.error("Discovery error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

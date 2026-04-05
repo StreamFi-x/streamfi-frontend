@@ -20,11 +20,15 @@ export async function PATCH(
   { params }: RouteContext
 ): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { id } = await params;
   const parsed = await validateBody(req, collabPatchSchema);
-  if (parsed instanceof Response) return parsed;
+  if (parsed instanceof Response) {
+    return parsed;
+  }
   const { status } = parsed.data;
 
   try {
@@ -81,7 +85,9 @@ export async function DELETE(
   { params }: RouteContext
 ): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { id } = await params;
 

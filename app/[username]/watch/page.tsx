@@ -4,7 +4,7 @@ import { use, useEffect, useState, useRef, useCallback } from "react";
 import { notFound } from "next/navigation";
 import ViewStream from "@/components/stream/view-stream";
 import { ViewStreamSkeleton } from "@/components/skeletons/ViewStreamSkeleton";
-import { AccessGate } from "@/components/stream/AccessGate";
+import TokenGatedAccessGate from "@/components/stream/TokenGatedAccessGate";
 import { toast } from "sonner";
 
 interface PageProps {
@@ -55,9 +55,14 @@ const WatchPage = ({ params }: PageProps) => {
   }, []);
 
   const checkAccess = useCallback(async () => {
-    if (!userData) return;
+    if (!userData) {
+      return;
+    }
     // Public streams are always allowed — skip the network call
-    if (!userData.stream_access_type || userData.stream_access_type === "public") {
+    if (
+      !userData.stream_access_type ||
+      userData.stream_access_type === "public"
+    ) {
       setAccessAllowed(true);
       return;
     }
@@ -251,9 +256,10 @@ const WatchPage = ({ params }: PageProps) => {
     return (
       <div className="flex items-center justify-center min-h-screen p-6 bg-secondary">
         <div className="w-full max-w-md">
-          <AccessGate
-            isLoading={accessChecking}
-            allowed={accessAllowed ?? false}
+          <TokenGatedAccessGate
+            streamerUsername={username}
+            assetCode={userData.stream_access_config.asset_code}
+            minBalance={userData.stream_access_config.min_balance}
             onRetry={checkAccess}
           />
         </div>

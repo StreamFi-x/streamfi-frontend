@@ -24,9 +24,7 @@ function verifyTransakSignature(
   rawBody: string,
   secret: string
 ): boolean {
-  const expected = createHmac("sha256", secret)
-    .update(rawBody)
-    .digest("hex");
+  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
 
   try {
     return timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
@@ -64,7 +62,10 @@ export async function POST(req: Request) {
 
   const order = payload?.webhookData;
   if (!order?.id || !order?.status) {
-    console.error("❌ [transak webhook] Missing order data in payload", payload);
+    console.error(
+      "❌ [transak webhook] Missing order data in payload",
+      payload
+    );
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 

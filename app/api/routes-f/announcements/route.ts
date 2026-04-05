@@ -12,14 +12,20 @@ export async function GET(req: NextRequest) {
   try {
     await ensureRoutesFSchema();
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+      return session.response;
+    }
 
     // Get the creators the user is following
     const { rows: userRows } = await sql`
       SELECT following FROM users WHERE id = ${session.userId}
     `;
 
-    if (userRows.length === 0 || !userRows[0].following || userRows[0].following.length === 0) {
+    if (
+      userRows.length === 0 ||
+      !userRows[0].following ||
+      userRows[0].following.length === 0
+    ) {
       return NextResponse.json({ announcements: [] });
     }
 
@@ -39,7 +45,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ announcements: rows });
   } catch (error) {
     console.error("Announcements GET error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -48,12 +57,17 @@ export async function POST(req: NextRequest) {
   try {
     await ensureRoutesFSchema();
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+      return session.response;
+    }
 
     const { body, pinned } = await req.json();
 
     if (!body || body.length > 500) {
-      return NextResponse.json({ error: "Body must be between 1 and 500 characters" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Body must be between 1 and 500 characters" },
+        { status: 400 }
+      );
     }
 
     // Max 1 pinned announcement per creator
@@ -72,6 +86,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(rows[0]);
   } catch (error) {
     console.error("Announcements POST error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

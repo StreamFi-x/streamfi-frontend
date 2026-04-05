@@ -29,7 +29,9 @@ async function assertAdmin(userId: string): Promise<boolean> {
 /** GET /api/routes-f/clips/submit/admin — admin lists all pending submissions */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     await ensureSubmissionsTable();
@@ -63,6 +65,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ submissions: rows });
   } catch (error) {
     console.error("[routes-f clips/submit/admin GET]", error);
-    return NextResponse.json({ error: "Failed to fetch submissions" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch submissions" },
+      { status: 500 }
+    );
   }
 }

@@ -8,14 +8,16 @@ import { ensureRoutesFSchema } from "../_lib/schema";
  * Returns privacy settings for the authenticated user.
  */
 export async function GET(req: NextRequest) {
-    const session = await verifySession(req);
-    if (!session.ok) return session.response;
+  const session = await verifySession(req);
+  if (!session.ok) {
+    return session.response;
+  }
 
-    try {
-        // Ensure schema and table exist
-        await ensureRoutesFSchema();
+  try {
+    // Ensure schema and table exist
+    await ensureRoutesFSchema();
 
-        const { rows } = await sql`
+    const { rows } = await sql`
       SELECT 
         show_in_viewer_list,
         show_watch_history,
@@ -27,25 +29,25 @@ export async function GET(req: NextRequest) {
       LIMIT 1
     `;
 
-        if (rows.length === 0) {
-            // Return defaults if no entry exists yet
-            return NextResponse.json({
-                show_in_viewer_list: true,
-                show_watch_history: false,
-                show_following_list: true,
-                allow_collab_requests: true,
-                searchable_by_email: false,
-            });
-        }
-
-        return NextResponse.json(rows[0]);
-    } catch (error) {
-        console.error("[privacy:GET] Error:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
+    if (rows.length === 0) {
+      // Return defaults if no entry exists yet
+      return NextResponse.json({
+        show_in_viewer_list: true,
+        show_watch_history: false,
+        show_following_list: true,
+        allow_collab_requests: true,
+        searchable_by_email: false,
+      });
     }
+
+    return NextResponse.json(rows[0]);
+  } catch (error) {
+    console.error("[privacy:GET] Error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
 
 /**
@@ -53,59 +55,57 @@ export async function GET(req: NextRequest) {
  * Partially update privacy settings for the authenticated user.
  */
 export async function PATCH(req: NextRequest) {
-    const session = await verifySession(req);
-    if (!session.ok) return session.response;
+  const session = await verifySession(req);
+  if (!session.ok) {
+    return session.response;
+  }
 
-    let body: any;
-    try {
-        body = await req.json();
-    } catch {
-        return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-    }
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-    // Define allowed fields and their types
-    const allowedFields: Record<string, string> = {
-        show_in_viewer_list: "boolean",
-        show_watch_history: "boolean",
-        show_following_list: "boolean",
-        allow_collab_requests: "boolean",
-        searchable_by_email: "boolean",
-    };
+  // Define allowed fields and their types
+  const allowedFields: Record<string, string> = {
+    show_in_viewer_list: "boolean",
+    show_watch_history: "boolean",
+    show_following_list: "boolean",
+    allow_collab_requests: "boolean",
+    searchable_by_email: "boolean",
+  };
 
-    const updates: Record<string, any> = {};
-    for (const [key, value] of Object.entries(body)) {
-        if (key in allowedFields) {
-            if (typeof value !== allowedFields[key]) {
-                return NextResponse.json(
-                    { error: `Invalid type for ${key}. Expected ${allowedFields[key]}.` },
-                    { status: 400 }
-                );
-            }
-            updates[key] = value;
-        }
-    }
-
-    if (Object.keys(updates).length === 0) {
+  const updates: Record<string, any> = {};
+  for (const [key, value] of Object.entries(body)) {
+    if (key in allowedFields) {
+      if (typeof value !== allowedFields[key]) {
         return NextResponse.json(
-            { error: "No valid fields to update" },
-            { status: 400 }
+          { error: `Invalid type for ${key}. Expected ${allowedFields[key]}.` },
+          { status: 400 }
         );
+      }
+      updates[key] = value;
     }
+  }
 
-    try {
-        await ensureRoutesFSchema();
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json(
+      { error: "No valid fields to update" },
+      { status: 400 }
+    );
+  }
 
-        // Upsert the privacy settings
-        // Since we're using Postgres, we can use INSERT ... ON CONFLICT
+  try {
+    await ensureRoutesFSchema();
 
-        // Build the dynamic update part
-        const columns = Object.keys(updates);
-        const values = Object.values(updates);
+    // Upsert the privacy settings
+    // Since we're using Postgres, we can use INSERT ... ON CONFLICT
 
-        // We'll use a transaction or a single robust query
-        // Simple approach: UPSERT with defaults for missing columns
+    // We'll use a transaction or a single robust query
+    // Simple approach: UPSERT with defaults for missing columns
 
-        const { rows } = await sql`
+    const { rows } = await sql`
       INSERT INTO user_privacy (
         user_id,
         show_in_viewer_list,
@@ -134,12 +134,12 @@ export async function PATCH(req: NextRequest) {
       RETURNING *
     `;
 
-        return NextResponse.json(rows[0]);
-    } catch (error) {
-        console.error("[privacy:PATCH] Error:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
-    }
+    return NextResponse.json(rows[0]);
+  } catch (error) {
+    console.error("[privacy:PATCH] Error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }

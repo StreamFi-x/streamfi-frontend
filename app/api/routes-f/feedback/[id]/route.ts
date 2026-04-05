@@ -31,10 +31,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
   const auth = await requireAdmin(req);
-  if (!auth.ok) return auth.response;
+  if (!auth.ok) {
+    return auth.response;
+  }
 
   const result = await validateBody(req, updateStatusSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {
+    return result;
+  }
   const { status } = result.data;
 
   const { id } = await params;

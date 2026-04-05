@@ -40,7 +40,9 @@ export function EnableUsdcButton(props: {
 
       const result = await submitTransaction(signed as any, network);
       if (!result.success) {
-        throw new Error(result.error ?? "Failed to submit trustline transaction");
+        throw new Error(
+          result.error ?? "Failed to submit trustline transaction"
+        );
       }
       onSuccess?.();
     } finally {
@@ -59,4 +61,3 @@ export function EnableUsdcButton(props: {
     </Button>
   );
 }
-

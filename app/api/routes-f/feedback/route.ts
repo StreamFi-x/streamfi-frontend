@@ -70,7 +70,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   const userId = session.ok ? session.userId : null;
 
   const result = await validateBody(req, submitFeedbackSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {
+    return result;
+  }
   const { type, subject, body, rating, page_url, metadata } = result.data;
 
   await ensureFeedbackTable();
@@ -114,13 +116,17 @@ export async function POST(req: NextRequest): Promise<Response> {
 /** Admin only — list feedback submissions with pagination. */
 export async function GET(req: NextRequest): Promise<Response> {
   const auth = await requireAdmin(req);
-  if (!auth.ok) return auth.response;
+  if (!auth.ok) {
+    return auth.response;
+  }
 
   const result = validateQuery(
     new URL(req.url).searchParams,
     listFeedbackSchema
   );
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {
+    return result;
+  }
   const { type, status, page, limit } = result.data;
   const pageNumber = page ?? 1;
   const pageLimit = limit ?? 20;

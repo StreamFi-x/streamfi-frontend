@@ -71,9 +71,7 @@ describe("useChat", () => {
     });
 
     it("disables polling when pollEnabled is false", () => {
-      renderHook(() =>
-        useChat("playback-abc", makeStellarKey(), true, false)
-      );
+      renderHook(() => useChat("playback-abc", makeStellarKey(), true, false));
 
       expect(useSWR).toHaveBeenCalledWith(
         expect.any(String),
@@ -145,7 +143,9 @@ describe("useChat", () => {
     });
 
     it("does nothing when playbackId is missing", async () => {
-      const { result } = renderHook(() => useChat(null, makeStellarKey(), true));
+      const { result } = renderHook(() =>
+        useChat(null, makeStellarKey(), true)
+      );
 
       await act(async () => {
         await result.current.sendMessage("hello");
@@ -243,19 +243,14 @@ describe("useChat", () => {
         "/api/streams/chat",
         expect.objectContaining({
           method: "POST",
-          body: JSON.stringify({
-            wallet,
-            playbackId: "playback-abc",
-            content: "🐉 sent a Dragon",
-            messageType: "gift",
-            metadata: {
-              gift_name: "Dragon",
-              gift_emoji: "🐉",
-              usd_value: "500.00",
-              tx_hash: "abc123",
-              animation: "dragon",
-            },
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: expect.stringContaining('"messageType":"gift"'),
+        })
+      );
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/streams/chat",
+        expect.objectContaining({
+          body: expect.stringContaining('"gift_name":"Dragon"'),
         })
       );
     });

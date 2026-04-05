@@ -33,7 +33,10 @@ async function ensureCreatorTeamSchema(): Promise<void> {
 function validateId(id: string): NextResponse | null {
   const result = uuidSchema.safeParse(id);
   if (!result.success) {
-    return NextResponse.json({ error: "Invalid team member id" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid team member id" },
+      { status: 400 }
+    );
   }
   return null;
 }

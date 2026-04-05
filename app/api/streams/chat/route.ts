@@ -342,7 +342,7 @@ export async function GET(req: Request) {
       id: msg.id,
       content: msg.content,
       messageType: msg.message_type,
-        metadata: msg.metadata,
+      metadata: msg.metadata,
       createdAt: msg.created_at,
       user: {
         username: msg.username,

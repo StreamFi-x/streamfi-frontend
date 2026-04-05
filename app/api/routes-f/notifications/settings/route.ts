@@ -72,10 +72,9 @@ function normaliseStoredSettings(input: unknown): NotificationSettings {
   return base;
 }
 
-function validatePatch(payload: unknown): Record<
-  NotificationChannel,
-  Partial<ChannelPreferences>
-> {
+function validatePatch(
+  payload: unknown
+): Record<NotificationChannel, Partial<ChannelPreferences>> {
   if (!isRecord(payload)) {
     throw new Error("Invalid request body");
   }

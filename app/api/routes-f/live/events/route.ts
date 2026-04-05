@@ -50,7 +50,9 @@ function verifyInternalSecret(req: NextRequest): boolean {
   const secret = process.env.INTERNAL_SECRET;
   if (!secret) {
     // Not configured — block all POST calls in production, warn in dev
-    if (process.env.NODE_ENV === "production") return false;
+    if (process.env.NODE_ENV === "production") {
+      return false;
+    }
     console.warn(
       "[events] INTERNAL_SECRET not set — allowing POST in dev only"
     );
@@ -58,13 +60,17 @@ function verifyInternalSecret(req: NextRequest): boolean {
   }
 
   const header = req.headers.get("x-internal-secret");
-  if (!header) return false;
+  if (!header) {
+    return false;
+  }
 
   try {
     const a = Buffer.from(header);
     const b = Buffer.from(secret);
     // Lengths must match for timingSafeEqual
-    if (a.length !== b.length) return false;
+    if (a.length !== b.length) {
+      return false;
+    }
     return timingSafeEqual(a, b);
   } catch {
     return false;

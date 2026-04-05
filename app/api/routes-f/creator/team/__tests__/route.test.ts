@@ -48,22 +48,20 @@ describe("routes-f creator/team", () => {
   });
 
   it("lists creator team members", async () => {
-    sqlMock
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: TEAM_ID,
-            member_id: "member-id",
-            username: "moduser",
-            avatar: null,
-            role: "moderator",
-            status: "invited",
-            invited_at: "2026-03-28T00:00:00Z",
-            updated_at: "2026-03-28T00:00:00Z",
-          },
-        ],
-      });
+    sqlMock.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({
+      rows: [
+        {
+          id: TEAM_ID,
+          member_id: "member-id",
+          username: "moduser",
+          avatar: null,
+          role: "moderator",
+          status: "invited",
+          invited_at: "2026-03-28T00:00:00Z",
+          updated_at: "2026-03-28T00:00:00Z",
+        },
+      ],
+    });
 
     const res = await GET(makeRequest("GET", "/api/routes-f/creator/team"));
     const json = await res.json();
@@ -141,21 +139,19 @@ describe("routes-f creator/team", () => {
   });
 
   it("updates a team member role", async () => {
-    sqlMock
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: TEAM_ID,
-            creator_id: "creator-id",
-            member_id: "member-id",
-            role: "editor",
-            status: "invited",
-            invited_at: "2026-03-28T00:00:00Z",
-            updated_at: "2026-03-28T00:00:00Z",
-          },
-        ],
-      });
+    sqlMock.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({
+      rows: [
+        {
+          id: TEAM_ID,
+          creator_id: "creator-id",
+          member_id: "member-id",
+          role: "editor",
+          status: "invited",
+          invited_at: "2026-03-28T00:00:00Z",
+          updated_at: "2026-03-28T00:00:00Z",
+        },
+      ],
+    });
 
     const res = await PATCH(
       makeRequest("PATCH", `/api/routes-f/creator/team/${TEAM_ID}`, {

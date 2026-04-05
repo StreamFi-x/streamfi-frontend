@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import NotificationBell from "@/components/shared/NotificationBell";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/auth/auth-provider";
 import ConnectModal from "../connectWallet";
 import ProfileModal from "./ProfileModal";

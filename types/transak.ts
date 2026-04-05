@@ -6,7 +6,6 @@
  * all configuration as query params. The types here cover our app-level
  * config building and the data returned by events / webhooks.
  */
-
 export type TransakCryptoCurrency = "XLM" | "USDC";
 export type TransakFiatCurrency = string; // e.g. "USD", "EUR", "GBP"
 export type TransakEnvironment = "STAGING" | "PRODUCTION";

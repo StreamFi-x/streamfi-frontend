@@ -43,12 +43,16 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { id } = await params;
 
   const bodyResult = await validateBody(req, reviewSchema);
-  if (bodyResult instanceof Response) return bodyResult;
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
   const { status, reason } = bodyResult.data;
 
@@ -65,7 +69,10 @@ export async function PATCH(
     `;
 
     if (existing.length === 0) {
-      return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Submission not found" },
+        { status: 404 }
+      );
     }
 
     if (existing[0].status !== "pending") {
@@ -98,6 +105,9 @@ export async function PATCH(
     return NextResponse.json(rows[0]);
   } catch (error) {
     console.error("[routes-f clips/submit/:id PATCH]", error);
-    return NextResponse.json({ error: "Failed to review submission" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to review submission" },
+      { status: 500 }
+    );
   }
 }

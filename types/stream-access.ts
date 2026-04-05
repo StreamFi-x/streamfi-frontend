@@ -10,10 +10,15 @@ export type StreamAccessType =
   | "password"
   | "invite";
 
-/** JSON stored in `stream_access_config.config` when `access_type` is `token_gated` */
+/**
+ * Token-gate configuration stored in access-control JSON payloads.
+ * Some callers still read/write `asset_issuer`, while newer helpers use `issuer`.
+ * We support both to keep the type compatible with the current codebase.
+ */
 export interface TokenGateConfig {
   asset_code: string;
   min_balance: string;
+  issuer?: string;
   /** Stellar issuer public key; omit for native XLM */
   asset_issuer?: string;
 }
@@ -26,7 +31,6 @@ export interface AccessResult {
   reason?: "token_gated" | "no_wallet" | "public";
 }
 
-/** Shape stored in users.creator JSONB for access control */
 export interface CreatorAccessSettings {
   stream_access_type?: StreamAccessType;
   stream_access_config?: StreamAccessConfig;

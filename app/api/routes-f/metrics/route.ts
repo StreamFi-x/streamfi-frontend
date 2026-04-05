@@ -45,7 +45,9 @@ function periodToDays(period: string): number {
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, metricsQuerySchema);
-  if (queryResult instanceof NextResponse) {return queryResult;}
+  if (queryResult instanceof NextResponse) {
+    return queryResult;
+  }
 
   const { username, period } = queryResult.data;
   const days = periodToDays(period);

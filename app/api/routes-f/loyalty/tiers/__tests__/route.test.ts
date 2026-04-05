@@ -45,11 +45,9 @@ describe("routes-f loyalty/tiers", () => {
   });
 
   it("returns default tiers when creator has no saved config", async () => {
-    sqlMock
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{ id: "creator-id", username: "creator", tiers: null }],
-      });
+    sqlMock.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({
+      rows: [{ id: "creator-id", username: "creator", tiers: null }],
+    });
 
     const res = await GET(
       makeRequest("GET", "/api/routes-f/loyalty/tiers?creator=creator")
@@ -78,24 +76,22 @@ describe("routes-f loyalty/tiers", () => {
   });
 
   it("updates tiers for authenticated creator", async () => {
-    sqlMock
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            creator_id: "creator-id",
-            tiers: [
-              { name: "Viewer", min_points: 0, perks: [] },
-              {
-                name: "VIP",
-                min_points: 1000,
-                perks: ["custom_badge", "priority_chat"],
-              },
-            ],
-            updated_at: "2026-03-28T00:00:00Z",
-          },
-        ],
-      });
+    sqlMock.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({
+      rows: [
+        {
+          creator_id: "creator-id",
+          tiers: [
+            { name: "Viewer", min_points: 0, perks: [] },
+            {
+              name: "VIP",
+              min_points: 1000,
+              perks: ["custom_badge", "priority_chat"],
+            },
+          ],
+          updated_at: "2026-03-28T00:00:00Z",
+        },
+      ],
+    });
 
     const res = await PATCH(
       makeRequest("PATCH", "/api/routes-f/loyalty/tiers", {

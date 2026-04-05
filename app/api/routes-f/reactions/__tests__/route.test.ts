@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 jest.mock("next/server", () => ({
   NextResponse: {
     json: (body: unknown, init?: ResponseInit) =>
@@ -14,16 +16,7 @@ jest.mock("@/app/api/routes-f/_lib/session", () => ({
 
 jest.mock("../_lib/reactions", () => ({
   REACTIONS: ["❤️", "🔥", "😂", "👏", "💜", "🎉", "😮", "👑"],
-  reactionEmojiSchema: require("zod").z.enum([
-    "❤️",
-    "🔥",
-    "😂",
-    "👏",
-    "💜",
-    "🎉",
-    "😮",
-    "👑",
-  ]),
+  reactionEmojiSchema: z.enum(["❤️", "🔥", "😂", "👏", "💜", "🎉", "😮", "👑"]),
   enforceReactionRateLimit: jest.fn(),
   getReactionSummary: jest.fn(),
   incrementReaction: jest.fn(),

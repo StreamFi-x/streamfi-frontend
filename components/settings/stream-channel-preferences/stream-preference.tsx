@@ -143,7 +143,9 @@ const StreamPreferencesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
   const [accessType, setAccessType] = useState<StreamAccessType>("public");
-  const [accessConfig, setAccessConfig] = useState<TokenGateConfig | null>(null);
+  const [accessConfig, setAccessConfig] = useState<TokenGateConfig | null>(
+    null
+  );
 
   // State for the modals
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
@@ -183,12 +185,20 @@ const StreamPreferencesPage: React.FC = () => {
     const fetchUserAccess = async () => {
       try {
         const response = await fetch(`/api/users/wallet/${address}`);
-        if (!response.ok) return;
+        if (!response.ok) {
+          return;
+        }
         const data = await response.json();
         const user = data.user;
-        if (user?.email) setEmail(user.email);
-        if (user?.stream_access_type) setAccessType(user.stream_access_type);
-        if (user?.stream_access_config) setAccessConfig(user.stream_access_config);
+        if (user?.email) {
+          setEmail(user.email);
+        }
+        if (user?.stream_access_type) {
+          setAccessType(user.stream_access_type);
+        }
+        if (user?.stream_access_config) {
+          setAccessConfig(user.stream_access_config);
+        }
       } catch {
         // Non-critical — access settings will default to public
       }

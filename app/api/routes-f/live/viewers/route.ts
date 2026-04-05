@@ -26,7 +26,9 @@ function evict(streamId: string): Map<string, ViewerEntry> {
   const viewers = presenceStore.get(streamId) ?? new Map<string, ViewerEntry>();
   const now = Date.now();
   for (const [sid, entry] of viewers) {
-    if (now - entry.lastSeen > VIEWER_TTL_MS) viewers.delete(sid);
+    if (now - entry.lastSeen > VIEWER_TTL_MS) {
+      viewers.delete(sid);
+    }
   }
   presenceStore.set(streamId, viewers);
   return viewers;

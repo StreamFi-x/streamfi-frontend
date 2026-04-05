@@ -187,7 +187,10 @@ export async function POST(req: NextRequest) {
 
     const payload = await req.json();
     if (!isRecord(payload)) {
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 }
+      );
     }
 
     const itemId = payload.item_id;

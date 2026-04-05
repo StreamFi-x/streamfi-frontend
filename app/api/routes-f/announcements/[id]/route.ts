@@ -13,7 +13,9 @@ export async function DELETE(
   try {
     await ensureRoutesFSchema();
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+      return session.response;
+    }
 
     const { id } = await params;
 
@@ -35,7 +37,9 @@ export async function DELETE(
       null,
       announcement.creator_id
     );
-    if (ownershipError) return ownershipError;
+    if (ownershipError) {
+      return ownershipError;
+    }
 
     await sql`DELETE FROM announcements WHERE id = ${id}`;
 

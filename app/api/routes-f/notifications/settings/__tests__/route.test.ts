@@ -61,11 +61,29 @@ describe("routes-f notification settings", () => {
   it("applies a partial patch and preserves unspecified values", async () => {
     sqlMock
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ preferences: {
-        email: { new_follower: true, stream_live: true, tip_received: true },
-        push: { new_follower: true, stream_live: true, tip_received: true },
-        in_app: { new_follower: true, stream_live: false, tip_received: true },
-      } }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            preferences: {
+              email: {
+                new_follower: true,
+                stream_live: true,
+                tip_received: true,
+              },
+              push: {
+                new_follower: true,
+                stream_live: true,
+                tip_received: true,
+              },
+              in_app: {
+                new_follower: true,
+                stream_live: false,
+                tip_received: true,
+              },
+            },
+          },
+        ],
+      })
       .mockResolvedValueOnce({ rows: [] });
 
     const res = await PATCH(

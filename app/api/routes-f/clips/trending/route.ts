@@ -19,7 +19,9 @@ const trendingQuerySchema = z.object({
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, trendingQuerySchema);
-  if (queryResult instanceof Response) return queryResult;
+  if (queryResult instanceof Response) {
+    return queryResult;
+  }
 
   const { category, period, limit, cursor } = queryResult.data;
   const since = new Date(
@@ -148,7 +150,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({
       period,
       category: category ?? null,
-      clips: rows.map(({ score: _score, ...clip }) => clip),
+      clips: rows.map(row => {
+        const clip = { ...row };
+        delete clip.score;
+        return clip;
+      }),
       next_cursor: nextCursor,
     });
   } catch (error) {
@@ -159,4 +165,3 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 }
-

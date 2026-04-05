@@ -40,12 +40,16 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { id } = await params;
 
   const bodyResult = await validateBody(req, voteSchema);
-  if (bodyResult instanceof Response) return bodyResult;
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
   const { option_index } = bodyResult.data;
 
@@ -71,7 +75,9 @@ export async function POST(
     }
 
     // Validate option_index is within bounds
-    const options: string[] = Array.isArray(poll.options) ? poll.options : JSON.parse(poll.options);
+    const options: string[] = Array.isArray(poll.options)
+      ? poll.options
+      : JSON.parse(poll.options);
     if (option_index < 0 || option_index >= options.length) {
       return NextResponse.json(
         { error: `option_index must be between 0 and ${options.length - 1}` },
@@ -88,12 +94,18 @@ export async function POST(
     } catch (err: unknown) {
       const pgErr = err as { code?: string };
       if (pgErr?.code === "23505") {
-        return NextResponse.json({ error: "You have already voted on this poll" }, { status: 409 });
+        return NextResponse.json(
+          { error: "You have already voted on this poll" },
+          { status: 409 }
+        );
       }
       throw err;
     }
 
-    return NextResponse.json({ message: "Vote recorded", option_index }, { status: 201 });
+    return NextResponse.json(
+      { message: "Vote recorded", option_index },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("[routes-f stream/polls/:id/vote POST]", error);
     return NextResponse.json({ error: "Failed to cast vote" }, { status: 500 });

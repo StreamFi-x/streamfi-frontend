@@ -93,7 +93,8 @@ export default function PayoutPage() {
       void refreshBalance();
     };
     window.addEventListener(TRANSAK_ORDER_COMPLETE_EVENT, handler);
-    return () => window.removeEventListener(TRANSAK_ORDER_COMPLETE_EVENT, handler);
+    return () =>
+      window.removeEventListener(TRANSAK_ORDER_COMPLETE_EVENT, handler);
   }, [refreshBalance]);
 
   const handleCopy = () => {

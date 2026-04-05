@@ -24,7 +24,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { id } = await params;
 
@@ -49,7 +51,10 @@ export async function DELETE(
     }
 
     if (poll.ended_early || new Date(poll.ends_at) <= new Date()) {
-      return NextResponse.json({ error: "Poll has already ended" }, { status: 409 });
+      return NextResponse.json(
+        { error: "Poll has already ended" },
+        { status: 409 }
+      );
     }
 
     await sql`

@@ -22,10 +22,13 @@ export function GiftMessage({ message }: { message: ChatMessage }) {
       className={`rounded-xl border bg-gradient-to-r px-3 py-2 ${tierStyles[tierKey] ?? "from-highlight/20 to-highlight/5 border-highlight/30"}`}
     >
       <div className="flex items-start gap-2 text-sm">
-        <span className="text-lg leading-none">{message.metadata?.gift_emoji ?? "🎁"}</span>
+        <span className="text-lg leading-none">
+          {message.metadata?.gift_emoji ?? "🎁"}
+        </span>
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-foreground">
-            @{message.username} sent a {message.metadata?.gift_emoji ?? "🎁"} {giftName}
+            @{message.username} sent a {message.metadata?.gift_emoji ?? "🎁"}{" "}
+            {giftName}
           </p>
           <p className="text-xs text-muted-foreground">
             ${message.metadata?.usd_value ?? "0.00"} USDC

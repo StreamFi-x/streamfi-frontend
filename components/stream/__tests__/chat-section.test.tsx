@@ -102,9 +102,9 @@ describe("ChatSection", () => {
       expect(screen.getByPlaceholderText("Send a message")).toBeInTheDocument();
     });
 
-    it("shows 'Log in or sign up to chat' when wallet is not connected", () => {
+    it("shows wallet connect prompt when wallet is not connected", () => {
       render(<ChatSection {...defaultProps} isWalletConnected={false} />);
-      expect(screen.getByText("Log in or sign up to chat")).toBeInTheDocument();
+      expect(screen.getByText("Connect wallet to chat")).toBeInTheDocument();
       expect(
         screen.queryByPlaceholderText("Send a message")
       ).not.toBeInTheDocument();

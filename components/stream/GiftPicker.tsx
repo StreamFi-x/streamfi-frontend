@@ -17,7 +17,10 @@ import { AddFundsButton } from "@/components/wallet/AddFundsButton";
 import { EnableUsdcButton } from "@/components/wallet/EnableUsdcButton";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { getNetworkPassphrase, getStellarNetwork } from "@/lib/stellar/config";
-import { buildGiftTransaction, submitTransaction } from "@/lib/stellar/payments";
+import {
+  buildGiftTransaction,
+  submitTransaction,
+} from "@/lib/stellar/payments";
 import { getUsdcBalance, hasUsdcTrustline } from "@/lib/stellar/usdc";
 import type { SendGiftMessagePayload } from "@/types/chat";
 
@@ -97,7 +100,10 @@ export function GiftPicker({
     }
 
     const network = getStellarNetwork();
-    const cached = typeof window !== "undefined" ? sessionStorage.getItem(trustlineSessionKey(viewerPublicKey)) : null;
+    const cached =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem(trustlineSessionKey(viewerPublicKey))
+        : null;
     if (cached === "true") {
       setHasTrustline(true);
       getUsdcBalance({ publicKey: viewerPublicKey, network })
@@ -116,7 +122,10 @@ export function GiftPicker({
         setHasTrustline(trustline);
         if (trustline) {
           sessionStorage.setItem(trustlineSessionKey(viewerPublicKey), "true");
-          const usdcBalance = await getUsdcBalance({ publicKey: viewerPublicKey, network });
+          const usdcBalance = await getUsdcBalance({
+            publicKey: viewerPublicKey,
+            network,
+          });
           if (active) {
             setBalance(usdcBalance);
           }
@@ -126,7 +135,11 @@ export function GiftPicker({
       })
       .catch(err => {
         if (active) {
-          setError(err instanceof Error ? err.message : "Failed to check USDC trustline");
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Failed to check USDC trustline"
+          );
         }
       })
       .finally(() => {
@@ -144,14 +157,20 @@ export function GiftPicker({
     if (!selectedGift) {
       return false;
     }
-    return Number.parseFloat(balance || "0") < Number.parseFloat(selectedGift.usd_value);
+    return (
+      Number.parseFloat(balance || "0") <
+      Number.parseFloat(selectedGift.usd_value)
+    );
   }, [balance, selectedGift]);
 
   const refreshUsdcState = async () => {
     const network = getStellarNetwork();
     setHasTrustline(true);
     sessionStorage.setItem(trustlineSessionKey(viewerPublicKey), "true");
-    const usdcBalance = await getUsdcBalance({ publicKey: viewerPublicKey, network });
+    const usdcBalance = await getUsdcBalance({
+      publicKey: viewerPublicKey,
+      network,
+    });
     setBalance(usdcBalance);
     setShowTrustlineDialog(false);
   };
@@ -202,7 +221,10 @@ export function GiftPicker({
         },
       });
 
-      const usdcBalance = await getUsdcBalance({ publicKey: viewerPublicKey, network });
+      const usdcBalance = await getUsdcBalance({
+        publicKey: viewerPublicKey,
+        network,
+      });
       setBalance(usdcBalance);
       setSelectedGift(null);
       onClose();
@@ -220,7 +242,8 @@ export function GiftPicker({
           <DialogHeader>
             <DialogTitle>Send a gift</DialogTitle>
             <DialogDescription>
-              Send Flower, Candy, Crown, Lion, or Dragon to @{streamerUsername} with USDC on Stellar.
+              Send Flower, Candy, Crown, Lion, or Dragon to @{streamerUsername}{" "}
+              with USDC on Stellar.
             </DialogDescription>
           </DialogHeader>
 
@@ -244,8 +267,12 @@ export function GiftPicker({
                     }`}
                   >
                     <div className="text-3xl">{gift.emoji}</div>
-                    <div className="mt-3 font-semibold text-foreground">{gift.name}</div>
-                    <div className="text-sm text-muted-foreground">${gift.usd_value} USDC</div>
+                    <div className="mt-3 font-semibold text-foreground">
+                      {gift.name}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      ${gift.usd_value} USDC
+                    </div>
                   </button>
                 ))}
               </div>
@@ -253,10 +280,13 @@ export function GiftPicker({
               {selectedGift && (
                 <div className="rounded-2xl border border-border bg-muted/40 p-4">
                   <div className="flex items-start gap-3">
-                    <div className="rounded-2xl bg-background px-3 py-2 text-3xl shadow-sm">{selectedGift.emoji}</div>
+                    <div className="rounded-2xl bg-background px-3 py-2 text-3xl shadow-sm">
+                      {selectedGift.emoji}
+                    </div>
                     <div className="flex-1">
                       <p className="font-semibold text-foreground">
-                        Send {selectedGift.emoji} {selectedGift.name} to @{streamerUsername} for ${selectedGift.usd_value} USDC?
+                        Send {selectedGift.emoji} {selectedGift.name} to @
+                        {streamerUsername} for ${selectedGift.usd_value} USDC?
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">
                         Your current USDC balance: ${balance}
@@ -268,7 +298,9 @@ export function GiftPicker({
 
               {insufficientBalance && (
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-highlight/20 bg-highlight/10 p-3">
-                  <p className="text-sm text-muted-foreground">Insufficient USDC balance for this gift.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Insufficient USDC balance for this gift.
+                  </p>
                   <AddFundsButton
                     walletAddress={viewerPublicKey}
                     isPrivyUser={!!privyWallet}
@@ -322,17 +354,26 @@ export function GiftPicker({
           <DialogHeader>
             <DialogTitle>Enable USDC Gifts</DialogTitle>
             <DialogDescription>
-              Your wallet needs a one-time USDC trustline before it can send or receive gifts on Stellar. This reserves 0.5 XLM on-chain.
+              Your wallet needs a one-time USDC trustline before it can send or
+              receive gifts on Stellar. This reserves 0.5 XLM on-chain.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-            After this one-time setup, gifts will open normally on future visits.
+            After this one-time setup, gifts will open normally on future
+            visits.
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTrustlineDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowTrustlineDialog(false)}
+            >
               Not now
             </Button>
-            <EnableUsdcButton walletAddress={viewerPublicKey} onSuccess={refreshUsdcState} className="bg-highlight text-background hover:bg-highlight/90" />
+            <EnableUsdcButton
+              walletAddress={viewerPublicKey}
+              onSuccess={refreshUsdcState}
+              className="bg-highlight text-background hover:bg-highlight/90"
+            />
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -21,31 +21,36 @@ const DEFAULT_RULES = [
   {
     id: "no-harassment",
     title: "No Harassment or Hate Speech",
-    description: "Content that targets individuals or groups with harassment, threats, or hate speech is strictly prohibited.",
+    description:
+      "Content that targets individuals or groups with harassment, threats, or hate speech is strictly prohibited.",
     severity: "high",
   },
   {
     id: "no-explicit-content",
     title: "No Explicit or Adult Content",
-    description: "Sexually explicit content or nudity is not permitted on the platform.",
+    description:
+      "Sexually explicit content or nudity is not permitted on the platform.",
     severity: "high",
   },
   {
     id: "no-spam",
     title: "No Spam or Misleading Content",
-    description: "Repetitive, misleading, or deceptive content that degrades the viewer experience is not allowed.",
+    description:
+      "Repetitive, misleading, or deceptive content that degrades the viewer experience is not allowed.",
     severity: "medium",
   },
   {
     id: "no-copyright",
     title: "Respect Copyright",
-    description: "Do not stream or share content you do not have rights to broadcast.",
+    description:
+      "Do not stream or share content you do not have rights to broadcast.",
     severity: "medium",
   },
   {
     id: "no-self-harm",
     title: "No Self-Harm or Dangerous Activities",
-    description: "Content that promotes or depicts self-harm, dangerous stunts, or illegal activities is prohibited.",
+    description:
+      "Content that promotes or depicts self-harm, dangerous stunts, or illegal activities is prohibited.",
     severity: "high",
   },
 ];
@@ -71,7 +76,7 @@ async function isAdmin(userId: string): Promise<boolean> {
  * GET /api/routes-f/content/rules
  * Public endpoint — returns current platform content moderation rules.
  */
-export async function GET(_req: NextRequest): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
     await ensureContentRulesSchema();
 
@@ -81,14 +86,23 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
 
     if (rows.length === 0) {
       return NextResponse.json({
-        rules: DEFAULT_RULES.map(r => ({ ...r, updated_at: new Date().toISOString() })),
+        rules: DEFAULT_RULES.map(r => ({
+          ...r,
+          updated_at: new Date().toISOString(),
+        })),
       });
     }
 
-    return NextResponse.json({ rules: rows[0].rules, updated_at: rows[0].updated_at });
+    return NextResponse.json({
+      rules: rows[0].rules,
+      updated_at: rows[0].updated_at,
+    });
   } catch (error) {
     console.error("[routes-f content/rules GET]", error);
-    return NextResponse.json({ error: "Failed to fetch content rules" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch content rules" },
+      { status: 500 }
+    );
   }
 }
 
@@ -98,7 +112,9 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
  */
 export async function PATCH(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const admin = await isAdmin(session.userId);
   if (!admin) {
@@ -106,10 +122,15 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   }
 
   const bodyResult = await validateBody(req, patchRulesSchema);
-  if (bodyResult instanceof Response) return bodyResult;
+  if (bodyResult instanceof Response) {
+    return bodyResult;
+  }
 
   const now = new Date().toISOString();
-  const rules = bodyResult.data.rules.map((r: z.infer<typeof ruleSchema>) => ({ ...r, updated_at: now }));
+  const rules = bodyResult.data.rules.map((r: z.infer<typeof ruleSchema>) => ({
+    ...r,
+    updated_at: now,
+  }));
 
   try {
     await ensureContentRulesSchema();
@@ -120,9 +141,15 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       RETURNING rules, updated_at
     `;
 
-    return NextResponse.json({ rules: rows[0].rules, updated_at: rows[0].updated_at });
+    return NextResponse.json({
+      rules: rows[0].rules,
+      updated_at: rows[0].updated_at,
+    });
   } catch (error) {
     console.error("[routes-f content/rules PATCH]", error);
-    return NextResponse.json({ error: "Failed to update content rules" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update content rules" },
+      { status: 500 }
+    );
   }
 }

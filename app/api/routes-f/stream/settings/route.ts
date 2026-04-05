@@ -12,7 +12,9 @@ const VALID_SLOW_MODES = [0, 3, 10, 30, 60] as const;
 // Returns current stream settings for the authenticated creator.
 export async function GET(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     const { rows } = await sql`
@@ -56,7 +58,9 @@ export async function GET(req: NextRequest) {
 // Changes take effect immediately (live or not).
 export async function PATCH(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   let body: {
     title?: string;

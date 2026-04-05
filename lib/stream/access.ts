@@ -17,34 +17,41 @@ function isNativeAsset(code: string): boolean {
   return c === "XLM" || c === "NATIVE";
 }
 
+function getIssuer(config: TokenGateConfig): string | undefined {
+  return config.issuer ?? config.asset_issuer;
+}
+
 export function isValidAssetCode(code: string): boolean {
-  return /^[a-zA-Z0-9]{1,12}$/.test(code);
+  return /^[A-Z0-9]{1,12}$/i.test(code);
 }
 
 export function isValidStellarIssuer(issuer: string): boolean {
-  return /^[G][A-Z2-7]{55}$/.test(issuer);
+  return /^G[A-Z2-7]{55}$/.test(issuer);
 }
 
-/**
- * Checks if an asset exists on the Stellar network by verifying if it has
- * any trustlines or was minted by the issuer.
- */
 export async function verifyAssetExists(
-  code: string,
+  assetCode: string,
   issuer: string
 ): Promise<boolean> {
-  if (isNativeAsset(code)) return true;
-  if (!isValidStellarIssuer(issuer)) return false;
+  if (isNativeAsset(assetCode)) {
+    return true;
+  }
+
+  if (!isValidAssetCode(assetCode) || !isValidStellarIssuer(issuer)) {
+    return false;
+  }
 
   const server = getServer();
+
   try {
-    // Check if the asset exists by querying the Horizon /assets endpoint
-    const assets = await server
+    const response = await server
       .assets()
-      .forCode(code)
+      .forCode(assetCode)
       .forIssuer(issuer)
+      .limit(1)
       .call();
-    return assets.records.length > 0;
+
+    return Array.isArray(response.records) && response.records.length > 0;
   } catch (err) {
     console.error("[verifyAssetExists] error:", err);
     return false;
@@ -119,7 +126,7 @@ export async function checkTokenGatedAccess(
         b.asset_type !== "native" &&
         b.asset_type !== "liquidity_pool_shares" &&
         b.asset_code === asset_code &&
-        (!config.asset_issuer || b.asset_issuer === config.asset_issuer)
+        (!getIssuer(config) || b.asset_issuer === getIssuer(config))
     );
     balance = parseFloat(match?.balance ?? "0");
   }

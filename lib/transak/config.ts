@@ -1,4 +1,7 @@
-import type { TransakCryptoCurrency, TransakEnvironment } from "@/types/transak";
+import type {
+  TransakCryptoCurrency,
+  TransakEnvironment,
+} from "@/types/transak";
 
 /**
  * Returns the correct Transak environment based on NEXT_PUBLIC_STELLAR_NETWORK.

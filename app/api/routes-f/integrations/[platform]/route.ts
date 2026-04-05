@@ -13,7 +13,9 @@ export async function DELETE(
   { params }: { params: Promise<{ platform: string }> }
 ): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { platform: rawPlatform } = await params;
   const platform = rawPlatform.toLowerCase();

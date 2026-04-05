@@ -1,8 +1,8 @@
 import { sql } from "@vercel/postgres";
 
 export async function ensureSoundtrackSchema(): Promise<void> {
-    // Soundtrack catalog table
-    await sql`
+  // Soundtrack catalog table
+  await sql`
     CREATE TABLE IF NOT EXISTS route_f_soundtrack_catalog (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       title VARCHAR(255) NOT NULL,
@@ -14,8 +14,8 @@ export async function ensureSoundtrackSchema(): Promise<void> {
     )
   `;
 
-    // Stream now playing table
-    await sql`
+  // Stream now playing table
+  await sql`
     CREATE TABLE IF NOT EXISTS route_f_stream_now_playing (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       stream_id UUID NOT NULL UNIQUE,
@@ -26,8 +26,8 @@ export async function ensureSoundtrackSchema(): Promise<void> {
     )
   `;
 
-    // Stream playlist table
-    await sql`
+  // Stream playlist table
+  await sql`
     CREATE TABLE IF NOT EXISTS route_f_stream_playlists (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       stream_id UUID NOT NULL,
@@ -39,12 +39,12 @@ export async function ensureSoundtrackSchema(): Promise<void> {
     )
   `;
 
-    await sql`
+  await sql`
     CREATE INDEX IF NOT EXISTS idx_route_f_stream_now_playing_stream
       ON route_f_stream_now_playing (stream_id)
   `;
 
-    await sql`
+  await sql`
     CREATE INDEX IF NOT EXISTS idx_route_f_stream_playlists_stream
       ON route_f_stream_playlists (stream_id, position)
   `;

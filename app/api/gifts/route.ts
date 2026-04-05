@@ -20,6 +20,9 @@ export async function GET() {
     );
   } catch (error) {
     console.error("Failed to load gifts:", error);
-    return NextResponse.json({ error: "Failed to load gifts" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to load gifts" },
+      { status: 500 }
+    );
   }
 }

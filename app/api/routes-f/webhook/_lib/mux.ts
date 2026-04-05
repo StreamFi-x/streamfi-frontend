@@ -24,7 +24,9 @@ export function verifyMuxSignature(
 
   const timestamp = parts["t"];
   const signature = parts["v1"];
-  if (!timestamp || !signature) {return false;}
+  if (!timestamp || !signature) {
+    return false;
+  }
 
   // Reject events older than 5 minutes (replay attack protection)
   const ageSeconds = Math.abs(Date.now() / 1000 - parseInt(timestamp, 10));
@@ -61,7 +63,9 @@ export async function handleMuxEvent(event: Record<string, unknown>): Promise<{
   switch (eventType) {
     case "video.live_stream.active": {
       const streamId = data.id as string;
-      if (!streamId) {return { handled: false, detail: "Missing stream ID" };}
+      if (!streamId) {
+        return { handled: false, detail: "Missing stream ID" };
+      }
 
       const { rows } = await sql`
         SELECT id, mux_playback_id, creator
@@ -71,7 +75,10 @@ export async function handleMuxEvent(event: Record<string, unknown>): Promise<{
       `;
 
       if (rows.length === 0) {
-        return { handled: false, detail: `No user found for stream ${streamId}` };
+        return {
+          handled: false,
+          detail: `No user found for stream ${streamId}`,
+        };
       }
 
       const user = rows[0];
@@ -93,7 +100,8 @@ export async function handleMuxEvent(event: Record<string, unknown>): Promise<{
 
       if (existing.length === 0) {
         const title =
-          (user.creator as Record<string, string> | null)?.title || "Live Stream";
+          (user.creator as Record<string, string> | null)?.title ||
+          "Live Stream";
         await sql`
           INSERT INTO stream_sessions (user_id, title, playback_id, started_at, mux_session_id)
           VALUES (${user.id}, ${title}, ${user.mux_playback_id}, CURRENT_TIMESTAMP, ${streamId})
@@ -105,7 +113,9 @@ export async function handleMuxEvent(event: Record<string, unknown>): Promise<{
 
     case "video.live_stream.idle": {
       const streamId = data.id as string;
-      if (!streamId) {return { handled: false, detail: "Missing stream ID" };}
+      if (!streamId) {
+        return { handled: false, detail: "Missing stream ID" };
+      }
 
       await sql`
         UPDATE users SET
