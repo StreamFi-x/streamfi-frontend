@@ -89,6 +89,21 @@ export async function POST(req: NextRequest) {
         });
       });
 
+      // Activity event — non-blocking, must not break the follow operation
+      try {
+        await sql`
+          INSERT INTO route_f_activity_events (user_id, type, actor_id, metadata)
+          VALUES (
+            ${receiverId},
+            'new_follower',
+            ${callerId},
+            ${JSON.stringify({ username: callerUsername })}::jsonb
+          )
+        `;
+      } catch (activityErr) {
+        console.error("[follow] activity insert error:", activityErr);
+      }
+
       return NextResponse.json({ message: "Followed successfully" });
     } else {
       await sql`

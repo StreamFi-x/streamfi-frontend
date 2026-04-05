@@ -89,6 +89,47 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         created_at
     `;
 
+    // Activity events — non-blocking
+    try {
+      const recipientUsername = recipientRows[0].username;
+      const { rows: senderRows } = await sql`
+        SELECT username FROM users WHERE id = ${session.userId} LIMIT 1
+      `;
+      const senderUsername = senderRows[0]?.username ?? "Someone";
+
+      await Promise.all([
+        sql`
+          INSERT INTO route_f_activity_events (user_id, type, actor_id, metadata)
+          VALUES (
+            ${recipient_id},
+            'gift_received',
+            ${session.userId},
+            ${JSON.stringify({
+              gift_name: gift.name,
+              quantity,
+              amount_usdc: amountUsd,
+              sender_username: senderUsername,
+            })}::jsonb
+          )
+        `,
+        sql`
+          INSERT INTO route_f_activity_events (user_id, type, metadata)
+          VALUES (
+            ${session.userId},
+            'gift_sent',
+            ${JSON.stringify({
+              gift_name: gift.name,
+              quantity,
+              amount_usdc: amountUsd,
+              recipient_username: recipientUsername,
+            })}::jsonb
+          )
+        `,
+      ]);
+    } catch (activityErr) {
+      console.error("[routes-f gifts] activity insert error:", activityErr);
+    }
+
     return NextResponse.json(rows[0], { status: 201 });
   } catch (error) {
     console.error("[routes-f gifts POST]", error);
