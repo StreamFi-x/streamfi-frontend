@@ -547,7 +547,7 @@ const ViewStream = ({
                 {isLive && userData?.playbackId ? (
                   <MuxPlayer
                     playbackId={userData.playbackId}
-                    streamType="live:dvr"
+                    streamType={userData.latencyMode === "standard" ? "live:dvr" : "live"}
                     autoPlay="muted"
                     metadata={{
                       video_id: userData.playbackId,

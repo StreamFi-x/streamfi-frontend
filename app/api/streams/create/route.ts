@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     console.log("🔍 Fetching user data...");
     const userResult = await sql`
-      SELECT id, username, creator, mux_stream_id, enable_recording FROM users WHERE LOWER(wallet) = LOWER(${wallet})
+      SELECT id, username, creator, mux_stream_id, enable_recording, latency_mode FROM users WHERE LOWER(wallet) = LOWER(${wallet})
     `;
 
     if (userResult.rows.length === 0) {
@@ -125,12 +125,14 @@ export async function POST(req: NextRequest) {
     console.log("✅ Mux credentials found");
 
     const enableRecording = user.enable_recording === true;
-    console.log("🎬 Creating Mux stream...", { enableRecording });
+    const latencyMode = (user.latency_mode === "standard" ? "standard" : "low") as "low" | "standard";
+    console.log("🎬 Creating Mux stream...", { enableRecording, latencyMode });
     let muxStream;
     try {
       muxStream = await createMuxStream({
         name: `${user.username} - ${title}`,
         record: enableRecording,
+        latencyMode,
       });
       console.log("✅ Mux stream created successfully:", {
         id: muxStream?.id,

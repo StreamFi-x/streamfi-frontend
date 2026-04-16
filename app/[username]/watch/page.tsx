@@ -23,6 +23,7 @@ interface UserData {
   follower_count: number;
   is_following: boolean;
   stellar_address: string | null;
+  latency_mode: string | null;
 }
 
 const WatchPage = ({ params }: PageProps) => {
@@ -216,6 +217,7 @@ const WatchPage = ({ params }: PageProps) => {
     },
     stellarAddress: userData.stellar_address || "",
     playbackId: userData.mux_playback_id,
+    latencyMode: userData.latency_mode || "low",
     isLive: userData.is_live,
   };
 

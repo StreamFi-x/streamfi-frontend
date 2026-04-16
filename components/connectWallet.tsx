@@ -11,6 +11,7 @@ import { usePrivyAuth } from "@/hooks/usePrivyAuth";
 interface ConnectModalProps {
   isModalOpen: boolean;
   setIsModalOpen: (isModalOpen: boolean) => void;
+  walletsOnly?: boolean;
 }
 
 interface WalletInfo {
@@ -62,6 +63,7 @@ const STELLAR_WALLETS: WalletInfo[] = [
 export default function ConnectWalletModal({
   isModalOpen,
   setIsModalOpen,
+  walletsOnly = false,
 }: ConnectModalProps) {
   const {
     isConnected,
@@ -175,10 +177,12 @@ export default function ConnectWalletModal({
         <div className="flex items-start justify-between px-5 pt-4 sm:pt-5 pb-0">
           <div>
             <h2 className="text-white text-[17px] font-semibold leading-snug">
-              Connect to StreamFi
+              {walletsOnly ? "Connect Wallet" : "Connect to StreamFi"}
             </h2>
             <p className="text-white/35 text-[13px] mt-0.5">
-              Sign in with Google or a Stellar wallet
+              {walletsOnly
+                ? "Choose a Stellar wallet to connect"
+                : "Sign in with Google or a Stellar wallet"}
             </p>
           </div>
           <button
@@ -216,8 +220,8 @@ export default function ConnectWalletModal({
             </div>
           ) : (
             <>
-              {/* Google — primary CTA */}
-              {!isConnecting && (
+              {/* Google — primary CTA (hidden in walletsOnly mode) */}
+              {!isConnecting && !walletsOnly && (
                 <button
                   onClick={e => {
                     e.stopPropagation();
@@ -261,8 +265,8 @@ export default function ConnectWalletModal({
                 </button>
               )}
 
-              {/* Divider */}
-              {!isConnecting && (
+              {/* Divider (hidden in walletsOnly mode) */}
+              {!isConnecting && !walletsOnly && (
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-px bg-white/[0.07]" />
                   <span className="text-white/20 text-xs font-medium tracking-wide">

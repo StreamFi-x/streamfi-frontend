@@ -29,7 +29,8 @@ export async function GET(req: Request) {
         mux_stream_id,
         mux_playback_id,
         is_live,
-        enable_recording
+        enable_recording,
+        latency_mode
       FROM users
       WHERE wallet = ${wallet}
     `;
@@ -47,6 +48,7 @@ export async function GET(req: Request) {
           hasStream: false,
           streamKey: null,
           enableRecording: user.enable_recording === true,
+          latencyMode: user.latency_mode || "low",
         },
         { status: 200 }
       );
@@ -63,6 +65,7 @@ export async function GET(req: Request) {
           rtmpUrl: "rtmp://global-live.mux.com:5222/app",
           isLive: user.is_live || false,
           enableRecording: user.enable_recording === true,
+          latencyMode: user.latency_mode || "low",
         },
       },
       { status: 200 }

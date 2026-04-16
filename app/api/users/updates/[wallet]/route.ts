@@ -40,6 +40,11 @@ export async function PUT(
       enableRecordingRaw !== null && enableRecordingRaw !== undefined
         ? String(enableRecordingRaw) === "true"
         : user.enable_recording;
+    const latencyModeRaw = formData.get("latency_mode");
+    const latencyMode =
+      latencyModeRaw !== null && latencyModeRaw !== undefined
+        ? String(latencyModeRaw)
+        : user.latency_mode || "low";
 
     // Social links - Use lowercase column name to match database
     let processedSocialLinks = user.sociallinks;
@@ -198,9 +203,10 @@ export async function PUT(
         emailnotifications = ${emailNotifications},
         creator = ${creator ? JSON.stringify(creator) : user.creator},
         enable_recording = ${enableRecording},
+        latency_mode = ${latencyMode},
         updated_at = CURRENT_TIMESTAMP
       WHERE LOWER(wallet) = LOWER(${normalizedWallet})
-      RETURNING id, username, email, streamkey, avatar, banner, bio, sociallinks, emailverified, emailnotifications, creator, wallet, enable_recording, created_at, updated_at
+      RETURNING id, username, email, streamkey, avatar, banner, bio, sociallinks, emailverified, emailnotifications, creator, wallet, enable_recording, latency_mode, created_at, updated_at
     `;
 
     // Sync recording preference to Mux if it changed and the user has a stream
