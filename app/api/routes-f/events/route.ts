@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    // Log error for debugging (eslint-disable-next-line no-console)
     console.error("[events] POST error:", error);
     return NextResponse.json<ApiResponse>(
       { success: false, error: "Internal server error" },
@@ -63,6 +64,7 @@ export async function GET(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    // Log error for debugging (eslint-disable-next-line no-console)
     console.error("[events] GET error:", error);
     return NextResponse.json<ApiResponse>(
       { success: false, error: "Internal server error" },
