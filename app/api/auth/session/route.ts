@@ -3,6 +3,7 @@ import { PrivyClient } from "@privy-io/server-auth";
 import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { getRandomProfileIcon } from "@/lib/profile-icons";
+import { createSession } from "@/lib/sessions/user-sessions";
 
 // 10 Privy session exchanges per IP per 60 s
 const isRateLimited = createRateLimiter(60_000, 10);
@@ -131,8 +132,10 @@ export async function POST(req: NextRequest) {
     //    We store the privy_id (opaque, server-verified) — never the raw JWT
     const isProduction = process.env.NODE_ENV === "production";
     const cookieMaxAge = 24 * 60 * 60; // 24 h in seconds
+    // The raw token for a Privy session is the privy_id itself
+    const rawToken = privyUserId;
     const cookieValue = [
-      `privy_session=${privyUserId}`,
+      `privy_session=${rawToken}`,
       `Path=/`,
       `Max-Age=${cookieMaxAge}`,
       `HttpOnly`,
@@ -157,6 +160,21 @@ export async function POST(req: NextRequest) {
     });
 
     res.headers.set("Set-Cookie", cookieValue);
+
+    // Record the session in user_sessions (fire-and-forget — don't block the response)
+    createSession({
+      userId: dbUser.id,
+      rawToken,
+      ipAddress:
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+        req.headers.get("x-real-ip") ??
+        null,
+      userAgent: req.headers.get("user-agent") ?? null,
+      ttlSeconds: cookieMaxAge,
+    }).catch((err) =>
+      console.error("[session] Failed to record user_session row:", err)
+    );
+
     return res;
   } catch (err) {
     console.error("[session] DB error:", err);
