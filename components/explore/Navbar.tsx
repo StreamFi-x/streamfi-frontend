@@ -2,7 +2,8 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { StreamfiLogoLight, StreamfiLogoShort } from "@/public/icons";
-import { Search, Bell, ChevronDown } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
+import NotificationBell from "@/components/shared/NotificationBell";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,9 +11,10 @@ import type { SearchResult } from "@/types/explore";
 import { useAuth } from "@/components/auth/auth-provider";
 import ConnectModal from "../connectWallet";
 import ProfileModal from "./ProfileModal";
-import Avatar from "@/public/Images/user.png";
+import { getDefaultAvatar } from "@/lib/profile-icons";
 import ProfileDropdown from "../ui/profileDropdown";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { usePrivyAuth } from "@/hooks/usePrivyAuth";
 
 interface NavbarProps {
   onConnectWallet?: () => void;
@@ -26,27 +28,35 @@ type Category = {
   imageurl?: string;
 };
 
-export default function Navbar({ }: NavbarProps) {
+export default function Navbar({}: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { publicKey, isConnected, disconnect } = useStellarWallet();
-  const { user, isLoading: authLoading } = useAuth();
+  const { publicKey, isConnected, disconnect, privyWallet } =
+    useStellarWallet();
+  const { user, isLoading: authLoading, isError: authError } = useAuth();
+  const { signInWithGoogle, ready: privyReady } = usePrivyAuth();
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
-  const [connectStep, setConnectStep] = useState<"profile" | "verify" | "success">("profile");
+  const [connectStep, setConnectStep] = useState<
+    "profile" | "verify" | "success"
+  >("profile");
+  // Always start as loading — check sessionStorage in useEffect to avoid SSR/client mismatch
   const [isLoading, setIsLoading] = useState(true);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  // Prevent auth UI from rendering until after hydration (avoids SSR/localStorage mismatch)
+  const [mounted, setMounted] = useState(false);
 
-
-  const walletPublicKey = publicKey;
+  // Authenticated = Freighter wallet connected OR Privy (Google) session active
+  const isAuthenticated = isConnected || !!privyWallet;
 
   // safe sessionStorage parse
   const getSessionData = useCallback(<T,>(key: string): T | null => {
-    if (typeof window === "undefined") return null;
+    if (typeof window === "undefined") {
+      return null;
+    }
     try {
       const data = sessionStorage.getItem(key);
       return data ? JSON.parse(data) : null;
@@ -55,27 +65,52 @@ export default function Navbar({ }: NavbarProps) {
     }
   }, []);
 
-  //  display name
+  //  display name — privy user takes priority, then wallet user, then truncated key
   const getDisplayName = useCallback(() => {
-    if (user?.username) return user.username;
+    if (privyWallet?.username) {
+      return privyWallet.username;
+    }
+    if (privyWallet?.displayName) {
+      return privyWallet.displayName;
+    }
+    if (user?.username) {
+      return user.username;
+    }
 
     const storedUser = getSessionData<{ username?: string }>("userData");
-    if (storedUser?.username) return storedUser.username;
+    if (storedUser?.username) {
+      return storedUser.username;
+    }
 
-    if (publicKey) return `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}`;
+    // Fallback: privy_user in sessionStorage (page refresh before event fires)
+    const privyStored = getSessionData<{ username?: string }>("privy_user");
+    if (privyStored?.username) {
+      return privyStored.username;
+    }
+
+    if (publicKey) {
+      return `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}`;
+    }
 
     return "Unknown User";
-  }, [user?.username, publicKey, getSessionData]);
+  }, [privyWallet, user?.username, publicKey, getSessionData]);
 
-  // avatar logic
+  // avatar logic — privy user takes priority
   const getAvatar = useCallback(() => {
-    if (user?.avatar) return user.avatar;
+    if (privyWallet?.avatar) {
+      return privyWallet.avatar;
+    }
+    if (user?.avatar) {
+      return user.avatar;
+    }
 
     const storedUser = getSessionData<{ avatar?: string }>("userData");
-    if (storedUser?.avatar) return storedUser.avatar;
+    if (storedUser?.avatar) {
+      return storedUser.avatar;
+    }
 
-    return Avatar;
-  }, [user?.avatar, getSessionData]);
+    return getDefaultAvatar(user?.username ?? privyWallet?.username);
+  }, [privyWallet, user?.avatar, user?.username, getSessionData]);
 
   const handleCloseProfileModal = () => {
     setProfileModalOpen(false);
@@ -85,6 +120,15 @@ export default function Navbar({ }: NavbarProps) {
   const handleNextStep = (step: "profile" | "verify" | "success") => {
     setConnectStep(step);
   };
+
+  // Mark as mounted after hydration and resolve initial loading state from sessionStorage
+  useEffect(() => {
+    setMounted(true);
+    const hasPrivySession = !!sessionStorage.getItem("privy_user");
+    if (hasPrivySession) {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     setHasCheckedProfile(false);
@@ -108,12 +152,7 @@ export default function Navbar({ }: NavbarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Autofocus search input
-  useEffect(() => {
-    searchInputRef.current?.focus();
-  }, []);
-
-  // Search results fetch with debounce
+  // Search results fetch with debounce — categories + users in parallel
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -122,15 +161,36 @@ export default function Navbar({ }: NavbarProps) {
 
     const timeout = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/category?title=${encodeURIComponent(searchQuery)}`);
-        const data = await res.json();
-        const normalizedResults = (data.categories ?? []).map((cat: Category) => ({
-          id: cat.id,
-          title: cat.title,
-          image: cat.imageurl || "/placeholder.svg",
-          type: "category",
-        }));
-        setSearchResults(normalizedResults);
+        const q = encodeURIComponent(searchQuery);
+        const [catRes, userRes] = await Promise.all([
+          fetch(`/api/category?title=${q}`),
+          fetch(`/api/search-username?q=${q}`),
+        ]);
+
+        const [catData, userData] = await Promise.all([
+          catRes.json(),
+          userRes.json(),
+        ]);
+
+        const categories: SearchResult[] = (catData.categories ?? []).map(
+          (cat: Category) => ({
+            id: cat.id,
+            title: cat.title,
+            image: cat.imageurl || "",
+            type: "category" as const,
+          })
+        );
+
+        const users: SearchResult[] = (userData.users ?? []).map(
+          (u: { id: string; username: string; avatar?: string }) => ({
+            id: u.id,
+            title: u.username,
+            image: u.avatar || getDefaultAvatar(u.username),
+            type: "user" as const,
+          })
+        );
+
+        setSearchResults([...users, ...categories]);
       } catch {
         setSearchResults([]);
       }
@@ -140,36 +200,50 @@ export default function Navbar({ }: NavbarProps) {
   }, [searchQuery]);
 
   const handleConnectWallet = () => {
-    if (isConnected) disconnect();
-    else setIsModalOpen(true);
+    if (isConnected) {
+      disconnect();
+    } else {
+      setIsModalOpen(true);
+    }
   };
 
-  const toggleProfileDropdown = () => setIsProfileDropdownOpen(!isProfileDropdownOpen);
+  const toggleProfileDropdown = () =>
+    setIsProfileDropdownOpen(!isProfileDropdownOpen);
 
-  // Profile modal logic
+  // Profile modal logic — only for Freighter wallet users (Privy users use /onboarding page)
   useEffect(() => {
-    if (authLoading) return;
-    if (!isConnected || !publicKey || hasCheckedProfile) {
+    if (authLoading) {
+      return;
+    }
+    if (!isConnected || !publicKey || hasCheckedProfile || !!privyWallet) {
       setIsLoading(false);
       return;
     }
 
-    setHasCheckedProfile(true);
-
-    if (!user) setProfileModalOpen(true);
-    else {
+    if (!user) {
+      if (authError) {
+        // SWR fetch failed (network/5xx) — don't mark check as done so the
+        // effect re-runs once SWR retries and either confirms 404 or finds the user.
+        setIsLoading(false);
+        return;
+      }
+      // Confirmed 404: user is genuinely not registered yet.
+      setHasCheckedProfile(true);
+      setProfileModalOpen(true);
+    } else {
+      setHasCheckedProfile(true);
       sessionStorage.setItem("userData", JSON.stringify(user));
       sessionStorage.setItem("username", user.username);
     }
 
     setIsLoading(false);
-  }, [isConnected, publicKey, authLoading, user, hasCheckedProfile]);
+  }, [isConnected, publicKey, authLoading, authError, user, hasCheckedProfile]);
 
   useEffect(() => {
-    if (isConnected) setIsModalOpen(false);
+    if (isConnected) {
+      setIsModalOpen(false);
+    }
   }, [isConnected]);
-
-
 
   // Function to check for cloudinary URL
   const ALLOWED_CLOUDINARY_HOST = "res.cloudinary.com"; // replace with Cloudinary domain
@@ -183,20 +257,24 @@ export default function Navbar({ }: NavbarProps) {
     }
   }
 
-
   const userAvatar = getAvatar();
   const displayName = getDisplayName();
-  const truncatedDisplayName = displayName.length > 12 ? displayName.slice(0, 12) : displayName;
-
-
 
   return (
     <>
       <header className="h-20 flex items-center justify-between px-4 border-b-[0.5px] border-border bg-sidebar z-50">
         <div className="flex items-center gap-4">
           <Link href="/explore" className="flex items-center gap-2">
-            <Image src={StreamfiLogoLight || "/placeholder.svg"} alt="Streamfi Logo" className="dark:hidden" />
-            <Image src={StreamfiLogoShort || "/placeholder.svg"} alt="Streamfi Logo" className="hidden dark:block" />
+            <Image
+              src={StreamfiLogoLight}
+              alt="Streamfi Logo"
+              className="dark:hidden"
+            />
+            <Image
+              src={StreamfiLogoShort}
+              alt="Streamfi Logo"
+              className="hidden dark:block"
+            />
           </Link>
         </div>
 
@@ -212,10 +290,15 @@ export default function Navbar({ }: NavbarProps) {
                 setSearchQuery(e.target.value);
                 setIsSearchDropdownOpen(true);
               }}
-              onFocus={() => searchResults.length && setIsSearchDropdownOpen(true)}
+              onFocus={() =>
+                searchResults.length && setIsSearchDropdownOpen(true)
+              }
               className="w-full bg-input rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:ring-1 focus:ring-highlight"
             />
-            <Search className="absolute left-3 top-[47%] transform -translate-y-1/2 text-gray-400" size={16} />
+            <Search
+              className="absolute left-3 top-[47%] transform -translate-y-1/2 text-gray-400"
+              size={16}
+            />
           </div>
 
           <AnimatePresence>
@@ -232,11 +315,22 @@ export default function Navbar({ }: NavbarProps) {
                     <Link
                       key={result.id}
                       className="flex items-center gap-3 p-2 hover:bg-surface-hover rounded-md cursor-pointer"
-                      href={`/browse/${result.type}/${result.title.toLowerCase()}`}
+                      href={
+                        result.type === "user"
+                          ? `/${result.title}`
+                          : `/browse/${result.type}/${result.title.toLowerCase()}`
+                      }
                     >
-                      <div className="w-10 h-10 rounded bg-gray-700 overflow-hidden">
+                      <div
+                        className={`w-10 h-10 bg-gray-700 overflow-hidden shrink-0 ${result.type === "user" ? "rounded-full" : "rounded"}`}
+                      >
                         <Image
-                          src={result.image || "/placeholder.svg"}
+                          src={
+                            result.image ||
+                            (result.type === "user"
+                              ? getDefaultAvatar(result.title)
+                              : "")
+                          }
                           alt={result.title}
                           className="w-full h-full object-cover"
                           width={40}
@@ -245,8 +339,12 @@ export default function Navbar({ }: NavbarProps) {
                         />
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-foreground">{result.title}</div>
-                        <div className="text-xs text-muted-foreground capitalize">{result.type}</div>
+                        <div className="text-sm font-medium text-foreground">
+                          {result.title}
+                        </div>
+                        <div className="text-xs text-muted-foreground capitalize">
+                          {result.type}
+                        </div>
                       </div>
                     </Link>
                   ))}
@@ -257,18 +355,40 @@ export default function Navbar({ }: NavbarProps) {
         </div>
 
         <div className="flex items-center gap-4">
-          {isConnected && publicKey ? (
+          {!mounted ? (
+            <div className="w-24 h-9 animate-pulse bg-muted rounded-md" />
+          ) : isAuthenticated ? (
             <>
-              {!isLoading && <button><Bell className="text-foreground w-4 h-4" /></button>}
+              {!isLoading && <NotificationBell />}
               <div className="relative avatar-container">
-                <div className="cursor-pointer flex gap-[10px] font-medium items-center text-[14px] text-white" onClick={toggleProfileDropdown}>
+                <div
+                  className="cursor-pointer flex gap-[10px] font-medium items-center text-[14px] text-white"
+                  onClick={toggleProfileDropdown}
+                >
                   {!isLoading ? (
                     <>
-                      <span className="text-foreground hidden sm:flex truncate">{displayName}</span>
-                      {typeof userAvatar === "string" && isCloudinaryUrl(userAvatar) ? (
-                        <img src={userAvatar} alt="Avatar" className="w-8 h-8 sm:w-6 sm:h-6 rounded-full object-cover" />
+                      <span className="text-foreground hidden sm:flex truncate max-w-[140px]">
+                        {displayName}
+                      </span>
+                      {typeof userAvatar === "string" &&
+                      isCloudinaryUrl(userAvatar) ? (
+                        <img
+                          src={userAvatar}
+                          alt="Avatar"
+                          className="w-8 h-8 sm:w-6 sm:h-6 rounded-full object-cover"
+                        />
                       ) : (
-                        <Image src={Avatar} alt="Avatar" width={32} height={32} className="rounded-full" />
+                        <Image
+                          src={
+                            typeof userAvatar === "string"
+                              ? userAvatar
+                              : getDefaultAvatar(displayName)
+                          }
+                          alt="Avatar"
+                          width={32}
+                          height={32}
+                          className="rounded-full object-cover"
+                        />
                       )}
                     </>
                   ) : (
@@ -280,16 +400,58 @@ export default function Navbar({ }: NavbarProps) {
                 <AnimatePresence>
                   {isProfileDropdownOpen && (
                     <div className="absolute top-full -right-2 sm:right-0 mt-2 profile-dropdown-container z-50">
-                      <ProfileDropdown username={truncatedDisplayName} avatar={`${userAvatar}`} onLinkClick={() => setTimeout(toggleProfileDropdown, 400)} />
+                      <ProfileDropdown
+                        username={displayName}
+                        avatar={`${userAvatar}`}
+                        onLinkClick={() =>
+                          setTimeout(toggleProfileDropdown, 400)
+                        }
+                      />
                     </div>
                   )}
                 </AnimatePresence>
               </div>
             </>
           ) : (
-            <button onClick={handleConnectWallet} className="bg-highlight hover:bg-highlight/80 text-background px-4 py-3 rounded-md text-sm font-medium">
-              Connect Wallet
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={signInWithGoogle}
+                disabled={!privyReady}
+                className="flex items-center gap-2 bg-white hover:bg-white/90 text-[#111] px-4 py-2.5 rounded-md text-sm font-medium transition-all disabled:opacity-40"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 18 18"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"
+                    fill="#4285F4"
+                  />
+                  <path
+                    d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"
+                    fill="#34A853"
+                  />
+                  <path
+                    d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"
+                    fill="#FBBC05"
+                  />
+                  <path
+                    d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"
+                    fill="#EA4335"
+                  />
+                </svg>
+                Continue with Google
+              </button>
+              <button
+                onClick={handleConnectWallet}
+                className="bg-highlight hover:bg-highlight/80 text-background px-4 py-2.5 rounded-md text-sm font-medium transition-all"
+              >
+                Connect Wallet
+              </button>
+            </div>
           )}
         </div>
       </header>
@@ -299,6 +461,7 @@ export default function Navbar({ }: NavbarProps) {
           <ConnectModal
             isModalOpen={isModalOpen}
             setIsModalOpen={setIsModalOpen}
+            walletsOnly
           />
         )}
         {profileModalOpen && (

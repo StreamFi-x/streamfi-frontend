@@ -1,8 +1,11 @@
+"use client";
 import Image from "next/image";
+import { getDefaultAvatar } from "@/lib/profile-icons";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import CustomizeChannelButton from "./CustomizeChannelButton";
 import { TipButton } from "@/components/tipping";
+import { toast } from "sonner";
 
 interface ProfileHeaderProps {
   username: string;
@@ -31,10 +34,22 @@ const ProfileHeader = ({
   userStellarPublicKey,
   onTipClick,
 }: ProfileHeaderProps) => {
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/${username}`
+      );
+      toast.success("Profile link copied to clipboard");
+    } catch {
+      toast.error("Could not copy link");
+    }
+  };
+
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 sm:px-6 sm:py-4">
-      <div className="flex items-center">
-        <div className="relative w-16 h-16 rounded-full overflow-hidden bg-purple-600 mr-4">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
+      {/* Avatar + name */}
+      <div className="flex items-center gap-3">
+        <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-highlight shrink-0">
           {typeof avatarUrl === "string" &&
           avatarUrl.includes("cloudinary.com") ? (
             <img
@@ -44,15 +59,15 @@ const ProfileHeader = ({
             />
           ) : (
             <Image
-              src={avatarUrl || "/Images/user.png"}
+              src={avatarUrl || getDefaultAvatar(username)}
               alt={username}
               fill
               className="object-cover"
             />
           )}
         </div>
-        <div>
-          <h1 className="text-foreground text-base sm:text-xl font-bold">
+        <div className="min-w-0">
+          <h1 className="text-foreground text-base sm:text-xl font-bold truncate">
             {username}
           </h1>
           <p className="text-muted-foreground text-sm">
@@ -61,12 +76,14 @@ const ProfileHeader = ({
         </div>
       </div>
 
-      <div className="flex items-center sm:space-x-2">
+      {/* Action buttons — wrap on mobile, single row on sm+ */}
+      <div className="flex items-center gap-2 flex-wrap">
         {isOwner ? (
-          <CustomizeChannelButton />
+          <CustomizeChannelButton username={username} />
         ) : (
           <>
             <Button
+              size="sm"
               className="bg-highlight hover:bg-highlight/80 text-primary-foreground border-none"
               onClick={isFollowing ? onUnfollow : onFollow}
               disabled={followLoading}
@@ -77,20 +94,30 @@ const ProfileHeader = ({
                   ? "Unfollow"
                   : "Follow"}
             </Button>
-            {/* Stellar Tip Button */}
-            {stellarPublicKey && userStellarPublicKey && userStellarPublicKey !== stellarPublicKey && onTipClick ? (
+            {stellarPublicKey &&
+            userStellarPublicKey &&
+            userStellarPublicKey !== stellarPublicKey &&
+            onTipClick ? (
               <TipButton
                 recipientUsername={username}
                 recipientPublicKey={stellarPublicKey}
                 onTipClick={onTipClick}
                 variant="outline"
-                className="bg-transparent border border-border hover:bg-surface-hover text-foreground"
+                className="bg-transparent border border-border hover:bg-accent text-foreground"
               />
             ) : null}
-            <Button className="bg-transparent border border-border hover:bg-surface-hover text-foreground">
+            <Button
+              size="sm"
+              className="bg-transparent border border-border hover:bg-accent text-foreground"
+            >
               Subscribe
             </Button>
-            <Button className="bg-transparent border border-border hover:bg-surface-hover text-foreground">
+            <Button
+              size="sm"
+              className="bg-transparent border border-border hover:bg-accent text-foreground px-2"
+              onClick={handleShare}
+              aria-label="Copy profile link"
+            >
               <ExternalLink className="h-4 w-4" />
             </Button>
           </>

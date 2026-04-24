@@ -18,6 +18,6 @@ export interface NavbarProps {
 export interface SearchResult {
   id: string;
   title: string;
-  type: "stream" | "channel" | "video";
+  type: "stream" | "channel" | "video" | "category" | "user";
   image: string;
 }

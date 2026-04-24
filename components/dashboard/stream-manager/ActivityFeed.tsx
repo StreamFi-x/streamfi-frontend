@@ -1,125 +1,130 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Activity, X } from "lucide-react";
+import { Activity, Timer, Users, Radio, Coins } from "lucide-react";
+import { TipCounter } from "@/components/tipping";
+import { cn } from "@/lib/utils";
 
-// Placeholder data
-const initialActivities = [
-  {
-    id: "1",
-    type: "follow",
-    username: "Chidinma Cassandra",
-    timestamp: new Date().getTime() - 1000 * 60 * 5, // 5 minutes ago
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "2",
-    type: "follow",
-    username: "Chidinma Cassandra",
-    timestamp: new Date().getTime() - 1000 * 60 * 10, // 10 minutes ago
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "3",
-    type: "follow",
-    username: "Chidinma Cassandra",
-    timestamp: new Date().getTime() - 1000 * 60 * 15, // 15 minutes ago
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-];
+interface ActivityFeedProps {
+  sessionTime: string;
+  viewerCount: number;
+  username: string | null;
+  isLive: boolean;
+}
 
-export default function ActivityFeed() {
-  const [activities, setActivities] = useState(initialActivities);
-  const [isMinimized, setIsMinimized] = useState(false);
-
-  // Simulate new activities coming in
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (Math.random() > 0.7) {
-        // 30% chance of new activity
-        const newActivity = {
-          id: Date.now().toString(),
-          type: "follow",
-          username: "Chidinma Cassandra",
-          timestamp: Date.now(),
-          avatar: "/placeholder.svg?height=40&width=40",
-        };
-
-        setActivities(prev => [newActivity, ...prev.slice(0, 9)]); // Keep only 10 most recent
-      }
-    }, 15000); // Check every 15 seconds
-
-    return () => clearInterval(interval);
-  }, []);
-
-  if (isMinimized) {
-    return (
-      <div className="p-2">
-        <button
-          onClick={() => setIsMinimized(false)}
-          className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Activity size={18} />
-          <span>Show Activity Feed</span>
-        </button>
-      </div>
-    );
-  }
-
+export default function ActivityFeed({
+  sessionTime,
+  viewerCount,
+  username,
+  isLive,
+}: ActivityFeedProps) {
   return (
-    <motion.div
-      className="h-full flex flex-col rounded-md overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
-      <div className="bg-card p-2 flex justify-between items-center border-b border-border">
-        <div className="flex items-center">
-          <Activity size={18} className="mr-2 text-foreground" />
-          <span className="text-foreground">Activity Feed</span>
+    <div className="h-full bg-card border border-border rounded-xl overflow-hidden flex flex-col">
+      <div className="px-4 py-2.5 border-b border-border flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-semibold text-foreground">
+            Stream Activity
+          </span>
         </div>
-        <div className="flex space-x-2">
-          <button
-            className="p-1 hover:bg-surface-hover rounded-md transition-colors"
-            onClick={() => setIsMinimized(true)}
-          >
-            <X size={18} className="text-muted-foreground" />
-          </button>
-        </div>
+        {isLive && (
+          <div className="flex items-center gap-1.5 text-xs font-bold text-red-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            LIVE
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-hide bg-secondary p-2">
-        <AnimatePresence>
-          {activities.map(activity => (
-            <motion.div
-              key={activity.id}
-              className="flex items-center p-3 border-b border-border"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
-                  <img
-                    src={activity.avatar || "/placeholder.svg"}
-                    alt={activity.username}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
+        {/* Session stats */}
+        <div className="grid grid-cols-3 gap-2">
+          <SessionStat
+            icon={<Timer className="w-3.5 h-3.5" />}
+            label="Session"
+            value={sessionTime}
+            mono
+          />
+          <SessionStat
+            icon={<Users className="w-3.5 h-3.5" />}
+            label="Viewers"
+            value={viewerCount.toString()}
+          />
+          <SessionStat
+            icon={<Radio className="w-3.5 h-3.5" />}
+            label="Status"
+            value={isLive ? "Live" : "Offline"}
+            valueClass={isLive ? "text-green-400" : "text-muted-foreground"}
+          />
+        </div>
 
-              <div className="flex-1 text-xs">
-                <div className="font-medium text-foreground">
-                  {activity.username}
-                </div>
-                <div className="text-muted-foreground">followed you</div>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+        {/* Compact tip summary */}
+        {username && (
+          <div className="space-y-2">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Coins className="w-3 h-3" />
+              Tip Earnings
+            </p>
+            <TipCounter
+              username={username}
+              variant="compact"
+              showRefreshButton
+              autoRefresh
+              refreshInterval={30000}
+            />
+          </div>
+        )}
+
+        {/* Events log */}
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Recent Events
+          </p>
+          <div className="flex flex-col items-center justify-center py-5 text-center text-muted-foreground/40 rounded-lg border border-dashed border-border">
+            {isLive ? (
+              <>
+                <Activity className="w-6 h-6 mb-2" />
+                <p className="text-xs">Watching for new events…</p>
+              </>
+            ) : (
+              <>
+                <Radio className="w-6 h-6 mb-2" />
+                <p className="text-xs">Events appear here when you go live</p>
+              </>
+            )}
+          </div>
+        </div>
       </div>
-    </motion.div>
+    </div>
+  );
+}
+
+function SessionStat({
+  icon,
+  label,
+  value,
+  mono,
+  valueClass,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  mono?: boolean;
+  valueClass?: string;
+}) {
+  return (
+    <div className="bg-secondary rounded-lg p-2.5 flex flex-col items-center text-center gap-1">
+      <div className="text-muted-foreground">{icon}</div>
+      <p
+        className={cn(
+          "text-xs font-bold text-foreground leading-none",
+          mono && "font-mono",
+          valueClass
+        )}
+      >
+        {value}
+      </p>
+      <p className="text-[9px] text-muted-foreground uppercase tracking-wide">
+        {label}
+      </p>
+    </div>
   );
 }

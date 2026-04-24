@@ -1,38 +1,37 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, Settings, User, Wallet } from "lucide-react";
+import { Home, Search, Settings, User } from "lucide-react";
 import { useState, useEffect, type ElementType } from "react";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
-import ConnectModal from "../connectWallet";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface QuickActionItem {
   icon: ElementType;
   label: string;
   href: string;
-  type: "link" | "action";
+  type: "link";
 }
 
 export default function QuickActions() {
   const pathname = usePathname();
-  const { address, isConnected } = useStellarWallet();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { publicKey: address, isConnected } = useStellarWallet();
+  // Defer auth-dependent rendering until after hydration to avoid server/client mismatch.
+  // The wallet context reads localStorage on the client but returns null on the server,
+  // which causes isConnected to differ between SSR and first client render.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  const { user } = useUserProfile(address || undefined);
+  // Use SWR hook for optimized data fetching with caching
+  const { user } = useUserProfile(address ?? undefined);
   const username = user?.username || "";
 
-  const handleConnectWallet = () => {
-    setIsModalOpen(true);
-  };
-
-  useEffect(() => {
-    if (isConnected) {
-      setIsModalOpen(false);
-    }
-  }, [isConnected]);
+  // Before mount, treat as disconnected so SSR and client first-render agree
+  const effectivelyConnected = mounted && isConnected;
 
   const excludedRoutes = ["/", "/api", "/admin", "/dashboard"];
 
@@ -48,14 +47,16 @@ export default function QuickActions() {
     { icon: Home, label: "Home", href: "/explore", type: "link" },
     { icon: Search, label: "Search", href: "/browse", type: "link" },
     { icon: Settings, label: "Settings", href: "/settings", type: "link" },
-    isConnected && address
-      ? {
-        icon: User,
-        label: "Profile",
-        href: username ? `/${username}` : "/profile",
-        type: "link",
-      }
-      : { icon: Wallet, label: "Connect", href: "#", type: "action" },
+    ...(effectivelyConnected && address
+      ? [
+          {
+            icon: User,
+            label: "Profile",
+            href: username ? `/${username}` : "/profile",
+            type: "link" as const,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -65,35 +66,22 @@ export default function QuickActions() {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="lg:hidden absolute bottom-0 left-0 right-0 z-[80] backdrop-blur-lg border-t border-white/10"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-[80] bg-background/90 backdrop-blur-lg border-t border-border"
       >
         <div className="flex items-center justify-around py-2 px-4 safe-area-pb">
           {quickActionItems.map((item, index) => {
             const isActive =
-              item.type === "link" &&
-              (pathname === item.href || pathname.startsWith(`${item.href}/`));
-
-            if (item.type === "action") {
-              return (
-                <button
-                  key={`${item.label}-${index}`}
-                  onClick={handleConnectWallet}
-                  className="flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 hover:text-white hover:bg-[#2D2F31]/40"
-                >
-                  <item.icon size={20} className="mb-1" />
-                  <span className="text-xs font-medium">{item.label}</span>
-                </button>
-              );
-            }
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
 
             return (
               <Link
                 key={`${item.label}-${index}`}
                 href={item.href}
-                className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 ${isActive
-                  ? "text-foreground bg-background"
-                  : "text-white/60 hover:text-white hover:bg-[#2D2F31]/40"
-                  }`}
+                className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 ${
+                  isActive
+                    ? "text-foreground bg-muted"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
               >
                 <item.icon size={20} className="mb-1" />
                 <span className="text-xs font-medium">{item.label}</span>
@@ -102,15 +90,6 @@ export default function QuickActions() {
           })}
         </div>
       </motion.div>
-
-      <AnimatePresence>
-        {isModalOpen && (
-          <ConnectModal
-            isModalOpen={isModalOpen}
-            setIsModalOpen={setIsModalOpen}
-          />
-        )}
-      </AnimatePresence>
     </>
   );
 }

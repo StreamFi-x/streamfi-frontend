@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import About from "@/components/landing-page/about";
 import Benefits from "@/components/landing-page/Benefits";
 import Community from "@/components/landing-page/Community";
@@ -9,46 +10,39 @@ import StreamTokenUtility from "@/components/landing-page/stream-token-utility";
 import Testimonials from "@/components/landing-page/Testimonials";
 import Waitlist from "@/components/landing-page/Waitlist";
 
+export const metadata: Metadata = {
+  // absolute bypasses the root layout template ("%s | StreamFi") to avoid duplication
+  title: { absolute: "StreamFi – Own Your Stream. Own Your Earnings" },
+  description:
+    "Stream without limits, engage your community, and earn instantly with a blockchain-powered ecosystem that ensures true ownership, decentralized rewards, and frictionless transactions.",
+  openGraph: {
+    title: "StreamFi – Own Your Stream. Own Your Earnings",
+    description:
+      "Stream without limits, engage your community, and earn instantly with a blockchain-powered ecosystem that ensures true ownership, decentralized rewards, and frictionless transactions.",
+    url: "https://www.streamfi.media",
+    type: "website",
+  },
+};
+
 export default function Home() {
-  const starPositions = Array.from({ length: 25 }, () => ({
-    top: `${Math.random() * 100}%`,
-    left: `${Math.random() * 100}%`,
-    animationDelay: `${Math.random() * 4}s`,
-    size: `${Math.random() * 2 + 1}px`,
-  }));
-
   return (
-    <div
-      className="relative w-full bg-gradient-to-r  from-[#16062B] from-[10%] via-[#0D0216] via-[50%] to-[#15375B] to-[88%] bg-no-repeat bg-center bg-contain  min-h-screen pt-10"
-      // style={{
-      //   background: "url('/Images/Streamfi-bg.png')",
-      // }}
-    >
-      <div className="stars-container absolute inset-0 w-full min-h-screen"></div>
-
-      {starPositions.map((pos, index) => (
-        <div
-          key={index}
-          className={`absolute bg-white rounded-full ${
-            index % 2 === 0 ? "animate-twinkle" : "animate-twinkle-slow"
-          }`}
-          style={{
-            top: pos.top,
-            left: pos.left,
-            width: pos.size,
-            height: pos.size,
-            animationDelay: pos.animationDelay,
-          }}
-        />
-      ))}
+    <div className="relative w-full bg-[#07060f] min-h-screen overflow-x-hidden">
+      {/* Subtle noise texture */}
+      <div
+        className="fixed inset-0 opacity-[0.03] pointer-events-none z-0"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+        }}
+      />
       <Navbar />
       <HeroSection />
       <Benefits />
       <About />
       <Community />
       <StreamTokenUtility />
-      <FrequentlyAskedQuestions />
       <Testimonials />
+      <FrequentlyAskedQuestions />
       <Waitlist />
       <Footer />
     </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Info, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ interface ReportLiveStreamModalProps {
   isOpen: boolean;
   onClose: () => void;
   username?: string;
+  streamId?: string;
 }
 
 interface ReportReason {
@@ -43,6 +44,7 @@ export default function ReportLiveStreamModal({
   isOpen,
   onClose,
   username,
+  streamId,
 }: ReportLiveStreamModalProps) {
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
@@ -55,14 +57,24 @@ export default function ReportLiveStreamModal({
     }
   }, [isOpen]);
 
-  const handleSubmit = () => {
-    if (!selectedReason) return;
+  const handleSubmit = async () => {
+    if (!selectedReason) {
+      return;
+    }
 
-    console.log("Report submitted:", {
-      username,
-      reason: selectedReason,
-      timestamp: new Date().toISOString(),
-    });
+    try {
+      await fetch("/api/admin/reports/stream/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stream_id: streamId ?? "",
+          streamer: username ?? "unknown",
+          reason: selectedReason,
+        }),
+      });
+    } catch {
+      // Silent fail — don't block the UI on a network error
+    }
 
     setIsSubmitted(true);
   };
@@ -75,9 +87,9 @@ export default function ReportLiveStreamModal({
             {/* Header */}
             <div className="p-4 relative">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-white text-sm font-medium">
+                <DialogTitle className="text-white text-sm font-medium">
                   Getting Information
-                </span>
+                </DialogTitle>
               </div>
               <div className="absolute bottom-0 left-4 right-4 h-px bg-gray-700"></div>
             </div>

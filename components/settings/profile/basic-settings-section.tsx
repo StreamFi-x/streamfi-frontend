@@ -29,10 +29,16 @@ export function BasicSettingsSection({
   };
   useEffect(() => {
     try {
+      // Google (Privy) users — email is already verified by Google OAuth
+      const privyUser = sessionStorage.getItem("privy_user");
+      if (privyUser) {
+        setIsEmailVerified(true);
+        return;
+      }
+      // Wallet users — check emailverified field
       const userData = sessionStorage.getItem("userData");
       if (userData) {
         const parsedUserData = JSON.parse(userData);
-        // Check if email is verified
         if (parsedUserData.emailverified) {
           setIsEmailVerified(true);
         }

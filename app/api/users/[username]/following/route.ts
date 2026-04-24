@@ -12,22 +12,30 @@ export async function GET(
   }
 
   try {
-    const { rows } = await sql`
-      SELECT following FROM users WHERE username = ${username}
+    // Resolve the username to an id first (uses idx_users_username_lower)
+    const { rows: userRows } = await sql`
+      SELECT id FROM users WHERE LOWER(username) = LOWER(${username}) LIMIT 1
     `;
-    if (rows.length === 0) {
+    if (userRows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const followingUsernames = rows[0].following || [];
-    if (followingUsernames.length === 0) {
-      return NextResponse.json({ following: [] });
-    }
+    const userId = userRows[0].id;
 
     const { rows: followingProfiles } = await sql`
-      SELECT username, avatar, bio FROM users WHERE username = ANY(${followingUsernames})
+      SELECT u.username, u.avatar, u.bio, u.is_live
+      FROM   user_follows uf
+      JOIN   users u ON u.id = uf.followee_id
+      WHERE  uf.follower_id = ${userId}
+      ORDER  BY uf.created_at DESC
     `;
-    return NextResponse.json({ following: followingProfiles });
+
+    return NextResponse.json(
+      { following: followingProfiles },
+      {
+        headers: { "Cache-Control": "public, s-maxage=30" },
+      }
+    );
   } catch (error) {
     console.error("Fetch following error:", error);
     return NextResponse.json(

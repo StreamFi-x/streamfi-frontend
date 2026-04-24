@@ -1,407 +1,183 @@
 "use client";
 
-import type React from "react";
-import { useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { motion, useInView } from "framer-motion";
-import x from "@/public/Images/x.png";
-import telegram from "@/public/Images/Telegram.png";
-import Section from "@/components/layout/Section";
-import { Discord } from "@/public/Images";
-import { cards } from "@/data/landing-page/community";
-import { benefits } from "@/data/landing-page/benefits";
-import {
-  type CarouselApi,
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
 
-const CountUp: React.FC<{ end: number; duration?: number }> = ({
-  end,
-  duration = 2,
-}) => {
+function useCountUp(end: number, duration: number, active: boolean) {
   const [count, setCount] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true });
-
   useEffect(() => {
-    let startTime: number | null = null;
-    let animationFrame: number;
-
-    const animate = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const progress = timestamp - startTime;
-      const percentage = Math.min(progress / (duration * 400), 1);
-
-      setCount(Math.floor(percentage * end));
-
-      if (percentage < 1) {
-        animationFrame = requestAnimationFrame(animate);
-      }
-    };
-
-    if (isInView) {
-      animationFrame = requestAnimationFrame(animate);
+    if (!active) {
+      return;
     }
-
-    return () => {
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame);
+    let start = 0;
+    const increment = end / (duration / 16);
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= end) {
+        setCount(end);
+        clearInterval(timer);
+      } else {
+        setCount(Math.floor(start));
       }
-    };
-  }, [end, duration, isInView]);
+    }, 16);
+    return () => clearInterval(timer);
+  }, [end, duration, active]);
+  return count;
+}
 
-  return <span ref={ref}>{count}</span>;
-};
+const stats = [
+  { value: 25, suffix: "k+", label: "Active Members" },
+  { value: 5, suffix: "k+", label: "Content Creators" },
+  { value: 5, suffix: "k+", label: "Web3 Integrations" },
+  { value: 24, suffix: "/7", label: "Community Support" },
+];
 
-// Mobile view with ShadCN carousel
-const MobileCommunity = () => {
-  // State for carousel API and current slide index
-  const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
+const socials = [
+  {
+    name: "Twitter / X",
+    href: "https://x.com/_streamfi",
+    icon: "/Images/x.png",
+    handle: "@_streamfi",
+    desc: "Latest updates & announcements",
+    bg: "from-white/[0.05]",
+    hoverBorder: "hover:border-white/20",
+  },
+  {
+    name: "Telegram",
+    href: "https://t.me/+slCXibBFWF05NDQ0",
+    icon: "/Images/Telegram.png",
+    handle: "t.me/streamfi",
+    desc: "Real-time community chat",
+    bg: "from-blue-900/20",
+    hoverBorder: "hover:border-blue-500/30",
+  },
+  {
+    name: "Discord",
+    href: "https://discord.gg/jPhndJFC",
+    icon: "/Images/discord.svg",
+    handle: "discord.gg/streamfi",
+    desc: "Creators, builders & enthusiasts",
+    bg: "from-indigo-900/20",
+    hoverBorder: "hover:border-indigo-500/30",
+  },
+];
 
-  // Effect to handle carousel events
+export default function Community() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [active, setActive] = useState(false);
+
   useEffect(() => {
-    if (!carouselApi) return;
-
-    // Update current index when slide changes
-    const onSelect = () => setCurrentIndex(carouselApi.selectedScrollSnap());
-
-    // Register and cleanup event listener
-    carouselApi.on("select", onSelect);
-    return () => {
-      carouselApi.off("select", onSelect) as unknown as void;
-    };
-  }, [carouselApi]);
-
-  return (
-    <div className="w-full flex flex-col">
-      <div className="w-full">
-        <Carousel
-          opts={{
-            align: "center",
-            loop: true,
-          }}
-          className="w-full"
-          setApi={setCarouselApi}
-        >
-          <CarouselContent className="-ml-1">
-            {cards.map((card, index) => (
-              <CarouselItem key={index} className="pl-1 md:pl-2 w-full">
-                <motion.div
-                  className="h-full w-full flex items-center justify-center"
-                  whileHover={{ scale: 1.03 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="gradient- relative overflow-hidden w-full h-[200px] rounded-lg bg-gradient-to-r from-[#15375B] to-[#16062B]">
-                    <div className="relative p-5 sm:p-6 md:p-8 flex flex-col items-center gap-2.5 h-full">
-                      <Image
-                        src={card.icon || "/placeholder.svg"}
-                        alt=""
-                        className="w-14 h-14"
-                      />
-                      <h3 className="font-bold text-lg text-white">
-                        {card.title}
-                      </h3>
-                      <p className="text-white/80 text-sm">
-                        {card.description}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-        </Carousel>
-      </div>
-
-      {/* Pagination dots */}
-      <div className="flex items-center justify-center gap-1.5 mt-6">
-        {benefits.map((_, index) => (
-          <motion.button
-            key={index}
-            className={`rounded-full transition-colors duration-200 ${
-              currentIndex === index
-                ? "bg-blue-500 h-2.5 w-5"
-                : "bg-white w-3 h-3"
-            }`}
-            onClick={() => carouselApi?.scrollTo(index)}
-            aria-label={`Go to slide ${index + 1}`}
-            whileHover={{ scale: 1.2 }}
-            whileTap={{ scale: 0.9 }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const Community: React.FC = () => {
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
-  const statsRef = useRef<HTMLDivElement>(null);
-  const statsInView = useInView(statsRef, { once: true });
-
-  // Check window size on mount and resize
-  useEffect(() => {
-    const checkSize = () => {
-      setIsMobile(window.innerWidth < 600);
-    };
-
-    // Initial check
-    checkSize();
-
-    // Add event listener
-    window.addEventListener("resize", checkSize);
-
-    // Cleanup
-    return () => window.removeEventListener("resize", checkSize);
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            setActive(true);
+            entry.target
+              .querySelectorAll<HTMLElement>(".reveal")
+              .forEach((el, i) => {
+                setTimeout(() => el.classList.add("visible"), i * 80);
+              });
+          }
+        });
+      },
+      { threshold: 0.15 }
+    );
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+    return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (!carouselRef.current || !isMobile) return;
-
-    const handleScroll = () => {
-      const element = carouselRef.current;
-      if (!element) return;
-
-      const { scrollLeft, scrollWidth, clientWidth } = element;
-      const cardWidth = scrollWidth / (cards.length * 2); // Account for duplicated cards
-      const newIndex = Math.round(scrollLeft / cardWidth);
-      setCurrentIndex(newIndex % cards.length);
-    };
-
-    const element = carouselRef.current;
-    element.addEventListener("scroll", handleScroll);
-    return () => {
-      if (element) {
-        element.removeEventListener("scroll", handleScroll);
-      }
-    };
-  }, [cards.length, isMobile]);
-
-  // Infinite scroll effect
-  useEffect(() => {
-    if (!carouselRef.current || !isMobile) return;
-
-    const handleScrollEnd = () => {
-      const element = carouselRef.current;
-      if (!element) return;
-
-      const { scrollLeft, scrollWidth, clientWidth } = element;
-
-      // If we're at the end, jump to the beginning
-      if (scrollLeft + clientWidth >= scrollWidth - 10) {
-        // Add a small delay before jumping to make it less noticeable
-        setTimeout(() => {
-          if (element) {
-            element.scrollTo({ left: 0, behavior: "auto" });
-          }
-        }, 300);
-      }
-
-      // If we're at the beginning and scrolling left, jump to the end
-      if (scrollLeft <= 10) {
-        const scrollToEnd = scrollWidth - clientWidth;
-        setTimeout(() => {
-          if (element) {
-            element.scrollTo({ left: scrollToEnd, behavior: "auto" });
-          }
-        }, 300);
-      }
-    };
-
-    const element = carouselRef.current;
-
-    // Use scroll event instead of scrollend for better browser compatibility
-    let scrollTimeout: NodeJS.Timeout;
-    const handleScroll = () => {
-      clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(handleScrollEnd, 150);
-    };
-
-    if (element) {
-      element.addEventListener("scroll", handleScroll);
-    }
-
-    return () => {
-      if (element) {
-        element.removeEventListener("scroll", handleScroll);
-      }
-      clearTimeout(scrollTimeout);
-    };
-  }, [isMobile]);
+  const c0 = useCountUp(stats[0].value, 1800, active);
+  const c1 = useCountUp(stats[1].value, 1800, active);
+  const c2 = useCountUp(stats[2].value, 1800, active);
+  const c3 = useCountUp(stats[3].value, 1800, active);
+  const counts = [c0, c1, c2, c3];
 
   return (
-    <Section id="community" className="flex flex-col items-center text-white">
-      <motion.div
-        className="text-center flex flex-col justify-center items-center gap-4 max-w-4xl w-full px-4 lg:w-2/3"
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5 }}
-      >
-        <h1 className="font-pp-neue font-extrabold text-2xl sm:text-4xl xl:text-5xl text-white tracking-wide">
-          Join Our Community - Be Part Of The Future Of Streaming
-        </h1>
-        <p className="text-white/80 text-sm sm:text-base font-normal">
-          StreamFi is more than just a platform, it&apos;s a movement. By
-          joining our community, you become part of an ecosystem built for
-          creators, viewers, and Web3 enthusiasts who believe in decentralized,
-          creator-first streaming
-        </p>
-      </motion.div>
+    <section id="community" className="py-24 px-4 relative" ref={sectionRef}>
+      {/* Background glow */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 50% at 50% 50%, rgba(124,58,237,0.04), transparent)",
+        }}
+      />
 
-      <motion.div
-        className="flex justify-center items-center text-sm gap-6 sm:gap-8 pt-10 max-w-4xl w-full px-4 relative z-10"
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <motion.a
-          href="https://x.com/_streamfi"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex justify-center gap-2 border rounded-lg px-5 py-3 cursor-pointer"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Image
-            src={x || "/placeholder.svg"}
-            alt="X icon"
-            width={24}
-            height={22}
-          />
-          <p className="hidden sm:block">Join our community</p>
-        </motion.a>
-
-        <motion.a
-          href="https://t.me/+slCXibBFWF05NDQ0"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex justify-center gap-2 border rounded-lg px-5 py-3 cursor-pointer"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Image
-            src={telegram || "/placeholder.svg"}
-            alt="Telegram icon"
-            width={24}
-            height={16}
-          />
-          <p className="hidden sm:block">Join our community</p>
-        </motion.a>
-
-        <motion.a
-          href="https://discord.gg/jPhndJFC"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex justify-center gap-2 border rounded-lg px-5 py-3 cursor-pointer"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Image src={Discord || "/placeholder.svg"} alt="Discord icon" />
-          <p className="hidden sm:block">Join our community</p>
-        </motion.a>
-      </motion.div>
-
-      <motion.div
-        ref={statsRef}
-        className="grid grid-cols-2 sm:flex sm:flex-row justify-center gap-6 lg:gap-[3rem] py-8 lg:py-20 items-center text-center"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={statsInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.3 }}
-        >
-          <p className="font-pp-neue font-bold text-2xl lg:text-4xl">
-            {statsInView ? <CountUp end={25} /> : "0"}k+
-          </p>
-          <p className="text-sm sm:text-base">Active Members</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={statsInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
-          <p className="font-pp-neue font-bold text-2xl lg:text-4xl">
-            {statsInView ? <CountUp end={5} /> : "0"}K+
-          </p>
-          <p className="text-sm sm:text-base">Content Creators</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={statsInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.3, delay: 0.2 }}
-        >
-          <p className="font-pp-neue font-bold text-2xl lg:text-4xl">
-            {statsInView ? <CountUp end={5} /> : "0"}K+
-          </p>
-          <p className="text-sm sm:text-base">Web3 Projects Integrated</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={statsInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.3, delay: 0.3 }}
-        >
-          <p className="font-pp-neue font-bold text-2xl lg:text-4xl">24/7</p>
-          <p className="text-sm sm:text-base">Community Support</p>
-        </motion.div>
-      </motion.div>
-
-      {/* Mobile and Tablet Carousel */}
-      <motion.div
-        className="w-full"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5, delay: 0.6 }}
-      >
-        {/* Mobile/Tablet View */}
-        {isMobile ? (
-          <MobileCommunity />
-        ) : (
-          <div
-            className={`${
-              !isMobile ? "lg:flex" : "hidden"
-            } lg:flex-row grid grid-cols-2 justify-center w-full gap-4 xl:gap-8 items-center text-center`}
-          >
-            {cards.map((card, index) => (
-              <motion.div
-                key={index}
-                className="flex flex-col gap-2 justify-center items-center border lg:w-56 xl:w-72 h-56 xl:h-64 px-4 rounded-lg bg-gradient-to-r from-[#15375B] to-[#16062B] border-[#2d1f3f]"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-                whileHover={{ y: -5, transition: { duration: 0.2 } }}
-              >
-                <Image
-                  src={card.icon || "/placeholder.svg"}
-                  alt={card.title}
-                  width={50}
-                  height={30}
-                />
-                <p className="font-bold text-xl xl:text-2xl leading-normal text-center">
-                  {card.title}
-                </p>
-                <p className="opacity-70 text-sm xl:text-base text-center">
-                  {card.description}
-                </p>
-              </motion.div>
-            ))}
+      <div className="max-w-6xl mx-auto relative z-10">
+        {/* Heading */}
+        <div className="text-center mb-14">
+          <div className="reveal inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 text-xs font-medium mb-6">
+            Community
           </div>
-        )}
-      </motion.div>
-    </Section>
-  );
-};
+          <h2 className="reveal reveal-delay-1 font-pp-neue font-extrabold text-4xl md:text-5xl text-white mb-4">
+            Join the future of streaming
+          </h2>
+          <p className="reveal reveal-delay-2 text-white/45 text-base max-w-lg mx-auto leading-relaxed">
+            StreamFi is more than a platform, it&apos;s a movement of creators,
+            viewers, and Web3 enthusiasts building the future together.
+          </p>
+        </div>
 
-export default Community;
+        {/* Stats */}
+        <div className="reveal grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
+          {stats.map((stat, i) => (
+            <div
+              key={i}
+              className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-6 text-center hover:border-purple-500/20 hover:bg-white/[0.05] transition-all duration-300"
+            >
+              <p className="font-pp-neue font-bold text-3xl md:text-4xl text-white mb-1 tabular-nums">
+                {counts[i]}
+                {stat.suffix}
+              </p>
+              <p className="text-white/40 text-xs tracking-wide">
+                {stat.label}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Social channels */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {socials.map((s, i) => (
+            <a
+              key={i}
+              href={s.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`reveal reveal-delay-${i + 1} group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br ${s.bg} to-transparent p-6 ${s.hoverBorder} hover:bg-white/[0.05] transition-all duration-300`}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-white/[0.08] border border-white/[0.08] flex items-center justify-center flex-shrink-0">
+                  <Image
+                    src={s.icon}
+                    alt={s.name}
+                    width={18}
+                    height={18}
+                    className="w-[18px] h-[18px] object-contain opacity-80"
+                  />
+                </div>
+                <div>
+                  <p className="text-white text-sm font-semibold leading-none mb-1">
+                    {s.name}
+                  </p>
+                  <p className="text-white/35 text-xs">{s.handle}</p>
+                </div>
+              </div>
+              <p className="text-white/40 text-xs leading-relaxed mb-4">
+                {s.desc}
+              </p>
+              <div className="flex items-center gap-1 text-purple-400 text-xs font-medium group-hover:gap-2 transition-all duration-200">
+                Join community
+                <span className="group-hover:translate-x-1 transition-transform duration-200 inline-block">
+                  →
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

@@ -9,18 +9,17 @@ export async function GET(req: Request) {
 
     if (!wallet) {
       return NextResponse.json(
-        { error: "Wallet parameter is required" },
+        { error: "Wallet parameter required" },
         { status: 400 }
       );
     }
 
-    console.log(`[routes-f] Force delete stream requested for wallet: ${wallet}`);
+    console.log(`🔧 Force deleting stream for wallet: ${wallet}`);
 
-    // Fetch user
     const userResult = await sql`
       SELECT id, username, mux_stream_id, is_live
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE wallet = ${wallet}
     `;
 
     if (userResult.rows.length === 0) {
@@ -31,16 +30,13 @@ export async function GET(req: Request) {
 
     if (!user.mux_stream_id) {
       return NextResponse.json(
-        { message: "No stream found to delete", wallet },
+        { message: "No stream found to delete" },
         { status: 200 }
       );
     }
 
-    const actions: string[] = [];
-
-    // Stop live stream if active
     if (user.is_live) {
-      console.log(`[routes-f] Stopping live stream for wallet: ${wallet}`);
+      console.log("⏹️ Stopping live stream first...");
       await sql`
         UPDATE users SET
           is_live = false,
@@ -49,56 +45,54 @@ export async function GET(req: Request) {
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ${user.id}
       `;
-      actions.push("Stopped live stream");
 
       try {
         await sql`
-          UPDATE stream_sessions
-          SET ended_at = CURRENT_TIMESTAMP
+          UPDATE stream_sessions SET
+            ended_at = CURRENT_TIMESTAMP
           WHERE user_id = ${user.id} AND ended_at IS NULL
         `;
       } catch (sessionError) {
-        console.error("[routes-f] Failed to end active stream session:", sessionError);
+        console.error("Failed to end stream session:", sessionError);
       }
-    } else {
-      actions.push("Stream was already stopped");
     }
 
-    // Delete Mux stream (best-effort)
+    console.log("🗑️ Deleting from Mux...");
     try {
-      console.log(`[routes-f] Deleting Mux stream: ${user.mux_stream_id}`);
       await deleteMuxStream(user.mux_stream_id);
-      actions.push("Deleted from Mux");
     } catch (muxError) {
-      console.error("[routes-f] Mux deletion failed:", muxError);
+      console.error("Mux deletion failed:", muxError);
     }
 
-    // Clear user's stream fields
+    console.log("🧹 Cleaning up database...");
     await sql`
       UPDATE users SET
         mux_stream_id = NULL,
         mux_playback_id = NULL,
-        streamkey = NULL,
+        mux_stream_key = NULL,
         is_live = false,
         current_viewers = 0,
         stream_started_at = NULL,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${user.id}
+      WHERE wallet = ${wallet}
     `;
-    actions.push("Cleaned database records");
 
-    console.log(`[routes-f] Force delete completed for wallet: ${wallet}`);
+    console.log("✅ Force delete completed!");
 
     return NextResponse.json(
       {
-        message: "Stream force deleted successfully",
-        actions,
-        wallet,
+        message: "Stream force deleted successfully (stopped and removed)",
+        actions: [
+          user.is_live ? "Stopped live stream" : "Stream was already stopped",
+          "Deleted from Mux",
+          "Cleaned database records",
+        ],
+        wallet: wallet,
       },
       { status: 200 }
     );
   } catch (error) {
-    console.error("[routes-f] Force delete error:", error);
+    console.error("Force delete error:", error);
     return NextResponse.json(
       { error: "Failed to force delete stream" },
       { status: 500 }

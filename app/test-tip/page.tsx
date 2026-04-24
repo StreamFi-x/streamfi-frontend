@@ -50,7 +50,7 @@ export default function TestTipPage() {
                 type="text"
                 placeholder="GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                 value={senderPublicKey}
-                onChange={(e) => setSenderPublicKey(e.target.value)}
+                onChange={e => setSenderPublicKey(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md bg-background"
               />
               <p className="text-xs text-muted-foreground">
@@ -67,11 +67,11 @@ export default function TestTipPage() {
                 type="text"
                 placeholder="GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                 value={recipientPublicKey}
-                onChange={(e) => setRecipientPublicKey(e.target.value)}
+                onChange={e => setRecipientPublicKey(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md bg-background"
               />
               <p className="text-xs text-muted-foreground">
-                Enter the recipient's Stellar public key
+                Enter the recipient&apos;s Stellar public key
               </p>
             </div>
 
@@ -84,17 +84,13 @@ export default function TestTipPage() {
                 type="text"
                 placeholder="testuser"
                 value={recipientUsername}
-                onChange={(e) => setRecipientUsername(e.target.value)}
+                onChange={e => setRecipientUsername(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md bg-background"
               />
             </div>
           </div>
 
-          <Button
-            onClick={handleOpenModal}
-            className="w-full"
-            size="lg"
-          >
+          <Button onClick={handleOpenModal} className="w-full" size="lg">
             Open Tip Modal
           </Button>
 
@@ -105,7 +101,7 @@ export default function TestTipPage() {
               <li>Ensure you have a funded testnet account</li>
               <li>Enter your public key as the sender</li>
               <li>Enter a valid recipient public key</li>
-              <li>Click "Open Tip Modal" to test the component</li>
+              <li>Click &quot;Open Tip Modal&quot; to test the component</li>
             </ol>
           </div>
 
@@ -119,8 +115,8 @@ export default function TestTipPage() {
                 URL
               </li>
               <li>
-                <code>NEXT_PUBLIC_STELLAR_NETWORK</code> - "public" or
-                "testnet"
+                <code>NEXT_PUBLIC_STELLAR_NETWORK</code> - &quot;public&quot; or
+                &quot;testnet&quot;
               </li>
             </ul>
           </div>

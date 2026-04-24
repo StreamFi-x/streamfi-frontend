@@ -1,9 +1,11 @@
 # Security Fix: Removed Hardcoded Secret Keys
 
 ## Issue
+
 The test file `lib/stellar/__tests__/payments.test.ts` contained a hardcoded Stellar testnet secret key:
+
 ```typescript
-sourceSecretKey: "SDTIZXLNUEXETRYIBQKYQ7MO3YXRKBPPTRJDZODQHZT57LZ7DBNENRTC"
+sourceSecretKey: "SDTIZXLNUEXETRYIBQKYQ7MO3YXRKBPPTRJDZODQHZT57LZ7DBNENRTC";
 ```
 
 While this is a testnet key with no real value, hardcoding secrets in code is a security anti-pattern that should be avoided.
@@ -11,24 +13,29 @@ While this is a testnet key with no real value, hardcoding secrets in code is a 
 ## Fix Applied
 
 ### 1. Updated Test Configuration
+
 Changed from hardcoded values to environment variables:
 
 ```typescript
 const TEST_CONFIG = {
   sourcePublicKey: process.env.TEST_STELLAR_PUBLIC_KEY || "GXXXXXXXXX...",
   sourceSecretKey: process.env.TEST_STELLAR_SECRET_KEY || "",
-  destinationPublicKey: process.env.TEST_STELLAR_DESTINATION_KEY || "GXXXXXXXXX...",
+  destinationPublicKey:
+    process.env.TEST_STELLAR_DESTINATION_KEY || "GXXXXXXXXX...",
   amount: "10.0000000",
   network: "testnet" as const,
 };
 ```
 
 ### 2. Updated Test Logic
+
 Modified Test 7 to skip if secret key is not provided:
 
 ```typescript
 if (!TEST_CONFIG.sourceSecretKey) {
-  console.log("   ⚠️  SKIPPED: Set TEST_STELLAR_SECRET_KEY environment variable");
+  console.log(
+    "   ⚠️  SKIPPED: Set TEST_STELLAR_SECRET_KEY environment variable"
+  );
   console.log("   📝 Example: TEST_STELLAR_SECRET_KEY=SXXXXXXX... npx tsx ...");
 } else {
   // Run submission test
@@ -38,6 +45,7 @@ if (!TEST_CONFIG.sourceSecretKey) {
 ### 3. Created Supporting Files
 
 **`.env.test.example`** - Template for test environment variables
+
 ```bash
 TEST_STELLAR_PUBLIC_KEY=GXXXXXXXXX...
 TEST_STELLAR_SECRET_KEY=SXXXXXXXXX...
@@ -46,12 +54,14 @@ NEXT_PUBLIC_STELLAR_NETWORK=testnet
 ```
 
 **`lib/stellar/__tests__/README.md`** - Comprehensive testing guide with:
+
 - Setup instructions
 - Security best practices
 - Environment variable documentation
 - Troubleshooting guide
 
 ### 4. Verified .gitignore
+
 Confirmed that `.env*` is already in `.gitignore`, which will prevent `.env.test` from being committed.
 
 ## Usage
@@ -87,6 +97,7 @@ npx tsx lib/stellar/__tests__/payments.test.ts
 ## Verification
 
 Run the test to verify it works:
+
 ```bash
 # Without secret key - Test 7 will be skipped
 npx tsx lib/stellar/__tests__/payments.test.ts

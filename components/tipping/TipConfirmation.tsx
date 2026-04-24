@@ -4,14 +4,13 @@ import { useState } from "react";
 import {
   CheckCircle2,
   XCircle,
-  ArrowRight,
   RotateCcw,
   Copy,
   Check,
   ExternalLink,
   ChevronDown,
   ChevronUp,
-  Share2
+  Share2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getStellarExplorerUrl } from "@/lib/stellar/config";
-import { cn } from "@/lib/utils";
 
 interface TipConfirmationProps {
   isOpen: boolean;
@@ -94,14 +92,20 @@ export function TipConfirmation({
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    transition={{ type: "spring", damping: 12, stiffness: 200, delay: 0.1 }}
+                    transition={{
+                      type: "spring",
+                      damping: 12,
+                      stiffness: 200,
+                      delay: 0.1,
+                    }}
                   >
                     <CheckCircle2 className="w-20 h-20 text-green-500" />
                   </motion.div>
                   Tip Sent Successfully!
                 </DialogTitle>
                 <DialogDescription className="text-center text-base">
-                  You've successfully tipped <strong>{amount} XLM</strong> to <strong>@{recipientUsername}</strong>.
+                  You&apos;ve successfully tipped <strong>{amount} XLM</strong>{" "}
+                  to <strong>@{recipientUsername}</strong>.
                 </DialogDescription>
               </DialogHeader>
 
@@ -133,7 +137,11 @@ export function TipConfirmation({
                         className="h-8 w-8 hover:bg-background"
                         asChild
                       >
-                        <a href={explorerUrl!} target="_blank" rel="noopener noreferrer">
+                        <a
+                          href={explorerUrl!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <ExternalLink className="h-4 w-4" />
                         </a>
                       </Button>
@@ -144,7 +152,11 @@ export function TipConfirmation({
 
               <DialogFooter className="flex-col sm:flex-col gap-2">
                 <div className="grid grid-cols-2 gap-2 w-full">
-                  <Button variant="outline" onClick={handleShare} className="w-full">
+                  <Button
+                    variant="outline"
+                    onClick={handleShare}
+                    className="w-full"
+                  >
                     <Share2 className="w-4 h-4 mr-2" />
                     Share
                   </Button>
@@ -180,7 +192,8 @@ export function TipConfirmation({
                   Transaction Failed
                 </DialogTitle>
                 <DialogDescription className="text-center text-base text-red-500 font-medium">
-                  {error?.message || "Something went wrong while processing your tip."}
+                  {error?.message ||
+                    "Something went wrong while processing your tip."}
                 </DialogDescription>
               </DialogHeader>
 
@@ -228,7 +241,11 @@ export function TipConfirmation({
                   </Button>
                 )}
                 <div className="grid grid-cols-2 gap-2 w-full">
-                  <Button variant="outline" onClick={onClose} className="w-full">
+                  <Button
+                    variant="outline"
+                    onClick={onClose}
+                    className="w-full"
+                  >
                     Close
                   </Button>
                   <Button variant="outline" asChild className="w-full">

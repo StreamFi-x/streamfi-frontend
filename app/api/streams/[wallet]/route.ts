@@ -1,6 +1,6 @@
+import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
-import { routesFSuccess,routesFError  } from "../../routesF/response";
 
 export async function GET(
   req: Request,
@@ -10,7 +10,10 @@ export async function GET(
     const { wallet } = await params;
 
     if (!wallet) {
-      return routesFError("Wallet parameter is required", 400);
+      return NextResponse.json(
+        { error: "Wallet parameter is required" },
+        { status: 400 }
+      );
     }
 
     const result = await sql`
@@ -29,6 +32,7 @@ export async function GET(
         u.creator,
         u.socialLinks,
         u.created_at,
+        (SELECT COUNT(*)::int FROM user_follows WHERE followee_id = u.id) AS follower_count,
         -- Get latest session data
         ss.id as session_id,
         ss.started_at as session_started_at,
@@ -40,11 +44,12 @@ export async function GET(
     `;
 
     if (result.rows.length === 0) {
-      return routesFError("Stream not found", 404);
+      return NextResponse.json({ error: "Stream not found" }, { status: 404 });
     }
 
     const streamData = result.rows[0];
 
+    // Only fetch Mux health if explicitly requested (skip for fast dashboard loads)
     const url = new URL(req.url);
     const includeHealth = url.searchParams.get("includeHealth") === "true";
 
@@ -65,6 +70,7 @@ export async function GET(
         bio: streamData.bio,
         socialLinks: streamData.socialLinks,
         memberSince: streamData.created_at,
+        followerCount: streamData.follower_count ?? 0,
       },
       stream: {
         streamId: streamData.mux_stream_id,
@@ -100,9 +106,18 @@ export async function GET(
         : null,
     };
 
-    return routesFSuccess({ streamData: responseData }, 200);
+    return NextResponse.json(
+      { streamData: responseData },
+      {
+        status: 200,
+        headers: { "Cache-Control": "private, max-age=10" },
+      }
+    );
   } catch (error) {
     console.error("Get stream error:", error);
-    return routesFError("Failed to get stream data", 500);
+    return NextResponse.json(
+      { error: "Failed to get stream data" },
+      { status: 500 }
+    );
   }
 }

@@ -10,21 +10,25 @@ import {
   useRef,
 } from "react";
 import { useRouter } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import type { User, UserUpdateInput } from "@/types/user";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import UsernamePromptModal from "@/components/modals/UsernamePromptModal";
 
-const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
 const SESSION_REFRESH_INTERVAL = 30 * 60 * 1000;
 
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   isInitializing: boolean;
+  isError: boolean;
   error: string | null;
   logout: () => void;
   refreshUser: (walletAddress?: string) => Promise<User | null>;
-  updateUserProfile: (userData: UserUpdateInput) => Promise<boolean>;
+  updateUserProfile: (
+    userData: UserUpdateInput
+  ) => Promise<{ success: boolean; error?: string }>;
   isWalletConnecting: boolean;
 };
 
@@ -32,10 +36,11 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: false,
   isInitializing: true,
+  isError: false,
   error: null,
   logout: () => {},
   refreshUser: async () => null,
-  updateUserProfile: async () => false,
+  updateUserProfile: async () => ({ success: false }),
   isWalletConnecting: false,
 });
 
@@ -48,14 +53,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitializing, setIsInitializing] = useState(true);
   const [hasInitialized, setHasInitialized] = useState(false);
   const mountTime = useRef(Date.now());
+  // Persisted to sessionStorage so page reloads don't re-fire createSession().
+  // Without this, every reload would call disconnect() + clearSessionCookies() again.
+  const privySessionCreated = useRef(
+    typeof window !== "undefined" &&
+      sessionStorage.getItem("privy_session_created") === "1"
+  );
+  const walletSessionRef = useRef<string | null>(null);
+  // Tracks the last time we successfully POSTed to /api/auth/wallet-session.
+  // Used to rate-limit all callers (interval, activity events) to at most
+  // one POST per SESSION_REFRESH_INTERVAL regardless of how often they fire.
+  const lastRefreshedRef = useRef<number>(0);
 
   const router = useRouter();
-  const { address, isConnected, disconnect, isLoading: isStellarLoading } =
-    useStellarWallet();
+  const {
+    ready: privyReady,
+    authenticated: privyAuthenticated,
+    user: privyUser,
+    getAccessToken,
+    logout: privyLogout,
+  } = usePrivy();
+  const {
+    address,
+    isConnected,
+    disconnect,
+    isLoading: isStellarLoading,
+  } = useStellarWallet();
 
   const {
     user: swrUser,
     isLoading: swrLoading,
+    isError: swrError,
     mutate: mutateUser,
   } = useUserProfile(address ?? undefined);
 
@@ -64,9 +92,113 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const WALLET_CONNECTION_KEY = "stellar_last_wallet";
   const WALLET_AUTO_CONNECT_KEY = "stellar_auto_connect";
 
-  const setSessionCookies = (walletAddress: string) => {
+  // ── Privy → server session ───────────────────────────────────────────────
+  // When Privy authenticates a user, exchange their short-lived JWT for a
+  // server-verified HttpOnly session cookie. We do this once per login.
+  useEffect(() => {
+    if (!privyReady || !privyAuthenticated || !privyUser) {
+      return;
+    }
+    if (privySessionCreated.current) {
+      return;
+    }
+
+    const createSession = async () => {
+      try {
+        // getAccessToken returns the Privy JWT — we send it to our server
+        // which verifies it with Privy's SDK before issuing our own cookie.
+        const token = await getAccessToken();
+        if (!token) {
+          return;
+        }
+
+        const res = await fetch("/api/auth/session", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include", // receive the HttpOnly cookie
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          // 409 = email already claimed by a wallet account — force Privy logout
+          // and surface the message so the user knows what happened.
+          if (res.status === 409) {
+            privySessionCreated.current = false;
+            void privyLogout();
+            setError(
+              body.error ??
+                "This email is already associated with a wallet account."
+            );
+          } else {
+            console.error(
+              "[AuthProvider] Session creation failed:",
+              res.status
+            );
+          }
+          return;
+        }
+
+        const data = await res.json();
+        privySessionCreated.current = true;
+        sessionStorage.setItem("privy_session_created", "1");
+
+        // A fresh Privy session must not inherit a previous wallet-connect identity
+        disconnect();
+        await clearSessionCookies();
+        localStorage.removeItem(WALLET_CONNECTION_KEY);
+        localStorage.removeItem(WALLET_AUTO_CONNECT_KEY);
+        sessionStorage.removeItem("userData");
+
+        // Persist non-sensitive user info to sessionStorage for fast access
+        if (data.user) {
+          sessionStorage.setItem("privy_user", JSON.stringify(data.user));
+          if (data.user.username) {
+            sessionStorage.setItem("username", data.user.username);
+          }
+        }
+
+        // Notify stellar-wallet-context so the navbar updates immediately
+        window.dispatchEvent(
+          new CustomEvent("privy-wallet-set", { detail: { user: data.user } })
+        );
+
+        // Redirect: new users to onboarding, returning users to explore
+        if (data.needsOnboarding) {
+          router.push("/onboarding");
+        } else {
+          router.push("/explore");
+        }
+      } catch (err) {
+        // Use warn not error — the overlay only surfaces console.error calls
+        console.warn("[AuthProvider] Failed to create Privy session:", err);
+      }
+    };
+
+    void createSession();
+  }, [privyReady, privyAuthenticated, privyUser, getAccessToken, router]);
+
+  // Reset the flag when the user logs out of Privy
+  useEffect(() => {
+    if (privyReady && !privyAuthenticated) {
+      privySessionCreated.current = false;
+      sessionStorage.removeItem("privy_session_created");
+      sessionStorage.removeItem("privy_user");
+    }
+  }, [privyReady, privyAuthenticated]);
+
+  const setSessionCookies = async (walletAddress: string) => {
     try {
-      document.cookie = `wallet=${walletAddress}; path=/; max-age=${SESSION_TIMEOUT / 1000}; SameSite=Lax`;
+      // Stamp the time immediately so any concurrent caller (activity event,
+      // interval, SWR effect) sees a fresh timestamp and skips its own POST.
+      lastRefreshedRef.current = Date.now();
+      // Issue a server-signed HttpOnly cookie — no client-side document.cookie write
+      await fetch("/api/auth/wallet-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ wallet: walletAddress }),
+      });
+      // Keep non-sensitive client-side copies for fast reads
       localStorage.setItem("wallet", walletAddress);
       sessionStorage.setItem("wallet", walletAddress);
     } catch (setError) {
@@ -74,45 +206,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const clearSessionCookies = () => {
+  const clearSessionCookies = async () => {
+    // Expire the legacy raw wallet cookie (still present in old sessions)
     document.cookie =
-      "wallet=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+      "wallet=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict";
+    // Expire the new signed wallet_session cookie server-side
+    await fetch("/api/auth/wallet-session", {
+      method: "DELETE",
+      credentials: "include",
+    }).catch(() => {}); // best-effort on logout
     localStorage.removeItem("wallet");
     sessionStorage.removeItem("wallet");
   };
 
-  const clearUserData = (walletAddress?: string | null) => {
+  const clearUserData = async (walletAddress?: string | null) => {
     if (walletAddress) {
       localStorage.removeItem(`user_${walletAddress}`);
       localStorage.removeItem(`user_timestamp_${walletAddress}`);
     }
     sessionStorage.removeItem("userData");
-    clearSessionCookies();
+    await clearSessionCookies();
   };
 
   const clearAllData = () => {
+    // Expire legacy raw cookie client-side
     document.cookie =
-      "wallet=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+      "wallet=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict";
+    // Expire signed wallet_session cookie server-side (fire-and-forget)
+    void fetch("/api/auth/wallet-session", {
+      method: "DELETE",
+      credentials: "include",
+    }).catch(() => {});
     localStorage.removeItem("wallet");
     sessionStorage.removeItem("wallet");
     localStorage.removeItem(WALLET_CONNECTION_KEY);
     localStorage.removeItem(WALLET_AUTO_CONNECT_KEY);
+    localStorage.removeItem("stellar_address");
     sessionStorage.removeItem("userData");
     sessionStorage.removeItem("username");
   };
 
   useEffect(() => {
-    if (swrUser && address) {
-      setSessionCookies(address);
+    if (swrUser && address && walletSessionRef.current !== address) {
+      walletSessionRef.current = address;
+      void setSessionCookies(address);
     }
-  }, [swrUser, address]);
+    // swrUser intentionally omitted — it creates a new reference on every SWR poll
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address]);
 
   const logout = () => {
     void disconnect();
+    // Clear Privy session cookie server-side
+    void fetch("/api/auth/session", {
+      method: "DELETE",
+      credentials: "include",
+    });
+    // Sign out of Privy
+    if (privyAuthenticated) {
+      void privyLogout();
+    }
+    privySessionCreated.current = false;
+    sessionStorage.removeItem("privy_session_created");
+    // Reset session refs so a re-login always gets a fresh cookie POST
+    walletSessionRef.current = null;
+    lastRefreshedRef.current = 0;
     setLocalUser(null);
     clearAllData();
     sessionStorage.removeItem("username");
-    router.push("/");
+    sessionStorage.removeItem("privy_user");
   };
 
   useEffect(() => {
@@ -125,10 +287,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (isConnected && address) {
       localStorage.setItem(WALLET_AUTO_CONNECT_KEY, "true");
-      setSessionCookies(address);
+      // Guard against re-firing when only isStellarLoading toggles
+      if (walletSessionRef.current !== address) {
+        walletSessionRef.current = address;
+        void setSessionCookies(address);
+      }
     } else if (!isConnected) {
+      // Reset ref so a reconnect with the same address gets a fresh session
+      walletSessionRef.current = null;
       setLocalUser(null);
-      clearUserData(address ?? undefined);
+      void clearUserData(address ?? undefined);
     }
   }, [isConnected, address, isStellarLoading]);
 
@@ -144,7 +312,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setHasInitialized(true);
         }
       } catch (authError) {
-        console.error("[AuthProvider] Error initializing authentication:", authError);
+        console.error(
+          "[AuthProvider] Error initializing authentication:",
+          authError
+        );
         setError("Failed to initialize authentication");
         setIsInitializing(false);
         setHasInitialized(true);
@@ -219,9 +390,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const sessionWallet = sessionStorage.getItem("wallet");
     const walletAddress = address || storedWallet || sessionWallet;
 
-    if (walletAddress && isConnected) {
-      setSessionCookies(walletAddress);
+    if (!walletAddress || !isConnected) {
+      return;
     }
+
+    // Hard rate-limit: regardless of how many times this is called (activity
+    // events fire on every mousemove/keydown/scroll) only POST when at least
+    // SESSION_REFRESH_INTERVAL has elapsed since the last successful POST.
+    if (Date.now() - lastRefreshedRef.current < SESSION_REFRESH_INTERVAL) {
+      return;
+    }
+
+    void setSessionCookies(walletAddress);
   }, [address, isConnected]);
 
   useEffect(() => {
@@ -262,15 +442,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isLoading: swrLoading,
         isInitializing,
+        isError: !!swrError,
         error,
         logout,
+
         refreshUser: async () => {
           const result = await mutateUser();
           return result ?? null;
         },
         updateUserProfile: async (userData: UserUpdateInput) => {
-          if (!user) {
-            return false;
+          // Determine the API endpoint.
+          // Wallet users: PUT /api/users/updates/[wallet]
+          // Google (Privy) users: PUT /api/users/updates/privy/[privyId]
+          let endpoint: string | null = null;
+          let isPrivyUser = false;
+
+          if (user?.wallet) {
+            endpoint = `/api/users/updates/${user.wallet}`;
+          } else {
+            // No wallet — check sessionStorage for a Privy-authenticated user
+            try {
+              const raw = sessionStorage.getItem("privy_user");
+              if (raw) {
+                const privyUser = JSON.parse(raw);
+                if (privyUser?.privyId) {
+                  endpoint = `/api/users/updates/privy/${privyUser.privyId}`;
+                  isPrivyUser = true;
+                }
+              }
+            } catch {
+              // sessionStorage unavailable (SSR guard)
+            }
+          }
+
+          if (!endpoint) {
+            return { success: false, error: "Not authenticated" };
           }
 
           try {
@@ -290,6 +496,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             if (userData.avatar && userData.avatar instanceof File) {
               formData.append("avatar", userData.avatar);
+            } else if (userData.avatar && typeof userData.avatar === "string") {
+              // Preset icon or external URL — send as plain string, no Cloudinary upload needed
+              formData.append("avatarUrl", userData.avatar);
+            }
+            if (userData.banner instanceof File) {
+              formData.append("banner", userData.banner);
             }
             if (userData.socialLinks) {
               formData.append(
@@ -301,7 +513,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               formData.append("creator", JSON.stringify(userData.creator));
             }
 
-            const response = await fetch(`/api/users/updates/${user.wallet}`, {
+            const response = await fetch(endpoint, {
               method: "PUT",
               body: formData,
             });
@@ -310,32 +522,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const result = await response.json();
               const updatedUser = result.user;
 
-              await mutateUser(updatedUser, false);
+              if (!isPrivyUser && user?.wallet) {
+                await mutateUser(updatedUser, false);
+                localStorage.setItem(
+                  `user_${user.wallet}`,
+                  JSON.stringify(updatedUser)
+                );
+                localStorage.setItem(
+                  `user_timestamp_${user.wallet}`,
+                  Date.now().toString()
+                );
+              } else {
+                // Merge updated fields back into privy_user sessionStorage
+                try {
+                  const existing = JSON.parse(
+                    sessionStorage.getItem("privy_user") ?? "{}"
+                  );
+                  sessionStorage.setItem(
+                    "privy_user",
+                    JSON.stringify({ ...existing, ...updatedUser })
+                  );
+                  if (updatedUser.username) {
+                    sessionStorage.setItem("username", updatedUser.username);
+                  }
+                } catch {
+                  // best-effort
+                }
+              }
 
-              localStorage.setItem(
-                `user_${user.wallet}`,
-                JSON.stringify(updatedUser)
-              );
-              localStorage.setItem(
-                `user_timestamp_${user.wallet}`,
-                Date.now().toString()
-              );
-
-              return true;
+              return { success: true };
             }
 
-            const responseError = await response.json();
-            console.error("Error response from API:", responseError);
-            return false;
+            // Surface the real API error message to the caller
+            const responseBody = await response.json().catch(() => ({}));
+            const apiError =
+              responseBody?.error ??
+              (response.status === 413
+                ? "Image file is too large. Please choose a smaller image."
+                : response.status === 400
+                  ? "Invalid data. Please check your inputs."
+                  : `Server error (${response.status}). Please try again.`);
+            console.error("Error response from API:", responseBody);
+            return { success: false, error: apiError };
           } catch (updateError) {
             console.error("Error updating user profile:", updateError);
-            return false;
+            return {
+              success: false,
+              error: "Network error. Please try again.",
+            };
           }
         },
         isWalletConnecting,
       }}
     >
       {children}
+      <UsernamePromptModal />
+      {/* Email-conflict error banner — shown when a Privy email is already
+          claimed by a wallet account. Auto-dismisses after 8s. */}
+      {error && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] max-w-md w-full px-4">
+          <div className="bg-destructive text-destructive-foreground text-sm rounded-lg px-4 py-3 shadow-lg flex items-start gap-3">
+            <span className="flex-1">{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="shrink-0 opacity-70 hover:opacity-100 transition-opacity text-base leading-none"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </AuthContext.Provider>
   );
 }

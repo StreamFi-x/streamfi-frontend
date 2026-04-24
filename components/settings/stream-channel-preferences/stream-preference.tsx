@@ -1,7 +1,8 @@
 "use client";
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
-import { Eye } from "lucide-react";
+import { Eye, Zap } from "lucide-react";
+import { toast } from "sonner";
 import StreamKeyModal from "@/components/ui/streamkeyModal";
 import StreamKeyConfirmationModal from "@/components/ui/streamKeyConfirmationModal";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
@@ -110,7 +111,13 @@ const ToggleSection: React.FC<ToggleSectionProps> = ({
 };
 
 const StreamPreferencesPage: React.FC = () => {
-  const { publicKey: address } = useStellarWallet();
+  const { publicKey, privyWallet } = useStellarWallet();
+  const address = publicKey || privyWallet?.wallet || null;
+  const [username, setUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUsername(sessionStorage.getItem("username"));
+  }, []);
 
   const [state, setState] = useState({
     urlVisible: false,
@@ -118,6 +125,8 @@ const StreamPreferencesPage: React.FC = () => {
     disconnectedProtection: false,
     copyrightWarning: true,
   });
+
+  const [provisioning, setProvisioning] = useState(false);
 
   // Real stream data from API
   const [streamData, setStreamData] = useState<{
@@ -129,6 +138,8 @@ const StreamPreferencesPage: React.FC = () => {
   } | null>(null);
   const [enableRecording, setEnableRecording] = useState(false);
   const [recordingToggleSaving, setRecordingToggleSaving] = useState(false);
+  const [latencyMode, setLatencyMode] = useState<"low" | "standard">("low");
+  const [latencyToggleSaving, setLatencyToggleSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // State for the modals
@@ -141,6 +152,7 @@ const StreamPreferencesPage: React.FC = () => {
   // Fetch stream key on mount
   useEffect(() => {
     if (!address) {
+      setLoading(false);
       return;
     }
 
@@ -150,8 +162,11 @@ const StreamPreferencesPage: React.FC = () => {
         const data = await response.json();
 
         setEnableRecording(
-          data.enableRecording === true || data.streamData?.enableRecording === true
+          data.enableRecording === true ||
+            data.streamData?.enableRecording === true
         );
+        const mode = data.latencyMode || data.streamData?.latencyMode || "low";
+        setLatencyMode(mode === "standard" ? "standard" : "low");
         if (data.hasStream && data.streamData) {
           setStreamData(data.streamData);
         } else {
@@ -266,8 +281,40 @@ const StreamPreferencesPage: React.FC = () => {
     updateState(key, !state[key]);
   };
 
+  const handleLatencyToggle = async () => {
+    if (!address || latencyToggleSaving) {
+      return;
+    }
+    const newValue = latencyMode === "low" ? "standard" : "low";
+    setLatencyToggleSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append("latency_mode", newValue);
+      const res = await fetch(`/api/users/updates/${address}`, {
+        method: "PUT",
+        body: formData,
+      });
+      if (!res.ok) {
+        throw new Error("Failed to update");
+      }
+      setLatencyMode(newValue);
+      toast.success(
+        newValue === "standard"
+          ? "DVR enabled — viewers can rewind your stream. Takes effect on next stream."
+          : "Low latency enabled — minimal delay. Takes effect on next stream."
+      );
+    } catch (e) {
+      console.error("Failed to update latency mode:", e);
+      toast.error("Failed to update latency mode");
+    } finally {
+      setLatencyToggleSaving(false);
+    }
+  };
+
   const handleRecordingToggle = async () => {
-    if (!address || recordingToggleSaving) return;
+    if (!address || recordingToggleSaving) {
+      return;
+    }
     const newValue = !enableRecording;
     setRecordingToggleSaving(true);
     try {
@@ -277,7 +324,9 @@ const StreamPreferencesPage: React.FC = () => {
         method: "PUT",
         body: formData,
       });
-      if (!res.ok) throw new Error("Failed to update");
+      if (!res.ok) {
+        throw new Error("Failed to update");
+      }
       setEnableRecording(newValue);
     } catch (e) {
       console.error("Failed to update recording preference:", e);
@@ -302,6 +351,43 @@ const StreamPreferencesPage: React.FC = () => {
     // Reset modal state
     setIsRevealModalOpen(false);
     setIsCopyModalOpen(false);
+  };
+
+  const handleGenerateStreamKey = async () => {
+    if (!address) {
+      return;
+    }
+    setProvisioning(true);
+    try {
+      const res = await fetch("/api/streams/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet: address,
+          title: `${username ?? "My"} Stream`,
+          description: "",
+          category: "",
+          tags: [],
+        }),
+      });
+      const data = await res.json();
+      if ((res.status === 200 || res.status === 201) && data.streamData) {
+        setStreamData({
+          streamKey: data.streamData.streamKey,
+          rtmpUrl:
+            data.streamData.rtmpUrl ?? "rtmp://global-live.mux.com:5222/app",
+          playbackId: data.streamData.playbackId ?? "",
+          isLive: false,
+        });
+        toast.success("Stream key generated successfully!");
+      } else {
+        toast.error(data.error ?? "Failed to generate stream key");
+      }
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      setProvisioning(false);
+    }
   };
 
   const placeholderDescription =
@@ -342,41 +428,51 @@ const StreamPreferencesPage: React.FC = () => {
           <SectionCard>
             {/* Stream URL */}
             <SecretField
-            label="Stream URL (RTMP Server)"
-            value={streamData.rtmpUrl}
-            isVisible={state.urlVisible}
-            onToggleVisibility={() => toggleVisibility("urlVisible")}
-          />
+              label="Stream URL (RTMP Server)"
+              value={streamData.rtmpUrl}
+              isVisible={state.urlVisible}
+              onToggleVisibility={() => toggleVisibility("urlVisible")}
+            />
 
-          {/* Stream Key */}
-          <SecretField
-            label="Stream Key (Keep Secret!)"
-            value={streamData.streamKey}
-            isVisible={state.keyVisible}
-            onToggleVisibility={() => toggleVisibility("keyVisible")}
-            actions={streamKeyActions}
-          />
+            {/* Stream Key */}
+            <SecretField
+              label="Stream Key (Keep Secret!)"
+              value={streamData.streamKey}
+              isVisible={state.keyVisible}
+              onToggleVisibility={() => toggleVisibility("keyVisible")}
+              actions={streamKeyActions}
+            />
 
-          {/* Warning */}
-          <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4 mt-4">
-            <p className="text-yellow-600 dark:text-yellow-400 font-semibold mb-2">
-              Important Security Notice
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Never share your stream key with anyone. Anyone with this key can
-              broadcast to your channel. If you suspect your key has been
-              compromised, use the &quot;Reset&quot; button to generate a new
-              one.
-            </p>
-          </div>
-        </SectionCard>
+            {/* Warning */}
+            <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4 mt-4">
+              <p className="text-yellow-600 dark:text-yellow-400 font-semibold mb-2">
+                Important Security Notice
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Never share your stream key with anyone. Anyone with this key
+                can broadcast to your channel. If you suspect your key has been
+                compromised, use the &quot;Reset&quot; button to generate a new
+                one.
+              </p>
+            </div>
+          </SectionCard>
         ) : (
           <SectionCard>
-            <div className="text-center py-6">
-              <div className="text-xl mb-2">No stream key found</div>
-              <p className="text-muted-foreground">
-                Create a stream first to get your stream key
+            <div className="text-center py-8">
+              <Zap className="mx-auto mb-4 text-muted-foreground" size={32} />
+              <div className="text-xl font-medium mb-2">No stream key yet</div>
+              <p className="text-muted-foreground text-sm mb-6">
+                Generate a stream key to start broadcasting with OBS or any
+                RTMP-compatible software.
               </p>
+              <button
+                onClick={handleGenerateStreamKey}
+                disabled={provisioning || !address}
+                className="inline-flex items-center gap-2 bg-highlight hover:bg-highlight/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-2.5 rounded-lg transition-colors"
+              >
+                <Zap size={16} />
+                {provisioning ? "Generating…" : "Generate Stream Key"}
+              </button>
             </div>
           </SectionCard>
         )}
@@ -391,8 +487,8 @@ const StreamPreferencesPage: React.FC = () => {
               <p className="text-muted-foreground text-sm italic">
                 Automatically save recordings of your live streams. Recordings
                 will be available for replay after your stream ends. You can
-                view or delete recordings from your dashboard. Storage may
-                incur cost.
+                view or delete recordings from your dashboard. Storage may incur
+                cost.
               </p>
             </div>
             <div className="flex items-center shrink-0">
@@ -401,7 +497,40 @@ const StreamPreferencesPage: React.FC = () => {
                 onChange={handleRecordingToggle}
               />
               {recordingToggleSaving && (
-                <span className="ml-2 text-sm text-muted-foreground">Saving…</span>
+                <span className="ml-2 text-sm text-muted-foreground">
+                  Saving…
+                </span>
+              )}
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* Latency Mode / DVR */}
+        <SectionCard>
+          <div className="flex justify-between items-start gap-4">
+            <div className="flex-1">
+              <h2 className="text-highlight text-xl font-medium mb-2">
+                DVR / Rewind
+              </h2>
+              <p className="text-muted-foreground text-sm italic">
+                {latencyMode === "standard"
+                  ? "Standard latency mode is active. Viewers can scrub backward during your live stream (10–15 second delay)."
+                  : "Low latency mode is active. Minimal delay (~3–5 seconds), but viewers cannot rewind the stream."}
+              </p>
+              <p className="text-muted-foreground text-xs mt-2">
+                Changes take effect on your next stream. Existing streams are not
+                affected.
+              </p>
+            </div>
+            <div className="flex items-center shrink-0">
+              <ToggleSwitch
+                enabled={latencyMode === "standard"}
+                onChange={handleLatencyToggle}
+              />
+              {latencyToggleSaving && (
+                <span className="ml-2 text-sm text-muted-foreground">
+                  Saving…
+                </span>
               )}
             </div>
           </div>
@@ -444,4 +573,3 @@ const StreamPreferencesPage: React.FC = () => {
 };
 
 export default StreamPreferencesPage;
-

@@ -1,179 +1,165 @@
 "use client";
 
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import Section from "@/components/layout/Section";
+import { useRouter } from "next/navigation";
+import { Menu, X } from "lucide-react";
+import ConnectWalletModal from "@/components/connectWallet";
+import { usePrivyAuth } from "@/hooks/usePrivyAuth";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
-const Navbar = () => {
+const navLinks = [
+  { name: "Features", href: "#benefits" },
+  { name: "Earn", href: "#stream-token-utility" },
+  { name: "Community", href: "#community" },
+  { name: "FAQ", href: "#frequently-asked-questions" },
+];
+
+export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const pathname = usePathname();
+  const [scrolled, setScrolled] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  const navLinks = [
-    { name: "Home", href: "/" },
-    { name: "Earn", href: "#earn" },
-    { name: "For Creators", href: "#creators" },
-    { name: "Community", href: "#community" },
-    { name: "About Us", href: "#about" },
-  ];
+  const router = useRouter();
+  const { authenticated: privyAuthenticated } = usePrivyAuth();
+  const { isConnected: stellarConnected } = useStellarWallet();
+  // Defer until after hydration — both stellarConnected (localStorage) and
+  // privyAuthenticated (Privy context) differ between server and first client render.
+  const isAuthenticated = mounted && (privyAuthenticated || stellarConnected);
 
-  const menuVariants = {
-    closed: {
-      opacity: 0,
-      height: 0,
-      transition: {
-        duration: 0.2,
-        when: "afterChildren",
-        staggerChildren: 0.05,
-        staggerDirection: -1,
-      },
-    },
-    open: {
-      opacity: 1,
-      height: "auto",
-      transition: {
-        duration: 0.2,
-        when: "beforeChildren",
-        staggerChildren: 0.1,
-        staggerDirection: 1,
-      },
-    },
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleAuthClick = () => {
+    router.push("/explore");
   };
 
-  const itemVariants = {
-    closed: { opacity: 0, y: -10 },
-    open: { opacity: 1, y: 0 },
-  };
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 24);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
-    <Section
-      wrapperClassName=" !py-0 mb-10 md:mb-5 flex w-full justify-center"
-      className="md:!px-10 z-50 fixed top-5 md:top-10"
-    >
-      <nav className="bg-white/5 backdrop-blur-lg rounded-3xl p-4 w-full text-white">
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center space-x-2 font-bold text-xl">
+    <header className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4 px-4 md:px-6">
+      <nav
+        className={`w-full max-w-6xl rounded-2xl border transition-all duration-500 ${
+          scrolled
+            ? "bg-[#07060f]/85 backdrop-blur-2xl border-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.5)]"
+            : "bg-white/[0.04] backdrop-blur-md border-white/[0.07]"
+        }`}
+      >
+        <div className="flex items-center justify-between px-5 py-3.5">
+          {/* Logo */}
+          <Link href="/" className="flex items-center flex-shrink-0">
             <Image
-              src={"/Images/streamFiLogo.svg"}
-              alt="StreamFi Logo"
-              width={120}
-              height={120}
+              src="/Images/streamFiLogo.svg"
+              alt="StreamFi"
+              width={108}
+              height={34}
+              priority
             />
-          </div>
+          </Link>
 
-          {/* Desktop Menu */}
-          <ul className="hidden lg:flex space-x-3 text-xs lg:text-sm">
-            {navLinks.map((link, index) => (
-              <li key={index}>
+          {/* Desktop nav links */}
+          <ul className="hidden lg:flex items-center gap-1">
+            {navLinks.map(link => (
+              <li key={link.name}>
                 <Link
                   href={link.href}
-                  className={`transition-colors duration-500 ${
-                    pathname === link.href
-                      ? "text-white font-medium"
-                      : "text-white/60 hover:text-white/80 font-normal"
-                  }`}
+                  className="px-4 py-2 text-sm text-white/55 hover:text-white rounded-lg hover:bg-white/[0.06] transition-all duration-200"
                 >
                   {link.name}
-                  {index < navLinks.length - 1 && (
-                    <span className="text-gray-400 ml-3"> / </span>
-                  )}
                 </Link>
               </li>
             ))}
           </ul>
 
-          {/* Get Started Button */}
-          <Link href="/explore" className="hidden lg:block">
-            <Button className="bg-white hover:text-white text-[#1E1E1E] px-4 py-2 rounded-lg font-medium w-full">
-              Get started
-            </Button>
-          </Link>
+          {/* Desktop CTAs */}
+          <div className="hidden lg:flex items-center gap-3">
+            {!isAuthenticated && (
+              <button
+                onClick={handleAuthClick}
+                className="text-sm text-white/60 hover:text-white transition-colors duration-200"
+              >
+                Sign in
+              </button>
+            )}
+            <button
+              onClick={handleAuthClick}
+              className="px-4 py-2 text-sm font-semibold bg-white text-[#07060f] rounded-xl hover:bg-white/90 active:scale-95 transition-all duration-200"
+            >
+              {isAuthenticated ? "Go to app →" : "Get started →"}
+            </button>
+          </div>
 
-          {/* Mobile Menu Button */}
-          <motion.button
-            className="lg:hidden bg-[#B8B8B82E] backdrop-blur-lg rounded-lg px-3 py-1"
+          {/* Mobile toggle */}
+          <button
+            className="lg:hidden p-2 text-white/60 hover:text-white transition-colors duration-200 rounded-lg hover:bg-white/[0.06]"
             onClick={() => setIsOpen(!isOpen)}
-            whileTap={{ scale: 0.95 }}
+            aria-label="Toggle menu"
           >
-            <AnimatePresence mode="wait">
+            <div
+              className="transition-all duration-200"
+              style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}
+            >
               {isOpen ? (
-                <motion.div
-                  key="close"
-                  initial={{ rotate: -90, opacity: 0 }}
-                  animate={{ rotate: 0, opacity: 1 }}
-                  exit={{ rotate: 90, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <X className="w-6 h-6" />
-                </motion.div>
+                <X className="w-5 h-5" />
               ) : (
-                <motion.div
-                  key="menu"
-                  initial={{ rotate: 90, opacity: 0 }}
-                  animate={{ rotate: 0, opacity: 1 }}
-                  exit={{ rotate: -90, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Menu className="w-6 h-6" />
-                </motion.div>
+                <Menu className="w-5 h-5" />
               )}
-            </AnimatePresence>
-          </motion.button>
+            </div>
+          </button>
         </div>
 
-        {/* Mobile Menu */}
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              className="lg:hidden w-full overflow-hidden"
-              initial="closed"
-              animate="open"
-              exit="closed"
-              variants={menuVariants}
-            >
-              <motion.ul className="flex flex-col items-center justify-center w-full mt-4 py-4">
-                {navLinks.map((link, index) => (
-                  <motion.li
-                    key={index}
-                    className="h-16 flex justify-center items-center w-full"
-                    variants={itemVariants}
-                    whileHover={{ scale: 1.05, x: 5 }}
-                  >
-                    <Link
-                      href={link.href}
-                      className={`transition-colors duration-500 w-full h-full hover:text-white/80 text-center ${
-                        pathname === link.href ? "text-white/80" : "text-white"
-                      }`}
-                      onClick={() => setIsOpen(false)}
-                    >
-                      {link.name}
-                    </Link>
-                  </motion.li>
-                ))}
-                <motion.li
-                  className="w-full mt-2"
-                  variants={itemVariants}
-                  whileHover={{ scale: 1.03 }}
+        {/* Mobile menu */}
+        <div
+          className="lg:hidden overflow-hidden transition-all duration-300 ease-in-out"
+          style={{ maxHeight: isOpen ? "400px" : "0px" }}
+        >
+          <div className="border-t border-white/[0.07] px-4 py-4 space-y-1">
+            {navLinks.map(link => (
+              <Link
+                key={link.name}
+                href={link.href}
+                className="block px-4 py-3 text-sm text-white/65 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-200"
+                onClick={() => setIsOpen(false)}
+              >
+                {link.name}
+              </Link>
+            ))}
+            <div className="pt-3 space-y-2">
+              {!isAuthenticated && (
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    handleAuthClick();
+                  }}
+                  className="block w-full text-center px-4 py-3 text-sm text-white/60 border border-white/10 rounded-xl hover:bg-white/[0.06] transition-all duration-200"
                 >
-                  <motion.button
-                    className="bg-white text-black px-4 py-5 rounded-lg font-medium w-full"
-                    onClick={() => setIsOpen(false)}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Link href={"/explore"}>Get started</Link>
-                  </motion.button>
-                </motion.li>
-              </motion.ul>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                  Sign in
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  handleAuthClick();
+                }}
+                className="block w-full text-center px-4 py-3 text-sm font-semibold bg-white text-[#07060f] rounded-xl hover:bg-white/90 transition-all duration-200"
+              >
+                {isAuthenticated ? "Go to app →" : "Get started →"}
+              </button>
+            </div>
+          </div>
+        </div>
       </nav>
-    </Section>
+      <ConnectWalletModal
+        isModalOpen={isAuthModalOpen}
+        setIsModalOpen={setIsAuthModalOpen}
+      />
+    </header>
   );
-};
-
-export default Navbar;
+}

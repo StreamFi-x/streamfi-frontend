@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 
 interface TabsNavigationProps {
@@ -9,6 +10,11 @@ interface TabsNavigationProps {
 
 const TabsNavigation = ({ username }: TabsNavigationProps) => {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const tabs = [
     { name: "Home", path: `/${username}` },
@@ -23,6 +29,9 @@ const TabsNavigation = ({ username }: TabsNavigationProps) => {
   ];
 
   const isActive = (path: string) => {
+    if (!mounted) {
+      return false;
+    }
     if (path === `/${username}`) {
       return pathname === `/${username}`;
     }
@@ -31,12 +40,12 @@ const TabsNavigation = ({ username }: TabsNavigationProps) => {
 
   return (
     <div className="border-b border-border">
-      <nav className="flex px-4 sm:px-6">
+      <nav className="flex px-2 sm:px-6 overflow-x-auto scrollbar-hide">
         {tabs.map(tab => (
           <Link
             key={tab.name}
             href={tab.path}
-            className={`flex items-center px-4 py-3 text-xs sm:text-sm font-medium transition-colors duration-300 relative ${
+            className={`flex items-center px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors duration-300 relative ${
               isActive(tab.path)
                 ? "text-foreground after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-highlight"
                 : "text-muted-foreground hover:text-foreground"

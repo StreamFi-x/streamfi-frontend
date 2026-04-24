@@ -18,6 +18,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     publicKey,
     isConnected,
     isLoading: isStellarLoading,
+    privyWallet,
   } = useStellarWallet();
   const { isInitializing, isWalletConnecting } = useAuth();
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -25,8 +26,18 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     useState(false);
   const [autoConnectAttempted, setAutoConnectAttempted] = useState(false);
 
+  // Authenticated = Freighter wallet connected OR Privy (Google) session active
+  const isAuthenticated = isConnected || !!privyWallet;
+
   useEffect(() => {
     const checkAccess = () => {
+      // Privy users are always authenticated — skip all wallet checks
+      if (privyWallet) {
+        setHasCompletedInitialCheck(true);
+        setShowWalletModal(false);
+        return;
+      }
+
       if (isInitializing || isWalletConnecting) {
         return;
       }
@@ -73,9 +84,15 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     isWalletConnecting,
     hasCompletedInitialCheck,
     autoConnectAttempted,
+    privyWallet,
   ]);
 
   useEffect(() => {
+    // Never redirect Privy users
+    if (privyWallet) {
+      return;
+    }
+
     const shouldAutoConnect =
       localStorage.getItem("stellar_auto_connect") === "true";
     const lastWalletId = localStorage.getItem("stellar_last_wallet");
@@ -94,8 +111,14 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     publicKey,
     hasCompletedInitialCheck,
     autoConnectAttempted,
+    privyWallet,
     router,
   ]);
+
+  // Privy users: render immediately — no loading screen needed
+  if (privyWallet) {
+    return <>{children}</>;
+  }
 
   if (isInitializing || isWalletConnecting || !hasCompletedInitialCheck) {
     return (
@@ -121,7 +144,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!isConnected || !publicKey) {
+  if (!isAuthenticated) {
     return null;
   }
 

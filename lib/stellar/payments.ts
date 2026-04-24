@@ -119,8 +119,7 @@ export async function submitTransaction(
     if (error && typeof error === "object" && "response" in error) {
       const horizonError = error as any;
 
-      const resultCodes =
-        horizonError.response?.data?.extras?.result_codes;
+      const resultCodes = horizonError.response?.data?.extras?.result_codes;
       const transactionCode = resultCodes?.transaction;
       const operationCodes = resultCodes?.operations;
 
@@ -130,7 +129,8 @@ export async function submitTransaction(
       if (transactionCode === "tx_insufficient_balance") {
         errorMessage = "Insufficient XLM balance to complete the transaction";
       } else if (transactionCode === "tx_bad_seq") {
-        errorMessage = "Transaction sequence number is invalid. Please try again";
+        errorMessage =
+          "Transaction sequence number is invalid. Please try again";
       } else if (transactionCode === "tx_insufficient_fee") {
         errorMessage = "Transaction fee is too low";
       } else if (operationCodes?.includes("op_underfunded")) {
@@ -226,7 +226,9 @@ export async function hasInsufficientBalance(
     const server = getServer(network);
     const account = await server.loadAccount(publicKey);
     const nativeBalance = account.balances.find(b => b.asset_type === "native");
-    if (!nativeBalance) return true;
+    if (!nativeBalance) {
+      return true;
+    }
 
     const balance = parseFloat(nativeBalance.balance);
     const required = parseFloat(amount) + calculateFeeEstimate();

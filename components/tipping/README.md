@@ -73,14 +73,14 @@ function MyComponent() {
 
 ### Props
 
-| Prop                 | Type     | Required | Description                              |
-| -------------------- | -------- | -------- | ---------------------------------------- |
-| `isOpen`             | boolean  | Yes      | Controls modal visibility                |
-| `onClose`            | function | Yes      | Callback when modal is closed            |
-| `recipientUsername`  | string   | Yes      | Display name of the recipient            |
-| `recipientPublicKey` | string   | Yes      | Stellar public key of the recipient      |
-| `recipientAvatar`    | string   | No       | URL to recipient's avatar image          |
-| `senderPublicKey`    | string   | Yes      | Stellar public key of the sender (tipper)|
+| Prop                 | Type     | Required | Description                               |
+| -------------------- | -------- | -------- | ----------------------------------------- |
+| `isOpen`             | boolean  | Yes      | Controls modal visibility                 |
+| `onClose`            | function | Yes      | Callback when modal is closed             |
+| `recipientUsername`  | string   | Yes      | Display name of the recipient             |
+| `recipientPublicKey` | string   | Yes      | Stellar public key of the recipient       |
+| `recipientAvatar`    | string   | No       | URL to recipient's avatar image           |
+| `senderPublicKey`    | string   | Yes      | Stellar public key of the sender (tipper) |
 
 ### Transaction States
 
@@ -112,6 +112,7 @@ The component uses the following utility functions from `@/lib/stellar/payments`
 Builds a Stellar payment transaction.
 
 **Parameters:**
+
 - `senderPublicKey` (string) - Sender's public key
 - `recipientPublicKey` (string) - Recipient's public key
 - `amount` (string) - Amount in XLM
@@ -124,6 +125,7 @@ Builds a Stellar payment transaction.
 Signs and submits a transaction to the Stellar network.
 
 **Parameters:**
+
 - `xdr` (string) - Transaction XDR
 - `publicKey` (string) - Signer's public key
 
@@ -140,6 +142,7 @@ Fetches current XLM to USD price from Coinbase API.
 Checks if account has sufficient balance for transaction.
 
 **Parameters:**
+
 - `publicKey` (string) - Account public key
 - `amount` (string) - Amount to check
 

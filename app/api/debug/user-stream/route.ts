@@ -24,7 +24,7 @@ export async function GET(req: Request) {
         is_live,
         creator
       FROM users 
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE wallet = ${wallet}
     `;
 
     if (result.rows.length === 0) {

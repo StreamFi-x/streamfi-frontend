@@ -56,7 +56,6 @@
 
 // export {handler as POST, handler as GET};
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { rateLimit } from "../../../../utils/rate-limit";
 import { validateEmail } from "../../../../utils/validators";
 import { sql } from "@vercel/postgres";

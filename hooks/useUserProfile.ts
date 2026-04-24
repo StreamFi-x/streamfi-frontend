@@ -30,7 +30,8 @@ export function useUserProfile(wallet: string | undefined) {
       revalidateOnFocus: false, // Don't refetch on window focus
       revalidateOnReconnect: true, // Refetch on network reconnect
       dedupingInterval: 10000, // Prevent duplicate requests within 10 seconds
-      shouldRetryOnError: false, // Don't retry on error (user might not exist)
+      shouldRetryOnError: true, // Retry real errors (network/5xx); 404 returns null so no retry for not-found
+      errorRetryCount: 3,
       // Cache for 5 minutes
       refreshInterval: 5 * 60 * 1000,
     }

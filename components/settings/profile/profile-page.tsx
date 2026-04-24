@@ -1,12 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 import { useEffect, useCallback, useState } from "react";
 import type React from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { motion, AnimatePresence } from "framer-motion";
-// Remove direct image imports
-import { Avatar } from "@/public/icons";
-import { ProfileImage } from "@/public/Images";
+import profileImage from "@/public/Images/profile.png";
+import { PROFILE_ICONS } from "@/lib/profile-icons";
 import VerificationPopup from "./popup";
 import AvatarSelectionModal from "./avatar-modal";
 import type {
@@ -28,12 +26,13 @@ import { useToast } from "@/components/ui/toast-provider";
 
 export default function ProfileSettings() {
   const { user, isLoading, updateUserProfile } = useAuth();
-  const avatarOptions = [Avatar, Avatar, Avatar, Avatar, Avatar];
+  const avatarOptions = [...PROFILE_ICONS];
   const { showToast } = useToast();
 
   const [avatar, setAvatar] = useState<StaticImageData | string | File>(
-    ProfileImage
+    profileImage
   );
+  const [banner, setBanner] = useState<File | string | null>(null);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
 
   const [, setUsedPlatforms] = useState<Platform[]>([]);
@@ -177,6 +176,10 @@ export default function ProfileSettings() {
         setAvatar(user.avatar);
       }
 
+      if ((user as any).banner) {
+        setBanner((user as any).banner);
+      }
+
       // Handle social links
       if (user.socialLinks) {
         const convertedLinks = convertBackendSocialLinks(user.socialLinks);
@@ -192,12 +195,13 @@ export default function ProfileSettings() {
       setIsEmailVerified(user.emailVerified || false);
       setIsInitialized(true);
     } else if (!user && !isLoading) {
-      // Fallback to sessionStorage if no user in auth context
+      // Fallback to sessionStorage — try wallet userData first, then Privy user
       try {
         const userData = sessionStorage.getItem("userData");
-        if (userData && !isInitialized) {
-          const parsedUserData = JSON.parse(userData);
-          console.log("Using sessionStorage data:", parsedUserData);
+        const privyUserRaw = sessionStorage.getItem("privy_user");
+        const rawData = userData || privyUserRaw;
+        if (rawData && !isInitialized) {
+          const parsedUserData = JSON.parse(rawData);
 
           setFormState(prev => ({
             ...prev,
@@ -209,6 +213,10 @@ export default function ProfileSettings() {
 
           if (parsedUserData.avatar) {
             setAvatar(parsedUserData.avatar);
+          }
+
+          if (parsedUserData.banner) {
+            setBanner(parsedUserData.banner);
           }
 
           // Handle social links from sessionStorage
@@ -224,12 +232,20 @@ export default function ProfileSettings() {
             setSocialLinks(convertedLinks);
           }
 
-          setIsEmailVerified(parsedUserData.emailverified || false);
+          setIsEmailVerified(
+            parsedUserData.emailverified ||
+              parsedUserData.email_verified ||
+              false
+          );
+          setIsInitialized(true);
+        } else if (!isInitialized) {
+          // No sessionStorage data at all — stop spinning, show empty form
           setIsInitialized(true);
         }
       } catch (error) {
         console.error("Error parsing user data from sessionStorage:", error);
         showToast("Error loading profile data", "error");
+        setIsInitialized(true);
       }
     }
   }, [user, isLoading, isInitialized, convertBackendSocialLinks, showToast]);
@@ -401,14 +417,18 @@ export default function ProfileSettings() {
         avatarData = avatar;
       }
 
-      const success = await updateUserProfile({
+      const bannerData: File | undefined =
+        banner instanceof File ? banner : undefined;
+
+      const result = await updateUserProfile({
         username: formState.username,
         bio: formState.bio,
         socialLinks: socialLinksObj,
         avatar: avatarData,
+        banner: bannerData,
       });
 
-      if (success) {
+      if (result.success) {
         showToast("Profile updated successfully!", "success");
         updateUiState({ saveSuccess: true });
 
@@ -426,8 +446,9 @@ export default function ProfileSettings() {
           sessionStorage.setItem("userData", JSON.stringify(updatedUser));
         }
       } else {
-        showToast("Failed to save changes. Please try again.", "error");
-        updateUiState({ saveError: "Failed to save changes" });
+        const msg = result.error ?? "Failed to save changes. Please try again.";
+        showToast(msg, "error");
+        updateUiState({ saveError: msg });
       }
     } catch (error) {
       console.error("Error saving profile:", error);
@@ -441,8 +462,13 @@ export default function ProfileSettings() {
   return (
     <div className="min-h-screen bg-secondary text-foreground pb-8">
       <div className="mx-auto max-w-8xl">
-        {/* Avatar Section */}
-        <ProfileHeader avatar={avatar} onAvatarClick={handleAvatarClick} />
+        {/* Avatar + Banner Section */}
+        <ProfileHeader
+          avatar={avatar}
+          onAvatarClick={handleAvatarClick}
+          banner={banner}
+          onBannerChange={setBanner}
+        />
 
         {/* Basic Settings Section */}
         <BasicSettingsSection

@@ -45,7 +45,8 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
   loading?: boolean;
@@ -75,7 +76,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         <Link
           href={href}
           className={
-            state == "disabled" || loading ? "pointer-events-none" : ""
+            state === "disabled" || loading ? "pointer-events-none" : ""
           }
         >
           <Comp

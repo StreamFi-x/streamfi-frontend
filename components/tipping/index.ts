@@ -1,6 +1,5 @@
-export { TipModal } from "./TipModal";
-export { TipButton } from "./TipButton";
-export { TipConfirmation } from "./TipConfirmation";
-export { TipModalContainer } from "./TipModalContainer";
-export { TipCounter } from "./TipCounter";
-export type { TipCounterProps, TipStatistics } from "./TipCounter";
+export * from "./TipButton";
+export * from "./TipCounter";
+export * from "./TipModal";
+export * from "./TipModalContainer";
+export * from "./TipConfirmation";

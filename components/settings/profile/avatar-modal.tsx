@@ -20,6 +20,7 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
     currentAvatar
   );
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,7 +44,9 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {
+      return;
+    }
 
     const file = files[0];
 
@@ -70,6 +73,7 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
 
   const handleSelectAvatar = (selectedAvatar: any) => {
     setPreviewAvatar(selectedAvatar);
+    setPreviewSrc(selectedAvatar); // keep preview circle and highlight in sync
     setUploadedFile(null);
     setUploadedFileUrl(null);
   };
@@ -142,7 +146,7 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
           or choose from the avatars below
         </p>
 
-        <div className="grid grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-4 mb-6">
           {avatarOptions.map((avatar, index) => (
             <button
               key={index}

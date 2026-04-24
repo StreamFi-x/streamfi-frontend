@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Eye, ChevronDown, ChevronUp } from "lucide-react";
+import { Eye, ChevronDown, ChevronUp, Radio } from "lucide-react";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import type { LiveStreamProps } from "@/types/explore/home";
 import Image from "next/image";
+import { getDefaultAvatar } from "@/lib/profile-icons";
 
 export function LiveStreams({
   title,
@@ -23,9 +24,15 @@ export function LiveStreams({
   const easeInOut: Easing = "easeInOut";
 
   const getInitialCount = () => {
-    if (typeof window === "undefined") {return 4;}
-    if (window.innerWidth < 640) {return 2;} // Mobile: 2 cards
-    if (window.innerWidth < 1024) {return 3;} // Tablet: 3 cards
+    if (typeof window === "undefined") {
+      return 4;
+    }
+    if (window.innerWidth < 640) {
+      return 2;
+    } // Mobile: 2 cards
+    if (window.innerWidth < 1024) {
+      return 3;
+    } // Tablet: 3 cards
     return 4; // Desktop: 4 cards
   };
 
@@ -90,29 +97,24 @@ export function LiveStreams({
       return;
     }
 
-    console.log("Stream object:", stream);
-    console.log("Stream streamer:", stream.streamer);
-
-    const username =
-      stream.streamer?.username ||
-      stream.streamer?.name ||
-      stream.username ||
-      stream.user?.username ||
-      stream.user?.name;
-
-    console.log("Extracted username:", username);
+    // Only accept string values to prevent [object Object] URLs
+    const username = [
+      stream.streamer?.username,
+      stream.streamer?.name,
+      stream.username,
+      stream.user?.username,
+      stream.user?.name,
+    ].find((v): v is string => typeof v === "string" && v.length > 0);
 
     if (username) {
-      const urlUsername = username.toLowerCase().replace(/\s+/g, "");
-      console.log("Navigating to:", `/${urlUsername}`);
-      router.push(`/${urlUsername}`);
-    } else {
-      console.warn("No username found in stream data:", stream);
+      router.push(`/${username.toLowerCase().replace(/\s+/g, "")}`);
     }
   };
 
   const handleToggle = async () => {
-    if (isTransitioning) {return;}
+    if (isTransitioning) {
+      return;
+    }
 
     setIsTransitioning(true);
 
@@ -141,6 +143,25 @@ export function LiveStreams({
       setIsTransitioning(false);
     }, 500);
   };
+
+  if (streams.length === 0) {
+    return (
+      <div className="w-full py-6">
+        <h2 className="text-2xl font-bold mb-6 text-foreground">{title}</h2>
+        <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-dashed border-border bg-card/40 text-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+            <Radio className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <p className="text-foreground font-medium">
+            No one is live right now
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Check back soon — streams go live here.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={sectionRef} className="w-full py-6">
@@ -177,7 +198,7 @@ export function LiveStreams({
                   <Image
                     width={500}
                     height={300}
-                    src={stream.thumbnail || "/placeholder.svg"}
+                    src={stream.thumbnail || ""}
                     alt={stream.title}
                     className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
                   />
@@ -207,7 +228,10 @@ export function LiveStreams({
                       <Image
                         width={300}
                         height={300}
-                        src={stream.streamer.logo || "/placeholder.svg"}
+                        src={
+                          stream.streamer.logo ||
+                          getDefaultAvatar(stream.streamer.name)
+                        }
                         alt={stream.streamer.name}
                         className="w-full h-full object-cover"
                       />

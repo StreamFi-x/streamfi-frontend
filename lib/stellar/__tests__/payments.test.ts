@@ -9,9 +9,6 @@ import {
   hasInsufficientBalance,
   getXLMPrice,
   calculateFeeEstimate,
-  isValidStellarPublicKey,
-  formatXLMAmount,
-  getCurrentNetwork,
 } from "../payments";
 import { Keypair } from "@stellar/stellar-sdk";
 
@@ -65,7 +62,9 @@ describe("Stellar Payments", () => {
     consoleErrorSpy?.mockRestore();
   });
 
-  function buildParams(overrides: Partial<{ amount: string; network: "testnet" | "mainnet" }> = {}) {
+  function buildParams(
+    overrides: Partial<{ amount: string; network: "testnet" | "mainnet" }> = {}
+  ) {
     return {
       sourcePublicKey: validSenderKey,
       destinationPublicKey: validRecipientKey,
@@ -119,7 +118,9 @@ describe("Stellar Payments", () => {
     });
 
     it("should build transaction with custom amount", async () => {
-      const transaction = await buildTipTransaction(buildParams({ amount: "5.5" }));
+      const transaction = await buildTipTransaction(
+        buildParams({ amount: "5.5" })
+      );
 
       expect(transaction).toBeDefined();
       expect(transaction.operations).toHaveLength(1);
@@ -140,7 +141,9 @@ describe("Stellar Payments", () => {
         sequenceNumber: () => "123456",
         incrementSequenceNumber: jest.fn(),
       });
-      const transaction = await buildTipTransaction(buildParams({ amount: "1" }));
+      const transaction = await buildTipTransaction(
+        buildParams({ amount: "1" })
+      );
       mockServerInstance.submitTransaction.mockResolvedValue({
         hash: "ABC123",
         ledger: 12345,
@@ -159,7 +162,9 @@ describe("Stellar Payments", () => {
         sequenceNumber: () => "123456",
         incrementSequenceNumber: jest.fn(),
       });
-      const transaction = await buildTipTransaction(buildParams({ amount: "1" }));
+      const transaction = await buildTipTransaction(
+        buildParams({ amount: "1" })
+      );
       mockServerInstance.submitTransaction.mockRejectedValue(
         new Error("Transaction failed")
       );
@@ -176,7 +181,9 @@ describe("Stellar Payments", () => {
         sequenceNumber: () => "123456",
         incrementSequenceNumber: jest.fn(),
       });
-      const transaction = await buildTipTransaction(buildParams({ amount: "1" }));
+      const transaction = await buildTipTransaction(
+        buildParams({ amount: "1" })
+      );
       mockServerInstance.submitTransaction.mockRejectedValue({
         response: {
           data: {
@@ -198,7 +205,8 @@ describe("Stellar Payments", () => {
   });
 
   describe("hasInsufficientBalance", () => {
-    const mockPublicKey = "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+    const mockPublicKey =
+      "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
 
     it("should return false when balance is sufficient", async () => {
       mockServerInstance.loadAccount.mockResolvedValue({

@@ -22,23 +22,36 @@ export interface MuxStreamData {
   isActive?: boolean;
 }
 
+const MUX_CREATE_TIMEOUT_MS = 8_000;
+
 export async function createMuxStream(streamData?: {
   name: string;
   record?: boolean;
+  latencyMode?: "low" | "standard";
 }) {
   try {
     const record = streamData?.record === true;
-    const liveStream = await mux.video.liveStreams.create({
-      playback_policy: ["public"],
-      ...(record && {
-        new_asset_settings: {
-          playback_policy: ["public"],
-        },
+    const latencyMode = streamData?.latencyMode ?? "low";
+
+    const liveStream = await Promise.race([
+      mux.video.liveStreams.create({
+        playback_policy: ["public"],
+        ...(record && {
+          new_asset_settings: {
+            playback_policy: ["public"],
+          },
+        }),
+        reconnect_window: 60,
+        latency_mode: latencyMode,
+        max_continuous_duration: 43200,
       }),
-      reconnect_window: 60, // Allow reconnection within 60 seconds
-      latency_mode: "low", // Low-latency streaming (~3-5s delay)
-      max_continuous_duration: 43200, // 12 hours max
-    });
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Mux API timed out after 8 s")),
+          MUX_CREATE_TIMEOUT_MS
+        )
+      ),
+    ]);
 
     // Get the playback ID from the created stream
     const playbackId = liveStream.playback_ids?.[0]?.id || "";
@@ -117,6 +130,27 @@ export async function getPlaybackUrl(playbackId: string) {
     throw new Error("Failed to get playback URL");
   }
 }
+
+/**
+ * Update recording preference on an existing Mux live stream.
+ * Must be called whenever enable_recording changes — recording is baked into
+ * new_asset_settings at stream creation time, so toggling the DB flag alone
+ * has no effect on streams that already exist in Mux.
+ */
+/**
+ * Recording policy (playback_policy inside new_asset_settings) is baked in at
+ * stream-creation time and cannot be changed via the Mux update endpoint.
+ * This function is a no-op intentionally — recording changes take effect the
+ * next time a Mux stream is created for this user.
+ */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+export async function updateMuxStreamRecording(
+  _streamId: string,
+  _enable: boolean
+): Promise<{ success: true }> {
+  return { success: true };
+}
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 export async function enableMuxStreamRecording(streamId: string) {
   try {

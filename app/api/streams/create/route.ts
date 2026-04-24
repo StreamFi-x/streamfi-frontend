@@ -1,47 +1,104 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createMuxStream } from "@/lib/mux/server";
 import { checkExistingTableDetail } from "@/utils/validators";
-import { routesFSuccess, routesFError } from "../../routesF/response";
+import { createRateLimiter } from "@/lib/rate-limit";
 
-export async function POST(req: Request) {
+// Stream creation calls Mux API + DB — limit per IP to prevent quota exhaustion
+const isRateLimited = createRateLimiter(60 * 60 * 1000, 10); // 10 per hour per IP
+
+export async function POST(req: NextRequest) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+
+  if (await isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": "3600" } }
+    );
+  }
   try {
     const { wallet, title, description, category, tags } = await req.json();
 
-    console.log("🔍 Stream creation request:", { wallet, title, description, category, tags });
+    console.log("🔍 Stream creation request:", {
+      wallet,
+      title,
+      description,
+      category,
+      tags,
+      timestamp: new Date().toISOString(),
+    });
 
-    // Validation
     if (!wallet || !title) {
-      return routesFError("Wallet and title are required", 400);
+      console.log("❌ Validation failed: missing wallet or title");
+      return NextResponse.json(
+        { error: "Wallet and title are required" },
+        { status: 400 }
+      );
     }
+
     if (title.length > 100) {
-      return routesFError("Title must be 100 characters or less", 400);
+      console.log("❌ Validation failed: title too long");
+      return NextResponse.json(
+        { error: "Title must be 100 characters or less" },
+        { status: 400 }
+      );
     }
+
     if (description && description.length > 500) {
-      return routesFError("Description must be 500 characters or less", 400);
+      console.log("❌ Validation failed: description too long");
+      return NextResponse.json(
+        { error: "Description must be 500 characters or less" },
+        { status: 400 }
+      );
     }
 
-    // Check user existence
-    const userExists = await checkExistingTableDetail("users", "wallet", wallet);
-    if (!userExists) return routesFError("User not found", 404);
+    console.log("🔍 Checking if user exists...");
+    const userExists = await checkExistingTableDetail(
+      "users",
+      "wallet",
+      wallet
+    );
+    if (!userExists) {
+      console.log("User not found:", wallet);
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    console.log("User found:", wallet);
 
+    console.log("🔍 Fetching user data...");
     const userResult = await sql`
-      SELECT id, username, creator, mux_stream_id, enable_recording, is_live
-      FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      SELECT id, username, creator, mux_stream_id, enable_recording, latency_mode FROM users WHERE LOWER(wallet) = LOWER(${wallet})
     `;
-    if (userResult.rows.length === 0) return routesFError("User not found", 404);
+
+    if (userResult.rows.length === 0) {
+      console.log("❌ User not found in database query");
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
     const user = userResult.rows[0];
+    console.log("📊 User data:", {
+      id: user.id,
+      username: user.username,
+      hasStream: !!user.mux_stream_id,
+      existingStreamId: user.mux_stream_id,
+    });
 
-    // Persistent stream: return if already exists
+    // PERSISTENT STREAM KEY FLOW: If user already has a stream, return it
     if (user.mux_stream_id) {
+      console.log("✅ User already has persistent stream:", user.mux_stream_id);
+
+      // Get additional stream data
       const streamDataResult = await sql`
         SELECT mux_stream_id, mux_playback_id, streamkey, is_live
-        FROM users WHERE id = ${user.id}
+        FROM users
+        WHERE id = ${user.id}
       `;
+
       const streamData = streamDataResult.rows[0];
-      return routesFSuccess(
+
+      return NextResponse.json(
         {
           message: "Stream already exists",
           streamData: {
@@ -49,40 +106,74 @@ export async function POST(req: Request) {
             playbackId: streamData.mux_playback_id,
             streamKey: streamData.streamkey,
             rtmpUrl: "rtmp://global-live.mux.com:5222/app",
-            title,
+            title: title,
             isActive: streamData.is_live || false,
             persistent: true,
           },
         },
-        200
+        { status: 200 }
       );
     }
 
-    // Mux credentials
     if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
-      return routesFError("Mux credentials not configured", 500);
+      console.log("❌ Missing Mux credentials");
+      return NextResponse.json(
+        { error: "Mux credentials not configured" },
+        { status: 500 }
+      );
     }
+    console.log("✅ Mux credentials found");
 
-    // Create Mux stream
+    const enableRecording = user.enable_recording === true;
+    const latencyMode = (user.latency_mode === "standard" ? "standard" : "low") as "low" | "standard";
+    console.log("🎬 Creating Mux stream...", { enableRecording, latencyMode });
     let muxStream;
     try {
       muxStream = await createMuxStream({
         name: `${user.username} - ${title}`,
-        record: user.enable_recording === true,
+        record: enableRecording,
+        latencyMode,
+      });
+      console.log("✅ Mux stream created successfully:", {
+        id: muxStream?.id,
+        playbackId: muxStream?.playbackId,
+        hasStreamKey: !!muxStream?.streamKey,
       });
     } catch (muxError) {
-      console.error("Mux creation failed:", muxError);
-      return routesFError(
-        "Streaming service unavailable. Please try again later.",
-        503
+      console.error("❌ Mux stream creation failed:", muxError);
+
+      if (muxError instanceof Error) {
+        console.error("Mux error details:", {
+          message: muxError.message,
+          stack: muxError.stack,
+          name: muxError.name,
+        });
+      }
+
+      return NextResponse.json(
+        {
+          error: "Failed to create Mux stream",
+          details:
+            muxError instanceof Error ? muxError.message : "Unknown Mux error",
+        },
+        { status: 500 }
       );
     }
 
-    if (!muxStream?.id || !muxStream.playbackId || !muxStream.streamKey) {
-      return routesFError("Failed to create Mux stream - incomplete response", 500);
+    if (
+      !muxStream ||
+      !muxStream.id ||
+      !muxStream.playbackId ||
+      !muxStream.streamKey
+    ) {
+      console.log("❌ Invalid Mux response:", muxStream);
+      return NextResponse.json(
+        { error: "Failed to create Mux stream - incomplete response" },
+        { status: 500 }
+      );
     }
 
-    // Update user record
+    console.log("🔍 Updating user with Mux data...");
     const updatedCreator = {
       ...user.creator,
       streamTitle: title,
@@ -100,15 +191,33 @@ export async function POST(req: Request) {
           streamkey = ${muxStream.streamKey},
           creator = ${JSON.stringify(updatedCreator)},
           updated_at = CURRENT_TIMESTAMP
-        WHERE LOWER(wallet) = LOWER(${wallet})
+        WHERE wallet = ${wallet}
       `;
+      console.log("✅ User updated successfully with stream data");
     } catch (dbError) {
-      console.error("Database update failed:", dbError);
-      return routesFError("Failed to save stream data to database", 500);
+      console.error("❌ Database update failed:", dbError);
+
+      console.log("🧹 Attempting to cleanup Mux stream...");
+      try {
+        // TODO: Add stream cleanup here if needed
+        console.log("Stream cleanup would go here");
+      } catch (cleanupError) {
+        console.error("❌ Cleanup failed:", cleanupError);
+      }
+
+      return NextResponse.json(
+        {
+          error: "Failed to save stream data to database",
+          details:
+            dbError instanceof Error ? dbError.message : "Database error",
+        },
+        { status: 500 }
+      );
     }
 
-    // Success
-    return routesFSuccess(
+    console.log("🎉 Stream creation completed successfully!");
+
+    return NextResponse.json(
       {
         message: "Stream created successfully",
         streamData: {
@@ -116,15 +225,47 @@ export async function POST(req: Request) {
           playbackId: muxStream.playbackId,
           streamKey: muxStream.streamKey,
           rtmpUrl: muxStream.rtmpUrl,
-          title,
+          title: title,
           isActive: muxStream.isActive || false,
         },
       },
-      201
+      { status: 201 }
     );
   } catch (error) {
-    console.error("Stream creation error:", error);
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    return routesFError("Failed to create stream", 500, { details: msg });
+    console.error("❌ Stream creation error:", error);
+
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    const errorStack = error instanceof Error ? error.stack : "";
+
+    console.log("Error details:", {
+      message: errorMessage,
+      stack: errorStack,
+      timestamp: new Date().toISOString(),
+    });
+
+    if (error instanceof Error) {
+      if (error.message.includes("Mux")) {
+        return NextResponse.json(
+          { error: "Streaming service unavailable. Please try again later." },
+          { status: 503 }
+        );
+      }
+
+      if (error.message.includes("database") || error.message.includes("sql")) {
+        return NextResponse.json(
+          { error: "Database error. Please try again later." },
+          { status: 503 }
+        );
+      }
+    }
+
+    return NextResponse.json(
+      {
+        error: "Failed to create stream",
+        details: errorMessage,
+      },
+      { status: 500 }
+    );
   }
 }

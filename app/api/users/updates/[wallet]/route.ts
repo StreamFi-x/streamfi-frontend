@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { uploadImage, deleteImage } from "@/utils/upload/cloudinary";
-import { promises as fs } from "fs";
-import path from "path";
-import os from "os";
+import { uploadImageFromBuffer, deleteImage } from "@/utils/upload/cloudinary";
+import { updateMuxStreamRecording } from "@/lib/mux/server";
 import { validateEmail } from "@/utils/validators";
 import { validateUserUpdate } from "../../../../../utils/userValidators";
 import { UserUpdateInput } from "../../../../../types/user";
@@ -18,7 +16,10 @@ export async function PUT(
 
     // Fetching current user data
     const existingResult = await sql`
-      SELECT * FROM users WHERE LOWER(wallet) = LOWER(${normalizedWallet})
+      SELECT id, username, email, bio, streamkey, avatar, banner, sociallinks,
+             emailverified, emailnotifications, creator, enable_recording,
+             mux_stream_id, wallet
+      FROM users WHERE LOWER(wallet) = LOWER(${normalizedWallet})
     `;
     const user = existingResult.rows[0];
     if (!user) {
@@ -39,6 +40,11 @@ export async function PUT(
       enableRecordingRaw !== null && enableRecordingRaw !== undefined
         ? String(enableRecordingRaw) === "true"
         : user.enable_recording;
+    const latencyModeRaw = formData.get("latency_mode");
+    const latencyMode =
+      latencyModeRaw !== null && latencyModeRaw !== undefined
+        ? String(latencyModeRaw)
+        : user.latency_mode || "low";
 
     // Social links - Use lowercase column name to match database
     let processedSocialLinks = user.sociallinks;
@@ -139,22 +145,44 @@ export async function PUT(
       }
     }
 
-    // Handle avatar upload
+    // Handle avatar — file upload (→ Cloudinary) or preset icon URL string
     let avatarUrl = user.avatar;
     const avatarFile = formData.get("avatar");
-    if (avatarFile instanceof Blob) {
-      const tempDir = path.join(os.tmpdir(), "avatar_uploads");
-      await fs.mkdir(tempDir, { recursive: true });
-      const tempFilePath = path.join(tempDir, `upload_${Date.now()}`);
-      const buffer = Buffer.from(await avatarFile.arrayBuffer());
-      await fs.writeFile(tempFilePath, buffer);
+    const avatarUrlField = formData.get("avatarUrl");
 
-      const uploadResult = await uploadImage(tempFilePath);
+    if (avatarFile instanceof Blob) {
+      const buffer = Buffer.from(await avatarFile.arrayBuffer());
+      const uploadResult = await uploadImageFromBuffer(buffer);
       avatarUrl = uploadResult.secure_url;
-      await fs.unlink(tempFilePath).catch(console.error);
 
       if (user.avatar) {
         const oldPublicId = extractPublicIdFromUrl(user.avatar);
+        if (oldPublicId) {
+          await deleteImage(oldPublicId);
+        }
+      }
+    } else if (typeof avatarUrlField === "string" && avatarUrlField.trim()) {
+      avatarUrl = avatarUrlField.trim();
+      // Clean up old Cloudinary photo if switching to a preset icon
+      if (user.avatar) {
+        const oldPublicId = extractPublicIdFromUrl(user.avatar);
+        if (oldPublicId) {
+          await deleteImage(oldPublicId);
+        }
+      }
+    }
+
+    // Handle banner — file upload (→ Cloudinary)
+    let bannerUrl = user.banner;
+    const bannerFile = formData.get("banner");
+
+    if (bannerFile instanceof Blob) {
+      const buffer = Buffer.from(await bannerFile.arrayBuffer());
+      const uploadResult = await uploadImageFromBuffer(buffer);
+      bannerUrl = uploadResult.secure_url;
+
+      if (user.banner) {
+        const oldPublicId = extractPublicIdFromUrl(user.banner);
         if (oldPublicId) {
           await deleteImage(oldPublicId);
         }
@@ -167,6 +195,7 @@ export async function PUT(
         username = ${username},
         email = ${email},
         avatar = ${avatarUrl},
+        banner = ${bannerUrl},
         bio = ${bio},
         streamkey = ${streamkey},
         sociallinks = ${processedSocialLinks},
@@ -174,10 +203,22 @@ export async function PUT(
         emailnotifications = ${emailNotifications},
         creator = ${creator ? JSON.stringify(creator) : user.creator},
         enable_recording = ${enableRecording},
+        latency_mode = ${latencyMode},
         updated_at = CURRENT_TIMESTAMP
       WHERE LOWER(wallet) = LOWER(${normalizedWallet})
-      RETURNING id, username, email, streamkey, avatar, bio, sociallinks, emailverified, emailnotifications, creator, wallet, enable_recording, created_at, updated_at
+      RETURNING id, username, email, streamkey, avatar, banner, bio, sociallinks, emailverified, emailnotifications, creator, wallet, enable_recording, latency_mode, created_at, updated_at
     `;
+
+    // Sync recording preference to Mux if it changed and the user has a stream
+    const recordingChanged = enableRecording !== user.enable_recording;
+    if (recordingChanged && user.mux_stream_id) {
+      try {
+        await updateMuxStreamRecording(user.mux_stream_id, enableRecording);
+      } catch (muxErr) {
+        // Log but don't fail the settings save — user preference is stored in DB
+        console.error("Failed to sync recording preference to Mux:", muxErr);
+      }
+    }
 
     return NextResponse.json({
       message: "User updated successfully",

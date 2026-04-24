@@ -1,54 +1,103 @@
 "use client";
 
-import { Gift } from "lucide-react";
+import { Gift, Loader2 } from "lucide-react";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { useTipModal } from "@/hooks/useTipModal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-interface TipButtonProps {
+export interface TipButtonProps {
   recipientUsername: string;
   recipientPublicKey: string;
-  onTipClick: () => void;
-  className?: string;
-  variant?: "default" | "outline" | "ghost" | "secondary";
+  variant?: "primary" | "secondary" | "icon-only" | "outline";
   size?: "default" | "sm" | "lg" | "icon";
-  disabled?: boolean;
   showIcon?: boolean;
-  children?: React.ReactNode;
+  disabled?: boolean;
+  className?: string;
+  onTipClick?: () => void;
 }
 
+/**
+ * A reusable button component for initiating tips to streamers.
+ * Handles wallet connection states and triggers the tip modal.
+ */
 export function TipButton({
   recipientUsername,
   recipientPublicKey,
-  onTipClick,
-  className,
-  variant = "default",
-  size = "default",
-  disabled = false,
+  variant = "primary",
+  size,
   showIcon = true,
-  children,
+  disabled: disabledProp,
+  className,
+  onTipClick,
 }: TipButtonProps) {
-  // Validate that recipient has a public key
-  if (!recipientPublicKey) {
-    return null;
-  }
+  const { isConnected, isConnecting, connect } = useStellarWallet();
+  const { openTipModal } = useTipModal();
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onTipClick();
+  const isDisabled = !recipientPublicKey || disabledProp === true;
+
+  const handleClick = async () => {
+    if (!isConnected) {
+      await connect();
+    } else {
+      if (onTipClick) {
+        onTipClick();
+      }
+      openTipModal();
+    }
   };
+
+  const showLabel = variant !== "icon-only";
+  const iconClass = cn("h-4 w-4", showLabel && "mr-2");
+
+  const getButtonContent = () => {
+    if (isConnecting) {
+      return (
+        <>
+          {showIcon && <Loader2 className={iconClass + " animate-spin"} />}
+          {showLabel && "Connecting..."}
+        </>
+      );
+    }
+
+    if (!isConnected) {
+      return (
+        <>
+          {showIcon && <Gift className={iconClass} />}
+          {showLabel && "Connect Wallet"}
+        </>
+      );
+    }
+
+    return (
+      <>
+        {showIcon && <Gift className={iconClass} />}
+        {showLabel && "Send Tip"}
+      </>
+    );
+  };
+
+  const buttonVariant =
+    variant === "icon-only" || variant === "outline"
+      ? "outline"
+      : variant === "secondary"
+        ? "secondary"
+        : "default";
+  const buttonSize = size ?? (variant === "icon-only" ? "icon" : "default");
 
   return (
     <Button
-      variant={variant}
-      size={size}
+      variant={buttonVariant}
+      size={buttonSize}
+      className={cn(className)}
+      disabled={isDisabled || isConnecting}
       onClick={handleClick}
-      disabled={disabled}
-      className={cn("gap-2", className)}
-      title={`Send a tip to ${recipientUsername}`}
+      aria-label={
+        variant === "icon-only" ? `Send tip to ${recipientUsername}` : undefined
+      }
+      title={isDisabled ? "Recipient has no Stellar public key" : undefined}
     >
-      {showIcon && <Gift className="w-4 h-4" />}
-      {children || "Send Tip"}
+      {getButtonContent()}
     </Button>
   );
 }

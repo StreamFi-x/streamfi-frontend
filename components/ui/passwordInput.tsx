@@ -8,7 +8,7 @@ import { Eye, EyeOff } from "lucide-react";
 export const PasswordInput = React.forwardRef<
   HTMLInputElement,
   React.ComponentProps<"input">
->(({ className, type, ...props }, ref) => {
+>(({ className, ...props }, ref) => {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -19,8 +19,10 @@ export const PasswordInput = React.forwardRef<
       )}
     >
       <Input
+        ref={ref}
         type={showPassword ? "text" : "password"}
         className="border-0 focus-within:outline-none outline-none focus:outline-none focus-visible:ring-0"
+        {...props}
       />
       {showPassword ? (
         <EyeOff
@@ -32,3 +34,4 @@ export const PasswordInput = React.forwardRef<
     </div>
   );
 });
+PasswordInput.displayName = "PasswordInput";

@@ -5,20 +5,26 @@ import Link from "next/link";
 import { motion, AnimatePresence, Variants, Easing } from "framer-motion";
 import {
   HomeIcon as House,
-  LinkIcon,
   Settings,
   BarChartIcon as ChartColumnDecreasing,
   ArrowLeftToLine,
   Video,
+  Coins,
 } from "lucide-react";
-import { LiaCoinsSolid } from "react-icons/lia";
 
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
-export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
+export default function Sidebar({
+  isCollapsed,
+  onToggle,
+  isMobileOpen = false,
+  onMobileClose,
+}: SidebarProps) {
   const pathname = usePathname();
 
   // Define the cubic-bezier easing function properly
@@ -32,18 +38,13 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       path: "/dashboard/stream-manager",
     },
     {
-      name: "Stream URL",
-      icon: <LinkIcon size={24} />,
-      path: "/dashboard/stream-url",
-    },
-    {
       name: "Recordings",
       icon: <Video size={24} />,
       path: "/dashboard/recordings",
     },
     {
-      name: "Payout",
-      icon: <LiaCoinsSolid size={24} />,
+      name: "Wallet/Payout",
+      icon: <Coins size={24} />,
       path: "/dashboard/payout",
     },
     {
@@ -404,26 +405,63 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     </motion.div>
   );
 
+  const sidebarContent = (
+    <div className="p-3 flex flex-col gap-4 h-full overflow-hidden">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={isCollapsed ? "collapsed" : "expanded"}
+          className="w-full h-full"
+          style={{ willChange: "transform, opacity" }}
+        >
+          {isCollapsed ? renderCollapsedContent() : renderExpandedContent()}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+
   return (
-    <motion.aside
-      className={`bg-sidebar flex-shrink-0 relative overflow-hidden border-r border-border shadow-lg flex flex-col`}
-      variants={sidebarVariants}
-      animate={isCollapsed ? "collapsed" : "expanded"}
-      style={{ willChange: "width" }}
-    >
-      <div className="absolute inset-0">
-        <div className="p-3 flex flex-col gap-4 h-full overflow-hidden">
-          <AnimatePresence mode="wait">
+    <>
+      {/* ── Mobile overlay drawer ── */}
+      <AnimatePresence>
+        {isMobileOpen && (
+          <>
+            {/* Backdrop */}
             <motion.div
-              key={isCollapsed ? "collapsed" : "expanded"}
-              className="w-full h-full"
-              style={{ willChange: "transform, opacity" }}
+              key="mobile-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+              onClick={onMobileClose}
+              aria-hidden="true"
+            />
+            {/* Drawer */}
+            <motion.aside
+              key="mobile-drawer"
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ type: "tween", duration: 0.25, ease: customEase }}
+              className="fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-border shadow-xl flex flex-col lg:hidden"
+              aria-label="Dashboard navigation"
             >
-              {isCollapsed ? renderCollapsedContent() : renderExpandedContent()}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
-    </motion.aside>
+              {sidebarContent}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Desktop inline sidebar ── */}
+      <motion.aside
+        className="bg-sidebar flex-shrink-0 relative overflow-hidden border-r border-border shadow-lg flex-col hidden lg:flex"
+        variants={sidebarVariants}
+        animate={isCollapsed ? "collapsed" : "expanded"}
+        style={{ willChange: "width" }}
+        aria-label="Dashboard navigation"
+      >
+        <div className="absolute inset-0">{sidebarContent}</div>
+      </motion.aside>
+    </>
   );
 }

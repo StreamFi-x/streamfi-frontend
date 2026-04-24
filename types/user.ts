@@ -49,6 +49,7 @@ export type UserUpdateInput = {
   /** Stellar public key (G..., 56 characters) */
   wallet?: StellarPublicKey;
   avatar?: string | File;
+  banner?: File;
   streamkey?: string;
   emailVerified?: boolean;
   emailNotifications?: boolean;
