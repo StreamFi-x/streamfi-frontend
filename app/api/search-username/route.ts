@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { routesFSuccess, routesFError } from "..//routesF/response";
 
 export async function GET(req: Request) {
   try {
@@ -7,10 +7,7 @@ export async function GET(req: Request) {
     const query = searchParams.get("q");
 
     if (!query) {
-      return NextResponse.json(
-        { error: "Query parameter 'q' is required" },
-        { status: 400 }
-      );
+      return routesFError("Query parameter 'q' is required", 400);
     }
 
     const results = await sql`
@@ -20,15 +17,12 @@ export async function GET(req: Request) {
       LIMIT 10;
     `;
 
-    return NextResponse.json(
+    return routesFSuccess(
       { usernames: results.rows.map(row => row.username) },
-      { status: 200 }
+      200
     );
   } catch (error) {
     console.error("Username search error:", error);
-    return NextResponse.json(
-      { error: "Failed to search usernames" },
-      { status: 500 }
-    );
+    return routesFError("Failed to search usernames", 500);
   }
 }

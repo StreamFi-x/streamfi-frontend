@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
+import { routesFSuccess,routesFError  } from "../../routesF/response";
 
 export async function GET(
   req: Request,
@@ -10,10 +10,7 @@ export async function GET(
     const { wallet } = await params;
 
     if (!wallet) {
-      return NextResponse.json(
-        { error: "Wallet parameter is required" },
-        { status: 400 }
-      );
+      return routesFError("Wallet parameter is required", 400);
     }
 
     const result = await sql`
@@ -43,12 +40,11 @@ export async function GET(
     `;
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ error: "Stream not found" }, { status: 404 });
+      return routesFError("Stream not found", 404);
     }
 
     const streamData = result.rows[0];
 
-    // Only fetch Mux health if explicitly requested (skip for fast dashboard loads)
     const url = new URL(req.url);
     const includeHealth = url.searchParams.get("includeHealth") === "true";
 
@@ -104,12 +100,9 @@ export async function GET(
         : null,
     };
 
-    return NextResponse.json({ streamData: responseData }, { status: 200 });
+    return routesFSuccess({ streamData: responseData }, 200);
   } catch (error) {
     console.error("Get stream error:", error);
-    return NextResponse.json(
-      { error: "Failed to get stream data" },
-      { status: 500 }
-    );
+    return routesFError("Failed to get stream data", 500);
   }
 }

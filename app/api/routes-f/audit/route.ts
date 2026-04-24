@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
 import { recordMetric } from "@/lib/routes-f/metrics";
 import { applyRateLimitHeaders, checkRateLimit } from "@/lib/routes-f/rate-limit";
 import { getAuditTrail } from "@/lib/routes-f/store";
+import { routesFSuccess, routesFError } from "../../routesF/response";
 
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
@@ -16,12 +16,11 @@ export async function GET(req: Request) {
 
     if (!limiter.allowed) {
         headers.set("Retry-After", String(limiter.retryAfterSeconds));
-        return NextResponse.json(
-            {
-                error: "Rate limit exceeded",
-                policy: limiter.policy,
-            },
-            { status: 429, headers }
+
+        return routesFError(
+            "Rate limit exceeded",
+            429,
+            headers
         );
     }
 
@@ -34,5 +33,5 @@ export async function GET(req: Request) {
 
     const result = getAuditTrail({ limit, cursor });
 
-    return NextResponse.json(result, { headers });
+    return routesFSuccess(result, 200, headers);
 }

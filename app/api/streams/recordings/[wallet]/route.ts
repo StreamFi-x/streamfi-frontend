@@ -11,12 +11,16 @@ export async function GET(
 ) {
   try {
     const { wallet } = await params;
+
     if (!wallet) {
+      console.warn("[routes-f] Recordings request missing wallet");
       return NextResponse.json(
         { success: false, error: "Wallet required" },
         { status: 400 }
       );
     }
+
+    console.log(`[routes-f] Fetching recordings for wallet: ${wallet}`);
 
     const result = await sql`
       SELECT
@@ -35,12 +39,25 @@ export async function GET(
       ORDER BY r.created_at DESC
     `;
 
+    const recordings = result.rows.map(r => ({
+      id: r.id,
+      muxAssetId: r.mux_asset_id,
+      playbackId: r.playback_id,
+      title: r.title,
+      duration: r.duration, // optionally format into mm:ss
+      status: r.status,
+      createdAt: r.created_at,
+      streamDate: r.stream_date,
+    }));
+
+    console.log(`[routes-f] Found ${recordings.length} recordings for ${wallet}`);
+
     return NextResponse.json({
       success: true,
-      recordings: result.rows,
+      recordings,
     });
   } catch (error) {
-    console.error("Error fetching recordings:", error);
+    console.error("[routes-f] Error fetching recordings:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch recordings" },
       { status: 500 }

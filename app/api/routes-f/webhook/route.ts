@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { withRoutesFLogging, hashPayload } from "@/lib/routes-f/logging";
+import { routesFSuccess, routesFError } from "../../routesF/response";
 
 const ROUTES_F_WEBHOOK_SECRET =
   process.env.ROUTES_F_WEBHOOK_SECRET || "";
@@ -21,10 +21,7 @@ function timingSafeEqual(a: string, b: string) {
 }
 
 function isValidSignature(signatureHeader: string | null, body: string) {
-  if (!ROUTES_F_WEBHOOK_SECRET) {
-    return false;
-  }
-  if (!signatureHeader) {
+  if (!ROUTES_F_WEBHOOK_SECRET || !signatureHeader) {
     return false;
   }
 
@@ -41,12 +38,12 @@ function isValidSignature(signatureHeader: string | null, body: string) {
 }
 
 export async function POST(req: Request) {
-  return withRoutesFLogging(req, async request => {
+  return withRoutesFLogging(req, async (request) => {
     const bodyText = await request.text();
     const signature = request.headers.get("x-signature");
 
     if (!isValidSignature(signature, bodyText)) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+      return routesFError("Invalid signature", 401);
     }
 
     let payload: unknown = null;
@@ -75,6 +72,6 @@ export async function POST(req: Request) {
       stored: true,
     });
 
-    return NextResponse.json({ received: true }, { status: 200 });
+    return routesFSuccess({ received: true }, 200);
   });
 }

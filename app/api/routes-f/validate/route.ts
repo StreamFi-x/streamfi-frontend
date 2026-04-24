@@ -1,40 +1,37 @@
-import { NextResponse } from "next/server";
 import { validateRoutesFRecord } from "@/lib/routes-f/schema";
 import { withRoutesFLogging } from "@/lib/routes-f/logging";
+import { routesFSuccess, routesFError } from "../../routesF/response";
 
 export async function POST(req: Request) {
-  return withRoutesFLogging(req, async request => {
+  return withRoutesFLogging(req, async (request) => {
     let body: unknown;
 
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON payload" },
-        { status: 400 }
-      );
+      return routesFError("Invalid JSON payload", 400);
     }
 
     const result = validateRoutesFRecord(body);
 
     if (!result.isValid) {
-      return NextResponse.json(
+      return routesFSuccess(
         {
           isValid: false,
           errors: result.errors,
           warnings: result.warnings,
         },
-        { status: 422 }
+        422
       );
     }
 
-    return NextResponse.json(
+    return routesFSuccess(
       {
         isValid: true,
         errors: [],
         warnings: result.warnings,
       },
-      { status: 200 }
+      200
     );
   });
 }

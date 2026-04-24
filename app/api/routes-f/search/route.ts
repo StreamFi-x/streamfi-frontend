@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import {
   applyCacheHeaders,
   buildCacheKey,
@@ -12,6 +11,7 @@ import {
   searchRoutesFRecords,
 } from "@/lib/routes-f/store";
 import { applyRateLimitHeaders, checkRateLimit } from "@/lib/routes-f/rate-limit";
+import { routesFSuccess,routesFError } from "../../routesF/response";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -27,10 +27,7 @@ export async function GET(req: Request) {
 
   if (!limiter.allowed) {
     headers.set("Retry-After", String(limiter.retryAfterSeconds));
-    return NextResponse.json(
-      { error: "Rate limit exceeded", policy: limiter.policy },
-      { status: 429, headers }
-    );
+    return routesFError("Rate limit exceeded", 429, headers);
   }
 
   const url = new URL(req.url);
@@ -67,15 +64,14 @@ export async function GET(req: Request) {
           return { total: recent.length, items: recent };
         })();
 
-  const body = JSON.stringify({ total: result.total, items: result.items });
+  const body = { total: result.total, items: result.items };
 
   if (cacheEnabled) {
-    setCachedEntry(cacheKey, body, "application/json");
+    setCachedEntry(cacheKey, JSON.stringify(body), "application/json");
     applyCacheHeaders(headers, "MISS", true);
   } else {
     applyCacheHeaders(headers, "MISS", false);
   }
 
-  headers.set("Content-Type", "application/json");
-  return new Response(body, { status: 200, headers });
+  return routesFSuccess(body, 200, headers);
 }

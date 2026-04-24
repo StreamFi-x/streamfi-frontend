@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
 import {
   createMaintenanceWindow,
   getMaintenanceWindows,
 } from "@/lib/routes-f/store";
 import { recordMetric } from "@/lib/routes-f/metrics";
 import { applyRateLimitHeaders, checkRateLimit } from "@/lib/routes-f/rate-limit";
+import { routesFSuccess, routesFError } from "../../routesF/response";
 
 export async function GET(req: Request) {
   const limiter = checkRateLimit({
@@ -17,15 +17,14 @@ export async function GET(req: Request) {
 
   if (!limiter.allowed) {
     headers.set("Retry-After", String(limiter.retryAfterSeconds));
-    return NextResponse.json(
-      { error: "Rate limit exceeded", policy: limiter.policy },
-      { status: 429, headers }
-    );
+    return routesFError("Rate limit exceeded", 429, headers);
   }
 
   recordMetric("maintenance");
+
   const windows = getMaintenanceWindows();
-  return NextResponse.json({ windows }, { headers });
+
+  return routesFSuccess({ windows }, 200, headers);
 }
 
 export async function POST(req: Request) {
@@ -39,27 +38,18 @@ export async function POST(req: Request) {
 
   if (!limiter.allowed) {
     headers.set("Retry-After", String(limiter.retryAfterSeconds));
-    return NextResponse.json(
-      { error: "Rate limit exceeded", policy: limiter.policy },
-      { status: 429, headers }
-    );
+    return routesFError("Rate limit exceeded", 429, headers);
   }
 
   let payload: { start?: string; end?: string; reason?: string };
   try {
     payload = await req.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON payload" },
-      { status: 400, headers }
-    );
+    return routesFError("Invalid JSON payload", 400, headers);
   }
 
   if (!payload.start || !payload.end) {
-    return NextResponse.json(
-      { error: "start and end are required" },
-      { status: 400, headers }
-    );
+    return routesFError("start and end are required", 400, headers);
   }
 
   try {
@@ -68,33 +58,21 @@ export async function POST(req: Request) {
       end: payload.end,
       reason: payload.reason,
     });
+
     recordMetric("maintenance");
-    return NextResponse.json({ window }, { status: 201, headers });
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === "overlap") {
-        return NextResponse.json(
-          { error: "Maintenance window overlaps existing window" },
-          { status: 409, headers }
-        );
-      }
-      if (error.message === "invalid-time") {
-        return NextResponse.json(
-          { error: "start and end must be valid ISO timestamps" },
-          { status: 400, headers }
-        );
-      }
-      if (error.message === "invalid-range") {
-        return NextResponse.json(
-          { error: "start must be before end" },
-          { status: 400, headers }
-        );
-      }
+
+    return routesFSuccess({ window }, 201, headers);
+  } catch (error: any) {
+    if (error.message === "overlap") {
+      return routesFError("Maintenance window overlaps existing window", 409, headers);
+    }
+    if (error.message === "invalid-time") {
+      return routesFError("start and end must be valid ISO timestamps", 400, headers);
+    }
+    if (error.message === "invalid-range") {
+      return routesFError("start must be before end", 400, headers);
     }
   }
 
-  return NextResponse.json(
-    { error: "Failed to create maintenance window" },
-    { status: 500, headers }
-  );
+  return routesFError("Failed to create maintenance window", 500, headers);
 }

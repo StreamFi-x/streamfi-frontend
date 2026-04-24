@@ -1,37 +1,26 @@
-import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { routesFSuccess, routesFError } from "../../routesF/response";
 
 export async function POST(req: Request) {
   try {
-    const {
-      wallet,
-      playbackId,
-      content,
-      messageType = "message",
-    } = await req.json();
+    const { wallet, playbackId, content, messageType = "message" } =
+      await req.json();
 
     if (!wallet || !playbackId || !content) {
-      return NextResponse.json(
-        { error: "Wallet, playback ID, and content are required" },
-        { status: 400 }
+      return routesFError(
+        "Wallet, playback ID, and content are required",
+        400
       );
     }
 
     if (content.length > 500) {
-      return NextResponse.json(
-        { error: "Message must be 500 characters or less" },
-        { status: 400 }
-      );
+      return routesFError("Message must be 500 characters or less", 400);
     }
 
     if (!["message", "emote", "system"].includes(messageType)) {
-      return NextResponse.json(
-        { error: "Invalid message type" },
-        { status: 400 }
-      );
+      return routesFError("Invalid message type", 400);
     }
 
-    // Combined query: look up sender + stream + active session in one round-trip
     const result = await sql`
       SELECT
         sender.id AS sender_id,
@@ -50,26 +39,17 @@ export async function POST(req: Request) {
     `;
 
     if (result.rows.length === 0) {
-      return NextResponse.json(
-        { error: "User or stream not found" },
-        { status: 404 }
-      );
+      return routesFError("User or stream not found", 404);
     }
 
     const { sender_id, sender_username, is_live, session_id } = result.rows[0];
 
     if (!is_live) {
-      return NextResponse.json(
-        { error: "Cannot send message to offline stream" },
-        { status: 409 }
-      );
+      return routesFError("Cannot send message to offline stream", 409);
     }
 
     if (!session_id) {
-      return NextResponse.json(
-        { error: "No active stream session" },
-        { status: 404 }
-      );
+      return routesFError("No active stream session", 404);
     }
 
     const messageResult = await sql`
@@ -93,7 +73,7 @@ export async function POST(req: Request) {
       WHERE id = ${session_id}
     `;
 
-    return NextResponse.json(
+    return routesFSuccess(
       {
         message: "Message sent successfully",
         chatMessage: {
@@ -102,19 +82,16 @@ export async function POST(req: Request) {
           messageType,
           user: {
             username: sender_username,
-            wallet: wallet,
+            wallet,
           },
           createdAt: newMessage.created_at,
         },
       },
-      { status: 201 }
+      201
     );
   } catch (error) {
-    console.error("Chat message error:", error);
-    return NextResponse.json(
-      { error: "Failed to send message" },
-      { status: 500 }
-    );
+    console.error("Chat message POST error:", error);
+    return routesFError("Failed to send message", 500);
   }
 }
 
@@ -126,10 +103,7 @@ export async function GET(req: Request) {
     const before = searchParams.get("before");
 
     if (!playbackId) {
-      return NextResponse.json(
-        { error: "Playback ID is required" },
-        { status: 400 }
-      );
+      return routesFError("Playback ID is required", 400);
     }
 
     const streamResult = await sql`
@@ -142,13 +116,12 @@ export async function GET(req: Request) {
     `;
 
     if (streamResult.rows.length === 0) {
-      return NextResponse.json({ messages: [] }, { status: 200 });
+      return routesFSuccess({ messages: [] }, 200);
     }
 
     const sessionId = streamResult.rows[0].session_id;
-
-    // Single query handles both cursor-based and initial fetch
     const beforeId = before ? parseInt(before) : null;
+
     const messagesResult = await sql`
       SELECT
         cm.id,
@@ -167,25 +140,24 @@ export async function GET(req: Request) {
       LIMIT ${limit}
     `;
 
-    const messages = messagesResult.rows.map(msg => ({
-      id: msg.id,
-      content: msg.content,
-      messageType: msg.message_type,
-      createdAt: msg.created_at,
-      user: {
-        username: msg.username,
-        wallet: msg.wallet,
-        avatar: msg.avatar,
-      },
-    }));
+    const messages = messagesResult.rows
+      .map((msg) => ({
+        id: msg.id,
+        content: msg.content,
+        messageType: msg.message_type,
+        createdAt: msg.created_at,
+        user: {
+          username: msg.username,
+          wallet: msg.wallet,
+          avatar: msg.avatar,
+        },
+      }))
+      .reverse();
 
-    return NextResponse.json({ messages: messages.reverse() }, { status: 200 });
+    return routesFSuccess({ messages }, 200);
   } catch (error) {
-    console.error("Get chat messages error:", error);
-    return NextResponse.json(
-      { error: "Failed to get messages" },
-      { status: 500 }
-    );
+    console.error("Chat message GET error:", error);
+    return routesFError("Failed to get messages", 500);
   }
 }
 
@@ -194,9 +166,9 @@ export async function DELETE(req: Request) {
     const { messageId, moderatorWallet } = await req.json();
 
     if (!messageId || !moderatorWallet) {
-      return NextResponse.json(
-        { error: "Message ID and moderator wallet are required" },
-        { status: 400 }
+      return routesFError(
+        "Message ID and moderator wallet are required",
+        400
       );
     }
 
@@ -205,10 +177,7 @@ export async function DELETE(req: Request) {
     `;
 
     if (moderatorResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: "Moderator not found" },
-        { status: 404 }
-      );
+      return routesFError("Moderator not found", 404);
     }
 
     const moderatorId = moderatorResult.rows[0].id;
@@ -224,7 +193,7 @@ export async function DELETE(req: Request) {
     `;
 
     if (messageResult.rows.length === 0) {
-      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+      return routesFError("Message not found", 404);
     }
 
     const message = messageResult.rows[0];
@@ -233,9 +202,9 @@ export async function DELETE(req: Request) {
       moderatorId !== message.stream_owner_id &&
       moderatorId !== message.message_user_id
     ) {
-      return NextResponse.json(
-        { error: "Insufficient permissions to delete this message" },
-        { status: 403 }
+      return routesFError(
+        "Insufficient permissions to delete this message",
+        403
       );
     }
 
@@ -247,15 +216,9 @@ export async function DELETE(req: Request) {
       WHERE id = ${messageId}
     `;
 
-    return NextResponse.json(
-      { message: "Message deleted successfully" },
-      { status: 200 }
-    );
+    return routesFSuccess({ message: "Message deleted successfully" }, 200);
   } catch (error) {
-    console.error("Delete chat message error:", error);
-    return NextResponse.json(
-      { error: "Failed to delete message" },
-      { status: 500 }
-    );
+    console.error("Chat message DELETE error:", error);
+    return routesFError("Failed to delete message", 500);
   }
 }

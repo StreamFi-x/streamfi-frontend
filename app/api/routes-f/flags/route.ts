@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
 import { getRoutesFFlags } from "@/lib/routes-f/flags";
 import { recordMetric } from "@/lib/routes-f/metrics";
 import { applyRateLimitHeaders, checkRateLimit } from "@/lib/routes-f/rate-limit";
+import { routesFSuccess, routesFError } from "../../routesF/response";
 
 export async function GET(req: Request) {
   const limiter = checkRateLimit({
@@ -14,24 +14,21 @@ export async function GET(req: Request) {
 
   if (!limiter.allowed) {
     headers.set("Retry-After", String(limiter.retryAfterSeconds));
-    return NextResponse.json(
-      {
-        error: "Rate limit exceeded",
-        policy: limiter.policy,
-      },
-      { status: 429, headers }
-    );
+    return routesFError("Rate limit exceeded", 429, headers);
   }
 
   recordMetric("flags");
+
   const url = new URL(req.url);
   const userId = url.searchParams.get("userId") || null;
 
-  return NextResponse.json(
+  // Wrap JSON response with apiVersion
+  return routesFSuccess(
     {
       flags: getRoutesFFlags(),
       userId,
     },
-    { headers }
+    200,
+    headers
   );
 }

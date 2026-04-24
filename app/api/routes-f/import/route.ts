@@ -1,18 +1,15 @@
-import { NextResponse } from "next/server";
 import { validateRoutesFRecord } from "@/lib/routes-f/schema";
 import { withRoutesFLogging } from "@/lib/routes-f/logging";
+import { routesFSuccess, routesFError } from "../../routesF/response";
 
 const MAX_RECORDS = 100;
-const MAX_PAYLOAD_BYTES = 100 * 1024;
+const MAX_PAYLOAD_BYTES = 100 * 1024; // 100 KB
 
 export async function POST(req: Request) {
-  return withRoutesFLogging(req, async request => {
+  return withRoutesFLogging(req, async (request) => {
     const contentLength = request.headers.get("content-length");
     if (contentLength && Number(contentLength) > MAX_PAYLOAD_BYTES) {
-      return NextResponse.json(
-        { error: "Payload too large" },
-        { status: 413 }
-      );
+      return routesFError("Payload too large", 413);
     }
 
     let body: unknown;
@@ -20,24 +17,15 @@ export async function POST(req: Request) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON payload" },
-        { status: 400 }
-      );
+      return routesFError("Invalid JSON payload", 400);
     }
 
     if (!Array.isArray(body)) {
-      return NextResponse.json(
-        { error: "Payload must be an array of records" },
-        { status: 400 }
-      );
+      return routesFError("Payload must be an array of records", 400);
     }
 
     if (body.length > MAX_RECORDS) {
-      return NextResponse.json(
-        { error: `Too many records. Max is ${MAX_RECORDS}` },
-        { status: 400 }
-      );
+      return routesFError(`Too many records. Max is ${MAX_RECORDS}`, 400);
     }
 
     const results = body.map((item, index) => {
@@ -50,7 +38,7 @@ export async function POST(req: Request) {
       };
     });
 
-    const validCount = results.filter(result => result.ok).length;
+    const validCount = results.filter((result) => result.ok).length;
     const invalidCount = results.length - validCount;
 
     const responsePayload = {
@@ -63,14 +51,17 @@ export async function POST(req: Request) {
           : "Import completed with validation errors",
     };
 
+    // Handle combined success + partial failure
     if (validCount > 0 && invalidCount > 0) {
-      return NextResponse.json(responsePayload, { status: 207 });
+      return routesFSuccess(responsePayload, 207);
     }
 
+    // All invalid
     if (validCount === 0) {
-      return NextResponse.json(responsePayload, { status: 422 });
+      return routesFSuccess(responsePayload, 422);
     }
 
-    return NextResponse.json(responsePayload, { status: 200 });
+    // All valid
+    return routesFSuccess(responsePayload, 200);
   });
 }

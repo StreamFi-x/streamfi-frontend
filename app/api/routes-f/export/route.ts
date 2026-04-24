@@ -8,6 +8,7 @@ import {
 import { recordMetric } from "@/lib/routes-f/metrics";
 import { getRoutesFRecords } from "@/lib/routes-f/store";
 import { applyRateLimitHeaders, checkRateLimit } from "@/lib/routes-f/rate-limit";
+import { routesFSuccess, routesFError } from "../../routesF/response";
 
 const CSV_HEADERS = [
   "id",
@@ -19,8 +20,8 @@ const CSV_HEADERS = [
 ];
 
 function toCsvValue(value: string) {
-  if (value.includes("\"") || value.includes(",") || value.includes("\n")) {
-    return `"${value.replace(/\"/g, "\"\"")}"`;
+  if (value.includes('"') || value.includes(",") || value.includes("\n")) {
+    return `"${value.replace(/"/g, '""')}"`;
   }
   return value;
 }
@@ -28,7 +29,7 @@ function toCsvValue(value: string) {
 function recordsToCsv(records: ReturnType<typeof getRoutesFRecords>) {
   const rows = [CSV_HEADERS.join(",")];
 
-  records.forEach(record => {
+  records.forEach((record) => {
     const values = [
       record.id,
       record.title,
@@ -37,7 +38,7 @@ function recordsToCsv(records: ReturnType<typeof getRoutesFRecords>) {
       record.createdAt,
       record.updatedAt || "",
     ];
-    rows.push(values.map(value => toCsvValue(String(value))).join(","));
+    rows.push(values.map((value) => toCsvValue(String(value))).join(","));
   });
 
   return rows.join("\n");
@@ -54,16 +55,7 @@ export async function GET(req: Request) {
 
   if (!limiter.allowed) {
     headers.set("Retry-After", String(limiter.retryAfterSeconds));
-    return new Response(
-      JSON.stringify({ error: "Rate limit exceeded", policy: limiter.policy }),
-      {
-        status: 429,
-        headers: {
-          ...Object.fromEntries(headers.entries()),
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    return routesFError("Rate limit exceeded", 429, headers);
   }
 
   const url = new URL(req.url);
@@ -91,7 +83,7 @@ export async function GET(req: Request) {
   }
 
   const records = getRoutesFRecords();
-  let body = "";
+  let body: string;
   let contentType = "application/json";
 
   if (selectedFormat === "csv") {
@@ -115,5 +107,12 @@ export async function GET(req: Request) {
     `attachment; filename="routes-f-export.${selectedFormat}"`
   );
 
+  // Return JSON response with apiVersion only if format is JSON
+  if (selectedFormat === "json") {
+    const parsedBody = JSON.parse(body);
+    return routesFSuccess(parsedBody, 200, headers);
+  }
+
+  // For CSV, return raw CSV body
   return new Response(body, { status: 200, headers });
 }
