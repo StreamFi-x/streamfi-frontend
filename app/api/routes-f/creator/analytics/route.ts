@@ -107,8 +107,8 @@ export async function GET(req: NextRequest) {
         ORDER BY point_date ASC
       `;
 
-      data = datePoints.map(point => {
-        const match = rows.find(r => 
+      data = datePoints.map((point: Date) => {
+        const match = rows.find((r: any) => 
           granularity === "day" 
             ? isSameDay(new Date(r.point_date), point)
             : isSameWeek(new Date(r.point_date), point, { weekStartsOn: 1 })
@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
       const publicKey = userRes.rows[0]?.wallet;
 
       if (!publicKey || !publicKey.startsWith("G")) {
-        data = datePoints.map(point => ({ date: format(point, "yyyy-MM-dd"), value: "0.0000000" }));
+        data = datePoints.map((point: Date) => ({ date: format(point, "yyyy-MM-dd"), value: "0.0000000" }));
       } else {
         // Fetch tips from Stellar
         const { tips } = await fetchPaymentsReceived({
@@ -134,15 +134,15 @@ export async function GET(req: NextRequest) {
         });
 
         // Group tips by date
-        data = datePoints.map(point => {
-          const dailyTips = tips.filter(tip => {
+        data = datePoints.map((point: Date) => {
+          const dailyTips = tips.filter((tip: any) => {
             const tipDate = parseISO(tip.timestamp);
             return granularity === "day" 
               ? isSameDay(tipDate, point)
               : isSameWeek(tipDate, point, { weekStartsOn: 1 });
           });
 
-          const totalStroops = dailyTips.reduce((sum, tip) => sum + toStroops(tip.amount), BigInt(0));
+          const totalStroops = dailyTips.reduce((sum: bigint, tip: any) => sum + toStroops(tip.amount), BigInt(0));
           return {
             date: format(point, "yyyy-MM-dd"),
             value: fromStroops(totalStroops)
@@ -160,7 +160,7 @@ export async function GET(req: NextRequest) {
       const currentCount = Number(rows[0]?.follower_count || 0);
 
       // Baseline implementation for followers history (current count for all points)
-      data = datePoints.map(point => ({
+      data = datePoints.map((point: Date) => ({
         date: format(point, "yyyy-MM-dd"),
         value: currentCount
       }));
