@@ -34,7 +34,9 @@ export function checkRateLimit(ip: string): boolean {
 
 // Strip HTML tags
 export function stripHtmlTags(input: string): string {
-  if (!input) return '';
+  if (!input) {
+    return '';
+  }
   return input.replace(/<\/?[^>]+(>|$)/g, "");
 }
 
