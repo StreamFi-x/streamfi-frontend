@@ -26,7 +26,9 @@ function parseBrowser(ua: string): BrowserInfo {
 
   for (const [re, name] of rules) {
     const m = ua.match(re);
-    if (m) return { name, version: m[1].replace(/[;)]+$/, "") };
+    if (m) {
+      return { name, version: m[1].replace(/[;)]+$/, "") };
+    }
   }
   return { name: "unknown", version: "" };
 }
@@ -53,10 +55,16 @@ function parseOs(ua: string): OsInfo {
 }
 
 function parseDevice(ua: string, isBot: boolean): DeviceInfo {
-  if (isBot) return { type: "bot" };
+  if (isBot) {
+    return { type: "bot" };
+  }
 
-  if (/iPad/.test(ua)) return { type: "tablet", vendor: "Apple", model: "iPad" };
-  if (/Tablet|PlayBook/.test(ua)) return { type: "tablet" };
+  if (/iPad/.test(ua)) {
+    return { type: "tablet", vendor: "Apple", model: "iPad" };
+  }
+  if (/Tablet|PlayBook/.test(ua)) {
+    return { type: "tablet" };
+  }
 
   if (/Mobile|Android.*Mobile|iPhone|iPod|Windows Phone/.test(ua)) {
     const vendor = /iPhone|iPad|iPod/.test(ua) ? "Apple" : undefined;
@@ -64,7 +72,9 @@ function parseDevice(ua: string, isBot: boolean): DeviceInfo {
     return { type: "mobile", ...(vendor && { vendor }), ...(model && { model }) };
   }
 
-  if (/Android/.test(ua) && !/Mobile/.test(ua)) return { type: "tablet" };
+  if (/Android/.test(ua) && !/Mobile/.test(ua)) {
+    return { type: "tablet" };
+  }
 
   return { type: "desktop" };
 }
