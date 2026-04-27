@@ -11,12 +11,12 @@ export const dynamic = "force-dynamic";
  */
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { username: string } }
+    context: { params: Promise<{ username: string }> }
 ) {
     const session = await verifySession(req);
     if (!session.ok) return session.response;
 
-    const { username } = params;
+    const { username } = await context.params;
 
     try {
         // Find user to remove
