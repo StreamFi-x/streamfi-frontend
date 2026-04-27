@@ -42,7 +42,9 @@ export function AddFundsButton({
     },
   });
 
-  if (!walletAddress) return null;
+  if (!walletAddress) {
+    return null;
+  }
 
   return (
     <Button

@@ -9,6 +9,7 @@ import ActivityFeed from "@/components/dashboard/stream-manager/ActivityFeed";
 import Chat from "@/components/dashboard/stream-manager/Chat";
 import StreamInfo from "@/components/dashboard/stream-manager/StreamInfo";
 import StreamSettings from "@/components/dashboard/stream-manager/StreamSettings";
+import StreamPasswordSettings from "@/components/dashboard/stream-manager/StreamPasswordSettings";
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
 import { Users, UserPlus, Coins, Timer } from "lucide-react";
@@ -28,6 +29,7 @@ export default function StreamManagerPage() {
     tags: [] as string[],
     thumbnail: null as string | null,
   });
+  const [isPasswordProtected, setIsPasswordProtected] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isStreamInfoModalOpen, setIsStreamInfoModalOpen] = useState(false);
@@ -73,14 +75,16 @@ export default function StreamManagerPage() {
         const response = await fetch(`/api/streams/${address}`);
         if (response.ok) {
           const data = await response.json();
-          const creator = data.stream?.creator || {};
+          const stream = data.streamData?.stream || data.stream || {};
+          const creator = stream.creator || data.stream?.creator || {};
           setStreamData({
-            title: creator.streamTitle || "",
-            category: creator.category || "",
-            description: creator.description || "",
-            tags: creator.tags || [],
-            thumbnail: creator.thumbnail || null,
+            title: creator.streamTitle || stream.title || "",
+            category: creator.category || stream.category || "",
+            description: creator.description || stream.description || "",
+            tags: creator.tags || stream.tags || [],
+            thumbnail: creator.thumbnail || stream.thumbnail || null,
           });
+          setIsPasswordProtected(!!stream.isPasswordProtected);
         }
       } catch (error) {
         console.error("Error fetching stream data:", error);
@@ -219,6 +223,13 @@ export default function StreamManagerPage() {
             onEditClick={() => setIsStreamInfoModalOpen(true)}
           />
           <StreamSettings />
+          {address && (
+            <StreamPasswordSettings
+              wallet={address}
+              isPasswordProtected={isPasswordProtected}
+              onUpdate={setIsPasswordProtected}
+            />
+          )}
           {/* Private stream whitelist */}
           <div className="bg-card border border-border rounded-xl p-4">
             <h3 className="text-sm font-semibold text-foreground mb-3">Private Access</h3>

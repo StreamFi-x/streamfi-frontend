@@ -27,17 +27,11 @@ export async function verifyAdminSession(): Promise<boolean> {
   return false;
 }
 
-/**
- * Synchronous check used by API routes that already verified a session.
- * Matches `ADMIN_PRIVY_IDS` (comma-separated Privy user IDs).
- */
+/** Returns true when userId is in the ADMIN_PRIVY_IDS or ADMIN_WALLET_ADDRESSES env lists. */
 export function isAdmin(userId: string): boolean {
-  const allowedPrivyIds = (process.env.ADMIN_PRIVY_IDS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  return Boolean(userId) && allowedPrivyIds.includes(userId);
+  const ids = (process.env.ADMIN_PRIVY_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+  const wallets = (process.env.ADMIN_WALLET_ADDRESSES ?? "").split(",").map(s => s.trim()).filter(Boolean);
+  return ids.includes(userId) || wallets.includes(userId);
 }
 
 /** Convenience helper — returns a 401 JSON response. */

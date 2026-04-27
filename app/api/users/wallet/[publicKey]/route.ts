@@ -23,9 +23,13 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    console.log("API: User found:", user.username);
+    // Never expose password hash in API responses
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { stream_password_hash, ...safeUser } = user;
+
+    console.log("API: User found:", safeUser.username);
     return NextResponse.json(
-      { user },
+      { user: safeUser },
       {
         headers: {
           // Cache for 60 seconds, serve stale for 2 minutes while revalidating
