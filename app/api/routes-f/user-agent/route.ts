@@ -27,10 +27,18 @@ function parseBrowser(ua: string): BrowserInfo {
   for (const [re, name] of rules) {
     const m = ua.match(re);
     if (m) {
-      return { name, version: m[1].replace(/[;)]+$/, "") };
+      return { name, version: stripTrailing(m[1], ";)") };
     }
   }
   return { name: "unknown", version: "" };
+}
+
+function stripTrailing(s: string, chars: string): string {
+  let end = s.length;
+  while (end > 0 && chars.includes(s[end - 1])) {
+    end--;
+  }
+  return s.slice(0, end);
 }
 
 function parseOs(ua: string): OsInfo {
