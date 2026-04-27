@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ONBOARDING_STORE, USER_PROFILES } from "../route";
+import { db } from "@/lib/db";
+import { getAuthUser } from "@/lib/auth";
 
-const VALID_STEP_IDS = [
+const VALID_STEPS = [
   "set_avatar",
   "set_bio",
   "set_stream_title",
@@ -12,68 +13,89 @@ const VALID_STEP_IDS = [
   "first_tip",
 ];
 
-// ---------------------------------------------------------------------------
-// POST /api/routes-f/onboarding/complete
-// Manually mark a step complete (edge cases like wallet connection)
-// Body: { step_id: string } | { dismiss: true }
-// ---------------------------------------------------------------------------
-export async function POST(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorised." }, { status: 401 });
+/**
+ * POST /api/routes-f/onboarding/complete
+ * Mark a step as manually complete (for edge cases like wallet connection).
+ * Also handles { dismiss: true } to hide the checklist.
+ * When all 8 steps complete, awards the onboarding_complete badge.
+ */
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!USER_PROFILES.has(userId)) {
-    return NextResponse.json({ error: "User not found." }, { status: 404 });
-  }
+  const body = await req.json();
+  const { step_id, dismiss } = body;
 
-  let body: { step_id?: string; dismiss?: boolean };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
-  }
-
-  // Ensure progress record exists
-  if (!ONBOARDING_STORE.has(userId)) {
-    ONBOARDING_STORE.set(userId, {
-      user_id: userId,
-      completed: [],
-      dismissed: false,
-      completed_at: null,
-      updated_at: new Date().toISOString(),
-    });
-  }
-
-  const progress = ONBOARDING_STORE.get(userId)!;
-
-  // Handle dismiss flag
-  if (body.dismiss === true) {
-    progress.dismissed = true;
-    progress.updated_at = new Date().toISOString();
+  if (dismiss === true) {
+    // Upsert and set dismissed = true
+    await db.query(
+      `INSERT INTO onboarding_progress (user_id, dismissed, updated_at)
+       VALUES ($1, true, now())
+       ON CONFLICT (user_id) DO UPDATE SET dismissed = true, updated_at = now()`,
+      [user.id]
+    );
     return NextResponse.json({ success: true, dismissed: true });
   }
 
-  // Handle step completion
-  const { step_id } = body;
-  if (!step_id) {
+  if (!step_id || !VALID_STEPS.includes(step_id)) {
     return NextResponse.json(
-      { error: "step_id or dismiss:true is required." },
+      { error: `Invalid step_id. Must be one of: ${VALID_STEPS.join(", ")}` },
       { status: 400 }
     );
   }
 
-  if (!VALID_STEP_IDS.includes(step_id)) {
-    return NextResponse.json(
-      { error: `Unknown step_id: '${step_id}'.` },
-      { status: 400 }
+  // Upsert progress row and append step_id to completed array (idempotent)
+  await db.query(
+    `INSERT INTO onboarding_progress (user_id, completed, updated_at)
+     VALUES ($1, ARRAY[$2::TEXT], now())
+     ON CONFLICT (user_id) DO UPDATE
+       SET completed   = array_append(
+                           CASE WHEN $2 = ANY(onboarding_progress.completed)
+                                THEN onboarding_progress.completed
+                                ELSE onboarding_progress.completed
+                           END, $2),
+           updated_at  = now()`,
+    [user.id, step_id]
+  );
+
+  // Check if all steps are now complete
+  const { rows } = await db.query(
+    `SELECT completed FROM onboarding_progress WHERE user_id = $1`,
+    [user.id]
+  );
+
+  const completedSteps: string[] = rows[0]?.completed ?? [];
+  const allDone = VALID_STEPS.every((s) => completedSteps.includes(s));
+
+  if (allDone) {
+    // Mark completed_at if not already set
+    await db.query(
+      `UPDATE onboarding_progress
+       SET completed_at = COALESCE(completed_at, now())
+       WHERE user_id = $1 AND completed_at IS NULL`,
+      [user.id]
     );
+
+    // Award onboarding_complete badge (fire-and-forget; badge API handles idempotency)
+    try {
+      await fetch(
+        `${process.env.NEXT_PUBLIC_APP_URL}/api/routes-f/badges/award`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: user.id, badge_slug: "onboarding_complete" }),
+        }
+      );
+    } catch {
+      // Non-critical: badge award failure should not block the response
+    }
   }
 
-  if (!progress.completed.includes(step_id)) {
-    progress.completed.push(step_id);
-    progress.updated_at = new Date().toISOString();
-  }
-
-  return NextResponse.json({ success: true, step_id, already_completed: progress.completed.includes(step_id) });
+  return NextResponse.json({
+    success: true,
+    step_id,
+    all_complete: allDone,
+  });
 }

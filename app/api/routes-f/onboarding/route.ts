@@ -1,163 +1,104 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // ---------------------------------------------------------------------------
-// Creator Onboarding Checklist API
+// DB schema (apply via migration):
 //
-// In production each step queries the relevant Postgres table.
-// Here we simulate the data store in-memory for the frontend layer.
+// CREATE TABLE onboarding_progress (
+//   user_id      UUID REFERENCES users(id) ON DELETE CASCADE PRIMARY KEY,
+//   completed    TEXT[] DEFAULT '{}',
+//   dismissed    BOOLEAN DEFAULT false,
+//   completed_at TIMESTAMPTZ,
+//   updated_at   TIMESTAMPTZ DEFAULT now()
+// );
 // ---------------------------------------------------------------------------
 
-type OnboardingProgress = {
-  user_id: string;
-  completed: string[];
-  dismissed: boolean;
-  completed_at: string | null;
-  updated_at: string;
-};
+import { db } from "@/lib/db";
+import { getAuthUser } from "@/lib/auth";
 
-type UserProfile = {
-  avatar: string | null;
-  bio: string | null;
-  wallet: string | null;
-  stream_title: string | null;
-  category: string | null;
-  total_streams: number;
-  follower_count: number;
-  total_tips_count: number;
-};
-
-// Simulated stores
-export const ONBOARDING_STORE: Map<string, OnboardingProgress> = new Map();
-export const USER_PROFILES: Map<string, UserProfile> = new Map();
-
-// Seed a demo user profile
-USER_PROFILES.set("user-demo-0001", {
-  avatar: "https://cdn.example.com/avatars/alice.jpg",
-  bio: null,
-  wallet: null,
-  stream_title: null,
-  category: null,
-  total_streams: 0,
-  follower_count: 0,
-  total_tips_count: 0,
-});
-
-// ---------------------------------------------------------------------------
-// Checklist step definitions
-// ---------------------------------------------------------------------------
-const CHECKLIST_STEPS: {
-  id: string;
-  title: string;
-  detect: (profile: UserProfile) => boolean;
-}[] = [
-  {
-    id: "set_avatar",
-    title: "Upload a profile photo",
-    detect: (p) => p.avatar !== null,
-  },
-  {
-    id: "set_bio",
-    title: "Write a bio",
-    detect: (p) => p.bio !== null,
-  },
-  {
-    id: "set_stream_title",
-    title: "Set a stream title",
-    detect: (p) => p.stream_title !== null,
-  },
-  {
-    id: "add_category",
-    title: "Pick a stream category",
-    detect: (p) => p.category !== null,
-  },
-  {
-    id: "first_stream",
-    title: "Go live for the first time",
-    detect: (p) => p.total_streams > 0,
-  },
-  {
-    id: "connect_wallet",
-    title: "Connect Stellar wallet",
-    detect: (p) => p.wallet !== null,
-  },
-  {
-    id: "first_follower",
-    title: "Get your first follower",
-    detect: (p) => p.follower_count >= 1,
-  },
-  {
-    id: "first_tip",
-    title: "Receive a tip",
-    detect: (p) => p.total_tips_count >= 1,
-  },
+const STEPS = [
+  { id: "set_avatar",      title: "Upload a profile photo" },
+  { id: "set_bio",         title: "Write a bio" },
+  { id: "set_stream_title",title: "Set a stream title" },
+  { id: "add_category",    title: "Pick a stream category" },
+  { id: "first_stream",    title: "Go live for the first time" },
+  { id: "connect_wallet",  title: "Connect Stellar wallet" },
+  { id: "first_follower",  title: "Get your first follower" },
+  { id: "first_tip",       title: "Receive a tip" },
 ];
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-function getCurrentUserId(request: NextRequest): string | null {
-  return request.headers.get("x-user-id");
+/**
+ * Auto-detect which steps are complete by querying user data.
+ */
+async function detectCompletedSteps(userId: string): Promise<string[]> {
+  const { rows } = await db.query(
+    `SELECT
+       u.avatar                                   AS avatar,
+       u.bio                                      AS bio,
+       u.wallet                                   AS wallet,
+       c.stream_title                             AS stream_title,
+       c.category                                 AS category,
+       (SELECT COUNT(*) FROM streams WHERE creator_id = u.id)         AS total_streams,
+       (SELECT COUNT(*) FROM follows  WHERE followed_id = u.id)       AS follower_count,
+       (SELECT COUNT(*) FROM tips     WHERE recipient_id = u.id)      AS total_tips_count,
+       op.completed                               AS manually_completed
+     FROM users u
+     LEFT JOIN creators c ON c.user_id = u.id
+     LEFT JOIN onboarding_progress op ON op.user_id = u.id
+     WHERE u.id = $1`,
+    [userId]
+  );
+
+  if (rows.length === 0) return [];
+  const row = rows[0];
+  const manual: string[] = row.manually_completed ?? [];
+
+  const auto: string[] = [];
+  if (row.avatar)                        auto.push("set_avatar");
+  if (row.bio)                           auto.push("set_bio");
+  if (row.stream_title)                  auto.push("set_stream_title");
+  if (row.category)                      auto.push("add_category");
+  if (Number(row.total_streams) > 0)     auto.push("first_stream");
+  if (row.wallet)                        auto.push("connect_wallet");
+  if (Number(row.follower_count) >= 1)   auto.push("first_follower");
+  if (Number(row.total_tips_count) >= 1) auto.push("first_tip");
+
+  // Merge auto-detected with manually marked (deduplicate)
+  return [...new Set([...auto, ...manual])];
 }
 
-async function awardBadge(userId: string, badgeSlug: string) {
-  // In production: POST /api/routes-f/badges  { user_id, badge_slug }
-  console.log(`[onboarding] Awarding badge '${badgeSlug}' to user ${userId}`);
-}
-
-// ---------------------------------------------------------------------------
-// GET /api/routes-f/onboarding  — checklist progress for current user
-// ---------------------------------------------------------------------------
-export async function GET(request: NextRequest) {
-  const userId = getCurrentUserId(request);
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorised." }, { status: 401 });
+/**
+ * GET /api/routes-f/onboarding
+ * Returns the checklist progress for the authenticated user.
+ */
+export async function GET(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const profile = USER_PROFILES.get(userId);
-  if (!profile) {
-    return NextResponse.json({ error: "User profile not found." }, { status: 404 });
-  }
+  const completed = await detectCompletedSteps(user.id);
 
-  // Ensure progress record exists
-  if (!ONBOARDING_STORE.has(userId)) {
-    ONBOARDING_STORE.set(userId, {
-      user_id: userId,
-      completed: [],
-      dismissed: false,
-      completed_at: null,
-      updated_at: new Date().toISOString(),
-    });
-  }
-  const progress = ONBOARDING_STORE.get(userId)!;
+  // Fetch dismissed state
+  const { rows: progressRows } = await db.query(
+    `SELECT dismissed, completed_at FROM onboarding_progress WHERE user_id = $1`,
+    [user.id]
+  );
+  const dismissed = progressRows[0]?.dismissed ?? false;
+  const completed_count = completed.length;
+  const total_count = STEPS.length;
+  const percentage = Math.round((completed_count / total_count) * 100);
 
-  // Auto-evaluate each step
-  const steps = CHECKLIST_STEPS.map((step) => {
-    const auto = step.detect(profile);
-    const manual = progress.completed.includes(step.id);
-    return {
-      id: step.id,
-      title: step.title,
-      completed: auto || manual,
-    };
-  });
-
-  const completedCount = steps.filter((s) => s.completed).length;
-  const totalCount = steps.length;
-  const percentage = Math.round((completedCount / totalCount) * 100);
-
-  // Check for first-time full completion
-  if (completedCount === totalCount && !progress.completed_at) {
-    progress.completed_at = new Date().toISOString();
-    progress.updated_at = new Date().toISOString();
-    await awardBadge(userId, "onboarding_complete");
-  }
+  const steps = STEPS.map((s) => ({
+    id: s.id,
+    title: s.title,
+    completed: completed.includes(s.id),
+  }));
 
   return NextResponse.json({
     steps,
-    completed_count: completedCount,
-    total_count: totalCount,
+    completed_count,
+    total_count,
     percentage,
-    dismissed: progress.dismissed,
-    completed_at: progress.completed_at,
+    dismissed,
   });
 }

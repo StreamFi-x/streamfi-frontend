@@ -1,117 +1,110 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // ---------------------------------------------------------------------------
-// Simulated in-memory store (replace with Postgres + Stellar SDK in production)
+// DB schema (apply via migration):
+//
+// ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT UNIQUE;
+// ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by   UUID REFERENCES users(id);
+//
+// CREATE TABLE referral_rewards (
+//   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+//   referrer_id   UUID REFERENCES users(id),
+//   referred_id   UUID REFERENCES users(id),
+//   trigger       TEXT NOT NULL,  -- 'signup' | 'first_earnings' | 'milestone_100usd'
+//   reward_usdc   NUMERIC(10,2),
+//   tx_hash       TEXT,
+//   created_at    TIMESTAMPTZ DEFAULT now()
+// );
 // ---------------------------------------------------------------------------
-type User = {
-  id: string;
-  username: string;
-  referral_code: string;
-  referred_by: string | null;
-  created_at: number; // epoch ms
-  total_earnings_usd: number;
-};
 
-type ReferralReward = {
-  id: string;
-  referrer_id: string;
-  referred_id: string;
-  trigger: "signup" | "first_earnings" | "milestone_100usd";
-  reward_usdc: number;
-  tx_hash: string | null;
-  created_at: number;
-};
+import { db } from "@/lib/db";
+import { getAuthUser } from "@/lib/auth";
 
-export const USERS_STORE: Map<string, User> = new Map();
-export const REWARDS_STORE: ReferralReward[] = [];
-
-// Seed a demo user
-const DEMO_USER: User = {
-  id: "user-demo-0001",
-  username: "alice",
-  referral_code: "alice-X7K2",
-  referred_by: null,
-  created_at: Date.now() - 1000 * 60 * 60 * 24 * 10,
-  total_earnings_usd: 0,
-};
-USERS_STORE.set(DEMO_USER.id, DEMO_USER);
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-function generateReferralCode(username: string): string {
-  const prefix = username.slice(0, 6).toLowerCase();
+/**
+ * Generates a referral code: first 6 chars of username + 4 random alphanumeric chars.
+ * e.g. 'alice-X7K2'
+ */
+export function generateReferralCode(username: string): string {
+  const base = username.slice(0, 6).toLowerCase();
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   const suffix = Array.from({ length: 4 }, () =>
     chars.charAt(Math.floor(Math.random() * chars.length))
   ).join("");
-  return `${prefix}-${suffix}`;
+  return `${base}-${suffix}`;
 }
 
-function getCurrentUserId(request: NextRequest): string | null {
-  // In production: decode JWT / session cookie.
-  // For demo, accept X-User-Id header.
-  return request.headers.get("x-user-id");
-}
-
-function buildShareUrl(code: string): string {
-  const base =
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.streamfi.media";
-  return `${base}/join?ref=${code}`;
-}
-
-// ---------------------------------------------------------------------------
-// GET /api/routes-f/referrals  — current user's referral code + stats
-// ---------------------------------------------------------------------------
-export async function GET(request: NextRequest) {
-  const userId = getCurrentUserId(request);
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorised." }, { status: 401 });
-  }
-
-  const user = USERS_STORE.get(userId);
+/**
+ * GET /api/routes-f/referrals
+ * Returns the authenticated user's referral code, share URL, and stats.
+ */
+export async function GET(req: NextRequest) {
+  const user = await getAuthUser(req);
   if (!user) {
-    return NextResponse.json({ error: "User not found." }, { status: 404 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Ensure referral code exists (idempotent generation)
-  if (!user.referral_code) {
-    user.referral_code = generateReferralCode(user.username);
-  }
-
-  // Build referral list
-  const referred = Array.from(USERS_STORE.values()).filter(
-    (u) => u.referred_by === userId
+  // Fetch or lazily create a referral code
+  let { rows: userRows } = await db.query(
+    `SELECT id, username, referral_code FROM users WHERE id = $1`,
+    [user.id]
   );
 
-  const myRewards = REWARDS_STORE.filter((r) => r.referrer_id === userId);
-  const totalEarnedUsdc = myRewards.reduce((s, r) => s + r.reward_usdc, 0);
-  const pendingUsdc = myRewards
-    .filter((r) => !r.tx_hash)
-    .reduce((s, r) => s + r.reward_usdc, 0);
+  if (userRows.length === 0) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
 
-  const referrals = referred.map((u) => {
-    const earned = myRewards
-      .filter((r) => r.referred_id === u.id)
-      .reduce((s, r) => s + r.reward_usdc, 0);
-    return {
-      username: u.username,
-      joined_at: new Date(u.created_at).toISOString(),
-      status: u.total_earnings_usd >= 10 ? "active" : "pending",
-      earned_usdc: earned.toFixed(2),
-    };
-  });
+  let { referral_code } = userRows[0];
+
+  if (!referral_code) {
+    referral_code = generateReferralCode(userRows[0].username);
+    await db.query(`UPDATE users SET referral_code = $1 WHERE id = $2`, [
+      referral_code,
+      user.id,
+    ]);
+  }
+
+  // Aggregate stats
+  const { rows: statsRows } = await db.query(
+    `SELECT
+       COUNT(DISTINCT u.id)                                           AS total_referred,
+       COUNT(DISTINCT CASE WHEN u.created_at > NOW() - INTERVAL '30 days' THEN u.id END) AS active_referrals,
+       COALESCE(SUM(rr.reward_usdc), 0)                              AS total_earned_usdc,
+       COALESCE(SUM(CASE WHEN rr.tx_hash IS NULL THEN rr.reward_usdc END), 0) AS pending_usdc
+     FROM users u
+     LEFT JOIN referral_rewards rr ON rr.referrer_id = $1 AND rr.referred_id = u.id
+     WHERE u.referred_by = $1`,
+    [user.id]
+  );
+
+  // Individual referrals list
+  const { rows: referrals } = await db.query(
+    `SELECT u.username, u.created_at AS joined_at,
+            CASE WHEN u.created_at > NOW() - INTERVAL '30 days' THEN 'active' ELSE 'inactive' END AS status,
+            COALESCE(SUM(rr.reward_usdc), 0) AS earned_usdc
+     FROM users u
+     LEFT JOIN referral_rewards rr ON rr.referrer_id = $1 AND rr.referred_id = u.id
+     WHERE u.referred_by = $1
+     GROUP BY u.id, u.username, u.created_at
+     ORDER BY u.created_at DESC`,
+    [user.id]
+  );
+
+  const stats = statsRows[0];
 
   return NextResponse.json({
-    code: user.referral_code,
-    share_url: buildShareUrl(user.referral_code),
+    code: referral_code,
+    share_url: `https://www.streamfi.media/join?ref=${referral_code}`,
     stats: {
-      total_referred: referred.length,
-      active_referrals: referred.filter((u) => u.total_earnings_usd >= 10)
-        .length,
-      total_earned_usdc: totalEarnedUsdc.toFixed(2),
-      pending_usdc: pendingUsdc.toFixed(2),
+      total_referred: Number(stats.total_referred),
+      active_referrals: Number(stats.active_referrals),
+      total_earned_usdc: String(Number(stats.total_earned_usdc).toFixed(2)),
+      pending_usdc: String(Number(stats.pending_usdc).toFixed(2)),
     },
-    referrals,
+    referrals: referrals.map((r) => ({
+      username: r.username,
+      joined_at: r.joined_at,
+      status: r.status,
+      earned_usdc: String(Number(r.earned_usdc).toFixed(2)),
+    })),
   });
 }
