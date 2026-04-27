@@ -18,12 +18,12 @@ const updateSchema = z.object({
  */
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     const session = await verifySession(req);
     if (!session.ok) return session.response;
 
-    const { id } = params;
+    const { id } = await context.params;
 
     try {
         const body = await req.json();
@@ -78,12 +78,12 @@ export async function PATCH(
  */
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     const session = await verifySession(req);
     if (!session.ok) return session.response;
 
-    const { id } = params;
+    const { id } = await context.params;
 
     try {
         // Check ownership

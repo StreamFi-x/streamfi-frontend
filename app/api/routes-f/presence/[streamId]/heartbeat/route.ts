@@ -28,9 +28,9 @@ function getOrCreate(streamId: string) {
 // ---------------------------------------------------------------------------
 export async function POST(
   request: NextRequest,
-  { params }: { params: { streamId: string } }
+  context: { params: Promise<{ streamId: string }> }
 ) {
-  const { streamId } = params;
+  const { streamId } = await context.params;
 
   let body: { viewer_id?: string };
   try {

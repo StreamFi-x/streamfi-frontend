@@ -13,7 +13,7 @@ export const CORPUS: Record<string, number> = {
   house: 200, service: 190, friend: 180, father: 170, power: 160,
   hour: 150, game: 140, line: 130, end: 120, among: 110,
   never: 100, last: 95, long: 90, great: 85, little: 80,
-  own: 75, old: 70, right: 65, big: 60, high: 55,
+  own: 75, old: 70, big: 60, high: 55,
   different: 50, small: 48, large: 46, next: 44, early: 42,
   young: 40, important: 38, public: 36, bad: 34, same: 32,
   able: 30, human: 28, local: 26, sure: 24, free: 22,
