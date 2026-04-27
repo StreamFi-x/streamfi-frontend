@@ -154,3 +154,11 @@ License
 
 This project is licensed under the MIT License.
 ."(bdeaec5f1344e4fffb26079ea963ece4698b285e2Bfile:///Users/dumtochukwu/Desktop/wave/streamfi-frontend/README.md:8file:///Users/dumtochukwu/Desktop/wave/streamfi-frontend
+
+## 💰 Bounty Contribution
+
+- **Task:** feat(routes-f): creator referral program api
+- **Reward:** $100
+- **Source:** GitHub-Paid
+- **Date:** 2026-04-27
+
