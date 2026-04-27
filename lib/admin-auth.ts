@@ -27,6 +27,19 @@ export async function verifyAdminSession(): Promise<boolean> {
   return false;
 }
 
+/**
+ * Synchronous check used by API routes that already verified a session.
+ * Matches `ADMIN_PRIVY_IDS` (comma-separated Privy user IDs).
+ */
+export function isAdmin(userId: string): boolean {
+  const allowedPrivyIds = (process.env.ADMIN_PRIVY_IDS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  return Boolean(userId) && allowedPrivyIds.includes(userId);
+}
+
 /** Convenience helper — returns a 401 JSON response. */
 export function adminUnauthorized(): Response {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
