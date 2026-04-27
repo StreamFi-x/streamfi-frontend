@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getQuoteById, getRandomQuote, getDeterministicQuote, getCategories, quotes } from './data';
 import { QuoteResponse } from './types';
 
-export async function GET(request: NextRequest, { params }: { params?: { id?: string } }) {
+export async function GET(
+  request: NextRequest,
+  context?: { params?: { id?: string } | Promise<{ id?: string }> },
+) {
+  const rawParams = context?.params;
+  const params = rawParams instanceof Promise ? await rawParams : rawParams;
   const { searchParams } = new URL(request.url);
   
   // Handle GET /quote/[id]

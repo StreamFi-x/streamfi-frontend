@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       ? await sql`
           SELECT key, enabled, rollout_percentage, allowed_user_ids
           FROM feature_flags
-          WHERE key = ANY(${keys as unknown as string[]})
+          WHERE key = ANY(${keys as any})
         `
       : await sql`SELECT key, enabled, rollout_percentage, allowed_user_ids FROM feature_flags`;
 

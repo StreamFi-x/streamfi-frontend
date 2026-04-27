@@ -1,0 +1,48 @@
+export interface VatRate {
+  country: string;
+  code: string;
+  rate: number;
+}
+
+export const VAT_RATES: VatRate[] = [
+  { country: "Austria", code: "AT", rate: 20 },
+  { country: "Belgium", code: "BE", rate: 21 },
+  { country: "Bulgaria", code: "BG", rate: 20 },
+  { country: "Croatia", code: "HR", rate: 25 },
+  { country: "Cyprus", code: "CY", rate: 19 },
+  { country: "Czech Republic", code: "CZ", rate: 21 },
+  { country: "Denmark", code: "DK", rate: 25 },
+  { country: "Estonia", code: "EE", rate: 22 },
+  { country: "Finland", code: "FI", rate: 24 },
+  { country: "France", code: "FR", rate: 20 },
+  { country: "Germany", code: "DE", rate: 19 },
+  { country: "Greece", code: "GR", rate: 24 },
+  { country: "Hungary", code: "HU", rate: 27 },
+  { country: "Ireland", code: "IE", rate: 23 },
+  { country: "Italy", code: "IT", rate: 22 },
+  { country: "Latvia", code: "LV", rate: 21 },
+  { country: "Lithuania", code: "LT", rate: 21 },
+  { country: "Luxembourg", code: "LU", rate: 17 },
+  { country: "Malta", code: "MT", rate: 18 },
+  { country: "Netherlands", code: "NL", rate: 21 },
+  { country: "Poland", code: "PL", rate: 23 },
+  { country: "Portugal", code: "PT", rate: 23 },
+  { country: "Romania", code: "RO", rate: 19 },
+  { country: "Slovakia", code: "SK", rate: 20 },
+  { country: "Slovenia", code: "SI", rate: 22 },
+  { country: "Spain", code: "ES", rate: 21 },
+  { country: "Sweden", code: "SE", rate: 25 },
+  { country: "United Kingdom", code: "GB", rate: 20 },
+  { country: "Nigeria", code: "NG", rate: 7.5 },
+  { country: "South Africa", code: "ZA", rate: 15 },
+  { country: "Australia", code: "AU", rate: 10 },
+  { country: "New Zealand", code: "NZ", rate: 15 },
+  { country: "Canada", code: "CA", rate: 5 },
+  { country: "India", code: "IN", rate: 18 },
+  { country: "Japan", code: "JP", rate: 10 },
+  { country: "Singapore", code: "SG", rate: 9 },
+  { country: "United Arab Emirates", code: "AE", rate: 5 },
+  { country: "Saudi Arabia", code: "SA", rate: 15 },
+  { country: "Kenya", code: "KE", rate: 16 },
+  { country: "Ghana", code: "GH", rate: 15 },
+];
