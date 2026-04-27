@@ -138,6 +138,8 @@ const StreamPreferencesPage: React.FC = () => {
   } | null>(null);
   const [enableRecording, setEnableRecording] = useState(false);
   const [recordingToggleSaving, setRecordingToggleSaving] = useState(false);
+  const [latencyMode, setLatencyMode] = useState<"low" | "standard">("low");
+  const [latencyToggleSaving, setLatencyToggleSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // State for the modals
@@ -163,6 +165,8 @@ const StreamPreferencesPage: React.FC = () => {
           data.enableRecording === true ||
             data.streamData?.enableRecording === true
         );
+        const mode = data.latencyMode || data.streamData?.latencyMode || "low";
+        setLatencyMode(mode === "standard" ? "standard" : "low");
         if (data.hasStream && data.streamData) {
           setStreamData(data.streamData);
         } else {
@@ -275,6 +279,36 @@ const StreamPreferencesPage: React.FC = () => {
     key: "disconnectedProtection" | "copyrightWarning"
   ) => {
     updateState(key, !state[key]);
+  };
+
+  const handleLatencyToggle = async () => {
+    if (!address || latencyToggleSaving) {
+      return;
+    }
+    const newValue = latencyMode === "low" ? "standard" : "low";
+    setLatencyToggleSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append("latency_mode", newValue);
+      const res = await fetch(`/api/users/updates/${address}`, {
+        method: "PUT",
+        body: formData,
+      });
+      if (!res.ok) {
+        throw new Error("Failed to update");
+      }
+      setLatencyMode(newValue);
+      toast.success(
+        newValue === "standard"
+          ? "DVR enabled — viewers can rewind your stream. Takes effect on next stream."
+          : "Low latency enabled — minimal delay. Takes effect on next stream."
+      );
+    } catch (e) {
+      console.error("Failed to update latency mode:", e);
+      toast.error("Failed to update latency mode");
+    } finally {
+      setLatencyToggleSaving(false);
+    }
   };
 
   const handleRecordingToggle = async () => {
@@ -463,6 +497,37 @@ const StreamPreferencesPage: React.FC = () => {
                 onChange={handleRecordingToggle}
               />
               {recordingToggleSaving && (
+                <span className="ml-2 text-sm text-muted-foreground">
+                  Saving…
+                </span>
+              )}
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* Latency Mode / DVR */}
+        <SectionCard>
+          <div className="flex justify-between items-start gap-4">
+            <div className="flex-1">
+              <h2 className="text-highlight text-xl font-medium mb-2">
+                DVR / Rewind
+              </h2>
+              <p className="text-muted-foreground text-sm italic">
+                {latencyMode === "standard"
+                  ? "Standard latency mode is active. Viewers can scrub backward during your live stream (10–15 second delay)."
+                  : "Low latency mode is active. Minimal delay (~3–5 seconds), but viewers cannot rewind the stream."}
+              </p>
+              <p className="text-muted-foreground text-xs mt-2">
+                Changes take effect on your next stream. Existing streams are not
+                affected.
+              </p>
+            </div>
+            <div className="flex items-center shrink-0">
+              <ToggleSwitch
+                enabled={latencyMode === "standard"}
+                onChange={handleLatencyToggle}
+              />
+              {latencyToggleSaving && (
                 <span className="ml-2 text-sm text-muted-foreground">
                   Saving…
                 </span>

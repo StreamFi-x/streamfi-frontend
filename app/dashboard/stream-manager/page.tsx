@@ -13,6 +13,7 @@ import StreamPasswordSettings from "@/components/dashboard/stream-manager/Stream
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
 import { Users, UserPlus, Coins, Timer } from "lucide-react";
+import { WhitelistManager } from "@/components/stream/WhitelistManager";
 
 export default function StreamManagerPage() {
   const { publicKey, privyWallet } = useStellarWallet();
@@ -229,6 +230,11 @@ export default function StreamManagerPage() {
               onUpdate={setIsPasswordProtected}
             />
           )}
+          {/* Private stream whitelist */}
+          <div className="bg-card border border-border rounded-xl p-4">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Private Access</h3>
+            <WhitelistManager />
+          </div>
         </div>
       </div>
 

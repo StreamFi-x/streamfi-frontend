@@ -27,9 +27,11 @@ const MUX_CREATE_TIMEOUT_MS = 8_000;
 export async function createMuxStream(streamData?: {
   name: string;
   record?: boolean;
+  latencyMode?: "low" | "standard";
 }) {
   try {
     const record = streamData?.record === true;
+    const latencyMode = streamData?.latencyMode ?? "low";
 
     const liveStream = await Promise.race([
       mux.video.liveStreams.create({
@@ -40,7 +42,7 @@ export async function createMuxStream(streamData?: {
           },
         }),
         reconnect_window: 60,
-        latency_mode: "low",
+        latency_mode: latencyMode,
         max_continuous_duration: 43200,
       }),
       new Promise<never>((_, reject) =>
