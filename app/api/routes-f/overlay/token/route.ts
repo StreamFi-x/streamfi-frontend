@@ -12,7 +12,9 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: NextRequest) {
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+        return session.response;
+    }
 
     const secret = process.env.SESSION_SECRET;
     if (!secret) {

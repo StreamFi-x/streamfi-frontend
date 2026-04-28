@@ -26,7 +26,7 @@ export function slugify(text: string, options: SlugifyOptions = {}): string {
   const sep = options.separator ?? "-";
   const max = options.maxLength ?? 100;
 
-  let s = text
+  const s = text
     .normalize("NFD")           // decompose accented chars
     .replace(DIACRITIC_RE, "")  // strip combining marks (diacritics)
     .replace(EMOJI_RE, " ")     // replace emoji with space
@@ -35,7 +35,9 @@ export function slugify(text: string, options: SlugifyOptions = {}): string {
     .replace(new RegExp(`${sep === "-" ? "-" : "_"}+`, "g"), sep) // collapse consecutive seps
     .replace(new RegExp(`^${sep}|${sep}$`, "g"), ""); // trim leading/trailing sep
 
-  if (s.length <= max) return s;
+  if (s.length <= max) {
+    return s;
+  }
 
   // Truncate at word boundary — find the last separator at or before max
   const truncated = s.slice(0, max);

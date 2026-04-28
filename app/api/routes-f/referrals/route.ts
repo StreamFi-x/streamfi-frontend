@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Fetch or lazily create a referral code
-  let { rows: userRows } = await db.query(
+  const { rows: userRows } = await db.query(
     `SELECT id, username, referral_code FROM users WHERE id = $1`,
     [user.id]
   );

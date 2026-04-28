@@ -54,7 +54,9 @@ export function useStreamWhitelist() {
           credentials: "include",
           body: JSON.stringify({ identifier }),
         });
-        if (!res.ok) throw new Error("Failed to remove");
+        if (!res.ok) {
+          throw new Error("Failed to remove");
+        }
         mutate(
           prev => prev
             ? { whitelist: prev.whitelist.filter(e => e.identifier !== identifier) }

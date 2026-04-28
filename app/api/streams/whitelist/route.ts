@@ -32,7 +32,9 @@ export async function GET(req: NextRequest) {
   if (streamerUsername) {
     // Viewer checking their own access
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+      return session.response;
+    }
 
     const { rows } = await sql`
       SELECT sw.id
@@ -51,7 +53,9 @@ export async function GET(req: NextRequest) {
 
   // Streamer listing their own whitelist
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { rows } = await sql`
     SELECT
@@ -74,7 +78,9 @@ export async function POST(req: NextRequest) {
   }
 
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { identifier } = await req.json().catch(() => ({}));
   if (!identifier || typeof identifier !== "string") {
@@ -82,7 +88,9 @@ export async function POST(req: NextRequest) {
   }
 
   const clean = identifier.trim();
-  if (!clean) return NextResponse.json({ error: "identifier is required" }, { status: 400 });
+  if (!clean) {
+    return NextResponse.json({ error: "identifier is required" }, { status: 400 });
+  }
 
   // Try to resolve to a user_id
   const isWallet = /^G[A-Z2-7]{55}$/.test(clean);
@@ -124,10 +132,14 @@ export async function DELETE(req: NextRequest) {
   }
 
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { identifier } = await req.json().catch(() => ({}));
-  if (!identifier) return NextResponse.json({ error: "identifier is required" }, { status: 400 });
+  if (!identifier) {
+    return NextResponse.json({ error: "identifier is required" }, { status: 400 });
+  }
 
   const clean = identifier.trim();
   await sql`

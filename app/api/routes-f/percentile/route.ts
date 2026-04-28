@@ -4,8 +4,12 @@ const MAX_POINTS = 100_000;
 const MAX_PERCENTILES = 100;
 
 function quantile(sorted: number[], p: number): number {
-  if (p === 0) return sorted[0];
-  if (p === 100) return sorted[sorted.length - 1];
+  if (p === 0) {
+    return sorted[0];
+  }
+  if (p === 100) {
+    return sorted[sorted.length - 1];
+  }
   const pos = (p / 100) * (sorted.length - 1);
   const lo = Math.floor(pos);
   const hi = Math.ceil(pos);

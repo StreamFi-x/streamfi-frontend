@@ -14,7 +14,9 @@ function sortChars(s: string): string {
 function areAnagrams(a: string, b: string): boolean {
   const na = normalize(a);
   const nb = normalize(b);
-  if (na.length !== nb.length) return false;
+  if (na.length !== nb.length) {
+    return false;
+  }
   return sortChars(na) === sortChars(nb);
 }
 

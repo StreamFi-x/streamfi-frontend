@@ -16,7 +16,9 @@ const acceptSchema = z.object({
  */
 export async function POST(req: NextRequest) {
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+        return session.response;
+    }
 
     try {
         const body = await req.json();

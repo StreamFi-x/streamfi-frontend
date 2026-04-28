@@ -73,7 +73,7 @@ export function parseMarkdown(markdown: string): ParsedMarkdown {
   let listType: "ul" | "ol" | null = null;
 
   for (let i = 0; i < lines.length; i++) {
-    let line = lines[i];
+    const line = lines[i];
 
     // Check for code block markers
     if (line.startsWith("```")) {
@@ -167,7 +167,6 @@ export function parseMarkdown(markdown: string): ParsedMarkdown {
   }
 
   const html = htmlLines.join("\n");
-  const wordCount = countWords(markdown);
 
   return { html, headings };
 }

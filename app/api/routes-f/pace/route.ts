@@ -14,16 +14,24 @@ const KM_PER_MI = 1.60934;
 
 function parseTime(s: string): number | null {
   const parts = s.split(":").map(Number);
-  if (parts.some(isNaN)) return null;
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.some(isNaN)) {
+    return null;
+  }
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
   return null;
 }
 
 function parsePace(s: string): number | null {
   // mm:ss per unit → seconds
   const parts = s.split(":").map(Number);
-  if (parts.length !== 2 || parts.some(isNaN)) return null;
+  if (parts.length !== 2 || parts.some(isNaN)) {
+    return null;
+  }
   return parts[0] * 60 + parts[1];
 }
 

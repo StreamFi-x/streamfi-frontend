@@ -14,7 +14,9 @@ export async function DELETE(
     context: { params: Promise<{ username: string }> }
 ) {
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+        return session.response;
+    }
 
     const { username } = await context.params;
 

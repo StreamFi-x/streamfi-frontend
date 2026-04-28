@@ -5,9 +5,15 @@ export function normalize(
   ignoreWhitespace: boolean
 ): string {
   let s = text;
-  if (ignoreCase) s = s.toLowerCase();
-  if (ignorePunct) s = s.replace(/[^a-zA-Z0-9\s]/g, "");
-  if (ignoreWhitespace) s = s.replace(/\s+/g, "");
+  if (ignoreCase) {
+    s = s.toLowerCase();
+  }
+  if (ignorePunct) {
+    s = s.replace(/[^a-zA-Z0-9\s]/g, "");
+  }
+  if (ignoreWhitespace) {
+    s = s.replace(/\s+/g, "");
+  }
   return s;
 }
 

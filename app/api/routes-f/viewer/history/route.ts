@@ -7,7 +7,9 @@ const MAX_LIMIT = 100;
 
 export async function GET(request: NextRequest) {
   const session = await verifySession(request);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     // Respect privacy setting

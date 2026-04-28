@@ -30,14 +30,22 @@ function pearson(x: number[], y: number[]): number {
 }
 
 function strength(abs: number): Strength {
-  if (abs >= 0.7) return "strong";
-  if (abs >= 0.3) return "moderate";
+  if (abs >= 0.7) {
+    return "strong";
+  }
+  if (abs >= 0.3) {
+    return "moderate";
+  }
   return "weak";
 }
 
 function direction(coefficient: number): Direction {
-  if (coefficient > 0) return "positive";
-  if (coefficient < 0) return "negative";
+  if (coefficient > 0) {
+    return "positive";
+  }
+  if (coefficient < 0) {
+    return "negative";
+  }
   return "none";
 }
 

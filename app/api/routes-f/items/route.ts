@@ -44,7 +44,9 @@ async function invalidateCatalogCache() {
   await redis.del(CACHE_KEY);
   // Invalidate any type-scoped keys
   const keys = await redis.keys("items_catalog:type:*");
-  if (keys.length > 0) await redis.del(...keys);
+  if (keys.length > 0) {
+    await redis.del(...keys);
+  }
 }
 
 /**

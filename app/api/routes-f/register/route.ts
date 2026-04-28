@@ -34,7 +34,9 @@ export async function POST(request: NextRequest) {
   }
 
   const session = await verifySession(request);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   let body: z.infer<typeof registerSchema>;
   try {

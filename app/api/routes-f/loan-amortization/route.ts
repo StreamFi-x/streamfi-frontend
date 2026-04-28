@@ -64,7 +64,9 @@ export async function POST(req: NextRequest) {
     const payment = Math.min(r2(monthly_payment + (extra_monthly_payment as number)), r2(balance + interest));
     const principalPaid = r2(payment - interest);
     balance = r2(balance - principalPaid);
-    if (balance < 0.01) balance = 0;
+    if (balance < 0.01) {
+      balance = 0;
+    }
     totalInterest = r2(totalInterest + interest);
 
     schedule.push({
@@ -75,7 +77,9 @@ export async function POST(req: NextRequest) {
       balance,
     });
 
-    if (month > 600) break; // safety cap: 50 years
+    if (month > 600) {
+      break; // safety cap: 50 years
+    }
   }
 
   return NextResponse.json({

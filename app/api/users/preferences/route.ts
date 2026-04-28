@@ -23,7 +23,9 @@ export async function GET(req: NextRequest) {
   }
 
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   // Upsert defaults on first access
   const { rows } = await sql`
@@ -43,7 +45,9 @@ export async function PATCH(req: NextRequest) {
   }
 
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const body = await req.json().catch(() => ({}));
 

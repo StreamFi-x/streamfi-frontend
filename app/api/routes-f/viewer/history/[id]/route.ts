@@ -6,7 +6,9 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const session = await verifySession(request);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const { id } = await params;
 
