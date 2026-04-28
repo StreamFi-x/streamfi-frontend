@@ -21,7 +21,9 @@ export async function PATCH(
     context: { params: Promise<{ id: string }> }
 ) {
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+        return session.response;
+    }
 
     const { id } = await context.params;
 
@@ -49,9 +51,15 @@ export async function PATCH(
 
         // Build update query dynamically
         const updates: string[] = [];
-        if (position !== undefined) updates.push(`position = '${position}'`);
-        if (config !== undefined) updates.push(`config = '${JSON.stringify(config)}'`);
-        if (isEnabled !== undefined) updates.push(`is_enabled = ${isEnabled}`);
+        if (position !== undefined) {
+            updates.push(`position = '${position}'`);
+        }
+        if (config !== undefined) {
+            updates.push(`config = '${JSON.stringify(config)}'`);
+        }
+        if (isEnabled !== undefined) {
+            updates.push(`is_enabled = ${isEnabled}`);
+        }
         updates.push(`updated_at = CURRENT_TIMESTAMP`);
 
         if (updates.length > 1) { // more than just updated_at
@@ -81,7 +89,9 @@ export async function DELETE(
     context: { params: Promise<{ id: string }> }
 ) {
     const session = await verifySession(req);
-    if (!session.ok) return session.response;
+    if (!session.ok) {
+        return session.response;
+    }
 
     const { id } = await context.params;
 

@@ -9,7 +9,9 @@ const CATALOG_CACHE_KEY = "items_catalog";
 async function invalidateCatalogCache() {
   await redis.del(CATALOG_CACHE_KEY);
   const keys = await redis.keys("items_catalog:type:*");
-  if (keys.length > 0) await redis.del(...keys);
+  if (keys.length > 0) {
+    await redis.del(...keys);
+  }
 }
 
 /**

@@ -83,7 +83,9 @@ export async function POST(req: NextRequest) {
   }
 
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const body = await req.json().catch(() => ({}));
   const { streamer_username, start_offset, duration, title } = body;
@@ -139,15 +141,21 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   const clipId = new URL(req.url).searchParams.get("id");
-  if (!clipId) return NextResponse.json({ error: "id is required" }, { status: 400 });
+  if (!clipId) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
 
   const { rows } = await sql`
     SELECT id, clipped_by, streamer_id FROM stream_clips WHERE id = ${clipId} LIMIT 1
   `;
-  if (!rows.length) return NextResponse.json({ error: "Clip not found" }, { status: 404 });
+  if (!rows.length) {
+    return NextResponse.json({ error: "Clip not found" }, { status: 404 });
+  }
 
   const clip = rows[0];
   if (clip.clipped_by !== session.userId && clip.streamer_id !== session.userId) {

@@ -17,7 +17,9 @@ export function WhitelistManager() {
 
   const handleAdd = async () => {
     const val = input.trim();
-    if (!val) return;
+    if (!val) {
+      return;
+    }
     try {
       await add(val);
       setInput("");

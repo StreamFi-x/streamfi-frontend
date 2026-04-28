@@ -46,7 +46,9 @@ class XmlParser {
 
   private readUntil(end: string): string {
     const idx = this.xml.indexOf(end, this.pos);
-    if (idx === -1) this.error(`Unterminated sequence, expected '${end}'`);
+    if (idx === -1) {
+      this.error(`Unterminated sequence, expected '${end}'`);
+    }
     const result = this.xml.slice(this.pos, idx);
     this.pos = idx + end.length;
     return result;
@@ -73,13 +75,17 @@ class XmlParser {
     while (this.pos < this.xml.length && /[\w\-.:_]/.test(this.xml[this.pos])) {
       this.pos++;
     }
-    if (this.pos === start) this.error("Expected XML name");
+    if (this.pos === start) {
+      this.error("Expected XML name");
+    }
     return this.xml.slice(start, this.pos);
   }
 
   private readAttrValue(): string {
     const quote = this.peek();
-    if (quote !== '"' && quote !== "'") this.error("Expected attribute value quote");
+    if (quote !== '"' && quote !== "'") {
+      this.error("Expected attribute value quote");
+    }
     this.consume();
     const val = this.readUntil(quote);
     return this.unescapeXml(val);
@@ -104,7 +110,9 @@ class XmlParser {
     // Read attributes
     while (true) {
       this.skipWhitespace();
-      if (this.peek() === "/" || this.peek() === ">") break;
+      if (this.peek() === "/" || this.peek() === ">") {
+        break;
+      }
       const attrName = this.readName();
       this.skipWhitespace();
       this.expect("=");
@@ -145,23 +153,31 @@ class XmlParser {
       }
       if (this.peek() === "<") {
         const child = this.readElement();
-        if (!children[child.tag]) children[child.tag] = [];
+        if (!children[child.tag]) {
+          children[child.tag] = [];
+        }
         children[child.tag].push(child.node);
       } else {
         // Text node
         const start = this.pos;
-        while (this.pos < this.xml.length && this.peek() !== "<") this.pos++;
+        while (this.pos < this.xml.length && this.peek() !== "<") {
+          this.pos++;
+        }
         textParts.push(this.unescapeXml(this.xml.slice(start, this.pos)));
       }
     }
 
     this.expect("</");
     const closingTag = this.readName();
-    if (closingTag !== tag) this.error(`Mismatched tags: <${tag}> closed by </${closingTag}>`);
+    if (closingTag !== tag) {
+      this.error(`Mismatched tags: <${tag}> closed by </${closingTag}>`);
+    }
     this.expect(">");
 
     const text = textParts.join("").trim();
-    if (text) node[this.opts.textKey] = text;
+    if (text) {
+      node[this.opts.textKey] = text;
+    }
 
     for (const [childTag, childNodes] of Object.entries(children)) {
       node[childTag] = childNodes.length === 1 ? childNodes[0] : childNodes;

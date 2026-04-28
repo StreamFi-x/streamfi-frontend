@@ -2,7 +2,9 @@ export type CaseFormat = 'camelCase' | 'snake_case' | 'kebab-case' | 'PascalCase
 
 // Detect the case format of the input string
 export const detectCase = (text: string): CaseFormat | 'mixed' | 'unknown' => {
-  if (!text) return 'unknown';
+  if (!text) {
+    return 'unknown';
+  }
   
   // Check for camelCase
   if (/^[a-z][a-zA-Z0-9]*$/.test(text) && /[A-Z]/.test(text)) {
@@ -71,10 +73,12 @@ export const splitIntoWords = (text: string): string[] => {
 
 // Convert to camelCase
 export const toCamelCase = (words: string[]): string => {
-  if (words.length === 0) return '';
-  
+  if (words.length === 0) {
+    return '';
+  }
+
   const [firstWord, ...restWords] = words;
-  return firstWord.toLowerCase() + restWords.map(word => 
+  return firstWord.toLowerCase() + restWords.map(word =>
     word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
   ).join('');
 };
@@ -110,8 +114,10 @@ export const toTitleCase = (words: string[]): string => {
 
 // Convert to Sentence case
 export const toSentenceCase = (words: string[]): string => {
-  if (words.length === 0) return '';
-  
+  if (words.length === 0) {
+    return '';
+  }
+
   const [firstWord, ...restWords] = words;
   return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase() + 
          ' ' + restWords.map(word => word.toLowerCase()).join(' ');

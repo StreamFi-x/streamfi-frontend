@@ -49,19 +49,37 @@ async function detectCompletedSteps(userId: string): Promise<string[]> {
     [userId]
   );
 
-  if (rows.length === 0) return [];
+  if (rows.length === 0) {
+    return [];
+  }
   const row = rows[0];
   const manual: string[] = row.manually_completed ?? [];
 
   const auto: string[] = [];
-  if (row.avatar)                        auto.push("set_avatar");
-  if (row.bio)                           auto.push("set_bio");
-  if (row.stream_title)                  auto.push("set_stream_title");
-  if (row.category)                      auto.push("add_category");
-  if (Number(row.total_streams) > 0)     auto.push("first_stream");
-  if (row.wallet)                        auto.push("connect_wallet");
-  if (Number(row.follower_count) >= 1)   auto.push("first_follower");
-  if (Number(row.total_tips_count) >= 1) auto.push("first_tip");
+  if (row.avatar) {
+    auto.push("set_avatar");
+  }
+  if (row.bio) {
+    auto.push("set_bio");
+  }
+  if (row.stream_title) {
+    auto.push("set_stream_title");
+  }
+  if (row.category) {
+    auto.push("add_category");
+  }
+  if (Number(row.total_streams) > 0) {
+    auto.push("first_stream");
+  }
+  if (row.wallet) {
+    auto.push("connect_wallet");
+  }
+  if (Number(row.follower_count) >= 1) {
+    auto.push("first_follower");
+  }
+  if (Number(row.total_tips_count) >= 1) {
+    auto.push("first_tip");
+  }
 
   // Merge auto-detected with manually marked (deduplicate)
   return [...new Set([...auto, ...manual])];

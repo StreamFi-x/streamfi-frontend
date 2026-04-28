@@ -6,10 +6,16 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
 function validateRaw(raw: unknown): { name: string; timestamp: string; properties?: Record<string, unknown> } | string {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "Event must be an object";
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return "Event must be an object";
+  }
   const r = raw as Record<string, unknown>;
-  if (typeof r.name !== "string" || r.name.trim() === "") return "'name' is required and must be a non-empty string";
-  if (typeof r.timestamp !== "string" || r.timestamp.trim() === "") return "'timestamp' is required and must be a string";
+  if (typeof r.name !== "string" || r.name.trim() === "") {
+    return "'name' is required and must be a non-empty string";
+  }
+  if (typeof r.timestamp !== "string" || r.timestamp.trim() === "") {
+    return "'timestamp' is required and must be a string";
+  }
   if (r.properties !== undefined && (typeof r.properties !== "object" || Array.isArray(r.properties))) {
     return "'properties' must be an object if provided";
   }

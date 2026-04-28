@@ -56,13 +56,17 @@ export async function POST(
   // ZREMRANGEBYSCORE presence:{streamId} -inf {now - 60s}  — prune stale
   const cutoff = now - STALE_THRESHOLD_MS;
   for (const [id, entry] of viewers.entries()) {
-    if (entry.lastSeen < cutoff) viewers.delete(id);
+    if (entry.lastSeen < cutoff) {
+      viewers.delete(id);
+    }
   }
 
   // ZCOUNT  — count active
   let count = 0;
   for (const entry of viewers.values()) {
-    if (entry.lastSeen >= now - STALE_THRESHOLD_MS) count++;
+    if (entry.lastSeen >= now - STALE_THRESHOLD_MS) {
+      count++;
+    }
   }
 
   // Update peak (mirrors Postgres ALTER TABLE stream_recordings peak_viewers)

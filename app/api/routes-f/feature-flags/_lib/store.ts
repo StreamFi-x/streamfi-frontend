@@ -26,9 +26,15 @@ export function remove(key: string): boolean {
  * hash so the same user always lands in the same bucket.
  */
 export function isEnabledForUser(flag: FeatureFlag, userId: string): boolean {
-  if (!flag.enabled) return false;
-  if (flag.rollout_percent >= 100) return true;
-  if (flag.rollout_percent <= 0) return false;
+  if (!flag.enabled) {
+    return false;
+  }
+  if (flag.rollout_percent >= 100) {
+    return true;
+  }
+  if (flag.rollout_percent <= 0) {
+    return false;
+  }
 
   const seed = `${flag.key}:${userId}`;
   let hash = 5381;

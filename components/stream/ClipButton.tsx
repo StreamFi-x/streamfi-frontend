@@ -20,7 +20,9 @@ export function ClipButton({ streamerUsername, streamElapsedSeconds = 0, classNa
   const [justClipped, setJustClipped] = useState(false);
 
   const handleClip = async () => {
-    if (loading || justClipped) return;
+    if (loading || justClipped) {
+      return;
+    }
     setLoading(true);
     try {
       // Clip the last 30 seconds
