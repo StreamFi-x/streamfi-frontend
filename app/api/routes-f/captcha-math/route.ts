@@ -1,11 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createHmac, randomInt } from "crypto";
 
 const SECRET = "captcha-math-dev-secret-streamfi";
 const EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
-
-// In-memory set for single-use token tracking
-const usedTokens = new Set<string>();
 
 type Operation = "+" | "-" | "*";
 
@@ -40,10 +37,14 @@ function signToken(payload: object): string {
 
 export function verifyToken(token: string): { answer: number; expires_at: number } | null {
   const parts = token.split(".");
-  if (parts.length !== 2) return null;
+  if (parts.length !== 2) {
+    return null;
+  }
   const [encoded, sig] = parts;
   const expected = createHmac("sha256", SECRET).update(encoded).digest("base64url");
-  if (sig !== expected) return null;
+  if (sig !== expected) {
+    return null;
+  }
   try {
     return JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
   } catch {

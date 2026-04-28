@@ -32,9 +32,13 @@ describe("POST /api/routes-f/captcha-math/verify", () => {
     const op = match![2];
     const b = parseInt(match![3]);
     let answer: number;
-    if (op === "+") answer = a + b;
-    else if (op === "-") answer = a - b;
-    else answer = a * b;
+    if (op === "+") {
+      answer = a + b;
+    } else if (op === "-") {
+      answer = a - b;
+    } else {
+      answer = a * b;
+    }
     return { token, answer };
   }
 

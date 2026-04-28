@@ -4,7 +4,9 @@ import type { Joke, JokeCategory, JokeResponse } from "./types";
 const allJokes = jokes as Joke[];
 
 export function pickRandom(pool: Joke[]): Joke | null {
-  if (!pool.length) return null;
+  if (!pool.length) {
+    return null;
+  }
   return pool[Math.floor(Math.random() * pool.length)];
 }
 

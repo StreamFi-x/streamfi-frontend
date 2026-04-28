@@ -4,15 +4,22 @@ type RelevanceScore = 0 | 1 | 2 | 3;
 
 function score(emoji: Emoji, q: string): RelevanceScore {
   const query = q.toLowerCase();
-  if (emoji.name === query) return 3;
-  if (emoji.shortcode === query) return 2;
-  if (emoji.keywords.includes(query)) return 1;
+  if (emoji.name === query) {
+    return 3;
+  }
+  if (emoji.shortcode === query) {
+    return 2;
+  }
+  if (emoji.keywords.includes(query)) {
+    return 1;
+  }
   if (
     emoji.name.includes(query) ||
     emoji.shortcode.includes(query) ||
     emoji.keywords.some((k) => k.includes(query))
-  )
+  ) {
     return 0;
+  }
   return -1 as unknown as RelevanceScore;
 }
 

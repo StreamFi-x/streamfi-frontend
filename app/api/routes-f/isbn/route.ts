@@ -5,25 +5,35 @@ function normalize(isbn: string): string {
 }
 
 function validateIsbn10(isbn: string): boolean {
-  if (isbn.length !== 10) return false;
+  if (isbn.length !== 10) {
+    return false;
+  }
   let sum = 0;
   for (let i = 0; i < 9; i++) {
     const d = parseInt(isbn[i], 10);
-    if (isNaN(d)) return false;
+    if (isNaN(d)) {
+      return false;
+    }
     sum += (10 - i) * d;
   }
   const last = isbn[9];
   sum += last === "X" ? 10 : parseInt(last, 10);
-  if (isNaN(sum)) return false;
+  if (isNaN(sum)) {
+    return false;
+  }
   return sum % 11 === 0;
 }
 
 function validateIsbn13(isbn: string): boolean {
-  if (isbn.length !== 13) return false;
+  if (isbn.length !== 13) {
+    return false;
+  }
   let sum = 0;
   for (let i = 0; i < 13; i++) {
     const d = parseInt(isbn[i], 10);
-    if (isNaN(d)) return false;
+    if (isNaN(d)) {
+      return false;
+    }
     sum += i % 2 === 0 ? d : d * 3;
   }
   return sum % 10 === 0;

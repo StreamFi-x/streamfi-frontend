@@ -4,7 +4,9 @@ import { verifySession } from "@/lib/auth/verify-session";
 
 export async function DELETE(request: NextRequest) {
   const session = await verifySession(request);
-  if (!session.ok) return session.response;
+  if (!session.ok) {
+    return session.response;
+  }
 
   try {
     const { rowCount } = await sql`
