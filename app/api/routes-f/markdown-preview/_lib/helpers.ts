@@ -167,7 +167,6 @@ export function parseMarkdown(markdown: string): ParsedMarkdown {
   }
 
   const html = htmlLines.join("\n");
-  const wordCount = countWords(markdown);
 
   return { html, headings };
 }

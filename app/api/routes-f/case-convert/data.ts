@@ -44,7 +44,6 @@ export const detectCase = (text: string): CaseFormat | 'mixed' | 'unknown' => {
   const hasSnake = /_/.test(text);
   const hasKebab = /-/.test(text);
   const hasSpace = / /.test(text);
-  const hasConstant = /^[A-Z_]+$/.test(text);
   
   if ((hasCamel && (hasSnake || hasKebab || hasSpace)) || 
       (hasSnake && hasKebab) || 

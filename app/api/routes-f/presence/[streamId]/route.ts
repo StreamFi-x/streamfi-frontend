@@ -26,10 +26,6 @@ function presenceKey(streamId: string) {
   return `presence:${streamId}`;
 }
 
-function peakKey(streamId: string) {
-  return `presence:${streamId}:peak`;
-}
-
 /**
  * GET /api/routes-f/presence/[streamId]
  * Returns current live viewer count and all-time peak for this stream.
