@@ -4,22 +4,38 @@ const GRID_SIZE = 9;
 const BOX_SIZE = 3;
 
 function isValidCell(value: unknown): value is number | null {
-  return value === null || (Number.isInteger(value) && value >= 1 && value <= 9);
+  return (
+    value === null ||
+    (typeof value === "number" &&
+      Number.isInteger(value) &&
+      value >= 1 &&
+      value <= 9)
+  );
 }
 
 export function isValidSudokuGrid(grid: unknown): grid is (number | null)[][] {
   return (
     Array.isArray(grid) &&
     grid.length === GRID_SIZE &&
-    grid.every((row) => Array.isArray(row) && row.length === GRID_SIZE && row.every(isValidCell))
+    grid.every(
+      row =>
+        Array.isArray(row) && row.length === GRID_SIZE && row.every(isValidCell)
+    )
   );
 }
 
-export function validateSudokuGrid(grid: (number | null)[][]): SudokuValidationResult {
+export function validateSudokuGrid(
+  grid: (number | null)[][]
+): SudokuValidationResult {
   const conflicts: SudokuConflict[] = [];
   const seen = new Set<string>();
 
-  const addConflict = (row: number, col: number, value: number, conflict_type: SudokuConflict["conflict_type"]) => {
+  const addConflict = (
+    row: number,
+    col: number,
+    value: number,
+    conflict_type: SudokuConflict["conflict_type"]
+  ) => {
     const key = `${row}:${col}:${value}:${conflict_type}`;
     if (!seen.has(key)) {
       seen.add(key);
@@ -38,7 +54,8 @@ export function validateSudokuGrid(grid: (number | null)[][]): SudokuValidationR
     }
 
     for (const [value, cols] of rowValues.entries()) {
-      if (cols.length > 1) cols.forEach((col) => addConflict(row, col, value, "row"));
+      if (cols.length > 1)
+        cols.forEach(col => addConflict(row, col, value, "row"));
     }
   }
 
@@ -53,7 +70,8 @@ export function validateSudokuGrid(grid: (number | null)[][]): SudokuValidationR
     }
 
     for (const [value, rows] of colValues.entries()) {
-      if (rows.length > 1) rows.forEach((row) => addConflict(row, col, value, "column"));
+      if (rows.length > 1)
+        rows.forEach(row => addConflict(row, col, value, "column"));
     }
   }
 
@@ -72,13 +90,15 @@ export function validateSudokuGrid(grid: (number | null)[][]): SudokuValidationR
       }
 
       for (const [value, cells] of boxValues.entries()) {
-        if (cells.length > 1) cells.forEach((cell) => addConflict(cell.row, cell.col, value, "box"));
+        if (cells.length > 1)
+          cells.forEach(cell => addConflict(cell.row, cell.col, value, "box"));
       }
     }
   }
 
   const valid = conflicts.length === 0;
-  const complete = valid && grid.every((row) => row.every((value) => value !== null));
+  const complete =
+    valid && grid.every(row => row.every(value => value !== null));
 
   return { valid, complete, conflicts };
 }

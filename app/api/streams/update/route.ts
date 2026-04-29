@@ -5,8 +5,16 @@ import { hashPassword } from "@/lib/stream-access/password";
 
 export async function PATCH(req: Request) {
   try {
-    const { wallet, title, description, category, tags, thumbnail, password } =
-      await req.json();
+    const {
+      wallet,
+      title,
+      description,
+      category,
+      tags,
+      thumbnail,
+      password,
+      streamAccessType,
+    } = await req.json();
 
     if (!wallet) {
       return NextResponse.json(
@@ -40,6 +48,7 @@ export async function PATCH(req: Request) {
     }
 
     const user = userResult.rows[0];
+    const currentCreator = user.creator || {};
 
     if (!user.mux_stream_id) {
       return NextResponse.json(
@@ -93,7 +102,44 @@ export async function PATCH(req: Request) {
       }
     }
 
-    const currentCreator = user.creator || {};
+    if (streamAccessType !== undefined) {
+      const validAccessTypes = ["public", "password", "subscription"];
+      if (
+        typeof streamAccessType !== "string" ||
+        !validAccessTypes.includes(streamAccessType)
+      ) {
+        return NextResponse.json(
+          {
+            error: "streamAccessType must be public, password, or subscription",
+          },
+          { status: 400 }
+        );
+      }
+
+      const subscriptionPrice = Number(
+        currentCreator.subscriptionPrice ??
+          currentCreator.subscription_price_usdc
+      );
+      if (
+        streamAccessType === "subscription" &&
+        (!Number.isFinite(subscriptionPrice) || subscriptionPrice <= 0)
+      ) {
+        return NextResponse.json(
+          {
+            error: "Set a subscription price before enabling subscriber access",
+          },
+          { status: 400 }
+        );
+      }
+
+      await sql`
+        UPDATE users SET
+          stream_access_type = ${streamAccessType},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE wallet = ${wallet}
+      `;
+    }
+
     const updatedCreator = {
       ...currentCreator,
       ...(title && { streamTitle: title }),
@@ -120,6 +166,7 @@ export async function PATCH(req: Request) {
           category: updatedCreator.category,
           tags: updatedCreator.tags,
           thumbnail: updatedCreator.thumbnail,
+          streamAccessType: streamAccessType ?? "public",
         },
       },
       { status: 200 }

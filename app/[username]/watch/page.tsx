@@ -6,6 +6,7 @@ import ViewStream from "@/components/stream/view-stream";
 import { ViewStreamSkeleton } from "@/components/skeletons/ViewStreamSkeleton";
 import AccessGate from "@/components/stream/AccessGate";
 import { toast } from "sonner";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
 interface PageProps {
   params: Promise<{ username: string }>;
@@ -25,11 +26,15 @@ interface UserData {
   is_following: boolean;
   stellar_address: string | null;
   is_password_protected: boolean;
+  stream_access_type: "public" | "password" | "subscription" | null;
+  subscription_price_usdc: number | null;
   latency_mode: string | null;
 }
 
 const WatchPage = ({ params }: PageProps) => {
   const { username } = use(params);
+  const { publicKey, privyWallet } = useStellarWallet();
+  const viewerPublicKey = publicKey || privyWallet?.wallet || null;
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound404, setNotFound404] = useState(false);
@@ -213,14 +218,24 @@ const WatchPage = ({ params }: PageProps) => {
 
   // Show access gate if stream is password protected and viewer isn't the owner
   const needsPassword =
-    userData.is_password_protected && !isOwner && !accessGranted;
+    userData.is_password_protected &&
+    userData.stream_access_type !== "subscription" &&
+    !isOwner &&
+    !accessGranted;
+  const needsSubscription =
+    userData.stream_access_type === "subscription" &&
+    !isOwner &&
+    !accessGranted;
 
-  if (needsPassword && userData.mux_playback_id) {
+  if ((needsPassword || needsSubscription) && userData.mux_playback_id) {
     return (
       <AccessGate
         playbackId={userData.mux_playback_id}
         username={username}
         onAccessGranted={handleAccessGranted}
+        accessType={needsSubscription ? "subscription" : "password"}
+        monthlyPrice={userData.subscription_price_usdc}
+        viewerPublicKey={viewerPublicKey}
       />
     );
   }
