@@ -17,6 +17,11 @@ export async function GET(
         u.sociallinks, u.emailverified, u.emailnotifications,
         u.creator, u.auth_type, u.privy_id,
         u.is_live, u.mux_playback_id, u.latency_mode, u.current_viewers,
+        COALESCE(u.stream_access_type, 'public') AS stream_access_type,
+        COALESCE(
+          NULLIF(u.creator->>'subscriptionPrice', '')::numeric,
+          NULLIF(u.creator->>'subscription_price_usdc', '')::numeric
+        ) AS subscription_price_usdc,
         u.stream_started_at, u.total_views,
         u.total_tips_received, u.total_tips_count, u.last_tip_at,
         u.created_at, u.updated_at,

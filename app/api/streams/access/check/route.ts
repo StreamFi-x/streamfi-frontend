@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { validateStreamAccessToken } from "@/lib/stream-access/token";
+import { checkSubscriptionAccess } from "@/lib/stream/access";
 
 export async function POST(req: NextRequest) {
   try {
-    const { playbackId, token } = await req.json();
+    const { playbackId, token, viewerPublicKey } = await req.json();
 
     if (!playbackId) {
       return NextResponse.json(
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { rows } = await sql`
-      SELECT id, stream_password_hash
+      SELECT id, stream_password_hash, stream_access_type
       FROM users
       WHERE mux_playback_id = ${playbackId}
       LIMIT 1
@@ -25,6 +26,14 @@ export async function POST(req: NextRequest) {
     }
 
     const user = rows[0];
+
+    if (user.stream_access_type === "subscription") {
+      const result = await checkSubscriptionAccess(
+        user.id,
+        typeof viewerPublicKey === "string" ? viewerPublicKey : null
+      );
+      return NextResponse.json(result, { status: 200 });
+    }
 
     if (!user.stream_password_hash) {
       return NextResponse.json({ allowed: true }, { status: 200 });

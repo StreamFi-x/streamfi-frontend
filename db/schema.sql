@@ -47,6 +47,21 @@ ADD COLUMN IF NOT EXISTS following UUID[];
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS stream_password_hash VARCHAR(255);
 
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS stream_access_type TEXT DEFAULT 'public'
+CHECK (stream_access_type IN ('public', 'password', 'subscription'));
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  subscriber_id UUID REFERENCES users(id),
+  streamer_id UUID REFERENCES users(id),
+  price_usdc NUMERIC(10,2) NOT NULL,
+  status TEXT NOT NULL,
+  current_period_end TIMESTAMPTZ NOT NULL,
+  tx_hash TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS stream_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,

@@ -1,4 +1,4 @@
-import { toASCII } from "punycode/";
+import { toASCII } from "node:punycode";
 import { KNOWN_TLDS } from "./tlds";
 
 export type DomainParts = {
@@ -37,7 +37,12 @@ export function validateDomain(input: string): DomainValidationResult {
     return invalid("");
   }
 
-  if (!ascii || ascii.length > 253 || IP_V4_RE.test(ascii) || ascii.includes(":")) {
+  if (
+    !ascii ||
+    ascii.length > 253 ||
+    IP_V4_RE.test(ascii) ||
+    ascii.includes(":")
+  ) {
     return invalid(ascii);
   }
 
@@ -57,7 +62,8 @@ export function validateDomain(input: string): DomainValidationResult {
 
   const tld = labels[labels.length - 1];
   const sld = labels[labels.length - 2];
-  const subdomain = labels.length > 2 ? labels.slice(0, -2).join(".") : undefined;
+  const subdomain =
+    labels.length > 2 ? labels.slice(0, -2).join(".") : undefined;
   const isIdn = /[^\x00-\x7f]/.test(trimmed) || ascii.includes("xn--");
   const isKnown = KNOWN_TLDS.has(tld);
 

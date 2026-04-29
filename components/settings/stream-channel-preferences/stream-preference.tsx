@@ -140,6 +140,13 @@ const StreamPreferencesPage: React.FC = () => {
   const [recordingToggleSaving, setRecordingToggleSaving] = useState(false);
   const [latencyMode, setLatencyMode] = useState<"low" | "standard">("low");
   const [latencyToggleSaving, setLatencyToggleSaving] = useState(false);
+  const [streamAccessType, setStreamAccessType] = useState<
+    "public" | "password" | "subscription"
+  >("public");
+  const [subscriptionPriceUsdc, setSubscriptionPriceUsdc] = useState<
+    number | null
+  >(null);
+  const [accessTypeSaving, setAccessTypeSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // State for the modals
@@ -167,6 +174,20 @@ const StreamPreferencesPage: React.FC = () => {
         );
         const mode = data.latencyMode || data.streamData?.latencyMode || "low";
         setLatencyMode(mode === "standard" ? "standard" : "low");
+        const accessType =
+          data.streamAccessType ||
+          data.streamData?.streamAccessType ||
+          "public";
+        setStreamAccessType(
+          accessType === "password" || accessType === "subscription"
+            ? accessType
+            : "public"
+        );
+        setSubscriptionPriceUsdc(
+          data.subscriptionPriceUsdc ??
+            data.streamData?.subscriptionPriceUsdc ??
+            null
+        );
         if (data.hasStream && data.streamData) {
           setStreamData(data.streamData);
         } else {
@@ -332,6 +353,49 @@ const StreamPreferencesPage: React.FC = () => {
       console.error("Failed to update recording preference:", e);
     } finally {
       setRecordingToggleSaving(false);
+    }
+  };
+
+  const handleAccessTypeChange = async (
+    nextValue: "public" | "password" | "subscription"
+  ) => {
+    if (!address || accessTypeSaving) {
+      return;
+    }
+    if (
+      nextValue === "subscription" &&
+      (!subscriptionPriceUsdc || subscriptionPriceUsdc <= 0)
+    ) {
+      toast.error("Set a subscription price before enabling subscriber access");
+      return;
+    }
+
+    const previous = streamAccessType;
+    setStreamAccessType(nextValue);
+    setAccessTypeSaving(true);
+    try {
+      const res = await fetch("/api/streams/update", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet: address,
+          streamAccessType: nextValue,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update stream access");
+      }
+      toast.success("Stream access updated");
+    } catch (error) {
+      setStreamAccessType(previous);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to update stream access"
+      );
+    } finally {
+      setAccessTypeSaving(false);
     }
   };
 
@@ -505,6 +569,51 @@ const StreamPreferencesPage: React.FC = () => {
           </div>
         </SectionCard>
 
+        <SectionCard>
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex-1">
+              <h2 className="text-highlight text-xl font-medium mb-2">
+                Stream Access
+              </h2>
+              <p className="text-muted-foreground text-sm italic">
+                Choose who can watch this stream. Subscriber access uses your
+                monthly subscription price.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 md:min-w-64">
+              <select
+                value={streamAccessType}
+                onChange={e =>
+                  handleAccessTypeChange(
+                    e.target.value as "public" | "password" | "subscription"
+                  )
+                }
+                disabled={accessTypeSaving || !streamData}
+                className="w-full bg-input text-foreground rounded-lg p-3 border border-border focus:outline-none focus:ring-2 focus:ring-highlight"
+                title={
+                  !subscriptionPriceUsdc || subscriptionPriceUsdc <= 0
+                    ? "Set a subscription price to enable subscriber-only streams"
+                    : undefined
+                }
+              >
+                <option value="public">Public</option>
+                <option value="password">Password protected</option>
+                <option
+                  value="subscription"
+                  disabled={
+                    !subscriptionPriceUsdc || subscriptionPriceUsdc <= 0
+                  }
+                >
+                  Subscribers only
+                </option>
+              </select>
+              {accessTypeSaving && (
+                <span className="text-sm text-muted-foreground">Saving...</span>
+              )}
+            </div>
+          </div>
+        </SectionCard>
+
         {/* Latency Mode / DVR */}
         <SectionCard>
           <div className="flex justify-between items-start gap-4">
@@ -518,8 +627,8 @@ const StreamPreferencesPage: React.FC = () => {
                   : "Low latency mode is active. Minimal delay (~3–5 seconds), but viewers cannot rewind the stream."}
               </p>
               <p className="text-muted-foreground text-xs mt-2">
-                Changes take effect on your next stream. Existing streams are not
-                affected.
+                Changes take effect on your next stream. Existing streams are
+                not affected.
               </p>
             </div>
             <div className="flex items-center shrink-0">

@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useEffect, type FormEvent } from "react";
-import { Lock } from "lucide-react";
+import { Crown, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface AccessGateProps {
   playbackId: string;
   username: string;
   onAccessGranted: () => void;
+  accessType?: "password" | "subscription";
+  monthlyPrice?: number | null;
+  viewerPublicKey?: string | null;
 }
 
 function getStorageKey(playbackId: string) {
@@ -18,6 +21,9 @@ export default function AccessGate({
   playbackId,
   username,
   onAccessGranted,
+  accessType = "password",
+  monthlyPrice,
+  viewerPublicKey,
 }: AccessGateProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +31,26 @@ export default function AccessGate({
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
+    if (accessType === "subscription") {
+      fetch("/api/streams/access/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playbackId, viewerPublicKey }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.allowed) {
+            onAccessGranted();
+          } else {
+            setChecking(false);
+          }
+        })
+        .catch(() => {
+          setChecking(false);
+        });
+      return;
+    }
+
     const stored = sessionStorage.getItem(getStorageKey(playbackId));
     if (!stored) {
       setChecking(false);
@@ -48,7 +74,7 @@ export default function AccessGate({
       .catch(() => {
         setChecking(false);
       });
-  }, [playbackId, onAccessGranted]);
+  }, [accessType, playbackId, viewerPublicKey, onAccessGranted]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -87,6 +113,45 @@ export default function AccessGate({
     return (
       <div className="flex items-center justify-center h-full min-h-[400px] bg-background">
         <div className="text-muted-foreground">Checking access...</div>
+      </div>
+    );
+  }
+
+  if (accessType === "subscription") {
+    const priceLabel =
+      typeof monthlyPrice === "number" && Number.isFinite(monthlyPrice)
+        ? `$${monthlyPrice.toFixed(2)}/month`
+        : "monthly";
+
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px] bg-background">
+        <div className="w-full max-w-sm mx-auto p-6">
+          <div className="flex flex-col items-center text-center mb-6">
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+              <Crown className="w-6 h-6 text-highlight" />
+            </div>
+            <h2 className="text-lg font-semibold text-foreground">
+              Subscribers only
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Subscribe to @{username} to watch this stream and their subscriber
+              content.
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            onClick={() => {
+              window.location.href = `/subscriptions?creator=${encodeURIComponent(username)}`;
+            }}
+            className="w-full bg-highlight hover:bg-highlight/90 text-white"
+          >
+            Subscribe for {priceLabel}
+          </Button>
+          <p className="text-xs text-muted-foreground text-center mt-3">
+            Paid in USDC on Stellar &middot; Cancel anytime
+          </p>
+        </div>
       </div>
     );
   }

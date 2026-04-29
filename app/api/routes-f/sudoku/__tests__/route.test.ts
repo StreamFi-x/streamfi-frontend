@@ -29,7 +29,9 @@ describe("POST /api/routes-f/sudoku", () => {
   });
 
   it("valid partial", async () => {
-    const grid = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => null));
+    const grid: (number | null)[][] = Array.from({ length: 9 }, () =>
+      Array.from({ length: 9 }, () => null)
+    );
     grid[0][0] = 1;
     const res = await POST(makeRequest(grid));
     const body = await res.json();
@@ -38,29 +40,41 @@ describe("POST /api/routes-f/sudoku", () => {
   });
 
   it("row conflict", async () => {
-    const grid = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => null));
+    const grid: (number | null)[][] = Array.from({ length: 9 }, () =>
+      Array.from({ length: 9 }, () => null)
+    );
     grid[0][0] = 3;
     grid[0][5] = 3;
     const res = await POST(makeRequest(grid));
     const body = await res.json();
-    expect(body.conflicts.some((c: any) => c.conflict_type === "row")).toBe(true);
+    expect(body.conflicts.some((c: any) => c.conflict_type === "row")).toBe(
+      true
+    );
   });
 
   it("column conflict", async () => {
-    const grid = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => null));
+    const grid: (number | null)[][] = Array.from({ length: 9 }, () =>
+      Array.from({ length: 9 }, () => null)
+    );
     grid[0][0] = 3;
     grid[5][0] = 3;
     const res = await POST(makeRequest(grid));
     const body = await res.json();
-    expect(body.conflicts.some((c: any) => c.conflict_type === "column")).toBe(true);
+    expect(body.conflicts.some((c: any) => c.conflict_type === "column")).toBe(
+      true
+    );
   });
 
   it("box conflict", async () => {
-    const grid = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => null));
+    const grid: (number | null)[][] = Array.from({ length: 9 }, () =>
+      Array.from({ length: 9 }, () => null)
+    );
     grid[0][0] = 3;
     grid[2][1] = 3;
     const res = await POST(makeRequest(grid));
     const body = await res.json();
-    expect(body.conflicts.some((c: any) => c.conflict_type === "box")).toBe(true);
+    expect(body.conflicts.some((c: any) => c.conflict_type === "box")).toBe(
+      true
+    );
   });
 });
