@@ -34,11 +34,7 @@ export default function Navbar() {
   }, []);
 
   const handleAuthClick = () => {
-    if (isAuthenticated) {
-      router.push("/explore");
-    } else {
-      setIsAuthModalOpen(true);
-    }
+    router.push("/explore");
   };
 
   useEffect(() => {
