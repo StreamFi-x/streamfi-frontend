@@ -43,9 +43,6 @@ ADD COLUMN IF NOT EXISTS followers UUID[];
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS following UUID[];
 
-ALTER TABLE users
-ADD COLUMN IF NOT EXISTS stream_password_hash VARCHAR(255);
-
 CREATE TABLE IF NOT EXISTS stream_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,

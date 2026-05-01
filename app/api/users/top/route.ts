@@ -16,8 +16,11 @@ export async function GET(req: NextRequest) {
       SELECT
         u.username,
         u.avatar,
-        u.is_live,
-        u.current_viewers,
+        -- Mask live status & viewer count when stream is private
+        CASE WHEN COALESCE(u.stream_privacy, 'public') = 'public'
+             THEN u.is_live ELSE FALSE END AS is_live,
+        CASE WHEN COALESCE(u.stream_privacy, 'public') = 'public'
+             THEN u.current_viewers ELSE 0 END AS current_viewers,
         (SELECT COUNT(*)::int FROM user_follows WHERE followee_id = u.id) AS follower_count
       FROM users u
       WHERE u.username IS NOT NULL

@@ -9,7 +9,6 @@ import ActivityFeed from "@/components/dashboard/stream-manager/ActivityFeed";
 import Chat from "@/components/dashboard/stream-manager/Chat";
 import StreamInfo from "@/components/dashboard/stream-manager/StreamInfo";
 import StreamSettings from "@/components/dashboard/stream-manager/StreamSettings";
-import StreamPasswordSettings from "@/components/dashboard/stream-manager/StreamPasswordSettings";
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
 import { Users, UserPlus, Coins, Timer } from "lucide-react";
@@ -28,7 +27,6 @@ export default function StreamManagerPage() {
     tags: [] as string[],
     thumbnail: null as string | null,
   });
-  const [isPasswordProtected, setIsPasswordProtected] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isStreamInfoModalOpen, setIsStreamInfoModalOpen] = useState(false);
@@ -83,7 +81,6 @@ export default function StreamManagerPage() {
             tags: creator.tags || stream.tags || [],
             thumbnail: creator.thumbnail || stream.thumbnail || null,
           });
-          setIsPasswordProtected(!!stream.isPasswordProtected);
         }
       } catch (error) {
         console.error("Error fetching stream data:", error);
@@ -222,13 +219,6 @@ export default function StreamManagerPage() {
             onEditClick={() => setIsStreamInfoModalOpen(true)}
           />
           <StreamSettings />
-          {address && (
-            <StreamPasswordSettings
-              wallet={address}
-              isPasswordProtected={isPasswordProtected}
-              onUpdate={setIsPasswordProtected}
-            />
-          )}
         </div>
       </div>
 

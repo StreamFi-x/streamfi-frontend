@@ -1,11 +1,11 @@
 "use client";
 
-import { use, useCallback, useEffect, useState, useRef } from "react";
-import { notFound } from "next/navigation";
+import { use, useEffect, useState, useRef } from "react";
+import { notFound, useSearchParams } from "next/navigation";
 import ViewStream from "@/components/stream/view-stream";
 import { ViewStreamSkeleton } from "@/components/skeletons/ViewStreamSkeleton";
-import AccessGate from "@/components/stream/AccessGate";
 import { toast } from "sonner";
+import PrivateStreamGate from "@/components/stream/private-stream-gate";
 
 interface PageProps {
   params: Promise<{ username: string }>;
@@ -24,22 +24,26 @@ interface UserData {
   follower_count: number;
   is_following: boolean;
   stellar_address: string | null;
-  is_password_protected: boolean;
+  latency_mode: string | null;
+  stream_privacy: string | null;
+}
+
+interface AccessInfo {
+  allowed: boolean;
+  reason: string | null;
 }
 
 const WatchPage = ({ params }: PageProps) => {
   const { username } = use(params);
+  const searchParams = useSearchParams();
+  const shareKey = searchParams?.get("key") ?? null;
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [access, setAccess] = useState<AccessInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound404, setNotFound404] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [loggedInUsername, setLoggedInUsername] = useState<string | null>(null);
-  const [accessGranted, setAccessGranted] = useState(false);
-
-  const handleAccessGranted = useCallback(() => {
-    setAccessGranted(true);
-  }, []);
 
   // Viewer tracking: one unique ID per page visit
   const viewerSessionId = useRef<string | null>(null);
@@ -60,10 +64,15 @@ const WatchPage = ({ params }: PageProps) => {
           setLoading(true);
         }
 
-        const viewerParam = loggedInUsername
-          ? `?viewer_username=${encodeURIComponent(loggedInUsername)}&t=${Date.now()}`
-          : `?t=${Date.now()}`;
-        const response = await fetch(`/api/users/${username}${viewerParam}`);
+        const qs = new URLSearchParams();
+        if (loggedInUsername) {
+          qs.set("viewer_username", loggedInUsername);
+        }
+        if (shareKey) {
+          qs.set("key", shareKey);
+        }
+        qs.set("t", String(Date.now()));
+        const response = await fetch(`/api/users/${username}?${qs.toString()}`);
 
         if (response.status === 404) {
           setNotFound404(true);
@@ -79,6 +88,7 @@ const WatchPage = ({ params }: PageProps) => {
 
         const data = await response.json();
         setUserData(data.user);
+        setAccess(data.access ?? { allowed: true, reason: null });
         setIsFollowing(!!data.user.is_following);
       } catch (error) {
         console.error("Failed to fetch user data:", error);
@@ -96,7 +106,7 @@ const WatchPage = ({ params }: PageProps) => {
     fetchUserData();
     const interval = setInterval(fetchUserData, 5000);
     return () => clearInterval(interval);
-  }, [username, loggedInUsername]);
+  }, [username, loggedInUsername, shareKey]);
 
   // Register viewer once when stream goes live; guard against re-registration on every poll
   useEffect(() => {
@@ -210,16 +220,14 @@ const WatchPage = ({ params }: PageProps) => {
 
   const isOwner = loggedInUsername?.toLowerCase() === username.toLowerCase();
 
-  // Show access gate if stream is password protected and viewer isn't the owner
-  const needsPassword =
-    userData.is_password_protected && !isOwner && !accessGranted;
-
-  if (needsPassword && userData.mux_playback_id) {
+  // Private stream + viewer not authorized: show gate instead of player
+  if (access && !access.allowed && !isOwner) {
     return (
-      <AccessGate
-        playbackId={userData.mux_playback_id}
+      <PrivateStreamGate
         username={username}
-        onAccessGranted={handleAccessGranted}
+        privacy={(userData.stream_privacy as any) || "unlisted"}
+        reason={access.reason}
+        avatar={userData.avatar}
       />
     );
   }
@@ -237,7 +245,10 @@ const WatchPage = ({ params }: PageProps) => {
     },
     stellarAddress: userData.stellar_address || "",
     playbackId: userData.mux_playback_id,
+    latencyMode: userData.latency_mode || "low",
     isLive: userData.is_live,
+    privacy: userData.stream_privacy || "public",
+    shareKey: shareKey,
   };
 
   return (

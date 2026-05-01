@@ -29,7 +29,11 @@ export async function GET(req: Request) {
         mux_stream_id,
         mux_playback_id,
         is_live,
-        enable_recording
+        enable_recording,
+        latency_mode,
+        stream_privacy,
+        mux_stream_provisioned_with_dvr,
+        mux_stream_provisioned_with_signed_playback
       FROM users
       WHERE wallet = ${wallet}
     `;
@@ -47,9 +51,26 @@ export async function GET(req: Request) {
           hasStream: false,
           streamKey: null,
           enableRecording: user.enable_recording === true,
+          latencyMode: user.latency_mode || "low",
         },
         { status: 200 }
       );
+    }
+
+    const latencyMode = user.latency_mode || "low";
+    const privacy = user.stream_privacy || "public";
+    const provisionedDvr = user.mux_stream_provisioned_with_dvr === true;
+    const provisionedSigned =
+      user.mux_stream_provisioned_with_signed_playback === true;
+
+    // Detect mismatches between saved settings and what the live Mux stream
+    // was actually provisioned with — surfaces "Apply now" prompt in UI.
+    const outOfSync: string[] = [];
+    if (latencyMode === "standard" && !provisionedDvr) {
+      outOfSync.push("dvr");
+    }
+    if (privacy !== "public" && !provisionedSigned) {
+      outOfSync.push("signed_playback");
     }
 
     return NextResponse.json(
@@ -63,6 +84,11 @@ export async function GET(req: Request) {
           rtmpUrl: "rtmp://global-live.mux.com:5222/app",
           isLive: user.is_live || false,
           enableRecording: user.enable_recording === true,
+          latencyMode,
+          privacy,
+          provisionedWithDvr: provisionedDvr,
+          provisionedWithSignedPlayback: provisionedSigned,
+          outOfSync,
         },
       },
       { status: 200 }

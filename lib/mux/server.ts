@@ -17,6 +17,7 @@ export interface MuxStreamData {
   id: string;
   streamKey: string;
   playbackId: string;
+  signedPlaybackId?: string;
   status: string;
   rtmpUrl: string;
   isActive?: boolean;
@@ -27,20 +28,29 @@ const MUX_CREATE_TIMEOUT_MS = 8_000;
 export async function createMuxStream(streamData?: {
   name: string;
   record?: boolean;
+  latencyMode?: "low" | "standard";
+  /** When true, also provision a signed playback ID for private streams. */
+  withSignedPlayback?: boolean;
 }) {
   try {
     const record = streamData?.record === true;
+    const latencyMode = streamData?.latencyMode ?? "low";
+    const withSigned = streamData?.withSignedPlayback === true;
+
+    const playbackPolicy: ("public" | "signed")[] = withSigned
+      ? ["public", "signed"]
+      : ["public"];
 
     const liveStream = await Promise.race([
       mux.video.liveStreams.create({
-        playback_policy: ["public"],
+        playback_policy: playbackPolicy,
         ...(record && {
           new_asset_settings: {
-            playback_policy: ["public"],
+            playback_policy: playbackPolicy,
           },
         }),
         reconnect_window: 60,
-        latency_mode: "low",
+        latency_mode: latencyMode,
         max_continuous_duration: 43200,
       }),
       new Promise<never>((_, reject) =>
@@ -51,13 +61,20 @@ export async function createMuxStream(streamData?: {
       ),
     ]);
 
-    // Get the playback ID from the created stream
-    const playbackId = liveStream.playback_ids?.[0]?.id || "";
+    // Find public and signed playback IDs (Mux returns multiple when multiple policies are requested)
+    const publicId =
+      liveStream.playback_ids?.find(p => p.policy === "public")?.id ||
+      liveStream.playback_ids?.[0]?.id ||
+      "";
+    const signedId = liveStream.playback_ids?.find(
+      p => p.policy === "signed"
+    )?.id;
 
     return {
       id: liveStream.id,
       streamKey: liveStream.stream_key || "",
-      playbackId,
+      playbackId: publicId,
+      signedPlaybackId: signedId,
       status: liveStream.status || "idle",
       rtmpUrl: "rtmp://global-live.mux.com:5222/app",
       isActive: liveStream.status === "active",

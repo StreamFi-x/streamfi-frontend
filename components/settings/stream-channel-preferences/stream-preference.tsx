@@ -1,11 +1,13 @@
 "use client";
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
-import { Eye, Zap } from "lucide-react";
+import { Copy, Eye, Globe, Lock, RefreshCw, Users, Zap } from "lucide-react";
 import { toast } from "sonner";
 import StreamKeyModal from "@/components/ui/streamkeyModal";
 import StreamKeyConfirmationModal from "@/components/ui/streamKeyConfirmationModal";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+
+type StreamPrivacy = "public" | "unlisted" | "subscribers_only";
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -138,6 +140,15 @@ const StreamPreferencesPage: React.FC = () => {
   } | null>(null);
   const [enableRecording, setEnableRecording] = useState(false);
   const [recordingToggleSaving, setRecordingToggleSaving] = useState(false);
+  const [latencyMode, setLatencyMode] = useState<"low" | "standard">("low");
+  const [latencyToggleSaving, setLatencyToggleSaving] = useState(false);
+
+  const [privacy, setPrivacy] = useState<StreamPrivacy>("public");
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [privacySaving, setPrivacySaving] = useState(false);
+  const [tokenRotating, setTokenRotating] = useState(false);
+  const [outOfSync, setOutOfSync] = useState<string[]>([]);
+  const [reprovisioning, setReprovisioning] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // State for the modals
@@ -163,6 +174,9 @@ const StreamPreferencesPage: React.FC = () => {
           data.enableRecording === true ||
             data.streamData?.enableRecording === true
         );
+        const mode = data.latencyMode || data.streamData?.latencyMode || "low";
+        setLatencyMode(mode === "standard" ? "standard" : "low");
+        setOutOfSync(data.streamData?.outOfSync ?? []);
         if (data.hasStream && data.streamData) {
           setStreamData(data.streamData);
         } else {
@@ -177,6 +191,161 @@ const StreamPreferencesPage: React.FC = () => {
 
     fetchStreamKey();
   }, [address]);
+
+  // Load privacy settings
+  useEffect(() => {
+    if (!address) {
+      return;
+    }
+    fetch(`/api/streams/privacy?wallet=${address}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (!data) {
+          return;
+        }
+        if (data.privacy) {
+          setPrivacy(data.privacy as StreamPrivacy);
+        }
+        setShareToken(data.shareToken ?? null);
+      })
+      .catch(() => {});
+  }, [address]);
+
+  const handlePrivacyChange = async (next: StreamPrivacy) => {
+    if (!address || privacySaving || next === privacy) {
+      return;
+    }
+    setPrivacySaving(true);
+    try {
+      const res = await fetch("/api/streams/privacy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallet: address, privacy: next }),
+      });
+      if (!res.ok) {
+        throw new Error("Failed");
+      }
+      const data = await res.json();
+      setPrivacy(data.privacy);
+      setShareToken(data.shareToken ?? null);
+      // Privacy change may require reprovisioning for signed playback
+      try {
+        const refresh = await fetch(`/api/streams/key?wallet=${address}`);
+        if (refresh.ok) {
+          const refreshData = await refresh.json();
+          setOutOfSync(refreshData.streamData?.outOfSync ?? []);
+        }
+      } catch {
+        /* non-fatal */
+      }
+      toast.success(
+        next === "public"
+          ? "Stream is now public — visible on Explore."
+          : next === "unlisted"
+            ? "Stream is now unlisted. Share the invite link with viewers."
+            : "Stream is now subscribers-only. Share the invite link with viewers."
+      );
+    } catch {
+      toast.error("Failed to update privacy");
+    } finally {
+      setPrivacySaving(false);
+    }
+  };
+
+  const handleRotateShareToken = async () => {
+    if (!address || tokenRotating) {
+      return;
+    }
+    setTokenRotating(true);
+    try {
+      const res = await fetch("/api/streams/privacy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallet: address, rotate_token: true }),
+      });
+      if (!res.ok) {
+        throw new Error("Failed");
+      }
+      const data = await res.json();
+      setShareToken(data.shareToken ?? null);
+      toast.success("Invite link rotated. Old links no longer work.");
+    } catch {
+      toast.error("Failed to rotate invite link");
+    } finally {
+      setTokenRotating(false);
+    }
+  };
+
+  const buildShareUrl = () => {
+    if (!username || !shareToken) {
+      return "";
+    }
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "";
+    return `${origin}/${username}/watch?key=${shareToken}`;
+  };
+
+  const handleReprovision = async () => {
+    if (!address || reprovisioning) {
+      return;
+    }
+    if (streamData?.isLive) {
+      toast.error("End your current stream before applying changes.");
+      return;
+    }
+    const confirmed = window.confirm(
+      "This will rotate your stream key. You'll need to update OBS with the new key before your next stream. Continue?"
+    );
+    if (!confirmed) {
+      return;
+    }
+    setReprovisioning(true);
+    try {
+      const res = await fetch("/api/streams/reprovision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallet: address }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.detail || data?.error || "Failed");
+      }
+      // Refresh the displayed stream data + clear out-of-sync state
+      const refreshRes = await fetch(`/api/streams/key?wallet=${address}`);
+      if (refreshRes.ok) {
+        const refresh = await refreshRes.json();
+        if (refresh.hasStream && refresh.streamData) {
+          setStreamData(refresh.streamData);
+          setOutOfSync(refresh.streamData.outOfSync ?? []);
+        }
+      } else {
+        setOutOfSync([]);
+      }
+      toast.success(
+        "Stream key rotated. Update OBS with the new key before going live."
+      );
+      if (data.warnings?.length) {
+        data.warnings.forEach((w: string) => toast.message(w));
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to reprovision stream");
+    } finally {
+      setReprovisioning(false);
+    }
+  };
+
+  const handleCopyShareLink = async () => {
+    const url = buildShareUrl();
+    if (!url) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Invite link copied to clipboard");
+    } catch {
+      toast.error("Couldn't copy link");
+    }
+  };
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -275,6 +444,46 @@ const StreamPreferencesPage: React.FC = () => {
     key: "disconnectedProtection" | "copyrightWarning"
   ) => {
     updateState(key, !state[key]);
+  };
+
+  const handleLatencyToggle = async () => {
+    if (!address || latencyToggleSaving) {
+      return;
+    }
+    const newValue = latencyMode === "low" ? "standard" : "low";
+    setLatencyToggleSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append("latency_mode", newValue);
+      const res = await fetch(`/api/users/updates/${address}`, {
+        method: "PUT",
+        body: formData,
+      });
+      if (!res.ok) {
+        throw new Error("Failed to update");
+      }
+      setLatencyMode(newValue);
+      // Re-check out-of-sync state since latency change requires reprovisioning
+      try {
+        const refresh = await fetch(`/api/streams/key?wallet=${address}`);
+        if (refresh.ok) {
+          const data = await refresh.json();
+          setOutOfSync(data.streamData?.outOfSync ?? []);
+        }
+      } catch {
+        /* non-fatal */
+      }
+      toast.success(
+        newValue === "standard"
+          ? "DVR enabled. Apply the change above to make it live."
+          : "Low latency enabled. Apply the change above to make it live."
+      );
+    } catch (e) {
+      console.error("Failed to update latency mode:", e);
+      toast.error("Failed to update latency mode");
+    } finally {
+      setLatencyToggleSaving(false);
+    }
   };
 
   const handleRecordingToggle = async () => {
@@ -409,6 +618,53 @@ const StreamPreferencesPage: React.FC = () => {
               actions={streamKeyActions}
             />
 
+            {/* Out-of-sync banner — DVR or signed-playback settings need re-provisioning */}
+            {outOfSync.length > 0 && (
+              <div className="bg-blue-500/10 border border-blue-500/40 rounded-lg p-4 mt-4">
+                <p className="text-blue-600 dark:text-blue-400 font-semibold mb-2">
+                  Settings need to be applied to your stream
+                </p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  These changes are saved but won&rsquo;t take effect until your
+                  Mux stream is rebuilt:
+                </p>
+                <ul className="text-sm text-muted-foreground list-disc list-inside mb-3 space-y-0.5">
+                  {outOfSync.includes("dvr") && (
+                    <li>
+                      <span className="font-medium text-foreground">
+                        DVR / Rewind
+                      </span>{" "}
+                      — viewers can&rsquo;t scrub back yet
+                    </li>
+                  )}
+                  {outOfSync.includes("signed_playback") && (
+                    <li>
+                      <span className="font-medium text-foreground">
+                        Privacy: {privacy === "unlisted" ? "Unlisted" : "Subscribers only"}
+                      </span>{" "}
+                      — using app-layer protection only, no CDN-level signed
+                      playback yet
+                    </li>
+                  )}
+                </ul>
+                <p className="text-xs text-muted-foreground italic mb-3">
+                  Applying will rotate your stream key. Update OBS with the new
+                  key afterwards. You must not be live.
+                </p>
+                <button
+                  onClick={handleReprovision}
+                  disabled={reprovisioning || streamData?.isLive}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-md text-sm font-medium"
+                >
+                  {reprovisioning
+                    ? "Applying..."
+                    : streamData?.isLive
+                      ? "End stream first to apply"
+                      : "Apply changes & rotate key"}
+                </button>
+              </div>
+            )}
+
             {/* Warning */}
             <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4 mt-4">
               <p className="text-yellow-600 dark:text-yellow-400 font-semibold mb-2">
@@ -463,6 +719,159 @@ const StreamPreferencesPage: React.FC = () => {
                 onChange={handleRecordingToggle}
               />
               {recordingToggleSaving && (
+                <span className="ml-2 text-sm text-muted-foreground">
+                  Saving…
+                </span>
+              )}
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* Privacy */}
+        <SectionCard>
+          <h2 className="text-highlight text-xl font-medium mb-2">
+            Stream Privacy
+          </h2>
+          <p className="text-muted-foreground text-sm italic mb-4">
+            Control who can watch your stream. Private streams won&rsquo;t appear on
+            Explore.
+          </p>
+
+          <div className="space-y-2">
+            {(
+              [
+                {
+                  value: "public" as const,
+                  icon: Globe,
+                  title: "Public",
+                  desc: "Anyone can find and watch — your stream appears on Explore.",
+                },
+                {
+                  value: "unlisted" as const,
+                  icon: Lock,
+                  title: "Unlisted",
+                  desc: "Only people with the invite link can watch. Hidden from Explore.",
+                },
+                {
+                  value: "subscribers_only" as const,
+                  icon: Users,
+                  title: "Subscribers only",
+                  desc: "Only people with the invite link can watch for now. Paid subscriptions are coming soon.",
+                },
+              ]
+            ).map(opt => {
+              const Icon = opt.icon;
+              const selected = privacy === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handlePrivacyChange(opt.value)}
+                  disabled={privacySaving}
+                  className={`w-full text-left flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+                    selected
+                      ? "border-highlight bg-highlight/5"
+                      : "border-border bg-transparent hover:bg-accent/40"
+                  }`}
+                >
+                  <div className="mt-0.5">
+                    <Icon
+                      size={18}
+                      className={
+                        selected ? "text-highlight" : "text-muted-foreground"
+                      }
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-foreground">
+                      {opt.title}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {opt.desc}
+                    </div>
+                  </div>
+                  <div
+                    className={`w-4 h-4 rounded-full border flex items-center justify-center mt-1 ${
+                      selected
+                        ? "border-highlight bg-highlight"
+                        : "border-muted-foreground"
+                    }`}
+                  >
+                    {selected && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {privacy !== "public" && shareToken && (
+            <div className="mt-4 p-4 bg-input rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-foreground">
+                  Invite link
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleRotateShareToken}
+                  disabled={tokenRotating}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                >
+                  <RefreshCw
+                    size={12}
+                    className={tokenRotating ? "animate-spin" : ""}
+                  />
+                  {tokenRotating ? "Rotating..." : "Rotate"}
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  readOnly
+                  value={buildShareUrl()}
+                  className="flex-1 bg-background text-foreground text-xs font-mono rounded-md px-3 py-2 outline-none"
+                  onFocus={e => e.target.select()}
+                />
+                <button
+                  type="button"
+                  onClick={handleCopyShareLink}
+                  className="bg-secondary hover:bg-secondary/80 text-secondary-foreground px-3 rounded-md flex items-center gap-1.5 text-xs"
+                >
+                  <Copy size={12} />
+                  Copy
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Anyone with this link can watch. Rotate to invalidate previously
+                shared links.
+              </p>
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Latency Mode / DVR */}
+        <SectionCard>
+          <div className="flex justify-between items-start gap-4">
+            <div className="flex-1">
+              <h2 className="text-highlight text-xl font-medium mb-2">
+                DVR / Rewind
+              </h2>
+              <p className="text-muted-foreground text-sm italic">
+                {latencyMode === "standard"
+                  ? "Standard latency mode is active. Viewers can scrub backward during your live stream (10–15 second delay)."
+                  : "Low latency mode is active. Minimal delay (~3–5 seconds), but viewers cannot rewind the stream."}
+              </p>
+              <p className="text-muted-foreground text-xs mt-2">
+                Changes take effect on your next stream. Existing streams are not
+                affected.
+              </p>
+            </div>
+            <div className="flex items-center shrink-0">
+              <ToggleSwitch
+                enabled={latencyMode === "standard"}
+                onChange={handleLatencyToggle}
+              />
+              {latencyToggleSaving && (
                 <span className="ml-2 text-sm text-muted-foreground">
                   Saving…
                 </span>

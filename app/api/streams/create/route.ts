@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     console.log("🔍 Fetching user data...");
     const userResult = await sql`
-      SELECT id, username, creator, mux_stream_id, enable_recording FROM users WHERE LOWER(wallet) = LOWER(${wallet})
+      SELECT id, username, creator, mux_stream_id, enable_recording, latency_mode, stream_privacy FROM users WHERE LOWER(wallet) = LOWER(${wallet})
     `;
 
     if (userResult.rows.length === 0) {
@@ -125,12 +125,21 @@ export async function POST(req: NextRequest) {
     console.log("✅ Mux credentials found");
 
     const enableRecording = user.enable_recording === true;
-    console.log("🎬 Creating Mux stream...", { enableRecording });
+    const latencyMode = (user.latency_mode === "standard" ? "standard" : "low") as "low" | "standard";
+    const wantsSignedPlayback =
+      (user.stream_privacy ?? "public") !== "public";
+    console.log("🎬 Creating Mux stream...", {
+      enableRecording,
+      latencyMode,
+      wantsSignedPlayback,
+    });
     let muxStream;
     try {
       muxStream = await createMuxStream({
         name: `${user.username} - ${title}`,
         record: enableRecording,
+        latencyMode,
+        withSignedPlayback: wantsSignedPlayback,
       });
       console.log("✅ Mux stream created successfully:", {
         id: muxStream?.id,
@@ -186,8 +195,11 @@ export async function POST(req: NextRequest) {
         UPDATE users SET
           mux_stream_id = ${muxStream.id},
           mux_playback_id = ${muxStream.playbackId},
+          mux_signed_playback_id = ${muxStream.signedPlaybackId ?? null},
           streamkey = ${muxStream.streamKey},
           creator = ${JSON.stringify(updatedCreator)},
+          mux_stream_provisioned_with_dvr = ${latencyMode === "standard"},
+          mux_stream_provisioned_with_signed_playback = ${!!muxStream.signedPlaybackId},
           updated_at = CURRENT_TIMESTAMP
         WHERE wallet = ${wallet}
       `;
