@@ -30,7 +30,9 @@ export async function GET(req: Request) {
         mux_playback_id,
         is_live,
         enable_recording,
-        latency_mode
+        latency_mode,
+        stream_access_type,
+        creator
       FROM users
       WHERE wallet = ${wallet}
     `;
@@ -49,6 +51,12 @@ export async function GET(req: Request) {
           streamKey: null,
           enableRecording: user.enable_recording === true,
           latencyMode: user.latency_mode || "low",
+          streamAccessType: user.stream_access_type || "public",
+          subscriptionPriceUsdc:
+            Number(
+              user.creator?.subscriptionPrice ??
+                user.creator?.subscription_price_usdc
+            ) || null,
         },
         { status: 200 }
       );
@@ -66,6 +74,12 @@ export async function GET(req: Request) {
           isLive: user.is_live || false,
           enableRecording: user.enable_recording === true,
           latencyMode: user.latency_mode || "low",
+          streamAccessType: user.stream_access_type || "public",
+          subscriptionPriceUsdc:
+            Number(
+              user.creator?.subscriptionPrice ??
+                user.creator?.subscription_price_usdc
+            ) || null,
         },
       },
       { status: 200 }

@@ -1,10 +1,12 @@
 "use client";
 
-import { use, useEffect, useState, useRef } from "react";
+import { use, useCallback, useEffect, useState, useRef } from "react";
 import { notFound } from "next/navigation";
 import ViewStream from "@/components/stream/view-stream";
 import { ViewStreamSkeleton } from "@/components/skeletons/ViewStreamSkeleton";
+import AccessGate from "@/components/stream/AccessGate";
 import { toast } from "sonner";
+import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 
 interface PageProps {
   params: Promise<{ username: string }>;
@@ -23,17 +25,27 @@ interface UserData {
   follower_count: number;
   is_following: boolean;
   stellar_address: string | null;
+  is_password_protected: boolean;
+  stream_access_type: "public" | "password" | "subscription" | null;
+  subscription_price_usdc: number | null;
   latency_mode: string | null;
 }
 
 const WatchPage = ({ params }: PageProps) => {
   const { username } = use(params);
+  const { publicKey, privyWallet } = useStellarWallet();
+  const viewerPublicKey = publicKey || privyWallet?.wallet || null;
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound404, setNotFound404] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [loggedInUsername, setLoggedInUsername] = useState<string | null>(null);
+  const [accessGranted, setAccessGranted] = useState(false);
+
+  const handleAccessGranted = useCallback(() => {
+    setAccessGranted(true);
+  }, []);
 
   // Viewer tracking: one unique ID per page visit
   const viewerSessionId = useRef<string | null>(null);
@@ -203,6 +215,30 @@ const WatchPage = ({ params }: PageProps) => {
   }
 
   const isOwner = loggedInUsername?.toLowerCase() === username.toLowerCase();
+
+  // Show access gate if stream is password protected and viewer isn't the owner
+  const needsPassword =
+    userData.is_password_protected &&
+    userData.stream_access_type !== "subscription" &&
+    !isOwner &&
+    !accessGranted;
+  const needsSubscription =
+    userData.stream_access_type === "subscription" &&
+    !isOwner &&
+    !accessGranted;
+
+  if ((needsPassword || needsSubscription) && userData.mux_playback_id) {
+    return (
+      <AccessGate
+        playbackId={userData.mux_playback_id}
+        username={username}
+        onAccessGranted={handleAccessGranted}
+        accessType={needsSubscription ? "subscription" : "password"}
+        monthlyPrice={userData.subscription_price_usdc}
+        viewerPublicKey={viewerPublicKey}
+      />
+    );
+  }
 
   const transformedUserData = {
     streamTitle: userData.creator?.title || `${username}'s Live Stream`,

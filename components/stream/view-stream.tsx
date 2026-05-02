@@ -43,6 +43,7 @@ import { useChat } from "@/hooks/useChat";
 import { TipButton, TipModalContainer } from "@/components/tipping";
 import { useTipModal } from "@/hooks/useTipModal";
 import { toast } from "sonner";
+import { ClipButton } from "@/components/stream/ClipButton";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,
@@ -885,6 +886,16 @@ const ViewStream = ({
                             >
                               <Share2 className="w-4 h-4" />
                             </Button>
+                            {isLive && (
+                              <ClipButton
+                                streamerUsername={username}
+                                streamElapsedSeconds={
+                                  userData?.startedAt
+                                    ? Math.floor((Date.now() - new Date(userData.startedAt).getTime()) / 1000)
+                                    : 0
+                                }
+                              />
+                            )}
                             <button
                               className="hidden lg:flex p-2 rounded-md border border-border bg-transparent hover:bg-accent text-foreground transition-colors"
                               onClick={toggleChat}
