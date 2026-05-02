@@ -1,0 +1,682 @@
+[
+  {
+    "id": "sci_001",
+    "question": "What is the chemical symbol for gold?",
+    "answers": ["Go", "Gd", "Au", "Ag"],
+    "correct_index": 2,
+    "category": "science",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sci_002",
+    "question": "What is the speed of light in vacuum?",
+    "answers": ["299,792,458 m/s", "300,000,000 m/s", "186,282 miles/s", "1 light-year per second"],
+    "correct_index": 0,
+    "category": "science",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sci_003",
+    "question": "What is the powerhouse of the cell?",
+    "answers": ["Nucleus", "Mitochondria", "Ribosome", "Golgi apparatus"],
+    "correct_index": 1,
+    "category": "science",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sci_004",
+    "question": "What is the most abundant element in the universe?",
+    "answers": ["Oxygen", "Carbon", "Hydrogen", "Helium"],
+    "correct_index": 2,
+    "category": "science",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sci_005",
+    "question": "What is the quantum number that determines the shape of an orbital?",
+    "answers": ["Principal quantum number (n)", "Azimuthal quantum number (l)", "Magnetic quantum number (m)", "Spin quantum number (s)"],
+    "correct_index": 1,
+    "category": "science",
+    "difficulty": "hard"
+  },
+  {
+    "id": "sci_006",
+    "question": "What is the process by which plants make their own food?",
+    "answers": ["Respiration", "Photosynthesis", "Transpiration", "Germination"],
+    "correct_index": 1,
+    "category": "science",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sci_007",
+    "question": "What is the largest organ in the human body?",
+    "answers": ["Heart", "Brain", "Liver", "Skin"],
+    "correct_index": 3,
+    "category": "science",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sci_008",
+    "question": "What is the SI unit of electric current?",
+    "answers": ["Volt", "Ampere", "Ohm", "Watt"],
+    "correct_index": 1,
+    "category": "science",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sci_009",
+    "question": "What is the name of the theory that describes the fundamental forces of nature?",
+    "answers": ["Theory of Everything", "Grand Unified Theory", "String Theory", "Standard Model"],
+    "correct_index": 3,
+    "category": "science",
+    "difficulty": "hard"
+  },
+  {
+    "id": "sci_010",
+    "question": "What is the chemical formula for water?",
+    "answers": ["H2O", "CO2", "O2", "NaCl"],
+    "correct_index": 0,
+    "category": "science",
+    "difficulty": "easy"
+  },
+  {
+    "id": "hist_001",
+    "question": "In which year did World War II end?",
+    "answers": ["1943", "1944", "1945", "1946"],
+    "correct_index": 2,
+    "category": "history",
+    "difficulty": "easy"
+  },
+  {
+    "id": "hist_002",
+    "question": "Who was the first President of the United States?",
+    "answers": ["Thomas Jefferson", "George Washington", "John Adams", "Benjamin Franklin"],
+    "correct_index": 1,
+    "category": "history",
+    "difficulty": "easy"
+  },
+  {
+    "id": "hist_003",
+    "question": "Which ancient wonder of the world still stands today?",
+    "answers": ["Colossus of Rhodes", "Hanging Gardens of Babylon", "Great Pyramid of Giza", "Lighthouse of Alexandria"],
+    "correct_index": 2,
+    "category": "history",
+    "difficulty": "medium"
+  },
+  {
+    "id": "hist_004",
+    "question": "In which year did the Berlin Wall fall?",
+    "answers": ["1987", "1988", "1989", "1990"],
+    "correct_index": 2,
+    "category": "history",
+    "difficulty": "medium"
+  },
+  {
+    "id": "hist_005",
+    "question": "Who wrote the Declaration of Independence?",
+    "answers": ["George Washington", "Thomas Jefferson", "Benjamin Franklin", "John Adams"],
+    "correct_index": 1,
+    "category": "history",
+    "difficulty": "easy"
+  },
+  {
+    "id": "hist_006",
+    "question": "Which empire was known as 'the empire on which the sun never sets'?",
+    "answers": ["Roman Empire", "British Empire", "Ottoman Empire", "Mongol Empire"],
+    "correct_index": 1,
+    "category": "history",
+    "difficulty": "medium"
+  },
+  {
+    "id": "hist_007",
+    "question": "In which year did the Titanic sink?",
+    "answers": ["1910", "1911", "1912", "1913"],
+    "correct_index": 2,
+    "category": "history",
+    "difficulty": "easy"
+  },
+  {
+    "id": "hist_008",
+    "question": "Who was the first Emperor of Rome?",
+    "answers": ["Julius Caesar", "Augustus", "Nero", "Marcus Aurelius"],
+    "correct_index": 1,
+    "category": "history",
+    "difficulty": "medium"
+  },
+  {
+    "id": "hist_009",
+    "question": "Which treaty ended World War I?",
+    "answers": ["Treaty of Versailles", "Treaty of Paris", "Treaty of Vienna", "Treaty of Berlin"],
+    "correct_index": 0,
+    "category": "history",
+    "difficulty": "medium"
+  },
+  {
+    "id": "hist_010",
+    "question": "In which year did Christopher Columbus reach the Americas?",
+    "answers": ["1490", "1491", "1492", "1493"],
+    "correct_index": 2,
+    "category": "history",
+    "difficulty": "easy"
+  },
+  {
+    "id": "geo_001",
+    "question": "What is the capital of France?",
+    "answers": ["London", "Berlin", "Madrid", "Paris"],
+    "correct_index": 3,
+    "category": "geography",
+    "difficulty": "easy"
+  },
+  {
+    "id": "geo_002",
+    "question": "Which is the largest ocean on Earth?",
+    "answers": ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+    "correct_index": 3,
+    "category": "geography",
+    "difficulty": "easy"
+  },
+  {
+    "id": "geo_003",
+    "question": "What is the longest river in the world?",
+    "answers": ["Amazon River", "Nile River", "Yangtze River", "Mississippi River"],
+    "correct_index": 1,
+    "category": "geography",
+    "difficulty": "medium"
+  },
+  {
+    "id": "geo_004",
+    "question": "Which country has the most time zones?",
+    "answers": ["Russia", "USA", "China", "France"],
+    "correct_index": 3,
+    "category": "geography",
+    "difficulty": "hard"
+  },
+  {
+    "id": "geo_005",
+    "question": "What is the smallest country in the world?",
+    "answers": ["Monaco", "Vatican City", "San Marino", "Liechtenstein"],
+    "correct_index": 1,
+    "category": "geography",
+    "difficulty": "medium"
+  },
+  {
+    "id": "geo_006",
+    "question": "Which desert is the largest in the world?",
+    "answers": ["Sahara Desert", "Arabian Desert", "Antarctica", "Gobi Desert"],
+    "correct_index": 2,
+    "category": "geography",
+    "difficulty": "hard"
+  },
+  {
+    "id": "geo_007",
+    "question": "What is the capital of Australia?",
+    "answers": ["Sydney", "Melbourne", "Canberra", "Brisbane"],
+    "correct_index": 2,
+    "category": "geography",
+    "difficulty": "medium"
+  },
+  {
+    "id": "geo_008",
+    "question": "Which mountain range contains Mount Everest?",
+    "answers": ["Andes", "Alps", "Himalayas", "Rocky Mountains"],
+    "correct_index": 2,
+    "category": "geography",
+    "difficulty": "easy"
+  },
+  {
+    "id": "geo_009",
+    "question": "What is the deepest point in the ocean?",
+    "answers": ["Puerto Rico Trench", "Java Trench", "Mariana Trench", "Japan Trench"],
+    "correct_index": 2,
+    "category": "geography",
+    "difficulty": "medium"
+  },
+  {
+    "id": "geo_010",
+    "question": "Which country has the most natural lakes?",
+    "answers": ["Canada", "USA", "Finland", "Sweden"],
+    "correct_index": 0,
+    "category": "geography",
+    "difficulty": "hard"
+  },
+  {
+    "id": "ent_001",
+    "question": "Who directed the movie 'Jaws'?",
+    "answers": ["George Lucas", "Steven Spielberg", "Martin Scorsese", "Francis Ford Coppola"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ent_002",
+    "question": "Which band released the album 'Abbey Road'?",
+    "answers": ["The Rolling Stones", "The Beatles", "Led Zeppelin", "Pink Floyd"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ent_003",
+    "question": "Who wrote the Harry Potter book series?",
+    "answers": ["J.R.R. Tolkien", "J.K. Rowling", "Stephen King", "George R.R. Martin"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ent_004",
+    "question": "Which movie won the Academy Award for Best Picture in 2020?",
+    "answers": ["1917", "Joker", "Parasite", "Once Upon a Time in Hollywood"],
+    "correct_index": 2,
+    "category": "entertainment",
+    "difficulty": "medium"
+  },
+  {
+    "id": "ent_005",
+    "question": "Who played the character of Tony Stark/Iron Man in the Marvel Cinematic Universe?",
+    "answers": ["Chris Evans", "Chris Hemsworth", "Robert Downey Jr.", "Mark Ruffalo"],
+    "correct_index": 2,
+    "category": "entertainment",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ent_006",
+    "question": "Which TV show features the character Walter White?",
+    "answers": ["The Sopranos", "Breaking Bad", "The Wire", "Mad Men"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "medium"
+  },
+  {
+    "id": "ent_007",
+    "question": "Who composed the music for the Star Wars movies?",
+    "answers": ["Hans Zimmer", "John Williams", "Danny Elfman", "Howard Shore"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "medium"
+  },
+  {
+    "id": "ent_008",
+    "question": "Which Shakespeare play features the character Hamlet?",
+    "answers": ["Romeo and Juliet", "Macbeth", "Hamlet", "Othello"],
+    "correct_index": 2,
+    "category": "entertainment",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ent_009",
+    "question": "Who painted the Mona Lisa?",
+    "answers": ["Vincent van Gogh", "Pablo Picasso", "Leonardo da Vinci", "Michelangelo"],
+    "correct_index": 2,
+    "category": "entertainment",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ent_010",
+    "question": "Which video game character is known for collecting coins and power-ups?",
+    "answers": ["Sonic", "Mario", "Link", "Pac-Man"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sci_011",
+    "question": "What is the process of nuclear fusion?",
+    "answers": ["Splitting atoms", "Combining light nuclei", "Radioactive decay", "Electron capture"],
+    "correct_index": 1,
+    "category": "science",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sci_012",
+    "question": "What is the Heisenberg Uncertainty Principle about?",
+    "answers": ["Position and momentum cannot be precisely measured simultaneously", "Energy and time are conserved", "Light behaves as both wave and particle", "Matter cannot be created or destroyed"],
+    "correct_index": 0,
+    "category": "science",
+    "difficulty": "hard"
+  },
+  {
+    "id": "sci_013",
+    "question": "What is the function of hemoglobin in blood?",
+    "answers": ["Fight infections", "Transport oxygen", "Digest food", "Produce hormones"],
+    "correct_index": 1,
+    "category": "science",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sci_014",
+    "question": "What causes the seasons on Earth?",
+    "answers": ["Earth's distance from the Sun", "Earth's axial tilt", "Solar flares", "Moon's gravitational pull"],
+    "correct_index": 1,
+    "category": "science",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sci_015",
+    "question": "What is the boiling point of water at sea level?",
+    "answers": ["90°C", "100°C", "110°C", "120°C"],
+    "correct_index": 1,
+    "category": "science",
+    "difficulty": "easy"
+  },
+  {
+    "id": "hist_011",
+    "question": "Who was known as the 'Iron Lady'?",
+    "answers": ["Queen Elizabeth II", "Margaret Thatcher", "Angela Merkel", "Indira Gandhi"],
+    "correct_index": 1,
+    "category": "history",
+    "difficulty": "medium"
+  },
+  {
+    "id": "hist_012",
+    "question": "Which civilization built Machu Picchu?",
+    "answers": ["Aztecs", "Mayans", "Incas", "Olmecs"],
+    "correct_index": 2,
+    "category": "history",
+    "difficulty": "medium"
+  },
+  {
+    "id": "hist_013",
+    "question": "In which year did the Russian Revolution take place?",
+    "answers": ["1915", "1916", "1917", "1918"],
+    "correct_index": 2,
+    "category": "history",
+    "difficulty": "medium"
+  },
+  {
+    "id": "hist_014",
+    "question": "Who was the leader of the Civil Rights Movement in the US?",
+    "answers": ["Malcolm X", "Martin Luther King Jr.", "Rosa Parks", "W.E.B. Du Bois"],
+    "correct_index": 1,
+    "category": "history",
+    "difficulty": "easy"
+  },
+  {
+    "id": "hist_015",
+    "question": "Which ancient Greek philosopher wrote 'The Republic'?",
+    "answers": ["Aristotle", "Plato", "Socrates", "Epicurus"],
+    "correct_index": 1,
+    "category": "history",
+    "difficulty": "medium"
+  },
+  {
+    "id": "geo_011",
+    "question": "What is the capital of Brazil?",
+    "answers": ["Rio de Janeiro", "São Paulo", "Brasília", "Salvador"],
+    "correct_index": 2,
+    "category": "geography",
+    "difficulty": "medium"
+  },
+  {
+    "id": "geo_012",
+    "question": "Which continent has the most countries?",
+    "answers": ["Asia", "Africa", "Europe", "South America"],
+    "correct_index": 1,
+    "category": "geography",
+    "difficulty": "medium"
+  },
+  {
+    "id": "geo_013",
+    "question": "What is the largest island in the world?",
+    "answers": ["Madagascar", "Greenland", "Borneo", "New Guinea"],
+    "correct_index": 1,
+    "category": "geography",
+    "difficulty": "medium"
+  },
+  {
+    "id": "geo_014",
+    "question": "Which river flows through the Grand Canyon?",
+    "answers": ["Colorado River", "Mississippi River", "Rio Grande", "Snake River"],
+    "correct_index": 0,
+    "category": "geography",
+    "difficulty": "medium"
+  },
+  {
+    "id": "geo_015",
+    "question": "What is the capital of Japan?",
+    "answers": ["Osaka", "Kyoto", "Tokyo", "Yokohama"],
+    "correct_index": 2,
+    "category": "geography",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ent_011",
+    "question": "Who directed 'Pulp Fiction'?",
+    "answers": ["Martin Scorsese", "Quentin Tarantino", "Robert Rodriguez", "Oliver Stone"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "medium"
+  },
+  {
+    "id": "ent_012",
+    "question": "Which actress won the most Academy Awards?",
+    "answers": ["Meryl Streep", "Katharine Hepburn", "Bette Davis", "Ingrid Bergman"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "hard"
+  },
+  {
+    "id": "ent_013",
+    "question": "Who wrote 'The Great Gatsby'?",
+    "answers": ["Ernest Hemingway", "F. Scott Fitzgerald", "William Faulkner", "John Steinbeck"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "medium"
+  },
+  {
+    "id": "ent_014",
+    "question": "Which musical features the song 'Memory'?",
+    "answers": ["Les Misérables", "Cats", "Phantom of the Opera", "Chicago"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "medium"
+  },
+  {
+    "id": "ent_015",
+    "question": "Who composed 'The Four Seasons'?",
+    "answers": ["Bach", "Mozart", "Beethoven", "Vivaldi"],
+    "correct_index": 3,
+    "category": "entertainment",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sci_016",
+    "question": "What is the pH of pure water?",
+    "answers": ["6", "7", "8", "9"],
+    "correct_index": 1,
+    "category": "science",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sci_017",
+    "question": "What type of star is our Sun?",
+    "answers": ["Red giant", "White dwarf", "Yellow dwarf", "Blue supergiant"],
+    "correct_index": 2,
+    "category": "science",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sci_018",
+    "question": "What is the main function of the kidneys?",
+    "answers": ["Pump blood", "Filter waste from blood", "Produce insulin", "Store bile"],
+    "correct_index": 1,
+    "category": "science",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sci_019",
+    "question": "What causes auroras (Northern and Southern Lights)?",
+    "answers": ["Solar wind interacting with Earth's magnetic field", "Lightning storms", "Volcanic eruptions", "Moon's reflection"],
+    "correct_index": 0,
+    "category": "science",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sci_020",
+    "question": "What is the smallest unit of matter?",
+    "answers": ["Molecule", "Atom", "Quark", "Electron"],
+    "correct_index": 2,
+    "category": "science",
+    "difficulty": "hard"
+  },
+  {
+    "id": "hist_016",
+    "question": "Who invented the printing press?",
+    "answers": ["Leonardo da Vinci", "Johannes Gutenberg", "Benjamin Franklin", "Thomas Edison"],
+    "correct_index": 1,
+    "category": "history",
+    "difficulty": "medium"
+  },
+  {
+    "id": "hist_017",
+    "question": "Which war was fought between the North and South in America?",
+    "answers": ["Revolutionary War", "Civil War", "War of 1812", "Spanish-American War"],
+    "correct_index": 1,
+    "category": "history",
+    "difficulty": "easy"
+  },
+  {
+    "id": "hist_018",
+    "question": "Who was the first woman to fly solo across the Atlantic Ocean?",
+    "answers": ["Bessie Coleman", "Amelia Earhart", "Harriet Quimby", "Jacqueline Cochran"],
+    "correct_index": 1,
+    "category": "history",
+    "difficulty": "medium"
+  },
+  {
+    "id": "hist_019",
+    "question": "Which empire built the Taj Mahal?",
+    "answers": ["Mughal Empire", "Ottoman Empire", "British Empire", "Portuguese Empire"],
+    "correct_index": 0,
+    "category": "history",
+    "difficulty": "medium"
+  },
+  {
+    "id": "hist_020",
+    "question": "In which year did the French Revolution begin?",
+    "answers": ["1787", "1788", "1789", "1790"],
+    "correct_index": 2,
+    "category": "history",
+    "difficulty": "medium"
+  },
+  {
+    "id": "geo_016",
+    "question": "What is the capital of Canada?",
+    "answers": ["Toronto", "Montreal", "Vancouver", "Ottawa"],
+    "correct_index": 3,
+    "category": "geography",
+    "difficulty": "medium"
+  },
+  {
+    "id": "geo_017",
+    "question": "Which sea is the saltiest in the world?",
+    "answers": ["Dead Sea", "Red Sea", "Mediterranean Sea", "Black Sea"],
+    "correct_index": 0,
+    "category": "geography",
+    "difficulty": "medium"
+  },
+  {
+    "id": "geo_018",
+    "question": "What is the largest waterfall in the world by volume?",
+    "answers": ["Niagara Falls", "Victoria Falls", "Angel Falls", "Inga Falls"],
+    "correct_index": 3,
+    "category": "geography",
+    "difficulty": "hard"
+  },
+  {
+    "id": "geo_019",
+    "question": "Which country is known as the 'Land of the Rising Sun'?",
+    "answers": ["China", "Japan", "Korea", "Thailand"],
+    "correct_index": 1,
+    "category": "geography",
+    "difficulty": "easy"
+  },
+  {
+    "id": "geo_020",
+    "question": "What is the capital of Egypt?",
+    "answers": ["Alexandria", "Giza", "Cairo", "Luxor"],
+    "correct_index": 2,
+    "category": "geography",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ent_016",
+    "question": "Who painted 'Starry Night'?",
+    "answers": ["Claude Monet", "Vincent van Gogh", "Pablo Picasso", "Salvador Dalí"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ent_017",
+    "question": "Which TV show features dragons and the Iron Throne?",
+    "answers": ["The Witcher", "Game of Thrones", "The Lord of the Rings", "Vikings"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "easy"
+  },
+  {
+    "id": "ent_018",
+    "question": "Who directed 'The Dark Knight' trilogy?",
+    "answers": ["Tim Burton", "Christopher Nolan", "Zack Snyder", "Joss Whedon"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "medium"
+  },
+  {
+    "id": "ent_019",
+    "question": "Which band released 'The Dark Side of the Moon'?",
+    "answers": ["The Beatles", "Pink Floyd", "Led Zeppelin", "The Rolling Stones"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "medium"
+  },
+  {
+    "id": "ent_020",
+    "question": "Who wrote '1984'?",
+    "answers": ["Aldous Huxley", "George Orwell", "Ray Bradbury", "H.G. Wells"],
+    "correct_index": 1,
+    "category": "entertainment",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sci_021",
+    "question": "What is the hardest natural substance on Earth?",
+    "answers": ["Gold", "Iron", "Diamond", "Platinum"],
+    "correct_index": 2,
+    "category": "science",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sci_022",
+    "question": "What is the study of earthquakes called?",
+    "answers": ["Meteorology", "Geology", "Seismology", "Volcanology"],
+    "correct_index": 2,
+    "category": "science",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sci_023",
+    "question": "What is the main gas that makes up Earth's atmosphere?",
+    "answers": ["Oxygen", "Carbon dioxide", "Nitrogen", "Hydrogen"],
+    "correct_index": 2,
+    "category": "science",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sci_024",
+    "question": "What is the study of fossils called?",
+    "answers": ["Archaeology", "Paleontology", "Anthropology", "Geology"],
+    "correct_index": 1,
+    "category": "science",
+    "difficulty": "medium"
+  },
+  {
+    "id": "sci_025",
+    "question": "What causes tides?",
+    "answers": ["Earth's rotation", "Moon's gravitational pull", "Sun's heat", "Wind patterns"],
+    "correct_index": 1,
+    "category": "science",
+    "difficulty": "medium"
+  }
+]
