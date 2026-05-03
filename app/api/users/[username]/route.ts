@@ -18,7 +18,7 @@ export async function GET(
         u.id, u.username, u.wallet, u.avatar, u.banner, u.bio,
         u.sociallinks, u.emailverified, u.emailnotifications,
         u.creator, u.auth_type, u.privy_id,
-        u.is_live, u.mux_playback_id, u.current_viewers,
+        u.is_live, u.mux_playback_id, u.latency_mode, u.current_viewers,
         u.stream_started_at, u.total_views,
         u.total_tips_received, u.total_tips_count, u.last_tip_at,
         u.stream_privacy, u.share_token,
