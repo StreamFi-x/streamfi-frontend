@@ -447,7 +447,7 @@ export default function Navbar({}: NavbarProps) {
               </button>
               <button
                 onClick={handleConnectWallet}
-                className="bg-highlight hover:bg-highlight/80 text-background px-4 py-2.5 rounded-md text-sm font-medium transition-all"
+                className="hidden md:inline-flex bg-highlight hover:bg-highlight/80 text-background px-4 py-2.5 rounded-md text-sm font-medium transition-all"
               >
                 Connect Wallet
               </button>
