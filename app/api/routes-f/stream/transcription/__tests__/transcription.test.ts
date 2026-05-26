@@ -22,7 +22,7 @@ const recordings: Record<string, { id: string; user_id: string; status: string }
   [RECORDING_ID]: { id: RECORDING_ID, user_id: OWNER_ID, status: "ready" },
 };
 
-const jobs: Record<string, { id: string; recording_id: string; user_id: string; status: string; content: string | null; error_reason: string | null }> = {};
+const jobs: Record<string, { id: string; recording_id: string; user_id: string; status: string; content: string | null; error_reason: string | null; updated_at?: string }> = {};
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 vi.mock("@vercel/postgres", () => ({
@@ -231,7 +231,7 @@ describe("GET /api/routes-f/stream/transcription/[id]/vtt", () => {
     asUnauthenticated();
     const res = await GET_VTT(
       makeReq("GET", `http://localhost/api/routes-f/stream/transcription/${JOB_ID}/vtt`),
-      { params: { id: JOB_ID } }
+      { params: Promise.resolve({ id: JOB_ID }) }
     );
     expect(res.status).toBe(401);
   });
@@ -240,7 +240,7 @@ describe("GET /api/routes-f/stream/transcription/[id]/vtt", () => {
     asOwner();
     const res = await GET_VTT(
       makeReq("GET", `http://localhost/api/routes-f/stream/transcription/${JOB_ID}/vtt`),
-      { params: { id: JOB_ID } }
+      { params: Promise.resolve({ id: JOB_ID }) }
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/vtt");
@@ -254,7 +254,7 @@ describe("GET /api/routes-f/stream/transcription/[id]/vtt", () => {
     jobs[JOB_ID].content = null;
     const res = await GET_VTT(
       makeReq("GET", `http://localhost/api/routes-f/stream/transcription/${JOB_ID}/vtt`),
-      { params: { id: JOB_ID } }
+      { params: Promise.resolve({ id: JOB_ID }) }
     );
     expect(res.status).toBe(404);
   });
@@ -263,7 +263,7 @@ describe("GET /api/routes-f/stream/transcription/[id]/vtt", () => {
     asOwner();
     const res = await GET_VTT(
       makeReq("GET", "http://localhost/api/routes-f/stream/transcription/nonexistent/vtt"),
-      { params: { id: "nonexistent" } }
+      { params: Promise.resolve({ id: "nonexistent" }) }
     );
     expect(res.status).toBe(404);
   });
@@ -272,7 +272,7 @@ describe("GET /api/routes-f/stream/transcription/[id]/vtt", () => {
     asOther();
     const res = await GET_VTT(
       makeReq("GET", `http://localhost/api/routes-f/stream/transcription/${JOB_ID}/vtt`),
-      { params: { id: JOB_ID } }
+      { params: Promise.resolve({ id: JOB_ID }) }
     );
     expect(res.status).toBe(403);
   });

@@ -5,12 +5,12 @@ import { verifySession } from "@/lib/auth/verify-session";
 // ── GET /api/routes-f/stream/transcription/[id]/vtt ──────────────────────────
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await verifySession(req);
   if (!session.ok) return session.response;
 
-  const { id } = params;
+  const { id } = await params;
 
   try {
     const { rows } = await sql`
