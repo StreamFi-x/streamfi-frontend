@@ -45,6 +45,7 @@ export default async function Home() {
         creator
       FROM users
       WHERE is_live = true
+        AND COALESCE(stream_privacy, 'public') = 'public'
       ORDER BY current_viewers DESC
     `;
 
