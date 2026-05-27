@@ -22,6 +22,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifyToken } from "@/lib/auth/sign-token";
+import {
+  findActiveSession,
+  touchSession,
+} from "@/lib/sessions/user-sessions";
 
 export type VerifiedSession =
   | {
@@ -58,6 +62,31 @@ export async function verifySession(
     }
 
     try {
+      // Check user_sessions table first — catches revoked sessions immediately.
+      // Falls back gracefully if the table doesn't exist yet (pre-migration).
+      let sessionRow: { id: string; last_seen_at: Date } | null = null;
+      try {
+        sessionRow = await findActiveSession(privySessionId);
+        if (!sessionRow) {
+          // Session was revoked or expired — reject even if the cookie is valid
+          return {
+            ok: false,
+            response: NextResponse.json(
+              { error: "Session revoked or expired" },
+              { status: 401 }
+            ),
+          };
+        }
+      } catch (sessionErr) {
+        // user_sessions table may not exist yet (pre-migration environment).
+        // Log and continue with the legacy DB-only check so existing deployments
+        // aren't broken during the rollout window.
+        console.warn(
+          "[verifySession] user_sessions check failed (table may not exist yet):",
+          sessionErr
+        );
+      }
+
       const { rows } = await sql`
         SELECT id, privy_id, wallet, username, email
         FROM users
@@ -73,6 +102,13 @@ export async function verifySession(
             { status: 401 }
           ),
         };
+      }
+
+      // Touch last_seen_at (debounced — at most once per minute)
+      if (sessionRow) {
+        touchSession(sessionRow.id).catch(() => {
+          // Non-critical — ignore errors
+        });
       }
 
       const u = rows[0];
@@ -126,6 +162,26 @@ export async function verifySession(
     }
 
     try {
+      // Check user_sessions table for revocation (graceful fallback pre-migration)
+      let sessionRow: { id: string; last_seen_at: Date } | null = null;
+      try {
+        sessionRow = await findActiveSession(walletSessionToken);
+        if (!sessionRow) {
+          return {
+            ok: false,
+            response: NextResponse.json(
+              { error: "Session revoked or expired" },
+              { status: 401 }
+            ),
+          };
+        }
+      } catch (sessionErr) {
+        console.warn(
+          "[verifySession] user_sessions check failed (table may not exist yet):",
+          sessionErr
+        );
+      }
+
       // Cross-check both userId AND wallet against DB — forged tokens with
       // valid signatures but mismatched fields are rejected here.
       const { rows } = await sql`
@@ -143,6 +199,13 @@ export async function verifySession(
             { status: 401 }
           ),
         };
+      }
+
+      // Touch last_seen_at (debounced)
+      if (sessionRow) {
+        touchSession(sessionRow.id).catch(() => {
+          // Non-critical — ignore errors
+        });
       }
 
       const u = rows[0];

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { signToken } from "@/lib/auth/sign-token";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { createSession } from "@/lib/sessions/user-sessions";
 
 const isRateLimited = createRateLimiter(60_000, 20); // 20 requests/min per IP
 
@@ -89,6 +90,20 @@ export async function POST(req: NextRequest) {
 
     const res = NextResponse.json({ ok: true });
     res.headers.set("Set-Cookie", cookieValue);
+
+    // Record the session in user_sessions (fire-and-forget)
+    // getIp() may return "unknown" — normalise to null so the INET cast doesn't fail
+    const rawIp = getIp(req);
+    createSession({
+      userId: u.id,
+      rawToken: token,
+      ipAddress: rawIp === "unknown" ? null : rawIp,
+      userAgent: req.headers.get("user-agent") ?? null,
+      ttlSeconds: COOKIE_MAX_AGE,
+    }).catch((err) =>
+      console.error("[wallet-session] Failed to record user_session row:", err)
+    );
+
     return res;
   } catch (err) {
     console.error("[wallet-session] DB error:", err);

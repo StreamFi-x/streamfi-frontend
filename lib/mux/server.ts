@@ -17,7 +17,6 @@ export interface MuxStreamData {
   id: string;
   streamKey: string;
   playbackId: string;
-  signedPlaybackId?: string;
   status: string;
   rtmpUrl: string;
   isActive?: boolean;
@@ -29,24 +28,17 @@ export async function createMuxStream(streamData?: {
   name: string;
   record?: boolean;
   latencyMode?: "low" | "standard";
-  /** When true, also provision a signed playback ID for private streams. */
-  withSignedPlayback?: boolean;
 }) {
   try {
     const record = streamData?.record === true;
     const latencyMode = streamData?.latencyMode ?? "low";
-    const withSigned = streamData?.withSignedPlayback === true;
-
-    const playbackPolicy: ("public" | "signed")[] = withSigned
-      ? ["public", "signed"]
-      : ["public"];
 
     const liveStream = await Promise.race([
       mux.video.liveStreams.create({
-        playback_policy: playbackPolicy,
+        playback_policy: ["public"],
         ...(record && {
           new_asset_settings: {
-            playback_policy: playbackPolicy,
+            playback_policy: ["public"],
           },
         }),
         reconnect_window: 60,
@@ -61,20 +53,13 @@ export async function createMuxStream(streamData?: {
       ),
     ]);
 
-    // Find public and signed playback IDs (Mux returns multiple when multiple policies are requested)
-    const publicId =
-      liveStream.playback_ids?.find(p => p.policy === "public")?.id ||
-      liveStream.playback_ids?.[0]?.id ||
-      "";
-    const signedId = liveStream.playback_ids?.find(
-      p => p.policy === "signed"
-    )?.id;
+    // Get the playback ID from the created stream
+    const playbackId = liveStream.playback_ids?.[0]?.id || "";
 
     return {
       id: liveStream.id,
       streamKey: liveStream.stream_key || "",
-      playbackId: publicId,
-      signedPlaybackId: signedId,
+      playbackId,
       status: liveStream.status || "idle",
       rtmpUrl: "rtmp://global-live.mux.com:5222/app",
       isActive: liveStream.status === "active",

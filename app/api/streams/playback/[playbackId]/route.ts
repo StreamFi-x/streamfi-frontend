@@ -12,19 +12,19 @@ export async function GET(
     const { playbackId: paramPlaybackId } = await params;
     playbackId = paramPlaybackId;
 
-    console.log("🎬 Playback request for:", playbackId);
-
     if (!playbackId) {
+      console.warn("[routes-f] Playback request missing playbackId");
       return NextResponse.json(
         { error: "Playback ID is required" },
         { status: 400 }
       );
     }
 
-    let streamInfo = null;
+    console.log(`[routes-f] Playback request for: ${playbackId}`);
 
+    // Fetch stream info from DB
+    let streamInfo: null | Record<string, any> = null;
     try {
-      console.log("🔍 Checking database for playback ID...");
       const streamCheck = await sql`
         SELECT id, username, is_live, creator, current_viewers, total_views
         FROM users
@@ -36,37 +36,47 @@ export async function GET(
         streamInfo = {
           username: row.username,
           isLive: row.is_live,
-          currentViewers: row.current_viewers || 0,
-          totalViews: row.total_views || 0,
-          title: row.creator?.streamTitle || "Live Stream",
-          category: row.creator?.category || "General",
-          tags: row.creator?.tags || [],
+          currentViewers: row.current_viewers ?? 0,
+          totalViews: row.total_views ?? 0,
+          title: row.creator?.streamTitle ?? "Live Stream",
+          category: row.creator?.category ?? "General",
+          tags: row.creator?.tags ?? [],
         };
-        console.log("✅ Stream info found:", streamInfo);
+        console.log("[routes-f] Stream info found:", streamInfo);
       } else {
-        console.log("⚠️ No stream info found in database for:", playbackId);
+        console.log("[routes-f] No stream info found in database for:", playbackId);
       }
     } catch (dbError) {
-      console.error("Database check failed:", dbError);
+      console.error("[routes-f] DB query failed:", dbError);
     }
 
-    console.log("🎬 Getting playback source from Mux...");
-    const playbackSrc = await getPlaybackUrl(playbackId);
-    console.log("✅ Playback source retrieved:", playbackSrc);
+    // Get playback URL from Mux
+    let playbackSrc: string | null = null;
+    try {
+      playbackSrc = await getPlaybackUrl(playbackId);
+      console.log("[routes-f] Playback source retrieved:", playbackSrc);
+    } catch (muxError) {
+      console.error("[routes-f] Failed to get Mux playback URL:", muxError);
+    }
+
+    if (!playbackSrc) {
+      return NextResponse.json(
+        { error: "Playback source unavailable", playbackId },
+        { status: 503 }
+      );
+    }
 
     const responseData = {
       success: true,
-      playbackId: playbackId,
+      playbackId,
       src: playbackSrc,
       urls: {
         hls: playbackSrc,
         thumbnail: `https://image.mux.com/${playbackId}/thumbnail.jpg`,
       },
-      streamInfo: streamInfo,
+      streamInfo,
       timestamp: new Date().toISOString(),
     };
-
-    console.log("✅ Playback response prepared:", responseData);
 
     return NextResponse.json(responseData, {
       status: 200,
@@ -77,23 +87,12 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("❌ Playback source error:", error);
-
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    const errorStack = error instanceof Error ? error.stack : "";
-
-    console.log("Error details:", {
-      message: errorMessage,
-      stack: errorStack,
-      playbackId: playbackId,
-    });
-
+    console.error("[routes-f] Playback source error:", error);
     return NextResponse.json(
       {
         error: "Failed to get playback source",
-        details: errorMessage,
-        playbackId: playbackId,
+        details: error instanceof Error ? error.message : "Unknown error",
+        playbackId,
       },
       { status: 500 }
     );

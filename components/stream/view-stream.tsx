@@ -43,6 +43,7 @@ import { useChat } from "@/hooks/useChat";
 import { TipButton, TipModalContainer } from "@/components/tipping";
 import { useTipModal } from "@/hooks/useTipModal";
 import { toast } from "sonner";
+import { ClipButton } from "@/components/stream/ClipButton";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,
@@ -275,11 +276,6 @@ const ViewStream = ({
   const [showReportModal, setShowReportModal] = useState(false);
   const [isSavingStreamInfo, setIsSavingStreamInfo] = useState(false);
   const [recordings, setRecordings] = useState<PastRecording[]>([]);
-  // For private streams: signed playback id + JWT (overrides userData.playbackId)
-  const [playbackOverride, setPlaybackOverride] = useState<{
-    playbackId: string;
-    token?: string;
-  } | null>(null);
 
   // Use custom hooks for Stellar wallet and tip modal state
   const { publicKey, privyWallet } = useStellarWallet();
@@ -354,46 +350,6 @@ const ViewStream = ({
 
     getStreamData();
   }, [username, onStatusChange, userData, initialIsLive]);
-
-  // Private streams: fetch signed playback token after access has been verified.
-  // Skips for public streams (uses userData.playbackId directly).
-  useEffect(() => {
-    const privacy = userData?.privacy;
-    if (!privacy || privacy === "public") {
-      setPlaybackOverride(null);
-      return;
-    }
-    if (!isLive) {
-      return;
-    }
-
-    const qs = new URLSearchParams();
-    qs.set("username", username);
-    if (userData?.shareKey) {
-      qs.set("key", userData.shareKey);
-    }
-    if (address) {
-      qs.set("viewer_wallet", address);
-    }
-
-    fetch(`/api/streams/playback-token?${qs.toString()}`)
-      .then(r => (r.ok ? r.json() : null))
-      .then(data => {
-        if (data?.playbackId) {
-          setPlaybackOverride({
-            playbackId: data.playbackId,
-            token: data.signed ? data.token : undefined,
-          });
-        }
-      })
-      .catch(() => {});
-  }, [
-    username,
-    isLive,
-    userData?.privacy,
-    userData?.shareKey,
-    address,
-  ]);
 
   // Fetch past recordings for this streamer
   useEffect(() => {
@@ -589,59 +545,33 @@ const ViewStream = ({
                     : undefined
                 }
               >
-                {(() => {
-                  // For private streams, use the signed playback id+token from /playback-token.
-                  // For public streams, use userData.playbackId directly.
-                  const isPrivate =
-                    userData?.privacy && userData.privacy !== "public";
-                  const effectivePlaybackId = isPrivate
-                    ? playbackOverride?.playbackId
-                    : userData?.playbackId;
-                  const effectiveToken = isPrivate
-                    ? playbackOverride?.token
-                    : undefined;
-                  const playerReady =
-                    !isPrivate || !!playbackOverride?.playbackId;
-
-                  return isLive && effectivePlaybackId && playerReady ? (
-                    <MuxPlayer
-                      playbackId={effectivePlaybackId}
-                      streamType={
-                        userData.latencyMode === "standard" ? "live:dvr" : "live"
-                      }
-                      autoPlay="muted"
-                      tokens={
-                        effectiveToken
-                          ? {
-                              playback: effectiveToken,
-                              thumbnail: effectiveToken,
-                              storyboard: effectiveToken,
-                            }
-                          : undefined
-                      }
-                      metadata={{
-                        video_id: effectivePlaybackId,
-                        video_title: streamData.title || `${username}'s Stream`,
-                        viewer_user_id: "anonymous",
-                      }}
-                      primaryColor="#ac39f2"
-                      className="w-full h-full"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-card">
-                      <div className="text-foreground text-center">
-                        <p className="text-lg mb-2">
-                          {isLive ? "Loading stream..." : "Stream is offline"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {isLive
-                            ? "Please wait while we load the stream"
-                            : "Check back later or browse past streams below"}
-                        </p>
-                      </div>
+                {isLive && userData?.playbackId ? (
+                  <MuxPlayer
+                    playbackId={userData.playbackId}
+                    streamType={userData.latencyMode === "standard" ? "live:dvr" : "live"}
+                    autoPlay="muted"
+                    metadata={{
+                      video_id: userData.playbackId,
+                      video_title: streamData.title || `${username}'s Stream`,
+                      viewer_user_id: "anonymous",
+                    }}
+                    primaryColor="#ac39f2"
+                    className="w-full h-full"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-card">
+                    <div className="text-foreground text-center">
+                      <p className="text-lg mb-2">
+                        {isLive ? "Loading stream..." : "Stream is offline"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {isLive
+                          ? "Please wait while we load the stream"
+                          : "Check back later or browse past streams below"}
+                      </p>
                     </div>
-                  );
-                })()}
+                  </div>
+                )}
 
                 {/* Stream info overlay in fullscreen (visible on hover) */}
                 {isFullscreen && (
@@ -956,6 +886,16 @@ const ViewStream = ({
                             >
                               <Share2 className="w-4 h-4" />
                             </Button>
+                            {isLive && (
+                              <ClipButton
+                                streamerUsername={username}
+                                streamElapsedSeconds={
+                                  userData?.startedAt
+                                    ? Math.floor((Date.now() - new Date(userData.startedAt).getTime()) / 1000)
+                                    : 0
+                                }
+                              />
+                            )}
                             <button
                               className="hidden lg:flex p-2 rounded-md border border-border bg-transparent hover:bg-accent text-foreground transition-colors"
                               onClick={toggleChat}

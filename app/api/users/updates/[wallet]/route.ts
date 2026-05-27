@@ -18,7 +18,7 @@ export async function PUT(
     const existingResult = await sql`
       SELECT id, username, email, bio, streamkey, avatar, banner, sociallinks,
              emailverified, emailnotifications, creator, enable_recording,
-             latency_mode, mux_stream_id, wallet
+             mux_stream_id, wallet
       FROM users WHERE LOWER(wallet) = LOWER(${normalizedWallet})
     `;
     const user = existingResult.rows[0];
@@ -43,9 +43,7 @@ export async function PUT(
     const latencyModeRaw = formData.get("latency_mode");
     const latencyMode =
       latencyModeRaw !== null && latencyModeRaw !== undefined
-        ? String(latencyModeRaw) === "standard"
-          ? "standard"
-          : "low"
+        ? String(latencyModeRaw)
         : user.latency_mode || "low";
 
     // Social links - Use lowercase column name to match database

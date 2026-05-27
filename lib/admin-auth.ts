@@ -27,6 +27,13 @@ export async function verifyAdminSession(): Promise<boolean> {
   return false;
 }
 
+/** Returns true when userId is in the ADMIN_PRIVY_IDS or ADMIN_WALLET_ADDRESSES env lists. */
+export function isAdmin(userId: string): boolean {
+  const ids = (process.env.ADMIN_PRIVY_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+  const wallets = (process.env.ADMIN_WALLET_ADDRESSES ?? "").split(",").map(s => s.trim()).filter(Boolean);
+  return ids.includes(userId) || wallets.includes(userId);
+}
+
 /** Convenience helper — returns a 401 JSON response. */
 export function adminUnauthorized(): Response {
   return Response.json({ error: "Unauthorized" }, { status: 401 });

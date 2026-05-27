@@ -38,8 +38,15 @@ const eslintConfig = [
       "react/jsx-no-duplicate-props": "error", // No duplicate props
 
       // TypeScript specific rules
-      "@typescript-eslint/no-unused-vars": "error", // TypeScript unused vars
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
       "@typescript-eslint/no-explicit-any": "warn", // Warn about any usage
+      "@typescript-eslint/ban-ts-comment": [
+        "error",
+        { "ts-nocheck": false, "ts-ignore": true, "ts-expect-error": "allow-with-description" },
+      ],
 
       // Best practices
       eqeqeq: "error", // Require === and !==
