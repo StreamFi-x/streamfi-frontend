@@ -14,6 +14,14 @@ function makeRequest(params: Record<string, string> = {}) {
 }
 
 describe("/api/routesF/random-named-color-picker", () => {
+  it("uses defaults when optional params are missing", async () => {
+    const response = await GET(makeRequest());
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.colors).toHaveLength(5);
+  });
+
   it("returns requested number of colors with expected shape", async () => {
     const response = await GET(makeRequest({ count: "5", seed: "42", group: "any" }));
     const payload = await response.json();
@@ -111,5 +119,13 @@ describe("/api/routesF/random-named-color-picker", () => {
   it("returns 400 for invalid group", async () => {
     const response = await GET(makeRequest({ group: "greens" }));
     expect(response.status).toBe(400);
+  });
+
+  it("clamps count to avoid over-fetching the color pool", async () => {
+    const response = await GET(makeRequest({ count: "100", group: "blues", seed: "9" }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.colors.length).toBeLessThanOrEqual(17);
   });
 });
