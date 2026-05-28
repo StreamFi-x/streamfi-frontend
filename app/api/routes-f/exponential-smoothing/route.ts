@@ -22,15 +22,28 @@ export async function POST(req: NextRequest) {
 
   const { data, alpha = 0.3, forecast = 1 } = body;
 
-  if (!Array.isArray(data) || data.length === 0 || data.some((value) => typeof value !== "number" || !Number.isFinite(value))) {
+  if (
+    !Array.isArray(data) ||
+    data.length === 0 ||
+    data.some(value => typeof value !== "number" || !Number.isFinite(value))
+  ) {
     return badRequest("data must be a non-empty array of finite numbers.");
   }
 
-  if (typeof alpha !== "number" || !Number.isFinite(alpha) || alpha <= 0 || alpha >= 1) {
+  if (
+    typeof alpha !== "number" ||
+    !Number.isFinite(alpha) ||
+    alpha <= 0 ||
+    alpha >= 1
+  ) {
     return badRequest("alpha must be a number in the open interval (0, 1).");
   }
 
-  if (!Number.isInteger(forecast) || forecast < 0) {
+  if (
+    typeof forecast !== "number" ||
+    !Number.isInteger(forecast) ||
+    forecast < 0
+  ) {
     return badRequest("forecast must be a non-negative integer.");
   }
 

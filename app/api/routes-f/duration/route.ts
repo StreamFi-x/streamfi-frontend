@@ -42,13 +42,17 @@ export async function POST(req: NextRequest) {
       });
     } catch (error) {
       return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Invalid ISO duration." },
+        {
+          error:
+            error instanceof Error ? error.message : "Invalid ISO duration.",
+        },
         { status: 400 }
       );
     }
   }
 
   try {
+    const { components } = validated.data;
     const formatted = formatDuration(components as DurationComponents);
     const normalized = parseDuration(formatted);
     return NextResponse.json({
@@ -58,7 +62,10 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to format duration." },
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to format duration.",
+      },
       { status: 400 }
     );
   }

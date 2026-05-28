@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { validateBody } from '@/app/api/routes-f/_lib/validate';
-import { parseRetryAfterValue } from './parse';
-import type { RetryAfterRequest } from './types';
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { validateBody } from "@/app/api/routes-f/_lib/validate";
+import { parseRetryAfterValue } from "./parse";
+import type { RetryAfterRequest } from "./types";
 
 const schema = z.object({
   header: z.string().min(1),
@@ -10,7 +10,7 @@ const schema = z.object({
 });
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const result = await validateBody<RetryAfterRequest>(request, schema);
+  const result = await validateBody(request, schema);
   if (result instanceof NextResponse) {
     return result;
   }
@@ -20,7 +20,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   if (!parsed) {
     return NextResponse.json(
-      { error: 'Invalid Retry-After header or now timestamp' },
+      { error: "Invalid Retry-After header or now timestamp" },
       { status: 400 }
     );
   }
