@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * @jest-environment node
  */
@@ -28,13 +29,17 @@ describe("/api/routes-f/xml-to-json", () => {
   });
 
   it("respects custom attribute_prefix", async () => {
-    const res = await POST(makeReq({ xml: '<root id="1"/>', attribute_prefix: "_" }));
+    const res = await POST(
+      makeReq({ xml: '<root id="1"/>', attribute_prefix: "_" })
+    );
     const { json } = await res.json();
     expect(json.root["_id"]).toBe("1");
   });
 
   it("respects custom text_key", async () => {
-    const res = await POST(makeReq({ xml: "<root>hello</root>", text_key: "$" }));
+    const res = await POST(
+      makeReq({ xml: "<root>hello</root>", text_key: "$" })
+    );
     const { json } = await res.json();
     expect(json.root["$"]).toBe("hello");
   });

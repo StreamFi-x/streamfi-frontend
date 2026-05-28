@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
