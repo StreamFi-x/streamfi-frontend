@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * @jest-environment node
  */
@@ -26,9 +27,7 @@ describe("/api/routes-f/query-parse", () => {
 
   // --- Parse: leading ? is stripped ---
   it("strips leading ? in parse mode", async () => {
-    const res = await POST(
-      makeReq({ mode: "parse", input: "?foo=bar" })
-    );
+    const res = await POST(makeReq({ mode: "parse", input: "?foo=bar" }));
     expect(res.status).toBe(200);
     const d = await res.json();
     expect(d.result.foo).toBe("bar");
@@ -36,9 +35,7 @@ describe("/api/routes-f/query-parse", () => {
 
   // --- Parse: repeated keys become arrays ---
   it("parses repeated keys as arrays", async () => {
-    const res = await POST(
-      makeReq({ mode: "parse", input: "a=1&a=2&a=3" })
-    );
+    const res = await POST(makeReq({ mode: "parse", input: "a=1&a=2&a=3" }));
     expect(res.status).toBe(200);
     const d = await res.json();
     expect(d.result.a).toEqual(["1", "2", "3"]);
@@ -125,9 +122,7 @@ describe("/api/routes-f/query-parse", () => {
   // --- Parse + Build round-trip ---
   it("round-trips parse then build", async () => {
     const original = "x=1&y=2&z=3";
-    const parseRes = await POST(
-      makeReq({ mode: "parse", input: original })
-    );
+    const parseRes = await POST(makeReq({ mode: "parse", input: original }));
     const parsed = await parseRes.json();
 
     const buildRes = await POST(

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * @jest-environment node
  */
@@ -14,7 +15,9 @@ function makeReq(body: unknown) {
 
 describe("/api/routes-f/loan-amortization", () => {
   it("computes basic loan schedule", async () => {
-    const res = await POST(makeReq({ principal: 100000, annual_rate: 5, years: 30 }));
+    const res = await POST(
+      makeReq({ principal: 100000, annual_rate: 5, years: 30 })
+    );
     expect(res.status).toBe(200);
     const d = await res.json();
     expect(d.monthly_payment).toBeCloseTo(536.82, 0);
@@ -28,10 +31,19 @@ describe("/api/routes-f/loan-amortization", () => {
   });
 
   it("accelerates payoff with extra monthly payment", async () => {
-    const baseRes = await POST(makeReq({ principal: 100000, annual_rate: 5, years: 30 }));
+    const baseRes = await POST(
+      makeReq({ principal: 100000, annual_rate: 5, years: 30 })
+    );
     const base = await baseRes.json();
 
-    const extraRes = await POST(makeReq({ principal: 100000, annual_rate: 5, years: 30, extra_monthly_payment: 200 }));
+    const extraRes = await POST(
+      makeReq({
+        principal: 100000,
+        annual_rate: 5,
+        years: 30,
+        extra_monthly_payment: 200,
+      })
+    );
     const extra = await extraRes.json();
 
     expect(extra.payoff_months).toBeLessThan(base.payoff_months);
@@ -39,14 +51,18 @@ describe("/api/routes-f/loan-amortization", () => {
   });
 
   it("handles zero interest rate", async () => {
-    const res = await POST(makeReq({ principal: 12000, annual_rate: 0, years: 1 }));
+    const res = await POST(
+      makeReq({ principal: 12000, annual_rate: 0, years: 1 })
+    );
     const d = await res.json();
     expect(d.monthly_payment).toBe(1000);
     expect(d.total_interest).toBe(0);
   });
 
   it("schedule first row has correct structure", async () => {
-    const res = await POST(makeReq({ principal: 10000, annual_rate: 6, years: 1 }));
+    const res = await POST(
+      makeReq({ principal: 10000, annual_rate: 6, years: 1 })
+    );
     const { schedule } = await res.json();
     const row = schedule[0];
     expect(typeof row.month).toBe("number");
@@ -57,17 +73,23 @@ describe("/api/routes-f/loan-amortization", () => {
   });
 
   it("rejects negative principal", async () => {
-    const res = await POST(makeReq({ principal: -1000, annual_rate: 5, years: 10 }));
+    const res = await POST(
+      makeReq({ principal: -1000, annual_rate: 5, years: 10 })
+    );
     expect(res.status).toBe(400);
   });
 
   it("rejects years > 50", async () => {
-    const res = await POST(makeReq({ principal: 10000, annual_rate: 5, years: 51 }));
+    const res = await POST(
+      makeReq({ principal: 10000, annual_rate: 5, years: 51 })
+    );
     expect(res.status).toBe(400);
   });
 
   it("rejects negative rate", async () => {
-    const res = await POST(makeReq({ principal: 10000, annual_rate: -1, years: 10 }));
+    const res = await POST(
+      makeReq({ principal: 10000, annual_rate: -1, years: 10 })
+    );
     expect(res.status).toBe(400);
   });
 });

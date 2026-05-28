@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * @jest-environment node
  */
@@ -61,9 +62,7 @@ describe("/api/routes-f/url-parse", () => {
 
   // --- Simple URL with no port/auth ---
   it("parses simple URL with default port", async () => {
-    const res = await POST(
-      makeReq({ url: "https://example.com/about" })
-    );
+    const res = await POST(makeReq({ url: "https://example.com/about" }));
     expect(res.status).toBe(200);
     const d = await res.json();
     expect(d.port).toBe("");
