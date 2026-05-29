@@ -166,10 +166,22 @@ export async function POST(req: Request) {
         );
         break;
 
-      // ── video.live_stream.idle / disconnected ─────────────────────────────
-      case "video.live_stream.idle":
-      case "video.live_stream.disconnected": {
-        console.log(`⚫ Stream OFFLINE: ${streamId}`);
+      // ── video.live_stream.disconnected ────────────────────────────────────
+      // The encoder dropped the connection (could be a brief network blip).
+      // DO NOT mark offline — Mux holds the slot for reconnect_window (60s).
+      // We wait for the "idle" event, which only fires after reconnect_window
+      // elapses without reconnect. This prevents flapping is_live on every
+      // network hiccup.
+      case "video.live_stream.disconnected":
+        console.log(
+          `⚠️ Encoder disconnected: ${streamId} — waiting for reconnect or idle event before marking offline`
+        );
+        break;
+
+      // ── video.live_stream.idle ────────────────────────────────────────────
+      // Stream is genuinely offline (reconnect window elapsed).
+      case "video.live_stream.idle": {
+        console.log(`⚫ Stream OFFLINE (idle): ${streamId}`);
 
         await sql`
           UPDATE users SET

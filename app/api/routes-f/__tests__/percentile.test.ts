@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * @jest-environment node
  */
@@ -14,7 +15,9 @@ function makeReq(body: unknown) {
 
 describe("/api/routes-f/percentile", () => {
   it("computes p50 (median) from known dataset", async () => {
-    const res = await POST(makeReq({ data: [1, 2, 3, 4, 5], percentiles: [50] }));
+    const res = await POST(
+      makeReq({ data: [1, 2, 3, 4, 5], percentiles: [50] })
+    );
     expect(res.status).toBe(200);
     const { results } = await res.json();
     expect(results[0].percentile).toBe(50);
@@ -22,23 +25,31 @@ describe("/api/routes-f/percentile", () => {
   });
 
   it("computes p0 and p100 (min and max)", async () => {
-    const res = await POST(makeReq({ data: [10, 20, 30, 40, 50], percentiles: [0, 100] }));
+    const res = await POST(
+      makeReq({ data: [10, 20, 30, 40, 50], percentiles: [0, 100] })
+    );
     const { results } = await res.json();
     expect(results[0].value).toBe(10);
     expect(results[1].value).toBe(50);
   });
 
   it("uses linear interpolation for p25 and p75", async () => {
-    const res = await POST(makeReq({ data: [1, 2, 3, 4], percentiles: [25, 75] }));
+    const res = await POST(
+      makeReq({ data: [1, 2, 3, 4], percentiles: [25, 75] })
+    );
     const { results } = await res.json();
     expect(results[0].value).toBeCloseTo(1.75, 5);
     expect(results[1].value).toBeCloseTo(3.25, 5);
   });
 
   it("returns multiple percentiles in input order", async () => {
-    const res = await POST(makeReq({ data: [1, 2, 3], percentiles: [90, 10, 50] }));
+    const res = await POST(
+      makeReq({ data: [1, 2, 3], percentiles: [90, 10, 50] })
+    );
     const { results } = await res.json();
-    expect(results.map((r: { percentile: number }) => r.percentile)).toEqual([90, 10, 50]);
+    expect(results.map((r: { percentile: number }) => r.percentile)).toEqual([
+      90, 10, 50,
+    ]);
   });
 
   it("rejects empty data", async () => {

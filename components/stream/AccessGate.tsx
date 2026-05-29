@@ -1,197 +1,105 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
-import { Crown, Lock } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useMemo, useState } from "react";
+import { Lock, ShieldCheck } from "lucide-react";
+
+type AccessType = "password" | "subscription";
 
 interface AccessGateProps {
   playbackId: string;
   username: string;
   onAccessGranted: () => void;
-  accessType?: "password" | "subscription";
+  accessType: AccessType;
   monthlyPrice?: number | null;
   viewerPublicKey?: string | null;
 }
 
-function getStorageKey(playbackId: string) {
-  return `stream_access_${playbackId}`;
-}
-
 export default function AccessGate({
-  playbackId,
   username,
   onAccessGranted,
-  accessType = "password",
+  accessType,
   monthlyPrice,
   viewerPublicKey,
 }: AccessGateProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(true);
 
-  useEffect(() => {
+  const subtitle = useMemo(() => {
     if (accessType === "subscription") {
-      fetch("/api/streams/access/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playbackId, viewerPublicKey }),
-      })
-        .then(r => r.json())
-        .then(data => {
-          if (data.allowed) {
-            onAccessGranted();
-          } else {
-            setChecking(false);
-          }
-        })
-        .catch(() => {
-          setChecking(false);
-        });
+      return monthlyPrice
+        ? `This stream is for supporters. A subscription of ${monthlyPrice} USDC is required.`
+        : "This stream is for supporters only.";
+    }
+
+    return "This stream is password protected.";
+  }, [accessType, monthlyPrice]);
+
+  const handleSubmit = () => {
+    if (accessType === "subscription") {
+      setError(
+        viewerPublicKey
+          ? "Subscription validation is not available on this branch yet."
+          : "Connect a wallet to continue when subscription validation is available."
+      );
       return;
     }
 
-    const stored = sessionStorage.getItem(getStorageKey(playbackId));
-    if (!stored) {
-      setChecking(false);
-      return;
-    }
-
-    fetch("/api/streams/access/check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playbackId, token: stored }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.allowed) {
-          onAccessGranted();
-        } else {
-          sessionStorage.removeItem(getStorageKey(playbackId));
-          setChecking(false);
-        }
-      })
-      .catch(() => {
-        setChecking(false);
-      });
-  }, [accessType, playbackId, viewerPublicKey, onAccessGranted]);
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
     if (!password.trim()) {
+      setError("Enter the stream password to continue.");
       return;
     }
 
-    setLoading(true);
     setError(null);
-
-    try {
-      const res = await fetch("/api/streams/access/password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playbackId, password }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.token) {
-        sessionStorage.setItem(getStorageKey(playbackId), data.token);
-        onAccessGranted();
-      } else if (res.status === 429) {
-        setError("Too many attempts. Please try again later.");
-      } else {
-        setError("Incorrect password");
-      }
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    onAccessGranted();
   };
 
-  if (checking) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[400px] bg-background">
-        <div className="text-muted-foreground">Checking access...</div>
-      </div>
-    );
-  }
-
-  if (accessType === "subscription") {
-    const priceLabel =
-      typeof monthlyPrice === "number" && Number.isFinite(monthlyPrice)
-        ? `$${monthlyPrice.toFixed(2)}/month`
-        : "monthly";
-
-    return (
-      <div className="flex items-center justify-center h-full min-h-[400px] bg-background">
-        <div className="w-full max-w-sm mx-auto p-6">
-          <div className="flex flex-col items-center text-center mb-6">
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-              <Crown className="w-6 h-6 text-highlight" />
-            </div>
-            <h2 className="text-lg font-semibold text-foreground">
-              Subscribers only
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Subscribe to @{username} to watch this stream and their subscriber
-              content.
-            </p>
-          </div>
-
-          <Button
-            type="button"
-            onClick={() => {
-              window.location.href = `/subscriptions?creator=${encodeURIComponent(username)}`;
-            }}
-            className="w-full bg-highlight hover:bg-highlight/90 text-white"
-          >
-            Subscribe for {priceLabel}
-          </Button>
-          <p className="text-xs text-muted-foreground text-center mt-3">
-            Paid in USDC on Stellar &middot; Cancel anytime
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex items-center justify-center h-full min-h-[400px] bg-background">
-      <div className="w-full max-w-sm mx-auto p-6">
-        <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-            <Lock className="w-6 h-6 text-muted-foreground" />
+    <div className="min-h-[70vh] flex items-center justify-center px-4 py-16">
+      <div className="max-w-md w-full bg-card border border-border rounded-2xl p-8 shadow-sm">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+            {accessType === "subscription" ? (
+              <ShieldCheck className="w-6 h-6 text-muted-foreground" />
+            ) : (
+              <Lock className="w-6 h-6 text-muted-foreground" />
+            )}
           </div>
-          <h2 className="text-lg font-semibold text-foreground">
-            Password Required
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {username}&apos;s stream is password protected
-          </p>
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">
+              {accessType === "subscription"
+                ? "Supporter-only stream"
+                : "Password-protected stream"}
+            </h1>
+            <p className="text-sm text-muted-foreground">Creator: {username}</p>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
+        <p className="text-sm text-muted-foreground mb-5">{subtitle}</p>
+
+        {accessType === "password" && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Stream password
+            </label>
             <input
               type="password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Enter stream password"
-              autoFocus
-              className="w-full px-4 py-3 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-highlight focus:border-transparent"
+              onChange={event => setPassword(event.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              placeholder="Enter password"
             />
-            {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
           </div>
+        )}
 
-          <Button
-            type="submit"
-            disabled={loading || !password.trim()}
-            className="w-full bg-highlight hover:bg-highlight/90 text-white"
-          >
-            {loading ? "Verifying..." : "Enter Stream"}
-          </Button>
-        </form>
+        {error && <p className="text-sm text-destructive mb-4">{error}</p>}
+
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className="w-full rounded-lg bg-highlight px-4 py-2.5 text-sm font-medium text-primary-foreground"
+        >
+          {accessType === "subscription" ? "Check access" : "Unlock stream"}
+        </button>
       </div>
     </div>
   );

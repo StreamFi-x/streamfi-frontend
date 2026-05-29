@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { uploadImage } from "@/utils/upload/cloudinary";

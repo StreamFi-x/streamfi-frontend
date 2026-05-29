@@ -17,6 +17,7 @@ export interface MuxStreamData {
   id: string;
   streamKey: string;
   playbackId: string;
+  signedPlaybackId?: string;
   status: string;
   rtmpUrl: string;
   isActive?: boolean;
@@ -28,6 +29,7 @@ export async function createMuxStream(streamData?: {
   name: string;
   record?: boolean;
   latencyMode?: "low" | "standard";
+  withSignedPlayback?: boolean;
 }) {
   try {
     const record = streamData?.record === true;
@@ -60,6 +62,7 @@ export async function createMuxStream(streamData?: {
       id: liveStream.id,
       streamKey: liveStream.stream_key || "",
       playbackId,
+      signedPlaybackId: undefined,
       status: liveStream.status || "idle",
       rtmpUrl: "rtmp://global-live.mux.com:5222/app",
       isActive: liveStream.status === "active",
@@ -83,6 +86,7 @@ export async function getMuxStream(streamId: string) {
       id: liveStream.id,
       streamKey: liveStream.stream_key || "",
       playbackId: liveStream.playback_ids?.[0]?.id || "",
+      signedPlaybackId: undefined,
       status: liveStream.status || "idle",
       rtmpUrl: "rtmp://global-live.mux.com:5222/app",
       isActive: liveStream.status === "active",

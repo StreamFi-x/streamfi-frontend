@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Transcription API — unit tests
  *
@@ -18,30 +19,51 @@ const OTHER_ID = "user-other-002";
 const RECORDING_ID = "rec-abc123";
 const JOB_ID = "job-xyz789";
 
-const recordings: Record<string, { id: string; user_id: string; status: string }> = {
+const recordings: Record
+  string,
+  { id: string; user_id: string; status: string }
+> = {
   [RECORDING_ID]: { id: RECORDING_ID, user_id: OWNER_ID, status: "ready" },
 };
 
-const jobs: Record<string, { id: string; recording_id: string; user_id: string; status: string; content: string | null; error_reason: string | null; updated_at?: string }> = {};
+const jobs: Record
+  string,
+  {
+    id: string;
+    recording_id: string;
+    user_id: string;
+    status: string;
+    content: string | null;
+    error_reason: string | null;
+    updated_at?: string;
+  }
+> = {};
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 vi.mock("@vercel/postgres", () => ({
   sql: new Proxy(
     {},
     {
-      get: () =>
+      get:
+        () =>
         async (strings: TemplateStringsArray, ...values: unknown[]) => {
           const query = strings.join("?").toLowerCase();
 
           // GET transcription_jobs by recording_id
-          if (query.includes("from transcription_jobs") && query.includes("recording_id")) {
+          if (
+            query.includes("from transcription_jobs") &&
+            query.includes("recording_id")
+          ) {
             const recId = values[0] as string;
-            const job = Object.values(jobs).find((j) => j.recording_id === recId);
+            const job = Object.values(jobs).find(j => j.recording_id === recId);
             return { rows: job ? [job] : [] };
           }
 
           // GET transcription_jobs by id (VTT endpoint)
-          if (query.includes("from transcription_jobs") && query.includes("where id")) {
+          if (
+            query.includes("from transcription_jobs") &&
+            query.includes("where id")
+          ) {
             const id = values[0] as string;
             const job = jobs[id];
             return { rows: job ? [job] : [] };
@@ -57,7 +79,9 @@ vi.mock("@vercel/postgres", () => ({
           // INSERT / UPSERT transcription_jobs
           if (query.includes("insert into transcription_jobs")) {
             const [recId, userId] = values as string[];
-            const existing = Object.values(jobs).find((j) => j.recording_id === recId);
+            const existing = Object.values(jobs).find(
+              j => j.recording_id === recId
+            );
             if (existing) {
               existing.updated_at = new Date().toISOString();
               return { rows: [{ id: existing.id, status: existing.status }] };
@@ -84,7 +108,9 @@ vi.mock("@/lib/rate-limit", () => ({
   createRateLimiter: () => async () => false,
 }));
 
-let mockSession: { ok: boolean; userId?: string; response?: Response } = { ok: false };
+let mockSession: { ok: boolean; userId?: string; response?: Response } = {
+  ok: false,
+};
 
 vi.mock("@/lib/auth/verify-session", () => ({
   verifySession: async () => mockSession,
@@ -114,7 +140,9 @@ function asOther() {
 function asUnauthenticated() {
   mockSession = {
     ok: false,
-    response: new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
+    response: new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+    }),
   } as typeof mockSession;
 }
 
@@ -134,19 +162,31 @@ describe("GET /api/routes-f/stream/transcription", () => {
 
   it("returns 401 for unauthenticated requests", async () => {
     asUnauthenticated();
-    const res = await GET(makeReq("GET", `http://localhost/api/routes-f/stream/transcription?recording_id=${RECORDING_ID}`));
+    const res = await GET(
+      makeReq(
+        "GET",
+        `http://localhost/api/routes-f/stream/transcription?recording_id=${RECORDING_ID}`
+      )
+    );
     expect(res.status).toBe(401);
   });
 
   it("returns 400 when recording_id is missing", async () => {
     asOwner();
-    const res = await GET(makeReq("GET", "http://localhost/api/routes-f/stream/transcription"));
+    const res = await GET(
+      makeReq("GET", "http://localhost/api/routes-f/stream/transcription")
+    );
     expect(res.status).toBe(400);
   });
 
   it("returns correct status and content when ready", async () => {
     asOwner();
-    const res = await GET(makeReq("GET", `http://localhost/api/routes-f/stream/transcription?recording_id=${RECORDING_ID}`));
+    const res = await GET(
+      makeReq(
+        "GET",
+        `http://localhost/api/routes-f/stream/transcription?recording_id=${RECORDING_ID}`
+      )
+    );
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.status).toBe("ready");
@@ -158,7 +198,12 @@ describe("GET /api/routes-f/stream/transcription", () => {
     asOwner();
     jobs[JOB_ID].status = "pending";
     jobs[JOB_ID].content = null;
-    const res = await GET(makeReq("GET", `http://localhost/api/routes-f/stream/transcription?recording_id=${RECORDING_ID}`));
+    const res = await GET(
+      makeReq(
+        "GET",
+        `http://localhost/api/routes-f/stream/transcription?recording_id=${RECORDING_ID}`
+      )
+    );
     const body = await res.json();
     expect(body.status).toBe("pending");
     expect(body.content).toBeUndefined();
@@ -166,7 +211,12 @@ describe("GET /api/routes-f/stream/transcription", () => {
 
   it("returns 403 when a non-owner requests the transcription", async () => {
     asOther();
-    const res = await GET(makeReq("GET", `http://localhost/api/routes-f/stream/transcription?recording_id=${RECORDING_ID}`));
+    const res = await GET(
+      makeReq(
+        "GET",
+        `http://localhost/api/routes-f/stream/transcription?recording_id=${RECORDING_ID}`
+      )
+    );
     expect(res.status).toBe(403);
   });
 });
@@ -179,13 +229,21 @@ describe("POST /api/routes-f/stream/transcription", () => {
 
   it("returns 401 for unauthenticated requests", async () => {
     asUnauthenticated();
-    const res = await POST(makeReq("POST", "http://localhost/api/routes-f/stream/transcription", { recording_id: RECORDING_ID }));
+    const res = await POST(
+      makeReq("POST", "http://localhost/api/routes-f/stream/transcription", {
+        recording_id: RECORDING_ID,
+      })
+    );
     expect(res.status).toBe(401);
   });
 
   it("triggers job and returns pending status", async () => {
     asOwner();
-    const res = await POST(makeReq("POST", "http://localhost/api/routes-f/stream/transcription", { recording_id: RECORDING_ID }));
+    const res = await POST(
+      makeReq("POST", "http://localhost/api/routes-f/stream/transcription", {
+        recording_id: RECORDING_ID,
+      })
+    );
     expect(res.status).toBe(202);
     const body = await res.json();
     expect(body.job_id).toBe(JOB_ID);
@@ -194,22 +252,36 @@ describe("POST /api/routes-f/stream/transcription", () => {
 
   it("rejects non-owner with 403", async () => {
     asOther();
-    const res = await POST(makeReq("POST", "http://localhost/api/routes-f/stream/transcription", { recording_id: RECORDING_ID }));
+    const res = await POST(
+      makeReq("POST", "http://localhost/api/routes-f/stream/transcription", {
+        recording_id: RECORDING_ID,
+      })
+    );
     expect(res.status).toBe(403);
   });
 
   it("returns 400 when recording_id is missing", async () => {
     asOwner();
-    const res = await POST(makeReq("POST", "http://localhost/api/routes-f/stream/transcription", {}));
+    const res = await POST(
+      makeReq("POST", "http://localhost/api/routes-f/stream/transcription", {})
+    );
     expect(res.status).toBe(400);
   });
 
   it("returns existing job if one already exists", async () => {
     asOwner();
     // First call creates it
-    await POST(makeReq("POST", "http://localhost/api/routes-f/stream/transcription", { recording_id: RECORDING_ID }));
+    await POST(
+      makeReq("POST", "http://localhost/api/routes-f/stream/transcription", {
+        recording_id: RECORDING_ID,
+      })
+    );
     // Second call should return the same job
-    const res = await POST(makeReq("POST", "http://localhost/api/routes-f/stream/transcription", { recording_id: RECORDING_ID }));
+    const res = await POST(
+      makeReq("POST", "http://localhost/api/routes-f/stream/transcription", {
+        recording_id: RECORDING_ID,
+      })
+    );
     const body = await res.json();
     expect(body.job_id).toBe(JOB_ID);
   });

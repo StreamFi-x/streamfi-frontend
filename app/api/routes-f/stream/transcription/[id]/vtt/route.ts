@@ -50,9 +50,6 @@ export async function GET(
     });
   } catch (err) {
     console.error("[transcription VTT GET]", err);
-    return NextResponse.json(
-      { error: "Failed to fetch VTT" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch VTT" }, { status: 500 });
   }
 }
