@@ -19,14 +19,14 @@ const OTHER_ID = "user-other-002";
 const RECORDING_ID = "rec-abc123";
 const JOB_ID = "job-xyz789";
 
-const recordings: Record<
+const recordings: Record
   string,
   { id: string; user_id: string; status: string }
 > = {
   [RECORDING_ID]: { id: RECORDING_ID, user_id: OWNER_ID, status: "ready" },
 };
 
-const jobs: Record<
+const jobs: Record
   string,
   {
     id: string;
@@ -35,6 +35,7 @@ const jobs: Record<
     status: string;
     content: string | null;
     error_reason: string | null;
+    updated_at?: string;
   }
 > = {};
 
@@ -301,11 +302,8 @@ describe("GET /api/routes-f/stream/transcription/[id]/vtt", () => {
   it("returns 401 for unauthenticated requests", async () => {
     asUnauthenticated();
     const res = await GET_VTT(
-      makeReq(
-        "GET",
-        `http://localhost/api/routes-f/stream/transcription/${JOB_ID}/vtt`
-      ),
-      { params: { id: JOB_ID } }
+      makeReq("GET", `http://localhost/api/routes-f/stream/transcription/${JOB_ID}/vtt`),
+      { params: Promise.resolve({ id: JOB_ID }) }
     );
     expect(res.status).toBe(401);
   });
@@ -313,11 +311,8 @@ describe("GET /api/routes-f/stream/transcription/[id]/vtt", () => {
   it("streams VTT with correct Content-Type", async () => {
     asOwner();
     const res = await GET_VTT(
-      makeReq(
-        "GET",
-        `http://localhost/api/routes-f/stream/transcription/${JOB_ID}/vtt`
-      ),
-      { params: { id: JOB_ID } }
+      makeReq("GET", `http://localhost/api/routes-f/stream/transcription/${JOB_ID}/vtt`),
+      { params: Promise.resolve({ id: JOB_ID }) }
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/vtt");
@@ -330,11 +325,8 @@ describe("GET /api/routes-f/stream/transcription/[id]/vtt", () => {
     jobs[JOB_ID].status = "processing";
     jobs[JOB_ID].content = null;
     const res = await GET_VTT(
-      makeReq(
-        "GET",
-        `http://localhost/api/routes-f/stream/transcription/${JOB_ID}/vtt`
-      ),
-      { params: { id: JOB_ID } }
+      makeReq("GET", `http://localhost/api/routes-f/stream/transcription/${JOB_ID}/vtt`),
+      { params: Promise.resolve({ id: JOB_ID }) }
     );
     expect(res.status).toBe(404);
   });
@@ -342,11 +334,8 @@ describe("GET /api/routes-f/stream/transcription/[id]/vtt", () => {
   it("returns 404 when transcription does not exist", async () => {
     asOwner();
     const res = await GET_VTT(
-      makeReq(
-        "GET",
-        "http://localhost/api/routes-f/stream/transcription/nonexistent/vtt"
-      ),
-      { params: { id: "nonexistent" } }
+      makeReq("GET", "http://localhost/api/routes-f/stream/transcription/nonexistent/vtt"),
+      { params: Promise.resolve({ id: "nonexistent" }) }
     );
     expect(res.status).toBe(404);
   });
@@ -354,11 +343,8 @@ describe("GET /api/routes-f/stream/transcription/[id]/vtt", () => {
   it("returns 403 when requester is not the owner", async () => {
     asOther();
     const res = await GET_VTT(
-      makeReq(
-        "GET",
-        `http://localhost/api/routes-f/stream/transcription/${JOB_ID}/vtt`
-      ),
-      { params: { id: JOB_ID } }
+      makeReq("GET", `http://localhost/api/routes-f/stream/transcription/${JOB_ID}/vtt`),
+      { params: Promise.resolve({ id: JOB_ID }) }
     );
     expect(res.status).toBe(403);
   });
