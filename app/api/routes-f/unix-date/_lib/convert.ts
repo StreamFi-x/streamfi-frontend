@@ -35,7 +35,10 @@ export function convertUnixDate(input: unknown): UnixDateResponse {
     throw new Error("Request body must be an object.");
   }
 
-  const request = input as UnixDateRequest;
+  // `input` is an arbitrary record here; its fields are validated below, so
+  // assert through `unknown` rather than directly (the record type does not
+  // structurally overlap with UnixDateRequest's required fields).
+  const request = input as unknown as UnixDateRequest;
   const unit = normalizeUnit(request.unit);
 
   if (request.mode === "to_iso") {
