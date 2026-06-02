@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
   }
 
   const country = resolveCountry(body.country);
-  const holidays = new Set(HOLIDAYS[country].map((holiday) => holiday.date));
+  const holidays = new Set(HOLIDAYS[country].map(holiday => holiday.date));
   const customHolidays = parseCustomHolidays(body.custom_holidays);
   if (customHolidays === null) {
     return badRequest("custom_holidays must be an array of ISO date strings.");
@@ -135,5 +135,8 @@ export async function POST(request: NextRequest) {
   }
 
   const { target, skipped } = addBusinessDays(date, body.days, holidays);
-  return NextResponse.json({ result: target.toISOString(), skipped_days: skipped });
+  return NextResponse.json({
+    result: target.toISOString(),
+    skipped_days: skipped,
+  });
 }

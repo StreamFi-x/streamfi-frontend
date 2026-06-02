@@ -5,11 +5,14 @@ import { NextRequest } from "next/server";
 import { POST } from "../sentence-case-capitalizer/route";
 
 function makeReq(body: unknown) {
-  return new NextRequest("http://localhost/api/routesF/sentence-case-capitalizer", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  return new NextRequest(
+    "http://localhost/api/routesF/sentence-case-capitalizer",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
 }
 
 describe("/api/routesF/sentence-case-capitalizer", () => {
@@ -20,7 +23,9 @@ describe("/api/routesF/sentence-case-capitalizer", () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data.result).toBe("Hello world. This is a test! Is it working? Yes.");
+    expect(data.result).toBe(
+      "Hello world. This is a test! Is it working? Yes."
+    );
   });
 
   it("does not split sentences on common abbreviations", async () => {

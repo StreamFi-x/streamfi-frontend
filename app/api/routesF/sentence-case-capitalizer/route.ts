@@ -64,7 +64,9 @@ function isLetter(char: string) {
 }
 
 function isBoundaryCharacter(char: string) {
-  return char === '"' || char === "'" || char === ")" || char === "]" || char === "}";
+  return (
+    char === '"' || char === "'" || char === ")" || char === "]" || char === "}"
+  );
 }
 
 function getTokenBeforeDot(text: string, index: number) {
@@ -76,7 +78,7 @@ function getTokenBeforeDot(text: string, index: number) {
 }
 
 function isAbbreviation(text: string, index: number): boolean {
-  if (text[index] !== '.') {
+  if (text[index] !== ".") {
     return false;
   }
 
@@ -90,14 +92,20 @@ function isAbbreviation(text: string, index: number): boolean {
 
 function isSentenceBoundary(text: string, index: number): boolean {
   const punctuation = text[index];
-  if (punctuation === '.') {
+  if (punctuation === ".") {
     if (isAbbreviation(text, index)) {
       return false;
     }
   }
 
   let j = index + 1;
-  while (j < text.length && (text[j] === ' ' || text[j] === '\t' || text[j] === '\n' || isBoundaryCharacter(text[j]))) {
+  while (
+    j < text.length &&
+    (text[j] === " " ||
+      text[j] === "\t" ||
+      text[j] === "\n" ||
+      isBoundaryCharacter(text[j]))
+  ) {
     j += 1;
   }
 
@@ -119,13 +127,19 @@ function sentenceCase(text: string): string {
 
     result += output;
 
-    if (char === '.' || char === '!' || char === '?') {
+    if (char === "." || char === "!" || char === "?") {
       if (isSentenceBoundary(text, index)) {
         capitalizeNext = true;
       }
     }
 
-    if (!capitalizeNext && char !== ' ' && char !== '\t' && char !== '\n' && !isBoundaryCharacter(char)) {
+    if (
+      !capitalizeNext &&
+      char !== " " &&
+      char !== "\t" &&
+      char !== "\n" &&
+      !isBoundaryCharacter(char)
+    ) {
       // Continue until we hit sentence-ending punctuation.
     }
   }

@@ -21,9 +21,7 @@ function makeReq(body: RequestBody) {
 
 describe("/api/routesF/business-days", () => {
   it("adds one business day and skips a weekend", async () => {
-    const res = await POST(
-      makeReq({ date: "2026-03-13", days: 1 })
-    );
+    const res = await POST(makeReq({ date: "2026-03-13", days: 1 }));
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -32,9 +30,7 @@ describe("/api/routesF/business-days", () => {
   });
 
   it("subtracts one business day and skips a weekend", async () => {
-    const res = await POST(
-      makeReq({ date: "2026-03-15", days: -1 })
-    );
+    const res = await POST(makeReq({ date: "2026-03-15", days: -1 }));
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -69,7 +65,9 @@ describe("/api/routesF/business-days", () => {
   });
 
   it("rejects invalid date values", async () => {
-    const res = await POST(makeReq({ date: "invalid", days: 1 } as unknown as RequestBody));
+    const res = await POST(
+      makeReq({ date: "invalid", days: 1 } as unknown as RequestBody)
+    );
     expect(res.status).toBe(400);
   });
 

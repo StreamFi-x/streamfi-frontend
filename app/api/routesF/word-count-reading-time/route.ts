@@ -30,7 +30,11 @@ function parseBody(body: unknown): { text: string; wpm: number } | null {
 
   let wpm = DEFAULT_WPM;
   if (record.wpm !== undefined) {
-    if (typeof record.wpm !== "number" || !Number.isInteger(record.wpm) || record.wpm <= 0) {
+    if (
+      typeof record.wpm !== "number" ||
+      !Number.isInteger(record.wpm) ||
+      record.wpm <= 0
+    ) {
       return null;
     }
     wpm = record.wpm;
@@ -52,7 +56,12 @@ function countSentences(text: string) {
 
   const matches = trimmed.match(/[^.!?]+[.!?]+/g);
   if (matches && matches.length > 0) {
-    const remainder = trimmed.slice(trimmed.lastIndexOf(matches[matches.length - 1]) + matches[matches.length - 1].length).trim();
+    const remainder = trimmed
+      .slice(
+        trimmed.lastIndexOf(matches[matches.length - 1]) +
+          matches[matches.length - 1].length
+      )
+      .trim();
     return remainder ? matches.length + 1 : matches.length;
   }
 
@@ -79,7 +88,9 @@ export async function POST(request: NextRequest) {
   }
 
   if (!parsed) {
-    return badRequest("text must be a string and wpm must be a positive integer.");
+    return badRequest(
+      "text must be a string and wpm must be a positive integer."
+    );
   }
 
   const { text, wpm } = parsed;

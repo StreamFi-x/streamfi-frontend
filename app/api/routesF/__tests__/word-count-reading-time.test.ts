@@ -5,11 +5,14 @@ import { NextRequest } from "next/server";
 import { POST } from "../word-count-reading-time/route";
 
 function makeReq(body: unknown) {
-  return new NextRequest("http://localhost/api/routesF/word-count-reading-time", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  return new NextRequest(
+    "http://localhost/api/routesF/word-count-reading-time",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
 }
 
 describe("/api/routesF/word-count-reading-time", () => {
