@@ -8,12 +8,12 @@ import { verifySession } from "@/lib/auth/verify-session";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await verifySession(req);
   if (!session.ok) return session.response;
 
-  const { id } = params;
+  const { id } = await params;
 
   if (!id) {
     return NextResponse.json(
