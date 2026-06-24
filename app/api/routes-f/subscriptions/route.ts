@@ -33,6 +33,7 @@ export interface Subscription {
   asset: "XLM" | "USDC";
   started_at: string;
   expires_at: string;
+  status?: "active" | "cancelled";
 }
 
 // Exported so tests can reset between runs.
@@ -75,8 +76,23 @@ function findActiveSubscription(
 }
 
 // ---------------------------------------------------------------------------
-// Route handler
+// Route handlers
 // ---------------------------------------------------------------------------
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const { searchParams } = new URL(req.url);
+  const subscriptionId = searchParams.get("subscription_id");
+  if (!subscriptionId) {
+    return NextResponse.json({ error: "subscription_id is required" }, { status: 400 });
+  }
+
+  const sub = subscriptions.get(subscriptionId);
+  if (!sub) {
+    return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(sub);
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const bodyResult = await validateBody(req, createSubscriptionSchema);
   if (bodyResult instanceof NextResponse) {
@@ -130,6 +146,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     asset,
     started_at,
     expires_at,
+    status: "active",
   };
 
   subscriptions.set(subscription.subscription_id, subscription);
@@ -142,6 +159,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       tier_id: subscription.tier_id,
       started_at: subscription.started_at,
       expires_at: subscription.expires_at,
+      status: subscription.status,
     },
     { status: 201 }
   );
