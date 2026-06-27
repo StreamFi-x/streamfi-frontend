@@ -3,6 +3,7 @@ import { sql } from "@vercel/postgres";
 import { z } from "zod";
 import { verifySession } from "@/lib/auth/verify-session";
 import { validateBody, validateQuery } from "@/app/api/routes-f/_lib/validate";
+import { insertActivityEvent } from "@/app/api/routes-f/activity/_lib/insert";
 
 const createFollowSchema = z.object({
   creator_id: z.string().uuid(),
@@ -151,6 +152,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         { error: "Already following creator" },
         { status: 409 }
       );
+    }
+
+    try {
+      await insertActivityEvent({
+        userId: creator_id,
+        type: "new_follower",
+        actorId: session.userId,
+        metadata: { source: "routes-f/follows" },
+      });
+    } catch (activityErr) {
+      console.error("[follows] activity event insert failed:", activityErr);
     }
 
     const followerCount = await getFollowerCount(creator_id);
