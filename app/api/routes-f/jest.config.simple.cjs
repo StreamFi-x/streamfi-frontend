@@ -8,6 +8,7 @@ module.exports = {
   },
   rootDir: "../../..",
   testMatch: [
-    "<rootDir>/app/api/routes-f/__tests__/relative-date.test.ts"
+    "<rootDir>/app/api/routes-f/**/__tests__/**/*.test.ts",
+    "<rootDir>/app/api/routes-f/**/__tests__/**/*.spec.ts"
   ],
 };
