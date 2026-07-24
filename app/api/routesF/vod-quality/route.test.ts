@@ -109,5 +109,16 @@ describe('VOD Quality Selection', () => {
       const res = await SELECT(req);
       expect(res.status).toBe(400);
     });
+
+    it('should reject reserved object keys without polluting Object.prototype', async () => {
+      for (const key of ['__proto__', 'constructor', 'prototype']) {
+        const res = await SELECT(
+          selectReq({ viewer_id: key, playback_id: 'vod-raid-recap', label: '720p' })
+        );
+        expect(res.status).toBe(400);
+      }
+      expect(({} as Record<string, unknown>)['vod-raid-recap']).toBeUndefined();
+      expect(Object.keys(QUALITY_SELECTIONS)).toHaveLength(0);
+    });
   });
 });

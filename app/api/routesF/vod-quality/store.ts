@@ -22,4 +22,7 @@ export const VOD_QUALITIES: Record<string, VodQuality[]> = {
 };
 
 // viewer_id -> playback_id -> selected quality label
-export const QUALITY_SELECTIONS: Record<string, Record<string, string>> = {};
+// Null prototype so viewer-supplied keys like "__proto__" can never resolve
+// to Object.prototype when read back.
+export const QUALITY_SELECTIONS: Record<string, Record<string, string>> =
+  Object.create(null);

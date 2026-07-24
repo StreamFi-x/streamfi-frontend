@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { VOD_QUALITIES, QUALITY_SELECTIONS } from '../store';
 
+// Keys that would let a request write into Object.prototype (CodeQL:
+// prototype-polluting assignment).
+const RESERVED_KEYS = ['__proto__', 'constructor', 'prototype'];
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -14,6 +18,12 @@ export async function POST(req: NextRequest) {
     }
     if (!label || typeof label !== 'string') {
       return NextResponse.json({ error: 'label is required' }, { status: 400 });
+    }
+    if (RESERVED_KEYS.includes(viewer_id) || RESERVED_KEYS.includes(playback_id)) {
+      return NextResponse.json(
+        { error: 'viewer_id and playback_id must not be reserved object keys' },
+        { status: 400 }
+      );
     }
 
     const qualities = VOD_QUALITIES[playback_id];
@@ -33,7 +43,7 @@ export async function POST(req: NextRequest) {
     QUALITY_SELECTIONS[viewer_id][playback_id] = label;
 
     return NextResponse.json({ viewer_id, playback_id, label });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 }
