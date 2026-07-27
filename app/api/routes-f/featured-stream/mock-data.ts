@@ -5,7 +5,7 @@ export const mockCreators: FeaturedStream[] = [
   {
     creator_id: "creator_101",
     creator_username: "gaming_guru",
-    creator_display_name: "Alex \"The Guru\" Chen",
+    creator_display_name: 'Alex "The Guru" Chen',
     stream_id: "stream_101_001",
     stream_title: "VALORANT Tournament Finals - Live Commentary",
     reason: "Top performer in this week's competitive gaming circuit",
@@ -65,6 +65,7 @@ export const mockCreators: FeaturedStream[] = [
   {
     creator_id: "creator_106",
     creator_username: "cooking_with_joy",
+    creator_display_name: 'Joy "SpiceMaster" Zhang',
     creator_display_name: "Joy \"SpiceMaster\" Zhang",
     stream_id: "stream_106_001",
     stream_title: "Authentic Thai Curry - Step by Step Cooking",
@@ -101,7 +102,7 @@ export const mockCreators: FeaturedStream[] = [
   {
     creator_id: "creator_109",
     creator_username: "comedy_central",
-    creator_display_name: "Mike \"Laughs\" Johnson",
+    creator_display_name: 'Mike "Laughs" Johnson',
     stream_id: "stream_109_001",
     stream_title: "Improv Comedy Hour - Audience Suggestions Welcome",
     reason: "Hilarious entertainment with high viewer interaction",
