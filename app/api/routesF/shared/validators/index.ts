@@ -2,10 +2,10 @@ import {
   VERIFICATION_METHODS, 
   COLOR_BLIND_MODES,
   MAX_PROOF_LINKS,
-  MIN_PROOF_LINKS_REQUIRED,
-  URL_REGEX 
+  MIN_PROOF_LINKS_REQUIRED
 } from '../constants';
 import { validateDate } from '../helpers/dateUtilities';
+import { isValidUrl } from '../../utils';
 import type { 
   ValidationError,
   SubmitVerificationRequest,
@@ -125,7 +125,7 @@ export function validateVerificationRequest(data: unknown): {
           field: `proof_links[${index}]`, 
           message: 'Proof link must be a non-empty string' 
         });
-      } else if (!URL_REGEX.test(link.trim())) {
+      } else if (!isValidUrl(link.trim())) {
         errors.push({ 
           field: `proof_links[${index}]`, 
           message: 'Proof link must be a valid URL' 

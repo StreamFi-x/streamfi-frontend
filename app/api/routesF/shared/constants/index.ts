@@ -24,7 +24,6 @@ export const API_VERSION = '1.0.0';
 
 // Regex Patterns
 export const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-export const URL_REGEX = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
 
 // Verification Constants
 export const VERIFICATION_METHODS: Array<'social' | 'id' | 'kyc'> = ['social', 'id', 'kyc'];
