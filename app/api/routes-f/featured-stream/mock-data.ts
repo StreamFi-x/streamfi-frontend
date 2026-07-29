@@ -41,7 +41,7 @@ export const mockCreators: FeaturedStream[] = [
   {
     creator_id: "creator_104",
     creator_username: "art_streamer",
-    creator_display_name: "Jamie \"Sketch\" Patel",
+    creator_display_name: 'Jamie "Sketch" Patel',
     stream_id: "stream_104_001",
     stream_title: "Digital Portrait Painting - From Sketch to Final",
     reason: "Stunning visual art with interactive viewer suggestions",
@@ -66,7 +66,6 @@ export const mockCreators: FeaturedStream[] = [
     creator_id: "creator_106",
     creator_username: "cooking_with_joy",
     creator_display_name: 'Joy "SpiceMaster" Zhang',
-    creator_display_name: "Joy \"SpiceMaster\" Zhang",
     stream_id: "stream_106_001",
     stream_title: "Authentic Thai Curry - Step by Step Cooking",
     reason: "Exceptional culinary content with detailed explanations",
@@ -78,7 +77,7 @@ export const mockCreators: FeaturedStream[] = [
   {
     creator_id: "creator_107",
     creator_username: "travel_vlogs",
-    creator_display_name: "Emma \"Wanderlust\" Thompson",
+    creator_display_name: 'Emma "Wanderlust" Thompson',
     stream_id: "stream_107_001",
     stream_title: "Virtual Tour of Tokyo's Hidden Gems",
     reason: "Immersive travel experience with live Q&A",
@@ -114,7 +113,7 @@ export const mockCreators: FeaturedStream[] = [
   {
     creator_id: "creator_110",
     creator_username: "book_club_live",
-    creator_display_name: "Claire \"Reader\" Bennett",
+    creator_display_name: 'Claire "Reader" Bennett',
     stream_id: "stream_110_001",
     stream_title: "Book Club Discussion - Sci-Fi Classics Edition",
     reason: "Intellectual discussion with active community participation",
