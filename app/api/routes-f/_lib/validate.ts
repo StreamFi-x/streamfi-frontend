@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { ZodSchema, ZodError } from "zod";
 
-export function validateQuery<T>(
+export function validateQuery<O, I>(
   searchParams: URLSearchParams,
-  schema: ZodSchema<T>
-): { data: T } | NextResponse {
+  schema: ZodSchema<O, any, I>
+): { data: O } | NextResponse {
   const obj: Record<string, unknown> = {};
   searchParams.forEach((value, key) => {
     if (obj[key]) {
@@ -32,10 +32,10 @@ export function validateQuery<T>(
   }
 }
 
-export async function validateBody<T>(
+export async function validateBody<O, I>(
   req: Request,
-  schema: ZodSchema<T>
-): Promise<{ data: T } | NextResponse> {
+  schema: ZodSchema<O, any, I>
+): Promise<{ data: O } | NextResponse> {
   try {
     const body = await req.json();
     const data = schema.parse(body);

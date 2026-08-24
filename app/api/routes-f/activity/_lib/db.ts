@@ -99,7 +99,7 @@ export async function fetchActivityFeed(params: {
       LEFT JOIN users u ON u.id = ae.actor_id
       WHERE ae.user_id = ${params.userId}
         AND ae.created_at < ${params.cursor}
-        AND ae.type = ANY(${typeFilter as string[]}::text[])
+        AND ae.type = ANY(${typeFilter as any}::text[])
       ORDER BY ae.created_at DESC
       LIMIT ${fetchLimit}
     `;
@@ -137,7 +137,7 @@ export async function fetchActivityFeed(params: {
       FROM activity_events ae
       LEFT JOIN users u ON u.id = ae.actor_id
       WHERE ae.user_id = ${params.userId}
-        AND ae.type = ANY(${typeFilter as string[]}::text[])
+        AND ae.type = ANY(${typeFilter as any}::text[])
       ORDER BY ae.created_at DESC
       LIMIT ${fetchLimit}
     `;

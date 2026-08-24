@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { validateBody, validateQuery } from "../../_lib/validate";
+import { validateBody, validateQuery } from "@/app/api/routes-f/_lib/validate";
 import {
   createInvite,
   hasPendingInvite,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { validateQuery } from "../_lib/validate";
+import { validateQuery } from "@/app/api/routes-f/_lib/validate";
 import { getSeedCreators, filterNewCreators } from "./helpers";
 import type { NewCreatorsFeedResponse } from "./types";
 
