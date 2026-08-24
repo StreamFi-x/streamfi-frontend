@@ -75,7 +75,7 @@ export function listPendingAppeals(creator_id: string): PendingAppealSummary[] {
       appeal_id,
       viewer_id,
       message,
-      status,
+      status: status as "pending",
       created_at,
     }));
 }

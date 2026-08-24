@@ -65,8 +65,8 @@ function mapFeedRow(row: FeedRow): ActivityEventResponse {
         : null,
     metadata: (row.metadata as Record<string, unknown>) ?? {},
     created_at:
-      row.created_at instanceof Date
-        ? row.created_at.toISOString()
+      row.created_at && (row.created_at as any) instanceof Date
+        ? (row.created_at as any).toISOString()
         : String(row.created_at),
   };
 }
@@ -99,7 +99,7 @@ export async function fetchActivityFeed(params: {
       LEFT JOIN users u ON u.id = ae.actor_id
       WHERE ae.user_id = ${params.userId}
         AND ae.created_at < ${params.cursor}
-        AND ae.type = ANY(${typeFilter}::text[])
+        AND ae.type = ANY(${typeFilter as string[]}::text[])
       ORDER BY ae.created_at DESC
       LIMIT ${fetchLimit}
     `;
@@ -137,7 +137,7 @@ export async function fetchActivityFeed(params: {
       FROM activity_events ae
       LEFT JOIN users u ON u.id = ae.actor_id
       WHERE ae.user_id = ${params.userId}
-        AND ae.type = ANY(${typeFilter}::text[])
+        AND ae.type = ANY(${typeFilter as string[]}::text[])
       ORDER BY ae.created_at DESC
       LIMIT ${fetchLimit}
     `;

@@ -38,7 +38,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     id,
     stream_id,
     question,
-    options: options.map((text) => ({ text, votes: 0 })),
+    options: options.map((text: string) => ({ text, votes: 0 })),
     duration_seconds,
     created_at: now.toISOString(),
     ends_at: ends_at.toISOString(),
