@@ -97,11 +97,27 @@ function safeIp(ip: string | null): string | null {
   return /^[\d.:a-fA-F]+$/.test(ip) ? ip : null;
 }
 
+/**
+ * Returns the SHA-256 hex digest of an IP address, or null if none is set.
+ * Unlike maskIp (which keeps a human-readable partial address for display),
+ * this is one-way — used where callers must be able to tell sessions apart
+ * by IP without the raw address ever leaving the server.
+ */
+export function hashIp(ip: string | null): string | null {
+  if (!ip) return null;
+  return createHash("sha256").update(ip).digest("hex");
+}
+
 // ─── Session row shape ────────────────────────────────────────────────────────
 
 export interface SessionRow {
   id: string;
   device_hint: string | null;
+  /**
+   * Never the raw IP — either masked (last octet hidden, for display) or
+   * SHA-256 hashed (opaque, for callers that only need to tell sessions
+   * apart), depending on the `ipMode` passed to listActiveSessions.
+   */
   ip_address: string | null;
   last_seen_at: string;
   created_at: string;
@@ -240,10 +256,18 @@ export async function revokeAllOtherSessions(
 /**
  * Returns all active (non-revoked, non-expired) sessions for a user.
  * The caller passes the current raw token so we can mark is_current.
+ *
+ * `ipMode` controls how ip_address is redacted before it ever leaves this
+ * function — the raw address is never returned:
+ *   "mask" (default) — last octet hidden (e.g. "1.2.3.x"), for UIs that show
+ *                       a human-recognizable approximate location/device.
+ *   "hash"            — SHA-256 hex digest, for callers that only need a
+ *                        stable, opaque per-IP identifier.
  */
 export async function listActiveSessions(
   userId: string,
-  currentRawToken: string
+  currentRawToken: string,
+  ipMode: "mask" | "hash" = "mask"
 ): Promise<SessionRow[]> {
   const currentHash = hashToken(currentRawToken);
 
@@ -262,10 +286,12 @@ export async function listActiveSessions(
     ORDER BY last_seen_at DESC
   `;
 
-  return rows.map((r) => ({
+  const redactIp = ipMode === "hash" ? hashIp : maskIp;
+
+  return rows.map(r => ({
     id: r.id as string,
     device_hint: (r.device_hint as string | null) ?? null,
-    ip_address: maskIp(r.ip_address as string | null),
+    ip_address: redactIp(r.ip_address as string | null),
     last_seen_at: (r.last_seen_at as Date).toISOString(),
     created_at: (r.created_at as Date).toISOString(),
     is_current: r.token_hash === currentHash,
