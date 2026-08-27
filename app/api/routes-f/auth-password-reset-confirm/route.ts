@@ -20,10 +20,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sql } from "@vercel/postgres";
-import { createHash } from "crypto";
+import bcrypt from "bcryptjs";
 import { verifyToken } from "@/lib/auth/sign-token";
 import { hashToken } from "@/lib/sessions/user-sessions";
 import { createRateLimiter } from "@/lib/rate-limit";
+
+const BCRYPT_SALT_ROUNDS = 12;
 
 // 10 attempts per 15 minutes per IP — confirm is guess-resistant already
 // (128-bit signed token) but this keeps automated brute force off the table.
@@ -130,7 +132,7 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = consumedRows[0].user_id;
-    const passwordHash = createHash("sha256").update(password).digest("hex");
+    const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
     // NOTE: this repo's `users` table has no password_hash column yet
     // (auth here is wallet/Privy-based) — the UPDATE is a no-op until that
