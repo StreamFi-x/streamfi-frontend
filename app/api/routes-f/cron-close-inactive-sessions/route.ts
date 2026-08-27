@@ -15,7 +15,7 @@
  * {
  *   "crons": [{
  *     "path": "/api/routes-f/cron-close-inactive-sessions",
- *     "schedule": "*/5 * * * *"  // Every 5 minutes
+ *     "schedule": "*\/5 * * * *"  // Every 5 minutes
  *   }]
  * }
  * 
