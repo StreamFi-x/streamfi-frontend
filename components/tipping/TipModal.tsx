@@ -61,6 +61,7 @@ export function TipModal({
   onError,
 }: TipModalProps) {
   const [amount, setAmount] = useState<string>("");
+  const [currency, setCurrency] = useState<"XLM" | "USDC">("XLM");
   const [transactionState, setTransactionState] =
     useState<TransactionState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -136,14 +137,19 @@ export function TipModal({
       return false;
     }
 
-    if (parsedAmount < MIN_TIP_AMOUNT) {
+    if (parsedAmount < MIN_TIP_AMOUNT && currency === "XLM") {
       setError(`Amount is too small. Minimum is ${MIN_TIP_AMOUNT} XLM`);
+      return false;
+    }
+    
+    if (parsedAmount < 0.1 && currency === "USDC") {
+      setError(`Amount is too small. Minimum is 0.1 USDC`);
       return false;
     }
 
     if (parsedAmount > MAX_TIP_AMOUNT) {
       setError(
-        `Amount is too large. Maximum is ${MAX_TIP_AMOUNT.toLocaleString()} XLM`
+        `Amount is too large. Maximum is ${MAX_TIP_AMOUNT.toLocaleString()} ${currency}`
       );
       return false;
     }
@@ -172,7 +178,8 @@ export function TipModal({
       setTransactionState("building");
       const insufficientBalance = await hasInsufficientBalance(
         senderPublicKey,
-        amount
+        amount,
+        currency
       );
 
       if (insufficientBalance) {
@@ -193,6 +200,7 @@ export function TipModal({
         destinationPublicKey: recipientPublicKey,
         amount: amount,
         network: network as "testnet" | "mainnet",
+        assetCode: currency === "USDC" ? "USDC" : undefined,
       });
 
       setTransactionState("signing");
@@ -320,7 +328,7 @@ export function TipModal({
           <DialogDescription className="text-muted-foreground text-sm">
             {transactionState === "success"
               ? "Your tip has been sent!"
-              : `Supporting @${recipientUsername} with XLM`}
+              : `Supporting @${recipientUsername} with ${currency}`}
           </DialogDescription>
         </DialogHeader>
 
@@ -353,6 +361,39 @@ export function TipModal({
               </p>
             </div>
           )}
+
+          {/* Currency selection */}
+          <div className="space-y-2">
+            <Label className="text-foreground text-sm font-medium">
+              Select Currency
+            </Label>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setCurrency("XLM")}
+                disabled={isProcessing}
+                className={
+                  currency === "XLM"
+                    ? "flex-1 border-highlight bg-highlight/10 text-highlight hover:bg-highlight/20 font-bold"
+                    : "flex-1 border-border text-muted-foreground hover:border-highlight/50 hover:text-foreground"
+                }
+              >
+                XLM
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setCurrency("USDC")}
+                disabled={isProcessing}
+                className={
+                  currency === "USDC"
+                    ? "flex-1 border-highlight bg-highlight/10 text-highlight hover:bg-highlight/20 font-bold"
+                    : "flex-1 border-border text-muted-foreground hover:border-highlight/50 hover:text-foreground"
+                }
+              >
+                USDC
+              </Button>
+            </div>
+          </div>
 
           {/* Preset amounts */}
           <div className="space-y-2">
@@ -397,11 +438,11 @@ export function TipModal({
                 className="pr-14 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-highlight/60"
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
-                XLM
+                {currency}
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Max: {MAX_TIP_AMOUNT.toLocaleString()} XLM
+              Max: {MAX_TIP_AMOUNT.toLocaleString()} {currency}
             </p>
           </div>
 
@@ -411,10 +452,10 @@ export function TipModal({
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Tip amount</span>
                 <span className="font-semibold text-foreground">
-                  {amount} XLM
+                  {amount} {currency}
                 </span>
               </div>
-              {xlmPrice > 0 && !isLoadingPrice && (
+              {currency === "XLM" && xlmPrice > 0 && !isLoadingPrice && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">≈ USD</span>
                   <span className="text-muted-foreground">
@@ -431,7 +472,9 @@ export function TipModal({
               <div className="border-t border-border pt-2 flex justify-between font-semibold">
                 <span className="text-foreground">Total</span>
                 <span className="text-highlight">
-                  {(parseFloat(amount) + fee).toFixed(7)} XLM
+                  {currency === "XLM" 
+                    ? `${(parseFloat(amount) + fee).toFixed(7)} XLM`
+                    : `${parseFloat(amount).toFixed(2)} USDC + ${fee.toFixed(7)} XLM`}
                 </span>
               </div>
             </div>
@@ -453,8 +496,8 @@ export function TipModal({
                 {error === "insufficient_balance" ? (
                   <>
                     <p className="text-sm text-destructive">
-                      Insufficient balance — you don&apos;t have enough XLM to
-                      cover this tip and the network fee.
+                      Insufficient balance — you don&apos;t have enough {currency} to
+                      cover this tip and the network fee in XLM.
                     </p>
                     <AddFundsButton
                       walletAddress={senderPublicKey}

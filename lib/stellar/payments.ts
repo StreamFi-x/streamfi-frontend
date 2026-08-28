@@ -14,8 +14,9 @@ const Server = Horizon.Server;
 interface BuildTipTransactionParams {
   sourcePublicKey: string; // Viewer's Stellar wallet
   destinationPublicKey: string; // Creator's Stellar wallet
-  amount: string; // XLM amount (e.g., "10.0000000")
+  amount: string; // Amount (e.g., "10.0000000")
   network: "testnet" | "mainnet";
+  assetCode?: string; // Optional asset code (e.g., "USDC")
 }
 
 interface SubmitTransactionResult {
@@ -46,6 +47,24 @@ function getNetworkPassphrase(network: "testnet" | "mainnet"): string {
 }
 
 /**
+ * Get asset instance based on asset code and network
+ */
+export function getAsset(assetCode: string | undefined, network: "testnet" | "mainnet"): Asset {
+  if (!assetCode || assetCode === "XLM") {
+    return Asset.native();
+  }
+
+  if (assetCode === "USDC") {
+    const issuer = network === "testnet"
+      ? "GBBD47IF6LWK7P7MDEVSCWTTCJMIVTAJZLN3H43B33K6VON35Z6O44C4" // Stellar Testnet USDC Issuer
+      : "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGZW3G338YAC3VNTKBB2U2"; // Stellar Mainnet USDC Issuer
+    return new Asset("USDC", issuer);
+  }
+
+  throw new Error(`Unsupported asset code: ${assetCode}`);
+}
+
+/**
  * Build a Stellar payment transaction for tipping
  * @param params - Transaction parameters including source, destination, amount, and network
  * @returns Unsigned Stellar transaction ready to be signed
@@ -53,7 +72,7 @@ function getNetworkPassphrase(network: "testnet" | "mainnet"): string {
 export async function buildTipTransaction(
   params: BuildTipTransactionParams
 ): Promise<Transaction> {
-  const { sourcePublicKey, destinationPublicKey, amount, network } = params;
+  const { sourcePublicKey, destinationPublicKey, amount, network, assetCode } = params;
 
   try {
     const server = getServer(network);
@@ -61,6 +80,7 @@ export async function buildTipTransaction(
 
     // Load the source account from the network
     const sourceAccount = await server.loadAccount(sourcePublicKey);
+    const asset = getAsset(assetCode, network);
 
     // Build the transaction
     const transaction = new TransactionBuilder(sourceAccount, {
@@ -70,7 +90,7 @@ export async function buildTipTransaction(
       .addOperation(
         Operation.payment({
           destination: destinationPublicKey,
-          asset: Asset.native(), // XLM
+          asset: asset,
           amount: amount,
         })
       )
@@ -219,20 +239,42 @@ export async function getXLMPrice(): Promise<number> {
  */
 export async function hasInsufficientBalance(
   publicKey: string,
-  amount: string
+  amount: string,
+  assetCode?: string
 ): Promise<boolean> {
   try {
     const network = getCurrentNetwork();
     const server = getServer(network);
     const account = await server.loadAccount(publicKey);
+    
+    // Check native balance for transaction fee
     const nativeBalance = account.balances.find(b => b.asset_type === "native");
     if (!nativeBalance) {
-      return true;
+      return true; // Cannot even pay fee
     }
-
-    const balance = parseFloat(nativeBalance.balance);
-    const required = parseFloat(amount) + calculateFeeEstimate();
-    return balance < required;
+    const feeRequired = calculateFeeEstimate();
+    
+    if (!assetCode || assetCode === "XLM") {
+      const balance = parseFloat(nativeBalance.balance);
+      const required = parseFloat(amount) + feeRequired;
+      return balance < required;
+    }
+    
+    // Check custom asset balance (USDC)
+    const asset = getAsset(assetCode, network);
+    const assetBalance = account.balances.find(
+      b => b.asset_type !== "native" && b.asset_code === asset.getCode() && b.asset_issuer === asset.getIssuer()
+    );
+    
+    if (!assetBalance) {
+      return true; // No trustline or balance for asset
+    }
+    
+    const balance = parseFloat(assetBalance.balance);
+    const nativeBalNum = parseFloat(nativeBalance.balance);
+    
+    // Ensure they have enough asset AND enough XLM for the fee
+    return balance < parseFloat(amount) || nativeBalNum < feeRequired;
   } catch (error) {
     // If account doesn't exist, it definitely has insufficient balance
     console.error("Failed to check balance:", error);
