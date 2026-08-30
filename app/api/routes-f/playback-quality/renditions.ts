@@ -46,7 +46,7 @@ export const FALLBACK_DEFAULT = "Auto";
  * Falls back to "Auto" (ABR) if the hint is absent or unrecognised.
  */
 export function resolveDefault(connectionType?: string | null): string {
-  if (!connectionType) return FALLBACK_DEFAULT;
+  if (!connectionType) {return FALLBACK_DEFAULT;}
   const mapped = CONNECTION_DEFAULT[connectionType as ConnectionType];
   return mapped ?? FALLBACK_DEFAULT;
 }

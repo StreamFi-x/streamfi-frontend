@@ -3,7 +3,7 @@ import { GET } from "./route";
 
 function makeReq(streamId: string | null) {
   const url = new URL("http://localhost/api/routesF/first-time-viewers");
-  if (streamId !== null) url.searchParams.set("stream_id", streamId);
+  if (streamId !== null) {url.searchParams.set("stream_id", streamId);}
   return new NextRequest(url);
 }
 

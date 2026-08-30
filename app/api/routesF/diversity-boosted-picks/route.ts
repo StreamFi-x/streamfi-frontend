@@ -54,9 +54,9 @@ export function selectDiverse(pool: SeedCreator[], count: number): SeedCreator[]
 
   for (let round = 0; round < MAX_PER_CATEGORY && selected.length < count; round++) {
     for (const category of categoryOrder) {
-      if (selected.length >= count) break;
+      if (selected.length >= count) {break;}
       const candidate = byCategory.get(category)![round];
-      if (candidate) selected.push(candidate);
+      if (candidate) {selected.push(candidate);}
     }
   }
 
@@ -64,10 +64,10 @@ export function selectDiverse(pool: SeedCreator[], count: number): SeedCreator[]
     for (const category of categoryOrder) {
       const categoryPool = byCategory.get(category)!;
       for (let i = MAX_PER_CATEGORY; i < categoryPool.length; i++) {
-        if (selected.length >= count) break;
+        if (selected.length >= count) {break;}
         selected.push(categoryPool[i]);
       }
-      if (selected.length >= count) break;
+      if (selected.length >= count) {break;}
     }
   }
 

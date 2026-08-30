@@ -64,7 +64,7 @@ export function getExport(exportId: string): ExportJob | undefined {
 
 export function markFailed(exportId: string, error: string): boolean {
   const job = jobs.get(exportId);
-  if (!job) return false;
+  if (!job) {return false;}
   jobs.set(exportId, { ...job, status: "failed", error });
   const timer = pendingTimers.get(exportId);
   if (timer) {

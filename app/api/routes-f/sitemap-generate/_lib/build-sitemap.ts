@@ -20,7 +20,7 @@ function toDateOnly(iso: string): string {
 
 export function isRecentVod(vod: VodEntry, now: number = Date.now()): boolean {
   const publishedMs = new Date(vod.published_at).getTime();
-  if (!Number.isFinite(publishedMs)) return false;
+  if (!Number.isFinite(publishedMs)) {return false;}
   const ageDays = (now - publishedMs) / (1000 * 60 * 60 * 24);
   return ageDays >= 0 && ageDays <= RECENT_VOD_WINDOW_DAYS;
 }

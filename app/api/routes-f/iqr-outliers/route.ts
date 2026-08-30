@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 function getMedian(arr: number[]): number {
-  if (arr.length === 0) return 0
+  if (arr.length === 0) {return 0}
   const mid = Math.floor(arr.length / 2)
   if (arr.length % 2 === 1) {
     return arr[mid]

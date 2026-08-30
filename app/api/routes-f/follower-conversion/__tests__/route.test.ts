@@ -9,9 +9,9 @@ import { getViewerEvents, getFollowEvents } from "../seedData";
 function makeReq(creatorId?: string, windowDays?: number | string): NextRequest {
   let url = "http://localhost/api/routes-f/follower-conversion";
   const params: string[] = [];
-  if (creatorId) params.push(`creator_id=${creatorId}`);
-  if (windowDays !== undefined) params.push(`window_days=${windowDays}`);
-  if (params.length) url += `?${params.join("&")}`;
+  if (creatorId) {params.push(`creator_id=${creatorId}`);}
+  if (windowDays !== undefined) {params.push(`window_days=${windowDays}`);}
+  if (params.length) {url += `?${params.join("&")}`;}
   return new NextRequest(url);
 }
 

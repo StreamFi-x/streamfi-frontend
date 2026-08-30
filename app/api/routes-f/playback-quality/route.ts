@@ -46,7 +46,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, querySchema);
 
-  if (queryResult instanceof NextResponse) return queryResult;
+  if (queryResult instanceof NextResponse) {return queryResult;}
 
   const { connection_type } = queryResult.data;
 

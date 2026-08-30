@@ -11,21 +11,21 @@ type ColorResponseItem = {
 };
 
 function parseCount(value: string | null): number {
-  if (!value) return 5;
+  if (!value) {return 5;}
   const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || parsed <= 0) return 5;
+  if (!Number.isInteger(parsed) || parsed <= 0) {return 5;}
   return Math.min(parsed, 50);
 }
 
 function parseSeed(value: string | null): number {
-  if (!value) return Date.now();
+  if (!value) {return Date.now();}
   const parsed = Number.parseInt(value, 10);
   return Number.isInteger(parsed) ? parsed : 0;
 }
 
 function parseGroup(value: string | null): QueryGroup | null {
-  if (!value) return "any";
-  if (value === "any" || value === "reds" || value === "blues") return value;
+  if (!value) {return "any";}
+  if (value === "any" || value === "reds" || value === "blues") {return value;}
   return null;
 }
 
@@ -39,7 +39,7 @@ function hexToRgb(hex: string): string {
 }
 
 function pickPool(group: QueryGroup) {
-  if (group === "any") return CSS_NAMED_COLORS;
+  if (group === "any") {return CSS_NAMED_COLORS;}
   return CSS_NAMED_COLORS.filter((color) => color.group === group);
 }
 

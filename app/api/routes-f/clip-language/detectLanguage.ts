@@ -25,7 +25,7 @@ export function detectLanguage(text: string): string {
 
   for (const char of text) {
     const code = char.codePointAt(0);
-    if (code === undefined) continue;
+    if (code === undefined) {continue;}
     for (const range of SCRIPT_RANGES) {
       if (code >= range.start && code <= range.end) {
         counts[range.language] = (counts[range.language] || 0) + 1;

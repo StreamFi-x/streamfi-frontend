@@ -23,7 +23,7 @@ const SEED_CLIPS: SeedClip[] = [
 ];
 
 function jaccardScore(tagsA: string[], tagsB: string[]): number {
-  if (tagsA.length === 0 && tagsB.length === 0) return 1;
+  if (tagsA.length === 0 && tagsB.length === 0) {return 1;}
   const setA = new Set(tagsA);
   const setB = new Set(tagsB);
   const intersection = [...setA].filter((t) => setB.has(t)).length;

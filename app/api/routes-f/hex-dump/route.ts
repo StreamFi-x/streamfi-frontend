@@ -37,7 +37,7 @@ const schema = z.object({
 
 export async function POST(request: Request): Promise<NextResponse> {
   const result = await validateBody(request, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   const { input, bytes_per_line } = result.data;
   return NextResponse.json({
     dump: hexDump(input, bytes_per_line ?? DEFAULT_BYTES_PER_LINE),

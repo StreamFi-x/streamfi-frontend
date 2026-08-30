@@ -23,7 +23,7 @@ function solveFromSides(sides: [number, number, number]) {
   const s = perimeter / 2;
   const area = round6(Math.sqrt(s * (s - a) * (s - b) * (s - c)));
 
-  if (area <= 0) throw new Error("Degenerate triangle (zero area).");
+  if (area <= 0) {throw new Error("Degenerate triangle (zero area).");}
 
   // Angles via law of cosines
   const A = degFromRad(Math.acos((b * b + c * c - a * a) / (2 * b * c)));

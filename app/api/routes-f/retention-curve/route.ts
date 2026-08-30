@@ -25,7 +25,7 @@ import { normalizeRetention } from "./compute";
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, querySchema);
-  if (queryResult instanceof NextResponse) return queryResult;
+  if (queryResult instanceof NextResponse) {return queryResult;}
 
   const { stream_id } = queryResult.data;
   const samples = SEED_SAMPLES[stream_id];

@@ -51,7 +51,7 @@ function sharedFollowers(a: string, b: string): number {
 }
 
 function reason(shared: number, category: string): string {
-  if (shared >= 3) return `${shared} of your followers already follow them`;
+  if (shared >= 3) {return `${shared} of your followers already follow them`;}
   return `Popular in ${category}`;
 }
 
@@ -69,7 +69,7 @@ const querySchema = z.object({
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const result = validateQuery(searchParams, querySchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { from_creator_id, limit } = result.data;
 

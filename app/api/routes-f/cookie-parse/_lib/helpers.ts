@@ -8,10 +8,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseSingleCookie(cookieStr: string): [string, ParsedCookie] | null {
   const parts = cookieStr.split(";").map((p) => p.trim());
-  if (!parts[0]) return null;
+  if (!parts[0]) {return null;}
 
   const eqIdx = parts[0].indexOf("=");
-  if (eqIdx === -1) return null;
+  if (eqIdx === -1) {return null;}
 
   const name = decodeURIComponent(parts[0].slice(0, eqIdx).trim());
   const value = decodeURIComponent(parts[0].slice(eqIdx + 1).trim());
@@ -28,7 +28,7 @@ function parseSingleCookie(cookieStr: string): [string, ParsedCookie] | null {
       cookie.expires = attr.slice("expires=".length).trim();
     } else if (lower.startsWith("max-age=")) {
       const age = parseInt(attr.slice("max-age=".length).trim(), 10);
-      if (!isNaN(age)) cookie.max_age = age;
+      if (!isNaN(age)) {cookie.max_age = age;}
     } else if (lower.startsWith("domain=")) {
       cookie.domain = attr.slice("domain=".length).trim();
     } else if (lower.startsWith("path=")) {
@@ -94,13 +94,13 @@ export function buildCookie(input: unknown): CookieBuildResponse {
     `${encodeURIComponent(name)}=${encodeURIComponent(value as string)}`,
   ];
 
-  if (expires) parts.push(`Expires=${expires}`);
-  if (max_age !== undefined) parts.push(`Max-Age=${max_age}`);
-  if (domain) parts.push(`Domain=${domain}`);
-  if (path) parts.push(`Path=${path}`);
-  if (secure) parts.push("Secure");
-  if (http_only) parts.push("HttpOnly");
-  if (same_site) parts.push(`SameSite=${same_site}`);
+  if (expires) {parts.push(`Expires=${expires}`);}
+  if (max_age !== undefined) {parts.push(`Max-Age=${max_age}`);}
+  if (domain) {parts.push(`Domain=${domain}`);}
+  if (path) {parts.push(`Path=${path}`);}
+  if (secure) {parts.push("Secure");}
+  if (http_only) {parts.push("HttpOnly");}
+  if (same_site) {parts.push(`SameSite=${same_site}`);}
 
   return { header: parts.join("; ") };
 }

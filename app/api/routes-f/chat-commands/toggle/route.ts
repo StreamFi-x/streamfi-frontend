@@ -5,7 +5,7 @@ import { commandStore } from "../store";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const bodyResult = await validateBody(req, toggleCommandSchema);
-  if (bodyResult instanceof NextResponse) return bodyResult;
+  if (bodyResult instanceof NextResponse) {return bodyResult;}
 
   const { creator_id, command_id, enabled } = bodyResult.data;
 

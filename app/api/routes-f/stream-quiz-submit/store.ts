@@ -54,7 +54,7 @@ function scoreAnswer(answer: number[], quiz: Quiz): number {
 function computeRank(quizId: string, viewerId: string): number {
   const submissions = submissionsByQuiz.get(quizId) ?? [];
   const sorted = [...submissions].sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
+    if (b.score !== a.score) {return b.score - a.score;}
     return a.submitted_at - b.submitted_at;
   });
   const index = sorted.findIndex((s) => s.viewer_id === viewerId);

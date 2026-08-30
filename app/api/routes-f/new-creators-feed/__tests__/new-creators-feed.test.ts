@@ -7,7 +7,7 @@ const BASE_URL = "http://localhost/api/routes-f/new-creators-feed";
 
 function makeGet(params: Record<string, string> = {}) {
   const url = new URL(BASE_URL);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  for (const [k, v] of Object.entries(params)) {url.searchParams.set(k, v);}
   return new NextRequest(url.toString(), { method: "GET" });
 }
 

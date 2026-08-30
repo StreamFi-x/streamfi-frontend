@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 function sieveOfEratosthenes(limit: number): number[] {
-  if (limit < 2) return [];
+  if (limit < 2) {return [];}
 
   const isPrime = Array(limit + 1).fill(true);
   isPrime[0] = isPrime[1] = false;

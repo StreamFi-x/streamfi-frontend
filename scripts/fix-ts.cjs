@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 const path = require('path');
 
@@ -21,7 +22,7 @@ function walk(dir) {
 const files = walk('c:/Users/HP/Documents/streamfi-frontend-1/app/api');
 let count = 0;
 files.forEach(file => {
-  let content = fs.readFileSync(file, 'utf8');
+  const content = fs.readFileSync(file, 'utf8');
   let newContent = content.replace(/instanceof Response/g, 'instanceof NextResponse');
   
   if (content !== newContent) {

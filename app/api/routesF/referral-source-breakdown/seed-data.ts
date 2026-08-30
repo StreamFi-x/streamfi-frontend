@@ -69,7 +69,7 @@ export const seedReferralViewers: ReferralViewer[] = [
 ];
 
 export function classifySource(referrer: string | null): 'direct' | 'social' | 'embed' | 'search' | 'other' {
-  if (!referrer) return 'direct';
+  if (!referrer) {return 'direct';}
 
   const referrerLower = referrer.toLowerCase();
 

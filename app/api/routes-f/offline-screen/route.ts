@@ -19,7 +19,7 @@ import { offlineScreenStore } from "./store";
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, querySchema);
-  if (queryResult instanceof NextResponse) return queryResult;
+  if (queryResult instanceof NextResponse) {return queryResult;}
 
   const { creator_id } = queryResult.data;
 
@@ -32,13 +32,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const bodyResult = await validateBody(req, setSchema);
-  if (bodyResult instanceof NextResponse) return bodyResult;
+  if (bodyResult instanceof NextResponse) {return bodyResult;}
 
   const { creator_id, type, source_url, vod_id } = bodyResult.data;
 
   const config: typeof offlineScreenStore[string] = { type };
-  if (source_url) config.source_url = source_url;
-  if (vod_id) config.vod_id = vod_id;
+  if (source_url) {config.source_url = source_url;}
+  if (vod_id) {config.vod_id = vod_id;}
 
   offlineScreenStore[creator_id] = config;
 

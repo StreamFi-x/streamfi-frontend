@@ -61,7 +61,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   let body: { public_url?: string };
   try {
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   try {
     const { rows } = await sql`

@@ -24,8 +24,8 @@ export function breakdownAmount(amount: number, currency: string): BreakdownResu
 
   for (const entry of table) {
     const denomCents = Math.round(entry.denomination * 100);
-    if (remaining <= 0) break;
-    if (denomCents > remaining) continue;
+    if (remaining <= 0) {break;}
+    if (denomCents > remaining) {continue;}
 
     const count = Math.floor(remaining / denomCents);
     remaining -= count * denomCents;

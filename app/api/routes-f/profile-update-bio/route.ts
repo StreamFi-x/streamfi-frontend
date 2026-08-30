@@ -22,12 +22,12 @@ function stripControlCharacters(value: string): string {
 
 export async function PATCH(req: NextRequest): Promise<NextResponse> {
   const body = await readBody(req);
-  if (!body) return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  if (!body) {return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });}
 
   const username = readString(body.username);
   const bioValue = typeof body.bio === "string" ? body.bio : null;
-  if (!username) return NextResponse.json({ error: "username is required" }, { status: 400 });
-  if (bioValue === null) return NextResponse.json({ error: "bio is required" }, { status: 400 });
+  if (!username) {return NextResponse.json({ error: "username is required" }, { status: 400 });}
+  if (bioValue === null) {return NextResponse.json({ error: "bio is required" }, { status: 400 });}
 
   const bio = stripControlCharacters(bioValue).trim();
   if (bio.length > 500) {
@@ -41,6 +41,6 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     RETURNING id, username, bio, updated_at
   `;
 
-  if (rows.length === 0) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (rows.length === 0) {return NextResponse.json({ error: "User not found" }, { status: 404 });}
   return NextResponse.json({ user: rows[0] });
 }

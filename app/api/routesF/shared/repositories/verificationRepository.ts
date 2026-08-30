@@ -53,7 +53,7 @@ export const verificationRepository = {
   updateStatus(requestId: string, status: VerificationRequest['status']): VerificationRequest | null {
     const requestIndex = verificationRequests.findIndex(request => request.request_id === requestId);
     
-    if (requestIndex === -1) return null;
+    if (requestIndex === -1) {return null;}
     
     const updatedRequest: VerificationRequest = {
       ...verificationRequests[requestIndex],

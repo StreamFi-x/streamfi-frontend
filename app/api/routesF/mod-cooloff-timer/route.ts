@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 import { isActionAllowed, recordModAction } from './helpers';
 import { ModAction, ModCooloffCheckRequest, ModCooloffCheckResponse, ModCooloffRecordRequest, ModCooloffRecordResponse } from './types';

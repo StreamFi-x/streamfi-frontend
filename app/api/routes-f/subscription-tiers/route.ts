@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";

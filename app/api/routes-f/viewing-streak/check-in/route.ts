@@ -5,7 +5,7 @@ import { streakStore, storeKey, todayISO, daysDiff } from "../store";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const bodyResult = await validateBody(req, checkInSchema);
-  if (bodyResult instanceof NextResponse) return bodyResult;
+  if (bodyResult instanceof NextResponse) {return bodyResult;}
 
   const { viewer_id, creator_id, on_date } = bodyResult.data;
   const checkInDate = on_date ?? todayISO();

@@ -29,10 +29,10 @@ const HANDLED_EVENT_TYPES = new Set([
 ]);
 
 function isPrivyWebhookEvent(value: unknown): value is PrivyWebhookEvent {
-  if (typeof value !== "object" || value === null) return false;
+  if (typeof value !== "object" || value === null) {return false;}
   const v = value as Record<string, unknown>;
-  if (typeof v.type !== "string") return false;
-  if (typeof v.user !== "object" || v.user === null) return false;
+  if (typeof v.type !== "string") {return false;}
+  if (typeof v.user !== "object" || v.user === null) {return false;}
   const user = v.user as Record<string, unknown>;
   return typeof user.id === "string" && user.id.length > 0;
 }

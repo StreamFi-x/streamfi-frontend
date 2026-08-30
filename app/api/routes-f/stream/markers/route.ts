@@ -25,7 +25,7 @@ async function ensureTableExists() {
 
 export async function GET(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   const { searchParams } = new URL(req.url);
   const recordingId = searchParams.get("recording_id");
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   try {
     const { recording_id, timestamp_seconds, note } = await req.json();

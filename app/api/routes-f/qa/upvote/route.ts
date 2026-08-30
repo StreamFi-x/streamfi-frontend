@@ -10,7 +10,7 @@ const upvoteSchema = z.object({
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const result = await validateBody(req, upvoteSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { question_id, viewer_id } = result.data;
   const question = getStore().get(question_id);

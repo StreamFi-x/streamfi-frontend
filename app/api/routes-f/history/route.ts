@@ -8,7 +8,7 @@ import { verifySession } from "@/lib/auth/verify-session";
  */
 export async function GET(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   const { userId } = session;
   const { searchParams } = new URL(req.url);
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   const { userId } = session;
 

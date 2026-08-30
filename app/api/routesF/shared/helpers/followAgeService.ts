@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 import { calculateAverage, daysBetween } from './dateUtilities';
 import type { FollowAgeSummary } from '../types';
 

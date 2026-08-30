@@ -16,7 +16,7 @@ const FAILED_JOB_MAX_AGE_HOURS = 24;
 
 function isAuthorizedCronRequest(req: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return false;
+  if (!cronSecret) {return false;}
 
   const authHeader = req.headers.get("authorization");
   return authHeader === `Bearer ${cronSecret}`;

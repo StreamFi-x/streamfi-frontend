@@ -32,9 +32,9 @@ export async function POST(req: NextRequest) {
     reason?: unknown;
   };
 
-  if (!blocker_id || typeof blocker_id !== "string") return bad("blocker_id is required");
-  if (!blocked_id || typeof blocked_id !== "string") return bad("blocked_id is required");
-  if (blocker_id === blocked_id) return bad("A user cannot block themselves");
+  if (!blocker_id || typeof blocker_id !== "string") {return bad("blocker_id is required");}
+  if (!blocked_id || typeof blocked_id !== "string") {return bad("blocked_id is required");}
+  if (blocker_id === blocked_id) {return bad("A user cannot block themselves");}
 
   const record: BlockRecord = {
     blocker_id,
@@ -54,8 +54,8 @@ export async function DELETE(req: NextRequest) {
   const blocker_id = params.get("blocker_id");
   const blocked_id = params.get("blocked_id");
 
-  if (!blocker_id) return bad("blocker_id is required");
-  if (!blocked_id) return bad("blocked_id is required");
+  if (!blocker_id) {return bad("blocker_id is required");}
+  if (!blocked_id) {return bad("blocked_id is required");}
 
   const key = blockKey(blocker_id, blocked_id);
   if (!blockStore.has(key)) {
@@ -70,11 +70,11 @@ export async function DELETE(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const blocker_id = new URL(req.url).searchParams.get("blocker_id");
-  if (!blocker_id) return bad("blocker_id is required");
+  if (!blocker_id) {return bad("blocker_id is required");}
 
   const blocked: BlockRecord[] = [];
   for (const record of blockStore.values()) {
-    if (record.blocker_id === blocker_id) blocked.push(record);
+    if (record.blocker_id === blocker_id) {blocked.push(record);}
   }
 
   return NextResponse.json({ blocked }, { status: 200 });

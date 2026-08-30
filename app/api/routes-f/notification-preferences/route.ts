@@ -39,7 +39,7 @@ const putBodySchema = z.object({
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const result = validateQuery(searchParams, getQuerySchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { viewer_id } = result.data;
   const prefs = prefsStore.get(viewer_id) ?? defaults(viewer_id);
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
 export async function PUT(req: NextRequest): Promise<NextResponse> {
   const result = await validateBody(req, putBodySchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { viewer_id, ...updates } = result.data;
   const existing = prefsStore.get(viewer_id) ?? defaults(viewer_id);

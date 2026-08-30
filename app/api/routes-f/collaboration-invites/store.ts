@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { CollaborationInvite, InviteStatus } from "./types";
 
 // In-memory store for collaboration invites

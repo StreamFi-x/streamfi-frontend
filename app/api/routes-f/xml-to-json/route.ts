@@ -16,7 +16,7 @@ function parseXml(
   textKey: string
 ): XmlNode {
   const trimmed = xml.trim();
-  if (!trimmed) throw new Error("XML string is empty.");
+  if (!trimmed) {throw new Error("XML string is empty.");}
 
   // Remove XML declaration
   const src = trimmed.replace(/<\?xml[^?]*\?>/i, "").trim();
@@ -28,13 +28,13 @@ function parseXml(
   }
 
   function skipWhitespace() {
-    while (pos < src.length && /\s/.test(src[pos])) pos++;
+    while (pos < src.length && /\s/.test(src[pos])) {pos++;}
   }
 
   function readUntil(end: string): string {
     const start = pos;
     const idx = src.indexOf(end, pos);
-    if (idx === -1) error(`Expected '${end}'`);
+    if (idx === -1) {error(`Expected '${end}'`);}
     pos = idx + end.length;
     return src.slice(start, idx);
   }
@@ -51,7 +51,7 @@ function parseXml(
 
   function parseNode(): [string, XmlNode] {
     skipWhitespace();
-    if (src[pos] !== "<") error("Expected '<'");
+    if (src[pos] !== "<") {error("Expected '<'");}
     pos++; // consume <
 
     // CDATA
@@ -78,11 +78,11 @@ function parseXml(
       pos++;
     }
     const tagName = src.slice(tagStart, pos).trim();
-    if (!tagName) error("Empty tag name");
+    if (!tagName) {error("Empty tag name");}
 
     // Collect attribute string up to > or />
     const attrStart = pos;
-    while (pos < src.length && src[pos] !== ">") pos++;
+    while (pos < src.length && src[pos] !== ">") {pos++;}
     const attrRaw = src.slice(attrStart, pos).trim();
     const selfClose = attrRaw.endsWith("/");
     const attrStr = selfClose ? attrRaw.slice(0, -1) : attrRaw;
@@ -91,19 +91,19 @@ function parseXml(
     const attrs = parseAttributes(attrStr);
     const node: XmlNode = { ...attrs };
 
-    if (selfClose) return [tagName, node];
+    if (selfClose) {return [tagName, node];}
 
     // Parse children
     let text = "";
     let closed = false;
     while (pos < src.length) {
       skipWhitespace();
-      if (pos >= src.length) break;
+      if (pos >= src.length) {break;}
 
       if (src[pos] !== "<") {
         // Text content
         const txtStart = pos;
-        while (pos < src.length && src[pos] !== "<") pos++;
+        while (pos < src.length && src[pos] !== "<") {pos++;}
         text += src.slice(txtStart, pos).trim();
         continue;
       }
@@ -128,10 +128,10 @@ function parseXml(
         // Closing tag
         pos++;
         const closeStart = pos;
-        while (pos < src.length && src[pos] !== ">") pos++;
+        while (pos < src.length && src[pos] !== ">") {pos++;}
         const closeName = src.slice(closeStart, pos).trim();
         pos++; // consume >
-        if (closeName !== tagName) error(`Mismatched closing tag: </${closeName}> for <${tagName}>`);
+        if (closeName !== tagName) {error(`Mismatched closing tag: </${closeName}> for <${tagName}>`);}
         closed = true;
         break;
       }
@@ -139,7 +139,7 @@ function parseXml(
       // Restore and parse child
       pos = saved;
       const [childName, childNode] = parseNode();
-      if (childName === "#comment") continue;
+      if (childName === "#comment") {continue;}
 
       if (childName in node) {
         const existing = node[childName];
@@ -151,8 +151,8 @@ function parseXml(
       }
     }
 
-    if (!closed) error(`Unexpected end of input: unclosed tag <${tagName}>`);
-    if (text) node[textKey] = text;
+    if (!closed) {error(`Unexpected end of input: unclosed tag <${tagName}>`);}
+    if (text) {node[textKey] = text;}
 
     return [tagName, node];
   }

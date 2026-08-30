@@ -11,11 +11,11 @@ const checkMessageSchema = z.object({
 
 function isEmoteOnly(message: string): boolean {
   const trimmed = message.trim();
-  if (trimmed.length === 0) return false;
+  if (trimmed.length === 0) {return false;}
 
   for (const char of trimmed) {
     const code = char.codePointAt(0);
-    if (!code) continue;
+    if (!code) {continue;}
 
     if (code < 0x1F000) {
       if (!/[\p{Emoji}]/u.test(char)) {

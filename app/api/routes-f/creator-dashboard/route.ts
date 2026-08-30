@@ -33,7 +33,7 @@ const querySchema = z.object({
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, querySchema);
-  if (queryResult instanceof NextResponse) return queryResult;
+  if (queryResult instanceof NextResponse) {return queryResult;}
 
   const { creator_id } = queryResult.data;
   const stats = SEED_STATS[creator_id];

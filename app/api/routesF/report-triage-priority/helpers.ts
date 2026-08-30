@@ -57,8 +57,8 @@ export function calculatePriorityScore(trustScore: number, reasonSeverity: Reaso
 }
 
 export function scoreToPriority(score: number): PriorityLevel {
-  if (score >= 80) return 'critical';
-  if (score >= 60) return 'high';
-  if (score >= 40) return 'med';
+  if (score >= 80) {return 'critical';}
+  if (score >= 60) {return 'high';}
+  if (score >= 40) {return 'med';}
   return 'low';
 }

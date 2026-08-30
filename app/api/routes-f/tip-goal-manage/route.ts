@@ -92,7 +92,7 @@ export async function PATCH(req: NextRequest) {
     existing.goal_usdc = goal_usdc;
   }
   if (title !== undefined) {
-    if (typeof title !== "string") return badRequest("title must be a string");
+    if (typeof title !== "string") {return badRequest("title must be a string");}
     existing.title = title;
   }
   if (ends_at !== undefined) {
@@ -111,7 +111,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const creator_id = new URL(req.url).searchParams.get("creator_id");
-  if (!creator_id) return badRequest("creator_id is required");
+  if (!creator_id) {return badRequest("creator_id is required");}
 
   if (!goalStore.has(creator_id)) {
     return NextResponse.json({ error: "Goal not found" }, { status: 404 });

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 
 const MAX_VIEWERS_PER_CALL = 100;

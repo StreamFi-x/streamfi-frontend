@@ -15,7 +15,7 @@ const getSchema = z.object({
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const result = validateQuery(new URL(req.url).searchParams, getSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { creator_id } = result.data;
   const entry = getStore().get(creator_id);
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
 export async function PUT(req: NextRequest): Promise<NextResponse> {
   const result = await validateBody(req, updateSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { creator_id, primary, secondary } = result.data;
 

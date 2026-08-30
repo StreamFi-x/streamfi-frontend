@@ -29,7 +29,7 @@ export function getCategories(): string[] {
 
 export function getRandomQuote(category?: string): Quote | undefined {
   const pool = category ? quotes.filter((q) => q.category === category) : quotes;
-  if (pool.length === 0) return undefined;
+  if (pool.length === 0) {return undefined;}
   return pool[Math.floor(Math.random() * pool.length)];
 }
 

@@ -9,7 +9,7 @@ const SEED_CLIPS: Record<string, { duration_seconds: number }> = {
 };
 
 function getClipDuration(clipId: string): number {
-  if (SEED_CLIPS[clipId]) return SEED_CLIPS[clipId].duration_seconds;
+  if (SEED_CLIPS[clipId]) {return SEED_CLIPS[clipId].duration_seconds;}
   // Deterministic fallback for unknown clip ids.
   const hash = clipId.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
   return 60 + (hash % 540);

@@ -37,7 +37,7 @@ const SEED_SESSIONS: Record<string, number[]> = {
 
 function seedSessionDurations(streamId: string): number[] {
   const bundled = SEED_SESSIONS[streamId];
-  if (bundled) return bundled;
+  if (bundled) {return bundled;}
 
   const hash = streamId.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
   const count = 10 + (hash % 20);
@@ -54,7 +54,7 @@ function round2(value: number): number {
 
 /** Nearest-rank percentile over a sorted ascending array. */
 function percentile(sorted: number[], p: number): number {
-  if (sorted.length === 0) return 0;
+  if (sorted.length === 0) {return 0;}
   const rank = Math.ceil((p / 100) * sorted.length);
   const index = Math.min(Math.max(rank - 1, 0), sorted.length - 1);
   return sorted[index];

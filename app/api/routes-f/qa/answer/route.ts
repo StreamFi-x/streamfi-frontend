@@ -10,7 +10,7 @@ const answerSchema = z.object({
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const result = await validateBody(req, answerSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { question_id, creator_id } = result.data;
   const question = getStore().get(question_id);

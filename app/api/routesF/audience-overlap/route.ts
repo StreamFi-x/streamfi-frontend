@@ -31,7 +31,7 @@ const SEED_FOLLOW_GRAPH: Record<string, string[]> = {
  */
 function followersFor(creatorId: string): Set<string> {
   const seeded = SEED_FOLLOW_GRAPH[creatorId];
-  if (seeded) return new Set(seeded);
+  if (seeded) {return new Set(seeded);}
 
   const hash = creatorId.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
   const size = 4 + (hash % 8);
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<OverlapResult 
 
   let overlap_count = 0;
   for (const follower of followersA) {
-    if (followersB.has(follower)) overlap_count += 1;
+    if (followersB.has(follower)) {overlap_count += 1;}
   }
 
   const unionSize = new Set([...followersA, ...followersB]).size;

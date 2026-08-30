@@ -11,7 +11,7 @@ const voteSchema = z.object({
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const result = await validateBody(req, voteSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { poll_id, viewer_id, option_index } = result.data;
   const poll = getStore().get(poll_id);

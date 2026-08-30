@@ -30,7 +30,7 @@ export function hashToken(rawToken: string): string {
  * Examples: "Chrome on macOS", "Safari on iPhone", "Firefox on Windows"
  */
 export function parseDeviceHint(userAgent: string | null): string {
-  if (!userAgent) return "Unknown device";
+  if (!userAgent) {return "Unknown device";}
 
   const ua = userAgent;
 
@@ -76,9 +76,9 @@ export function parseDeviceHint(userAgent: string | null): string {
  * IPv6 addresses have their last group replaced with "xxxx".
  */
 export function maskIp(ip: string | null): string | null {
-  if (!ip) return null;
+  if (!ip) {return null;}
   const v4 = ip.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})\.\d{1,3}$/);
-  if (v4) return `${v4[1]}.x`;
+  if (v4) {return `${v4[1]}.x`;}
   const v6parts = ip.split(":");
   if (v6parts.length > 1) {
     v6parts[v6parts.length - 1] = "xxxx";
@@ -92,7 +92,7 @@ export function maskIp(ip: string | null): string | null {
  * Prevents passing "unknown" or empty strings to a PostgreSQL INET column.
  */
 function safeIp(ip: string | null): string | null {
-  if (!ip) return null;
+  if (!ip) {return null;}
   // Matches IPv4 (e.g. 1.2.3.4) and IPv6 (hex digits + colons)
   return /^[\d.:a-fA-F]+$/.test(ip) ? ip : null;
 }
@@ -104,7 +104,7 @@ function safeIp(ip: string | null): string | null {
  * by IP without the raw address ever leaving the server.
  */
 export function hashIp(ip: string | null): string | null {
-  if (!ip) return null;
+  if (!ip) {return null;}
   return createHash("sha256").update(ip).digest("hex");
 }
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextRequest, NextResponse } from "next/server";
 
 export type ImpressionSource = "explore" | "category" | "search";
@@ -55,7 +56,7 @@ export function recordClick(streamId: string, source: ImpressionSource) {
 export function getStreamStats(streamId: string) {
   const data = getOrCreateStream(streamId);
   const computeCtr = (clicks: number, impressions: number): number => {
-    if (impressions <= 0) return 0;
+    if (impressions <= 0) {return 0;}
     return Number(((clicks / impressions) * 100).toFixed(2));
   };
 

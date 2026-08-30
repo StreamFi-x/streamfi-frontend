@@ -19,8 +19,8 @@ function railPattern(length: number, rails: number): number[] {
   let dir = 1;
   for (let i = 0; i < length; i += 1) {
     pattern.push(row);
-    if (row === 0) dir = 1;
-    else if (row === rails - 1) dir = -1;
+    if (row === 0) {dir = 1;}
+    else if (row === rails - 1) {dir = -1;}
     row += dir;
   }
   return pattern;
@@ -72,7 +72,7 @@ const schema = z
 
 export async function POST(request: Request): Promise<NextResponse> {
   const result = await validateBody(request, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   const { text, cipher, rails, mode } = result.data;
 
   let output: string;

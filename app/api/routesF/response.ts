@@ -7,7 +7,7 @@ type HeadersInput = HeadersInit | Headers;
  * Normalize Headers or HeadersInit into HeadersInit
  */
 function normalizeHeaders(headers?: HeadersInput): HeadersInit | undefined {
-  if (!headers) return undefined;
+  if (!headers) {return undefined;}
 
   if (headers instanceof Headers) {
     return Object.fromEntries(headers.entries());

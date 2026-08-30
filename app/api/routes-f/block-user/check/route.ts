@@ -14,17 +14,17 @@ export async function POST(req: NextRequest) {
   }
 
   const { a, b } = body as { a?: unknown; b?: unknown };
-  if (!a || typeof a !== "string") return NextResponse.json({ error: "a is required" }, { status: 400 });
-  if (!b || typeof b !== "string") return NextResponse.json({ error: "b is required" }, { status: 400 });
+  if (!a || typeof a !== "string") {return NextResponse.json({ error: "a is required" }, { status: 400 });}
+  if (!b || typeof b !== "string") {return NextResponse.json({ error: "b is required" }, { status: 400 });}
 
   const aBlocksB = blockStore.has(blockKey(a, b));
   const bBlocksA = blockStore.has(blockKey(b, a));
 
   let direction: "a_blocks_b" | "b_blocks_a" | "both" | "none";
-  if (aBlocksB && bBlocksA) direction = "both";
-  else if (aBlocksB) direction = "a_blocks_b";
-  else if (bBlocksA) direction = "b_blocks_a";
-  else direction = "none";
+  if (aBlocksB && bBlocksA) {direction = "both";}
+  else if (aBlocksB) {direction = "a_blocks_b";}
+  else if (bBlocksA) {direction = "b_blocks_a";}
+  else {direction = "none";}
 
   return NextResponse.json({ blocked: aBlocksB || bBlocksA, direction }, { status: 200 });
 }

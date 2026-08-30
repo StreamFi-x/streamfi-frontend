@@ -38,8 +38,8 @@ function overlaps(a: { start: number }, b: { start: number }): boolean {
 }
 
 function reason(w: ScoredWindow): string {
-  if (w.tip_total > 0 && w.chat_count > 5) return "chat and tip spike";
-  if (w.tip_total > 0) return "tip spike";
+  if (w.tip_total > 0 && w.chat_count > 5) {return "chat and tip spike";}
+  if (w.tip_total > 0) {return "tip spike";}
   return "chat burst";
 }
 
@@ -48,7 +48,7 @@ export function detectHighlights(session: LastSession): HighlightTimestamp[] {
   const selected: ScoredWindow[] = [];
 
   for (const w of ranked) {
-    if (selected.length >= TOP_N) break;
+    if (selected.length >= TOP_N) {break;}
     if (selected.every((s) => !overlaps(s, w))) {
       selected.push(w);
     }

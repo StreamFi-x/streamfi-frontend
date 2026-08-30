@@ -73,7 +73,7 @@ export function getSubscriberMetrics(creatorId: string, windowDays: number) {
   const windowStart = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000);
 
   const cancellationsInWindow = seedCancellations.filter((c) => {
-    if (c.creator_id !== creatorId) return false;
+    if (c.creator_id !== creatorId) {return false;}
     const cancelledDate = new Date(c.cancelled_at);
     return cancelledDate >= windowStart && cancelledDate <= now;
   });

@@ -3,7 +3,7 @@ import { GET, PUT, DEFAULT_TEMPLATE, MAX_TEMPLATE_LENGTH } from "./route";
 
 function makeGetReq(creatorId: string | null) {
   const url = new URL("http://localhost/api/routesF/notification-preview-template");
-  if (creatorId !== null) url.searchParams.set("creator_id", creatorId);
+  if (creatorId !== null) {url.searchParams.set("creator_id", creatorId);}
   return new NextRequest(url);
 }
 

@@ -43,7 +43,7 @@ function getState(stream_id: string): StreamState {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const result = await validateBody(req, postSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { stream_id, artist, title, album, art_url } = result.data;
   const state = getState(stream_id);
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const result = validateQuery(new URL(req.url).searchParams, getSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { stream_id } = result.data;
   const state = getState(stream_id);
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
   const result = validateQuery(new URL(req.url).searchParams, deleteSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { stream_id } = result.data;
   store.delete(stream_id);

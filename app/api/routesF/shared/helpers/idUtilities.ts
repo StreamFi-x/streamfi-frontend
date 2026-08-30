@@ -48,7 +48,7 @@ export function validateIdFormat(id: string, prefix: string): boolean {
 export function extractTimestampFromId(id: string): number | null {
   try {
     const parts = id.split('_');
-    if (parts.length < 3) return null;
+    if (parts.length < 3) {return null;}
     
     const timestampPart = parts[1];
     return parseInt(timestampPart, 36);

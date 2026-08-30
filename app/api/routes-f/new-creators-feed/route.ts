@@ -24,7 +24,7 @@ const querySchema = z.object({
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const result = validateQuery(searchParams, querySchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { within_days, min_streams } = result.data;
   const allCreators = getSeedCreators();

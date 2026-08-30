@@ -90,7 +90,7 @@ export function daysBetween(date1: Date, date2: Date): number {
  * Calculate average of an array of numbers
  */
 export function calculateAverage(numbers: number[]): number {
-  if (numbers.length === 0) return 0;
+  if (numbers.length === 0) {return 0;}
   const sum = numbers.reduce((acc, curr) => acc + curr, 0);
   return Math.round(sum / numbers.length);
 }

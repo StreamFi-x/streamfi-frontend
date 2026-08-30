@@ -10,9 +10,9 @@ function getOrdinalSuffix(n: number): OrdinalSuffix {
     return "th";
   }
   const mod10 = abs % 10;
-  if (mod10 === 1) return "st";
-  if (mod10 === 2) return "nd";
-  if (mod10 === 3) return "rd";
+  if (mod10 === 1) {return "st";}
+  if (mod10 === 2) {return "nd";}
+  if (mod10 === 3) {return "rd";}
   return "th";
 }
 

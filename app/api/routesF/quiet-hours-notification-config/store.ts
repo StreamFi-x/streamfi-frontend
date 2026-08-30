@@ -67,15 +67,15 @@ export function hourInTimezone(date: Date, timezone: string): number {
  * "quiet hours start and end at the same time".
  */
 export function isHourInQuietWindow(hour: number, startHour: number, endHour: number): boolean {
-  if (startHour === endHour) return true;
-  if (startHour < endHour) return hour >= startHour && hour < endHour;
+  if (startHour === endHour) {return true;}
+  if (startHour < endHour) {return hour >= startHour && hour < endHour;}
   return hour >= startHour || hour < endHour;
 }
 
 /** Whether `at` (an instant) falls within `config`'s quiet hours window, in
  * the configured timezone. Always false when the config is disabled. */
 export function isInQuietHours(config: QuietHoursConfig, at: Date): boolean {
-  if (!config.enabled) return false;
+  if (!config.enabled) {return false;}
   const hour = hourInTimezone(at, config.timezone);
   return isHourInQuietWindow(hour, config.start_hour, config.end_hour);
 }

@@ -32,7 +32,7 @@ const listInvitesSchema = z.object({
 // POST /api/routes-f/collaboration-invites - Create new invitation
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const validation = await validateBody(req, createInviteSchema);
-  if (validation instanceof NextResponse) return validation;
+  if (validation instanceof NextResponse) {return validation;}
 
   const { from_creator_id, to_creator_id, stream_id, message } = validation.data;
 
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 // POST /api/routes-f/collaboration-invites/respond - Respond to invitation
 export async function PUT(req: NextRequest): Promise<NextResponse> {
   const validation = await validateBody(req, respondInviteSchema);
-  if (validation instanceof NextResponse) return validation;
+  if (validation instanceof NextResponse) {return validation;}
 
   const { invite_id, decision } = validation.data;
 
@@ -81,7 +81,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const url = new URL(req.url);
   const validation = validateQuery(url.searchParams, listInvitesSchema);
-  if (validation instanceof NextResponse) return validation;
+  if (validation instanceof NextResponse) {return validation;}
 
   const { creator_id } = validation.data;
   const { incoming, outgoing } = listInvitesForCreator(creator_id);
@@ -98,7 +98,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     req,
     z.object({ invite_id: z.string().min(1) })
   );
-  if (validation instanceof NextResponse) return validation;
+  if (validation instanceof NextResponse) {return validation;}
 
   const { invite_id } = validation.data;
   const invite = getInviteById(invite_id);
