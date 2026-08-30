@@ -1,52 +1,69 @@
-import { NextResponse } from "next/server";
-import { ZodSchema, ZodError } from "zod";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
-export function validateQuery<O, I>(
-  searchParams: URLSearchParams,
-  schema: ZodSchema<O, any, I>
-): { data: O } | NextResponse {
-  const obj: Record<string, unknown> = {};
-  searchParams.forEach((value, key) => {
-    if (obj[key]) {
-      if (Array.isArray(obj[key])) {
-        (obj[key] as string[]).push(value);
-      } else {
-        obj[key] = [obj[key], value];
-      }
-    } else {
-      obj[key] = value;
-    }
-  });
-
+/**
+ * Validate request body against a Zod schema
+ * @param req - Next.js request object
+ * @param schema - Zod schema to validate against
+ * @returns Parsed data or NextResponse error
+ */
+export async function validateBody<T extends z.ZodType>(
+  req: Request | NextRequest,
+  schema: T
+): Promise<{ data: z.infer<T> } | NextResponse> {
   try {
-    const data = schema.parse(obj);
-    return { data };
-  } catch (error) {
-    if (error instanceof ZodError) {
+    const body = await req.json();
+    const parsed = schema.safeParse(body);
+
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Validation error", details: error.errors },
+        {
+          error: "Invalid request body",
+          details: parsed.error.flatten(),
+        },
         { status: 400 }
       );
     }
-    return NextResponse.json({ error: "Validation error" }, { status: 400 });
+
+    return { data: parsed.data };
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
   }
 }
 
-export async function validateBody<O, I>(
-  req: Request,
-  schema: ZodSchema<O, any, I>
-): Promise<{ data: O } | NextResponse> {
+/**
+ * Validate query parameters against a Zod schema
+ * @param req - Next.js request object
+ * @param schema - Zod schema to validate against
+ * @returns Parsed data or NextResponse error
+ */
+export async function validateQuery<T extends z.ZodType>(
+  req: Request | NextRequest,
+  schema: T
+): Promise<{ data: z.infer<T> } | NextResponse> {
   try {
-    const body = await req.json();
-    const data = schema.parse(body);
-    return { data };
-  } catch (error) {
-    if (error instanceof ZodError) {
+    const url = new URL(req.url);
+    const params = Object.fromEntries(url.searchParams);
+    const parsed = schema.safeParse(params);
+
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Validation error", details: error.errors },
+        {
+          error: "Invalid query parameters",
+          details: parsed.error.flatten(),
+        },
         { status: 400 }
       );
     }
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+
+    return { data: parsed.data };
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to parse query parameters" },
+      { status: 400 }
+    );
   }
 }
