@@ -20,7 +20,7 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       channel_id: state.channel_id,
-      hosted_channel_id: state.hosted_channel_id,
+      hosted_channel_id: null,
       cleared_channel_id,
     } satisfies StreamHostModeClearResponse);
   } catch (error) {

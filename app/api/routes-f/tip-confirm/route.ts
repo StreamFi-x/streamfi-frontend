@@ -75,7 +75,7 @@ async function verifyTransactionOnHorizon(
 
     const response = await server.transactions().transaction(tx_hash).call();
 
-    if (!response || response.result_code !== "tx_success") {
+    if (!response || !response.successful) {
       return null;
     }
 
@@ -91,10 +91,10 @@ async function verifyTransactionOnHorizon(
 
     return {
       hash: response.hash,
-      ledger: response.ledger,
+      ledger: response.ledger_attr,
       source: response.source_account,
-      destination: paymentOp.to || paymentOp.destination,
-      amount: paymentOp.amount,
+      destination: (paymentOp as any).to || (paymentOp as any).destination,
+      amount: (paymentOp as any).amount,
       timestamp: response.created_at,
     };
   } catch (error) {
