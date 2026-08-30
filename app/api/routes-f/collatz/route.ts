@@ -23,7 +23,7 @@ export function collatz(n: number): CollatzResult {
   while (current !== 1 && steps < MAX_STEPS) {
     current = current % 2 === 0 ? current / 2 : 3 * current + 1;
     sequence.push(current);
-    if (current > maxValue) maxValue = current;
+    if (current > maxValue) {maxValue = current;}
     steps += 1;
   }
 
@@ -37,6 +37,6 @@ const schema = z.object({
 export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
   const result = validateQuery(searchParams, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   return NextResponse.json(collatz(result.data.n));
 }

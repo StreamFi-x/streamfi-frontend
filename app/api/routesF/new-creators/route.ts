@@ -25,7 +25,7 @@ const DEFAULT_MIN_STREAMS = 1;
 
 function parsePositiveInt(value: string): number | null {
   const num = Number(value);
-  if (!Number.isInteger(num) || num < 1) return null;
+  if (!Number.isInteger(num) || num < 1) {return null;}
   return num;
 }
 

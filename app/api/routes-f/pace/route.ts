@@ -18,15 +18,15 @@ const RACE_DISTANCES_MI: Record<string, number> = {
 
 function parseTime(t: string): number | null {
   const parts = t.split(":").map(Number);
-  if (parts.some(isNaN)) return null;
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.some(isNaN)) {return null;}
+  if (parts.length === 3) {return parts[0] * 3600 + parts[1] * 60 + parts[2];}
+  if (parts.length === 2) {return parts[0] * 60 + parts[1];}
   return null;
 }
 
 function parsePace(p: string): number | null {
   const parts = p.split(":").map(Number);
-  if (parts.length !== 2 || parts.some(isNaN)) return null;
+  if (parts.length !== 2 || parts.some(isNaN)) {return null;}
   return parts[0] * 60 + parts[1];
 }
 

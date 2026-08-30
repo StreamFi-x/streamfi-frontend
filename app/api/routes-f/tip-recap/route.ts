@@ -39,7 +39,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     new URL(req.url).searchParams,
     getQuerySchema
   );
-  if (queryResult instanceof Response) {
+  if (queryResult instanceof NextResponse) {
     return queryResult;
   }
 

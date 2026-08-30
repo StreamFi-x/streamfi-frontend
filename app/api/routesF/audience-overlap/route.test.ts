@@ -3,8 +3,8 @@ import { GET } from "./route";
 
 function makeReq(a: string | null, b: string | null) {
   const url = new URL("http://localhost/api/routesF/audience-overlap");
-  if (a !== null) url.searchParams.set("a", a);
-  if (b !== null) url.searchParams.set("b", b);
+  if (a !== null) {url.searchParams.set("a", a);}
+  if (b !== null) {url.searchParams.set("b", b);}
   return new NextRequest(url);
 }
 

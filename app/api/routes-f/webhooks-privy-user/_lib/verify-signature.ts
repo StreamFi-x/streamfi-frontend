@@ -83,7 +83,7 @@ export function verifyPrivyWebhookSignature(
 
   for (const candidate of candidates) {
     const [version, sig] = candidate.split(",");
-    if (version !== "v1" || !sig) continue;
+    if (version !== "v1" || !sig) {continue;}
 
     let candidateBuf: Buffer;
     try {

@@ -86,7 +86,7 @@ export const followRepository = {
    */
   getOldestFollowDate(viewerId: string): Date | null {
     const dates = this.getFollowDates(viewerId);
-    if (dates.length === 0) return null;
+    if (dates.length === 0) {return null;}
     
     return dates.reduce((oldest, current) => 
       current < oldest ? current : oldest

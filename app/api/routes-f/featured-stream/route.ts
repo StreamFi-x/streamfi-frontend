@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { validateBody, validateQuery } from "../../_lib/validate";
+import { validateBody, validateQuery } from "@/app/api/routes-f/_lib/validate";
 import { getFeaturedStream, setOverride, removeOverride } from "./store";
 
 export const runtime = "nodejs";
@@ -32,7 +32,7 @@ const removeOverrideSchema = z.object({
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const url = new URL(req.url);
   const validation = validateQuery(url.searchParams, getFeaturedSchema);
-  if (validation instanceof NextResponse) return validation;
+  if (validation instanceof NextResponse) {return validation;}
 
   const { date } = validation.data;
   const featured = getFeaturedStream(date);
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 // POST /api/routes-f/featured-stream/override - Set editorial override
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const validation = await validateBody(req, overrideSchema);
-  if (validation instanceof NextResponse) return validation;
+  if (validation instanceof NextResponse) {return validation;}
 
   const { date, creator_id, reason } = validation.data;
 
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 // DELETE /api/routes-f/featured-stream/override - Remove editorial override
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
   const validation = await validateBody(req, removeOverrideSchema);
-  if (validation instanceof NextResponse) return validation;
+  if (validation instanceof NextResponse) {return validation;}
 
   const { date } = validation.data;
   const removed = removeOverride(date);
@@ -101,7 +101,7 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
 export async function PATCH(req: NextRequest): Promise<NextResponse> {
   const url = new URL(req.url);
   const validation = validateQuery(url.searchParams, getFeaturedSchema);
-  if (validation instanceof NextResponse) return validation;
+  if (validation instanceof NextResponse) {return validation;}
 
   const { date } = validation.data;
   const featured = getFeaturedStream(date);

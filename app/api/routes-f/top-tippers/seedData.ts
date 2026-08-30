@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { TipRecord } from "./types";
 
 // Generate realistic seed data with ~50 tip records

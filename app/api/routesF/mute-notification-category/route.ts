@@ -27,7 +27,7 @@ const postSchema = z.object({
 const mutedCategories = new Map<string, Set<NotificationCategory>>()
 
 function getMuted(viewerId: string): Set<NotificationCategory> {
-  if (!mutedCategories.has(viewerId)) mutedCategories.set(viewerId, new Set())
+  if (!mutedCategories.has(viewerId)) {mutedCategories.set(viewerId, new Set())}
   return mutedCategories.get(viewerId)!
 }
 

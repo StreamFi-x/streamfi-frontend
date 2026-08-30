@@ -19,7 +19,7 @@ import { streakStore, storeKey } from "./store";
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, querySchema);
-  if (queryResult instanceof NextResponse) return queryResult;
+  if (queryResult instanceof NextResponse) {return queryResult;}
 
   const { viewer_id, creator_id } = queryResult.data;
   const key = storeKey(viewer_id, creator_id);

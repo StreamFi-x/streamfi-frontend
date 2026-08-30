@@ -47,7 +47,7 @@ const schema = z.object({ code: z.string() });
 
 export async function POST(request: Request): Promise<NextResponse> {
   const result = await validateBody(request, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   const info = lookupContinent(result.data.code);
   if (!info) {
     return NextResponse.json(

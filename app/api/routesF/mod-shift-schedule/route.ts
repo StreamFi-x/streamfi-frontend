@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 import { ModShift, seedShifts } from './seed-data';
 import { dayAndMinutesFromDate, isOnDutyAt, isValidDay, isValidTime, shiftsOverlap } from './shift-utils';

@@ -21,7 +21,7 @@ function generateId(): string {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const result = await validateBody(req, submitSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { stream_id, viewer_id, question } = result.data;
 
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const result = validateQuery(new URL(req.url).searchParams, getSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { stream_id } = result.data;
   const store = getStore();

@@ -33,15 +33,15 @@ const schema = z.object({
 
 export async function POST(request: Request): Promise<NextResponse> {
   const result = await validateBody(request, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   const { mode, code, flag } = result.data;
 
   try {
     if (mode === "to_flag") {
-      if (!code) return NextResponse.json({ error: "code is required for to_flag" }, { status: 400 });
+      if (!code) {return NextResponse.json({ error: "code is required for to_flag" }, { status: 400 });}
       return NextResponse.json({ flag: codeToFlag(code) });
     }
-    if (!flag) return NextResponse.json({ error: "flag is required for to_code" }, { status: 400 });
+    if (!flag) {return NextResponse.json({ error: "flag is required for to_code" }, { status: 400 });}
     return NextResponse.json({ code: flagToCode(flag) });
   } catch (e) {
     return NextResponse.json(

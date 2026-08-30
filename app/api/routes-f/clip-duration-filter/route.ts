@@ -23,7 +23,7 @@ const DEFAULT_LIMIT = 20;
 
 function parseNonNegativeNumber(value: string): number | null {
   const num = Number(value);
-  if (!Number.isFinite(num) || num < 0) return null;
+  if (!Number.isFinite(num) || num < 0) {return null;}
   return num;
 }
 
@@ -76,9 +76,9 @@ export async function GET(req: NextRequest) {
   }
 
   const clips = SEED_CLIPS.filter((clip) => {
-    if (creatorId !== null && clip.creator_id !== creatorId) return false;
-    if (minSeconds !== null && clip.duration_seconds < minSeconds) return false;
-    if (maxSeconds !== null && clip.duration_seconds > maxSeconds) return false;
+    if (creatorId !== null && clip.creator_id !== creatorId) {return false;}
+    if (minSeconds !== null && clip.duration_seconds < minSeconds) {return false;}
+    if (maxSeconds !== null && clip.duration_seconds > maxSeconds) {return false;}
     return true;
   })
     .sort((a, b) => a.duration_seconds - b.duration_seconds)

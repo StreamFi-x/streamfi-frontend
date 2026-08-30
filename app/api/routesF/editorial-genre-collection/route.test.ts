@@ -3,7 +3,7 @@ import { GET } from "./route";
 
 function makeReq(slug: string | null) {
   const url = new URL("http://localhost/api/routesF/editorial-genre-collection");
-  if (slug !== null) url.searchParams.set("collection_slug", slug);
+  if (slug !== null) {url.searchParams.set("collection_slug", slug);}
   return new NextRequest(url);
 }
 

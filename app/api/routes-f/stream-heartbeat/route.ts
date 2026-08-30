@@ -26,7 +26,7 @@ const rings = new Map<string, HeartbeatSample[]>();
 function addSample(stream_id: string, sample: HeartbeatSample): void {
   const buf = rings.get(stream_id) ?? [];
   buf.push(sample);
-  if (buf.length > RING_SIZE) buf.shift();
+  if (buf.length > RING_SIZE) {buf.shift();}
   rings.set(stream_id, buf);
 }
 

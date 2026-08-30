@@ -19,10 +19,10 @@ const disableSchema = z.object({
 
 export async function POST(request: NextRequest) {
   const session = await verifySession(request);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   const body = await validateBody(request, disableSchema);
-  if (body instanceof NextResponse) return body;
+  if (body instanceof NextResponse) {return body;}
 
   try {
     const { rows } = await sql`

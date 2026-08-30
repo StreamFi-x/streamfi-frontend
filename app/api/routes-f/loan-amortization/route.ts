@@ -43,7 +43,7 @@ function computeSchedule(input: AmortizationInput) {
     const payment = round2(interest + principalPart);
     balance = round2(balance - principalPart);
     schedule.push({ month, payment, principal: principalPart, interest, balance: Math.max(0, balance) });
-    if (month > totalMonths + 1000) break; // safety guard
+    if (month > totalMonths + 1000) {break;} // safety guard
   }
 
   const total_interest = round2(schedule.reduce((sum, r) => sum + r.interest, 0));

@@ -47,7 +47,7 @@ const VIEWER_HISTORY: Record<string, string[]> = {
 // Helpers
 // ---------------------------------------------------------------------------
 function personalizedLive(viewerHistory: string[]) {
-  if (!viewerHistory.length) return LIVE_STREAMS.slice(0, 3);
+  if (!viewerHistory.length) {return LIVE_STREAMS.slice(0, 3);}
   const preferred = LIVE_STREAMS.filter((s) => viewerHistory.includes(s.creator_id));
   const rest = LIVE_STREAMS.filter((s) => !viewerHistory.includes(s.creator_id));
   return [...preferred, ...rest].slice(0, 3);
@@ -74,7 +74,7 @@ const querySchema = z.object({
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const result = validateQuery(searchParams, querySchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { viewer_id } = result.data;
   const history = VIEWER_HISTORY[viewer_id] ?? [];

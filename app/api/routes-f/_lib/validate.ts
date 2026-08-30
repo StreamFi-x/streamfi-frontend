@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -34,19 +35,18 @@ export async function validateBody<T extends z.ZodType>(
   }
 }
 
-/**
- * Validate query parameters against a Zod schema
- * @param req - Next.js request object
- * @param schema - Zod schema to validate against
- * @returns Parsed data or NextResponse error
- */
-export async function validateQuery<T extends z.ZodType>(
-  req: Request | NextRequest,
+export function validateQuery<T extends z.ZodType>(
+  reqOrParams: Request | NextRequest | URLSearchParams,
   schema: T
-): Promise<{ data: z.infer<T> } | NextResponse> {
+): { data: z.infer<T> } | NextResponse {
   try {
-    const url = new URL(req.url);
-    const params = Object.fromEntries(url.searchParams);
+    let params: Record<string, string>;
+    if (reqOrParams instanceof URLSearchParams) {
+      params = Object.fromEntries(reqOrParams);
+    } else {
+      const url = new URL(reqOrParams.url);
+      params = Object.fromEntries(url.searchParams);
+    }
     const parsed = schema.safeParse(params);
 
     if (!parsed.success) {

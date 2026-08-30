@@ -56,7 +56,7 @@ export function analyzePerfectPower(n: number): PerfectPowerResult {
 
   for (let exponent = maxExponent; exponent >= 2; exponent--) {
     const base = Math.round(n ** (1 / exponent));
-    if (base < 2) continue;
+    if (base < 2) {continue;}
     const power = base ** exponent;
     if (power === n) {
       result.is_perfect_power = true;

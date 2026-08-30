@@ -37,8 +37,8 @@ export function checksums(
   algorithm: ChecksumAlgorithm = "both",
 ): { crc32?: string; adler32?: string } {
   const out: { crc32?: string; adler32?: string } = {};
-  if (algorithm === "crc32" || algorithm === "both") out.crc32 = crc32(input);
-  if (algorithm === "adler32" || algorithm === "both") out.adler32 = adler32(input);
+  if (algorithm === "crc32" || algorithm === "both") {out.crc32 = crc32(input);}
+  if (algorithm === "adler32" || algorithm === "both") {out.adler32 = adler32(input);}
   return out;
 }
 
@@ -49,7 +49,7 @@ const schema = z.object({
 
 export async function POST(request: Request): Promise<NextResponse> {
   const result = await validateBody(request, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   const { input, algorithm } = result.data;
   return NextResponse.json(checksums(input, algorithm));
 }

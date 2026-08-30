@@ -32,8 +32,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const live = liveStreams.filter((s) => followedSet.has(s.creator_id));
 
   const offline_recently = recentlyOfflineStreams.filter((s) => {
-    if (!followedSet.has(s.creator_id)) return false;
-    if (!s.ended_at) return false;
+    if (!followedSet.has(s.creator_id)) {return false;}
+    if (!s.ended_at) {return false;}
     return now - new Date(s.ended_at).getTime() <= TWENTY_FOUR_HOURS_MS;
   });
 

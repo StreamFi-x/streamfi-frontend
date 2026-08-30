@@ -51,7 +51,7 @@ export function computeInvoiceTotal(
 
 export async function POST(request: Request): Promise<NextResponse> {
   const result = await validateBody(request, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   const { items, tax_percent, discount_percent } = result.data;
   return NextResponse.json(computeInvoiceTotal(items, tax_percent, discount_percent));
 }

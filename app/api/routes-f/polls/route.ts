@@ -26,7 +26,7 @@ function isExpired(ends_at: string): boolean {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const result = await validateBody(req, createSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { stream_id, question, options, duration_seconds } = result.data;
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     id,
     stream_id,
     question,
-    options: options.map((text) => ({ text, votes: 0 })),
+    options: options.map((text: string) => ({ text, votes: 0 })),
     duration_seconds,
     created_at: now.toISOString(),
     ends_at: ends_at.toISOString(),
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const result = validateQuery(new URL(req.url).searchParams, getSchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { poll_id } = result.data;
   const poll = getStore().get(poll_id);

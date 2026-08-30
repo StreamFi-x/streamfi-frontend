@@ -27,7 +27,7 @@ export function unpinMessage(stream_id: string): boolean {
 
 export function getPinnedMessage(stream_id: string): PinnedMessage | null {
   const pin = pinnedMessages.get(stream_id);
-  if (!pin) return null;
+  if (!pin) {return null;}
 
   if (pin.expires_at && new Date(pin.expires_at).getTime() <= Date.now()) {
     pinnedMessages.delete(stream_id);

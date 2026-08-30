@@ -8,16 +8,16 @@ function getNextLeapYears(from: number, count = 5): number[] {
   const result: number[] = [];
   let y = from + 1;
   while (result.length < count) {
-    if (isLeapYear(y)) result.push(y);
+    if (isLeapYear(y)) {result.push(y);}
     y++;
   }
   return result;
 }
 
 function leapReason(year: number): string {
-  if (year % 400 === 0) return "Divisible by 400";
-  if (year % 100 === 0) return "Divisible by 100 but not 400 — not a leap year";
-  if (year % 4 === 0) return "Divisible by 4 but not 100";
+  if (year % 400 === 0) {return "Divisible by 400";}
+  if (year % 100 === 0) {return "Divisible by 100 but not 400 — not a leap year";}
+  if (year % 4 === 0) {return "Divisible by 4 but not 100";}
   return "Not divisible by 4";
 }
 

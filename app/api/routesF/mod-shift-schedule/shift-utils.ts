@@ -26,7 +26,7 @@ export function shiftsOverlap(a: Pick<ModShift, 'day' | 'start_time' | 'end_time
   const bIsNextDay = (dayIndexA + 1) % 7 === dayIndexB;
   const aIsNextDay = (dayIndexB + 1) % 7 === dayIndexA;
 
-  if (!sameDay && !bIsNextDay && !aIsNextDay) return false;
+  if (!sameDay && !bIsNextDay && !aIsNextDay) {return false;}
 
   const aStart = toMinutes(a.start_time);
   const aEnd = crossesMidnight(a) ? toMinutes(a.end_time) + 1440 : toMinutes(a.end_time);

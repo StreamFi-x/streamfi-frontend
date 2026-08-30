@@ -3,7 +3,7 @@ import { GET } from "./route";
 
 function makeReq(viewerId?: string) {
   const url = new URL("http://localhost/api/routesF/topic-cluster-feed");
-  if (viewerId !== undefined) url.searchParams.set("viewer_id", viewerId);
+  if (viewerId !== undefined) {url.searchParams.set("viewer_id", viewerId);}
   return new NextRequest(url);
 }
 

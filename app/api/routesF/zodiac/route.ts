@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
   }
 
-  let foundSign = zodiacSigns.find(z => {
+  const foundSign = zodiacSigns.find(z => {
     if (z.start.m === z.end.m) {
       return month === z.start.m && day >= z.start.d && day <= z.end.d;
     } else {

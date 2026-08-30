@@ -21,7 +21,7 @@ import { stingerStore, DEFAULT_STINGER, LIBRARY_CAP } from "./store";
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, querySchema);
-  if (queryResult instanceof NextResponse) return queryResult;
+  if (queryResult instanceof NextResponse) {return queryResult;}
 
   const { creator_id } = queryResult.data;
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   if (action === "select") {
     const bodyResult = await validateBody(req, selectSchema);
-    if (bodyResult instanceof NextResponse) return bodyResult;
+    if (bodyResult instanceof NextResponse) {return bodyResult;}
 
     const { creator_id, stinger_id } = bodyResult.data;
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   if (action === "add") {
     const bodyResult = await validateBody(req, addSchema);
-    if (bodyResult instanceof NextResponse) return bodyResult;
+    if (bodyResult instanceof NextResponse) {return bodyResult;}
 
     const { creator_id, name, url: stingerUrl } = bodyResult.data;
 

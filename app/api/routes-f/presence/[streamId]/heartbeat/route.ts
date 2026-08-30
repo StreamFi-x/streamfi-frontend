@@ -4,9 +4,9 @@ import { NextRequest, NextResponse } from "next/server";
 // For a full-stack implementation these would be Redis sorted set operations.
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __streamfi_presence: Map<string, Map<string, { lastSeen: number }>>;
-  // eslint-disable-next-line no-var
+   
   var __streamfi_peak: Map<string, number>;
 }
 

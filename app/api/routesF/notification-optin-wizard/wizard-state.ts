@@ -15,7 +15,7 @@ const wizardStates = new Map<string, WizardState>();
 
 export function getWizardState(viewerId: string): WizardState {
   const existing = wizardStates.get(viewerId);
-  if (existing) return existing;
+  if (existing) {return existing;}
   return initialState();
 }
 

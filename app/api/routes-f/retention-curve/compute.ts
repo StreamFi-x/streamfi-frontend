@@ -1,7 +1,7 @@
 import type { ViewerSample, RetentionPoint } from "./types";
 
 export function normalizeRetention(samples: ViewerSample[]): RetentionPoint[] {
-  if (samples.length === 0) return [];
+  if (samples.length === 0) {return [];}
 
   const peak = Math.max(...samples.map((s) => s.viewer_count));
 

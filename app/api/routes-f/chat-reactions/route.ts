@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateBody } from "../../_lib/validate";
+import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { z } from "zod";
 import {
   toggleReaction,

@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
   for (const friend of friendList) {
     const watching = FRIEND_STREAM_ASSIGNMENTS[friend] ?? []
     for (const streamId of watching) {
-      if (!streamMap.has(streamId)) streamMap.set(streamId, new Set())
+      if (!streamMap.has(streamId)) {streamMap.set(streamId, new Set())}
       streamMap.get(streamId)!.add(friend)
     }
   }

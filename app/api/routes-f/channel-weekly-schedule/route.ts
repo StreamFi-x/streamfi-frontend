@@ -82,7 +82,7 @@ function toResponse(entry: ChannelSchedule): ScheduleResponse {
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, getQuerySchema);
-  if (queryResult instanceof NextResponse) return queryResult;
+  if (queryResult instanceof NextResponse) {return queryResult;}
 
   const { creator_id } = queryResult.data;
   const entry = scheduleStore.get(creator_id);

@@ -25,7 +25,7 @@ import { commandStore } from "./store";
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, querySchema);
-  if (queryResult instanceof NextResponse) return queryResult;
+  if (queryResult instanceof NextResponse) {return queryResult;}
 
   const { creator_id } = queryResult.data;
 
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const bodyResult = await validateBody(req, addCommandSchema);
-  if (bodyResult instanceof NextResponse) return bodyResult;
+  if (bodyResult instanceof NextResponse) {return bodyResult;}
 
   const { creator_id, trigger, response_template, cooldown_seconds, enabled } =
     bodyResult.data;

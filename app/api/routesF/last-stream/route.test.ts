@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { getSeedStreams, isResumable, GET } from './route';
 
 describe('Last Stream State', () => {

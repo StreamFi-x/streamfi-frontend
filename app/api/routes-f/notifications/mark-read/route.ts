@@ -21,7 +21,7 @@ import { markById, markAll } from "./helpers";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const bodyResult = await validateBody(req, markReadSchema);
-  if (bodyResult instanceof NextResponse) return bodyResult;
+  if (bodyResult instanceof NextResponse) {return bodyResult;}
 
   const { viewer_id, ids, all } = bodyResult.data;
 

@@ -40,7 +40,7 @@ const schema = z.object({
 
 export async function POST(request: Request): Promise<NextResponse> {
   const result = await validateBody(request, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   const { from, to } = result.data;
   return NextResponse.json(computePercentageChange(from, to));
 }

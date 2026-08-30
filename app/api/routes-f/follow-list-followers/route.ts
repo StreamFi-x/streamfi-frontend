@@ -6,7 +6,7 @@ const MAX_LIMIT = 100;
 
 function pageParam(value: string | null, fallback: number): number {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return fallback;
+  if (!Number.isFinite(parsed)) {return fallback;}
   return Math.max(1, Math.floor(parsed));
 }
 
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     : await sql`SELECT id FROM users WHERE LOWER(username) = LOWER(${username})`;
   const channel = channelResult.rows[0];
 
-  if (!channel) return NextResponse.json({ error: "Channel not found" }, { status: 404 });
+  if (!channel) {return NextResponse.json({ error: "Channel not found" }, { status: 404 });}
 
   const [{ rows: countRows }, { rows: followerRows }] = await Promise.all([
     sql`SELECT COUNT(*)::int AS total FROM user_follows WHERE followee_id = ${channel.id}`,

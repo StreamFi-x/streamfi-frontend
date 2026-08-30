@@ -41,7 +41,7 @@ function isHttpsUrl(value: string): boolean {
 
 export async function PATCH(req: NextRequest): Promise<NextResponse> {
   const body = await readBody(req);
-  if (!body) return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  if (!body) {return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });}
 
   const username = readString(body.username);
   const upload = parseUpload(body.upload ?? body.avatar);
@@ -49,7 +49,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   const contentType = readString(upload?.contentType);
   const size = typeof upload?.size === "number" ? upload.size : null;
 
-  if (!username) return NextResponse.json({ error: "username is required" }, { status: 400 });
+  if (!username) {return NextResponse.json({ error: "username is required" }, { status: 400 });}
   if (!avatarUrl || !isHttpsUrl(avatarUrl)) {
     return NextResponse.json({ error: "upload.url must be a valid https URL" }, { status: 400 });
   }
@@ -67,6 +67,6 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     RETURNING id, username, avatar, updated_at
   `;
 
-  if (rows.length === 0) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (rows.length === 0) {return NextResponse.json({ error: "User not found" }, { status: 404 });}
   return NextResponse.json({ user: rows[0] });
 }

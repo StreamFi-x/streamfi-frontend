@@ -28,7 +28,7 @@ export function listActiveTimeouts(stream_id: string): TimeoutListItem[] {
   const results: TimeoutListItem[] = [];
 
   for (const [k, entry] of timeoutStore) {
-    if (entry.stream_id !== stream_id) continue;
+    if (entry.stream_id !== stream_id) {continue;}
 
     const expiresMs = new Date(entry.expires_at).getTime();
     const remaining = Math.ceil((expiresMs - now) / 1000);

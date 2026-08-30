@@ -45,13 +45,13 @@ describe("validateAutoBanPattern", () => {
   it("rejects a pattern over the max length", () => {
     const result = validateAutoBanPattern("a".repeat(201), "");
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain("200");
+    if (!result.ok) {expect(result.error).toContain("200");}
   });
 
   it("rejects invalid regex syntax", () => {
     const result = validateAutoBanPattern("(unclosed", "");
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toMatch(/valid regular expression/);
+    if (!result.ok) {expect(result.error).toMatch(/valid regular expression/);}
   });
 
   it("rejects disallowed flags", () => {
@@ -72,7 +72,7 @@ describe("validateAutoBanPattern", () => {
   it("rejects nested-quantifier ReDoS shapes like (a+)+", () => {
     const result = validateAutoBanPattern("(a+)+$", "");
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toMatch(/catastrophic backtracking/);
+    if (!result.ok) {expect(result.error).toMatch(/catastrophic backtracking/);}
   });
 
   it("rejects nested-quantifier ReDoS shapes like (a*)*", () => {

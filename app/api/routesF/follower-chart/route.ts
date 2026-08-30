@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
   // Aggregate events
   for (const event of seedEvents) {
-    if (event.creator_id !== creator_id) continue;
+    if (event.creator_id !== creator_id) {continue;}
     
     const d = new Date(event.timestamp);
     const dateStr = d.toISOString().split('T')[0];

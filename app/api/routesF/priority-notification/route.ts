@@ -35,7 +35,7 @@ const SEED_SUBSCRIBER_COUNT: Record<string, number> = {
 };
 
 function getSubscriberCount(creatorId: string): number {
-  if (SEED_SUBSCRIBER_COUNT[creatorId]) return SEED_SUBSCRIBER_COUNT[creatorId];
+  if (SEED_SUBSCRIBER_COUNT[creatorId]) {return SEED_SUBSCRIBER_COUNT[creatorId];}
   const hash = creatorId.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
   return 100 + (hash % 4900);
 }

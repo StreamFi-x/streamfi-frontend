@@ -52,7 +52,7 @@ const KNOWN_CREATORS = new Set(SEED_REPORTS.map((r) => r.creator_id));
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, querySchema);
-  if (queryResult instanceof NextResponse) return queryResult;
+  if (queryResult instanceof NextResponse) {return queryResult;}
 
   const { creator_id, status, limit } = queryResult.data;
 

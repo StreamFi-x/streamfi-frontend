@@ -56,7 +56,7 @@ export function validateAutoBanPattern(
   }
 
   try {
-    // eslint-disable-next-line no-new -- validity check only, never executed
+     
     new RegExp(pattern, flagsValue);
   } catch {
     return { ok: false, error: "pattern is not a valid regular expression" };

@@ -6,22 +6,22 @@ function computeNPV(cashFlows: number[], rate: number): number {
 
 function computeIRR(cashFlows: number[]): number | null {
   // Validate: first cash flow should be negative (initial investment)
-  if (cashFlows[0] >= 0) return null;
+  if (cashFlows[0] >= 0) {return null;}
   // At least one positive cash flow required
-  if (!cashFlows.slice(1).some((cf) => cf > 0)) return null;
+  if (!cashFlows.slice(1).some((cf) => cf > 0)) {return null;}
 
   // Bisection method
   let low = -0.999;
   let high = 10.0; // 1000% upper bound
 
-  if (computeNPV(cashFlows, low) * computeNPV(cashFlows, high) > 0) return null;
+  if (computeNPV(cashFlows, low) * computeNPV(cashFlows, high) > 0) {return null;}
 
   for (let i = 0; i < 1000; i++) {
     const mid = (low + high) / 2;
     const npv = computeNPV(cashFlows, mid);
-    if (Math.abs(npv) < 1e-7) return mid;
-    if (computeNPV(cashFlows, low) * npv < 0) high = mid;
-    else low = mid;
+    if (Math.abs(npv) < 1e-7) {return mid;}
+    if (computeNPV(cashFlows, low) * npv < 0) {high = mid;}
+    else {low = mid;}
   }
 
   return (low + high) / 2;

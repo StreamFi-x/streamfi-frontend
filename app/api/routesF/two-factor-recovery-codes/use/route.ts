@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextRequest, NextResponse } from 'next/server';
-import { useCode } from '../store';
+import { useCode as consumeRecoveryCode } from '../store';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'code is required' }, { status: 400 });
     }
 
-    const result = useCode(user_id, code);
+    const result = consumeRecoveryCode(user_id, code);
 
     return NextResponse.json(result);
   } catch (e) {

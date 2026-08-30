@@ -24,13 +24,13 @@ export const BALANCE_CACHE: Record<string, CachedBalance> = {};
 
 export function computeBalance(wallet: string): WalletBalance | null {
   const seed = SEED_BALANCES[wallet];
-  if (!seed) return null;
+  if (!seed) {return null;}
   return { ...seed };
 }
 
 export function cacheBalance(wallet: string): CachedBalance | null {
   const balance = computeBalance(wallet);
-  if (!balance) return null;
+  if (!balance) {return null;}
   const entry: CachedBalance = { ...balance, cached_at: new Date(Date.now()).toISOString() };
   BALANCE_CACHE[wallet] = entry;
   return entry;
@@ -38,9 +38,9 @@ export function cacheBalance(wallet: string): CachedBalance | null {
 
 export function getCached(wallet: string): CachedBalance | null {
   const entry = BALANCE_CACHE[wallet];
-  if (!entry) return null;
+  if (!entry) {return null;}
   const ageSeconds = (Date.now() - new Date(entry.cached_at).getTime()) / 1000;
-  if (ageSeconds >= TTL_SECONDS) return null;
+  if (ageSeconds >= TTL_SECONDS) {return null;}
   return entry;
 }
 

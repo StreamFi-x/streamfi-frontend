@@ -5,7 +5,7 @@ import { commandStore, interpolate } from "../store";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const bodyResult = await validateBody(req, executeCommandSchema);
-  if (bodyResult instanceof NextResponse) return bodyResult;
+  if (bodyResult instanceof NextResponse) {return bodyResult;}
 
   const { creator_id, trigger, context } = bodyResult.data;
 

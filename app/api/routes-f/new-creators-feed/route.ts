@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { validateQuery } from "../_lib/validate";
+import { validateQuery } from "@/app/api/routes-f/_lib/validate";
 import { getSeedCreators, filterNewCreators } from "./helpers";
 import type { NewCreatorsFeedResponse } from "./types";
 
@@ -24,7 +24,7 @@ const querySchema = z.object({
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const result = validateQuery(searchParams, querySchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { within_days, min_streams } = result.data;
   const allCreators = getSeedCreators();

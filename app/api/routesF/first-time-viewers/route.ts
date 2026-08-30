@@ -37,7 +37,7 @@ const SEED_VIEWER_HISTORY: Record<string, ViewerVisit[]> = {
 
 function seedHistoryFor(streamId: string): ViewerVisit[] {
   const bundled = SEED_VIEWER_HISTORY[streamId];
-  if (bundled) return bundled;
+  if (bundled) {return bundled;}
 
   const hash = streamId.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
   const count = 3 + (hash % 6);

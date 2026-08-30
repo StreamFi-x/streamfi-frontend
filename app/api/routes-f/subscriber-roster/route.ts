@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { validateQuery } from "../_lib/validate";
+import { validateQuery } from "@/app/api/routes-f/_lib/validate";
 import { z } from "zod";
 
 export const runtime = "nodejs";

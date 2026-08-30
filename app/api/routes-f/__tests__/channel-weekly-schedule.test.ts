@@ -18,7 +18,7 @@ import { scheduleStore, resetStore } from "../channel-weekly-schedule/store";
 
 function makeGet(params: Record<string, string> = {}): NextRequest {
   const url = new URL("http://localhost/api/routes-f/channel-weekly-schedule");
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  for (const [k, v] of Object.entries(params)) {url.searchParams.set(k, v);}
   return new NextRequest(url);
 }
 

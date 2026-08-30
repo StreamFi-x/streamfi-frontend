@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { GET, SEED_STREAMS } from "./route";
 import { NextRequest } from "next/server";
 

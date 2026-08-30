@@ -14,7 +14,7 @@ import { isAdmin } from "@/lib/admin-auth";
 
 async function guardAdmin(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return { ok: false as const, response: session.response };
+  if (!session.ok) {return { ok: false as const, response: session.response };}
   if (!isAdmin(session.userId)) {
     return {
       ok: false as const,
@@ -26,7 +26,7 @@ async function guardAdmin(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const guard = await guardAdmin(req);
-  if (!guard.ok) return guard.response;
+  if (!guard.ok) {return guard.response;}
 
   const { rows } = await sql`SELECT * FROM feature_flags ORDER BY key`;
   return NextResponse.json({ flags: rows });
@@ -34,10 +34,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const guard = await guardAdmin(req);
-  if (!guard.ok) return guard.response;
+  if (!guard.ok) {return guard.response;}
 
   const { key, description, enabled = false, rollout_percentage = 0, allowed_user_ids = [] } = await req.json();
-  if (!key) return NextResponse.json({ error: "key is required" }, { status: 400 });
+  if (!key) {return NextResponse.json({ error: "key is required" }, { status: 400 });}
 
   const { rows } = await sql`
     INSERT INTO feature_flags (key, description, enabled, rollout_percentage, allowed_user_ids)
@@ -45,16 +45,16 @@ export async function POST(req: NextRequest) {
     ON CONFLICT (key) DO NOTHING
     RETURNING *
   `;
-  if (!rows.length) return NextResponse.json({ error: "Flag already exists" }, { status: 409 });
+  if (!rows.length) {return NextResponse.json({ error: "Flag already exists" }, { status: 409 });}
   return NextResponse.json({ flag: rows[0] }, { status: 201 });
 }
 
 export async function PATCH(req: NextRequest) {
   const guard = await guardAdmin(req);
-  if (!guard.ok) return guard.response;
+  if (!guard.ok) {return guard.response;}
 
   const { key, enabled, rollout_percentage, allowed_user_ids, description } = await req.json();
-  if (!key) return NextResponse.json({ error: "key is required" }, { status: 400 });
+  if (!key) {return NextResponse.json({ error: "key is required" }, { status: 400 });}
 
   const { rows } = await sql`
     UPDATE feature_flags SET
@@ -66,16 +66,16 @@ export async function PATCH(req: NextRequest) {
     WHERE key = ${key}
     RETURNING *
   `;
-  if (!rows.length) return NextResponse.json({ error: "Flag not found" }, { status: 404 });
+  if (!rows.length) {return NextResponse.json({ error: "Flag not found" }, { status: 404 });}
   return NextResponse.json({ flag: rows[0] });
 }
 
 export async function DELETE(req: NextRequest) {
   const guard = await guardAdmin(req);
-  if (!guard.ok) return guard.response;
+  if (!guard.ok) {return guard.response;}
 
   const key = new URL(req.url).searchParams.get("key");
-  if (!key) return NextResponse.json({ error: "key is required" }, { status: 400 });
+  if (!key) {return NextResponse.json({ error: "key is required" }, { status: 400 });}
 
   await sql`DELETE FROM feature_flags WHERE key = ${key}`;
   return NextResponse.json({ ok: true });
