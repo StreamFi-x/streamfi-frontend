@@ -7,6 +7,7 @@ import {
   Memo,
   Transaction,
   Horizon,
+  StrKey,
 } from "@stellar/stellar-sdk";
 
 const Server = Horizon.Server;
@@ -16,6 +17,7 @@ interface BuildTipTransactionParams {
   destinationPublicKey: string; // Creator's Stellar wallet
   amount: string; // XLM amount (e.g., "10.0000000")
   network: "testnet" | "mainnet";
+  memo?: string;
 }
 
 interface SubmitTransactionResult {
@@ -50,19 +52,46 @@ function getNetworkPassphrase(network: "testnet" | "mainnet"): string {
  * @param params - Transaction parameters including source, destination, amount, and network
  * @returns Unsigned Stellar transaction ready to be signed
  */
+export function getUsdcAssetIssuer(network: "testnet" | "mainnet"): string {
+  const fallbackIssuer =
+    network === "testnet"
+      ? "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
+      : "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
+
+  const configuredIssuer =
+    network === "testnet"
+      ? process.env.STELLAR_TESTNET_USDC_ISSUER
+      : process.env.STELLAR_MAINNET_USDC_ISSUER;
+
+  const issuer = configuredIssuer || fallbackIssuer;
+
+  if (!StrKey.isValidEd25519PublicKey(issuer)) {
+    throw new Error(`USDC issuer is invalid: ${issuer}`);
+  }
+
+  return issuer;
+}
+
+export function getUsdcAsset(network: "testnet" | "mainnet"): Asset {
+  return new Asset("USDC", getUsdcAssetIssuer(network));
+}
+
 export async function buildTipTransaction(
   params: BuildTipTransactionParams
 ): Promise<Transaction> {
-  const { sourcePublicKey, destinationPublicKey, amount, network } = params;
+  const { sourcePublicKey, destinationPublicKey, amount, network, memo } = params;
 
   try {
     const server = getServer(network);
     const networkPassphrase = getNetworkPassphrase(network);
 
-    // Load the source account from the network
+    const normalizedAmount = Number(amount);
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+      throw new Error("Amount must be greater than 0");
+    }
+
     const sourceAccount = await server.loadAccount(sourcePublicKey);
 
-    // Build the transaction
     const transaction = new TransactionBuilder(sourceAccount, {
       fee: BASE_FEE,
       networkPassphrase,
@@ -70,18 +99,17 @@ export async function buildTipTransaction(
       .addOperation(
         Operation.payment({
           destination: destinationPublicKey,
-          asset: Asset.native(), // XLM
+          asset: Asset.native(),
           amount: amount,
         })
       )
-      .addMemo(Memo.text("StreamFi Tip"))
-      .setTimeout(30) // 30 seconds timeout
+      .addMemo(Memo.text((memo ?? "StreamFi Tip").slice(0, 28)))
+      .setTimeout(30)
       .build();
 
     return transaction;
   } catch (error) {
     if (error instanceof Error) {
-      // Handle specific Stellar errors
       if (error.message.includes("Account not found")) {
         throw new Error(
           `Source account not found: ${sourcePublicKey}. Please ensure the account is funded.`
@@ -90,6 +118,58 @@ export async function buildTipTransaction(
       throw new Error(`Failed to build transaction: ${error.message}`);
     }
     throw new Error("Failed to build transaction: Unknown error");
+  }
+}
+
+export async function buildUsdcTipTransaction(
+  params: BuildTipTransactionParams
+): Promise<Transaction> {
+  const {
+    sourcePublicKey,
+    destinationPublicKey,
+    amount,
+    network,
+    memo,
+  } = params;
+
+  try {
+    const server = getServer(network);
+    const networkPassphrase = getNetworkPassphrase(network);
+
+    const normalizedAmount = Number(amount);
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+      throw new Error("Amount must be greater than 0");
+    }
+
+    const sourceAccount = await server.loadAccount(sourcePublicKey);
+    const asset = getUsdcAsset(network);
+
+    const transaction = new TransactionBuilder(sourceAccount, {
+      fee: BASE_FEE,
+      networkPassphrase,
+    })
+      .addOperation(
+        Operation.payment({
+          destination: destinationPublicKey,
+          asset,
+          amount: amount,
+        })
+      )
+      .addMemo(Memo.text((memo ?? "StreamFi USDC Tip").slice(0, 28)))
+      .setTimeout(30)
+      .build();
+
+    return transaction;
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes("Account not found")) {
+        throw new Error(
+          `Source account not found: ${sourcePublicKey}. Please ensure the account is funded.`
+        );
+      }
+      throw new Error(`Failed to build USDC transaction: ${error.message}`);
+    }
+    throw new Error("Failed to build USDC transaction: Unknown error");
   }
 }
 
