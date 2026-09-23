@@ -3,6 +3,7 @@ import { sql } from "@vercel/postgres";
 import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
 import UsernameLayoutClient from "./UsernameLayoutClient";
+import { serializeJsonLd } from "@/lib/serialize-json-ld";
 
 const BASE = "https://www.streamfi.media";
 
@@ -127,13 +128,13 @@ export default async function UsernameLayout({
       {personSchema && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(personSchema) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(personSchema) }}
         />
       )}
       {videoSchema && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(videoSchema) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(videoSchema) }}
         />
       )}
       <UsernameLayoutClient username={username}>
