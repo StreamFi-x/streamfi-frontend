@@ -32,13 +32,19 @@ export async function fetchPaymentsReceived(
     const network = getStellarNetwork();
     const server = new StellarSdk.Horizon.Server(getHorizonUrl(network));
 
-    const payments = await server
+    // Horizon's special "now" cursor is for streaming/tailing new records.
+    // Combined with order("desc") it returns no useful historical page, which
+    // caused refresh-total to overwrite real tip totals with zeros (#1614).
+    // Omit cursor on the first page; only page with an explicit paging token.
+    let paymentsCall = server
       .payments()
       .forAccount(params.publicKey)
       .limit(params.limit || 200)
-      .cursor(params.cursor || "now")
-      .order("desc")
-      .call();
+      .order("desc");
+    if (params.cursor) {
+      paymentsCall = paymentsCall.cursor(params.cursor);
+    }
+    const payments = await paymentsCall.call();
 
     // Filter only incoming payments with XLM
     const tips: TipRecord[] = payments.records
