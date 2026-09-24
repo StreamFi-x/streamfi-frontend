@@ -34,6 +34,8 @@ export interface Subscription {
   started_at: string;
   expires_at: string;
   status?: "active" | "cancelled";
+  expiry_alert_sent_at?: string; // Track when expiry notification was sent
+  renewal_count: number; // Track renewal attempts
 }
 
 // Exported so tests can reset between runs.
@@ -82,12 +84,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const subscriptionId = searchParams.get("subscription_id");
   if (!subscriptionId) {
-    return NextResponse.json({ error: "subscription_id is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "subscription_id is required" },
+      { status: 400 }
+    );
   }
 
   const sub = subscriptions.get(subscriptionId);
   if (!sub) {
-    return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Subscription not found" },
+      { status: 404 }
+    );
   }
 
   return NextResponse.json(sub);
@@ -147,6 +155,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     started_at,
     expires_at,
     status: "active",
+    renewal_count: 0,
   };
 
   subscriptions.set(subscription.subscription_id, subscription);
