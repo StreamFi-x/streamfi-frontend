@@ -37,6 +37,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createHmac, timingSafeEqual } from "crypto";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { hasOpenSession } from "@/lib/stream/session-consistency";
 
 // Rate limiter: max 120 requests per minute (Mux can send bursts)
 const isRateLimited = createRateLimiter(60 * 1000, 120);
@@ -153,11 +154,11 @@ export async function POST(req: NextRequest) {
           if (userResult.rows.length > 0) {
             const user = userResult.rows[0];
 
-            const existingSession = await sql`
-              SELECT id FROM stream_sessions WHERE user_id = ${user.id} AND ended_at IS NULL LIMIT 1
-            `;
-
-            if (existingSession.rows.length === 0) {
+            if (await hasOpenSession(user.id)) {
+              console.log(
+                "⏭️ Active session already exists, skipping creation"
+              );
+            } else {
               const streamTitle =
                 user.creator?.title ||
                 user.creator?.streamTitle ||
@@ -168,10 +169,6 @@ export async function POST(req: NextRequest) {
                 VALUES (${user.id}, ${streamTitle}, ${user.mux_playback_id}, CURRENT_TIMESTAMP, ${streamId})
               `;
               console.log("✅ New stream session created");
-            } else {
-              console.log(
-                "⏭️ Active session already exists, skipping creation"
-              );
             }
           }
         } catch (sessionError) {

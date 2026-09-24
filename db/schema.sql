@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS stream_sessions (
 
     started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP WITH TIME ZONE,
+    ended_at_estimated BOOLEAN NOT NULL DEFAULT FALSE,
     duration_seconds INTEGER GENERATED ALWAYS AS (
         CASE 
             WHEN ended_at IS NOT NULL THEN EXTRACT(EPOCH FROM (ended_at - started_at))::INTEGER
