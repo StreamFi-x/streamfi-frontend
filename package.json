@@ -23,7 +23,8 @@
     "commit": "git-cz",
     "analyze": "ANALYZE=true npm run build",
     "clean": "rm -rf .next out coverage",
-    "prebuild": "npm run type-check"
+    "prebuild": "npm run type-check",
+    "backfill": "tsx scripts/backfill-analytics.ts"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^1.9.5",
@@ -73,6 +74,7 @@
     "react-dom": "^18",
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.60.0",
+    "recharts": "^2.10.3",
     "sharp": "^0.33.5",
     "sonner": "^2.0.2",
     "stellar-wallet-kit": "^2.0.7",
@@ -131,6 +133,7 @@
     "prettier": "^3.6.2",
     "tailwindcss": "^3.4.1",
     "ts-node": "^10.9.2",
+    "tsx": "^4.7.0",
     "typescript": "^5",
     "vitest": "^4.1.7",
     "whatwg-fetch": "^3.6.20"
