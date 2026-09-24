@@ -9,6 +9,8 @@ import {
   Horizon,
   StrKey,
 } from "@stellar/stellar-sdk";
+import { logger } from "@/lib/tracing/logger";
+import { getTraceHeaders } from "@/lib/tracing/trace-context";
 
 const Server = Horizon.Server;
 
@@ -79,9 +81,17 @@ export function getUsdcAsset(network: "testnet" | "mainnet"): Asset {
 export async function buildTipTransaction(
   params: BuildTipTransactionParams
 ): Promise<Transaction> {
-  const { sourcePublicKey, destinationPublicKey, amount, network, memo } = params;
+  const { sourcePublicKey, destinationPublicKey, amount, network, memo } =
+    params;
+  const startTime = Date.now();
 
   try {
+    logger.info("Building Stellar tip transaction", {
+      operation: "buildTipTransaction",
+      network,
+      amount,
+    });
+
     const server = getServer(network);
     const networkPassphrase = getNetworkPassphrase(network);
 
@@ -107,8 +117,21 @@ export async function buildTipTransaction(
       .setTimeout(30)
       .build();
 
+    const durationMs = Date.now() - startTime;
+    logger.info("Stellar tip transaction built", {
+      operation: "buildTipTransaction",
+      durationMs,
+    });
+
     return transaction;
   } catch (error) {
+    const durationMs = Date.now() - startTime;
+    logger.error("Stellar tip transaction build failed", {
+      operation: "buildTipTransaction",
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+
     if (error instanceof Error) {
       if (error.message.includes("Account not found")) {
         throw new Error(
@@ -124,15 +147,17 @@ export async function buildTipTransaction(
 export async function buildUsdcTipTransaction(
   params: BuildTipTransactionParams
 ): Promise<Transaction> {
-  const {
-    sourcePublicKey,
-    destinationPublicKey,
-    amount,
-    network,
-    memo,
-  } = params;
+  const { sourcePublicKey, destinationPublicKey, amount, network, memo } =
+    params;
+  const startTime = Date.now();
 
   try {
+    logger.info("Building Stellar USDC tip transaction", {
+      operation: "buildUsdcTipTransaction",
+      network,
+      amount,
+    });
+
     const server = getServer(network);
     const networkPassphrase = getNetworkPassphrase(network);
 
@@ -159,8 +184,21 @@ export async function buildUsdcTipTransaction(
       .setTimeout(30)
       .build();
 
+    const durationMs = Date.now() - startTime;
+    logger.info("Stellar USDC tip transaction built", {
+      operation: "buildUsdcTipTransaction",
+      durationMs,
+    });
+
     return transaction;
   } catch (error) {
+    const durationMs = Date.now() - startTime;
+    logger.error("Stellar USDC tip transaction build failed", {
+      operation: "buildUsdcTipTransaction",
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+
     if (error instanceof Error) {
       if (error.message.includes("Account not found")) {
         throw new Error(
@@ -183,11 +221,25 @@ export async function submitTransaction(
   transaction: Transaction,
   network: "testnet" | "mainnet"
 ): Promise<SubmitTransactionResult> {
-  try {
-    const server = getServer(network);
+  const startTime = Date.now();
 
-    // Submit the transaction to the network
+  try {
+    logger.info("Submitting transaction to Stellar", {
+      operation: "submitTransaction",
+      network,
+      txHash: transaction.hash().toString("hex").substring(0, 16),
+    });
+
+    const server = getServer(network);
     const response = await server.submitTransaction(transaction);
+
+    const durationMs = Date.now() - startTime;
+    logger.info("Transaction submitted successfully", {
+      operation: "submitTransaction",
+      durationMs,
+      hash: response.hash,
+      ledger: response.ledger,
+    });
 
     return {
       success: true,
@@ -195,6 +247,13 @@ export async function submitTransaction(
       ledger: response.ledger,
     };
   } catch (error) {
+    const durationMs = Date.now() - startTime;
+    logger.error("Transaction submission failed", {
+      operation: "submitTransaction",
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+
     // Handle Horizon-specific errors
     if (error && typeof error === "object" && "response" in error) {
       const horizonError = error as any;
@@ -282,14 +341,33 @@ export function calculateFeeEstimate(): number {
  * Get the current XLM price in USD
  */
 export async function getXLMPrice(): Promise<number> {
+  const startTime = Date.now();
+
   try {
+    logger.debug("Fetching XLM price", {
+      operation: "getXLMPrice",
+    });
+
     const response = await fetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=stellar&vs_currencies=usd"
     );
     const data = await response.json();
+
+    const durationMs = Date.now() - startTime;
+    logger.debug("XLM price fetched", {
+      operation: "getXLMPrice",
+      price: data.stellar.usd,
+      durationMs,
+    });
+
     return data.stellar.usd;
   } catch (error) {
-    console.error("Failed to fetch XLM price:", error);
+    const durationMs = Date.now() - startTime;
+    logger.error("Failed to fetch XLM price", {
+      operation: "getXLMPrice",
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return 0.12; // Fallback price
   }
 }

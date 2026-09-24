@@ -1,5 +1,7 @@
 import * as StellarSdk from "@stellar/stellar-sdk";
 import { getStellarNetwork, getHorizonUrl } from "./config";
+import { logger } from "@/lib/tracing/logger";
+import { getTraceHeaders } from "@/lib/tracing/trace-context";
 
 interface FetchPaymentsParams {
   publicKey: string;
@@ -28,7 +30,15 @@ interface FetchPaymentsResult {
 export async function fetchPaymentsReceived(
   params: FetchPaymentsParams
 ): Promise<FetchPaymentsResult> {
+  const startTime = Date.now();
+
   try {
+    logger.info("Fetching payments from Stellar", {
+      operation: "fetchPaymentsReceived",
+      publicKey: params.publicKey.substring(0, 8),
+      limit: params.limit || 200,
+    });
+
     const network = getStellarNetwork();
     const server = new StellarSdk.Horizon.Server(getHorizonUrl(network));
 
@@ -60,6 +70,13 @@ export async function fetchPaymentsReceived(
         ledger: payment.ledger,
       }));
 
+    const durationMs = Date.now() - startTime;
+    logger.info("Payments fetched from Stellar", {
+      operation: "fetchPaymentsReceived",
+      count: tips.length,
+      durationMs,
+    });
+
     return {
       tips,
       nextCursor:
@@ -68,7 +85,12 @@ export async function fetchPaymentsReceived(
           : undefined,
     };
   } catch (error) {
-    console.error("Error fetching payments received:", error);
+    const durationMs = Date.now() - startTime;
+    logger.error("Failed to fetch payments from Stellar", {
+      operation: "fetchPaymentsReceived",
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     throw error;
   }
 }
@@ -78,13 +100,17 @@ export async function fetchPaymentsReceived(
  * This looks for incoming payments (native XLM) and sums them up.
  */
 export async function getAccountTipStats(publicKey: string) {
+  const startTime = Date.now();
+
   try {
+    logger.info("Fetching account tip stats from Stellar", {
+      operation: "getAccountTipStats",
+      publicKey: publicKey.substring(0, 8),
+    });
+
     const network = getStellarNetwork();
     const server = new StellarSdk.Horizon.Server(getHorizonUrl(network));
 
-    // We fetch the most recent 200 payments to calculate the total tips.
-    // In a production app, you'd use paging tokens to traverse the entire history
-    // or a dedicated indexing service like StellarExpert or your own event listener.
     const payments = await server
       .payments()
       .forAccount(publicKey)
@@ -117,13 +143,26 @@ export async function getAccountTipStats(publicKey: string) {
       }
     });
 
+    const durationMs = Date.now() - startTime;
+    logger.info("Account tip stats fetched from Stellar", {
+      operation: "getAccountTipStats",
+      totalTipsCount,
+      totalTipsReceived,
+      durationMs,
+    });
+
     return {
       totalTipsReceived: totalTipsReceived.toFixed(7),
       totalTipsCount,
       lastTipAt: lastTipAt ? (lastTipAt as Date).toISOString() : null,
     };
   } catch (error) {
-    console.error("Error fetching Stellar account stats:", error);
+    const durationMs = Date.now() - startTime;
+    logger.error("Failed to fetch Stellar account stats", {
+      operation: "getAccountTipStats",
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     throw error;
   }
 }
