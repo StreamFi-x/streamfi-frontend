@@ -38,6 +38,17 @@ export async function POST(request: Request) {
       );
     }
 
+    // Snapshot existing tip totals so an empty Horizon page cannot wipe them (#1614).
+    const priorTotals = await sql`
+      SELECT total_tips_received, total_tips_count, last_tip_at
+      FROM users
+      WHERE id = ${user.id}
+    `;
+    const priorRow = priorTotals.rows[0] ?? {};
+    const priorCount = Number(priorRow.total_tips_count ?? 0);
+    const priorReceived = String(priorRow.total_tips_received ?? "0");
+    const priorLastTipAt = priorRow.last_tip_at ?? null;
+
     // 2. Fetch all tips from Horizon API
     let allTips: any[] = [];
     let cursor: string | undefined = undefined;
@@ -101,7 +112,19 @@ export async function POST(request: Request) {
       `;
     }
 
-    // 4. Update database
+    // 4. Update database — never overwrite real totals with an empty Horizon result.
+    if (totalCount === 0 && priorCount > 0) {
+      return NextResponse.json({
+        username: user.username,
+        totalReceived: priorReceived,
+        totalCount: priorCount,
+        lastTipAt: priorLastTipAt,
+        refreshedAt: new Date().toISOString(),
+        warning:
+          "Horizon returned no tips; refusing to zero existing tip totals. Retry later or check wallet/network.",
+      });
+    }
+
     await sql`
       UPDATE users
       SET 
