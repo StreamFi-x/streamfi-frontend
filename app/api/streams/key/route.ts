@@ -35,7 +35,7 @@ export async function GET(req: Request) {
         mux_stream_provisioned_with_dvr,
         mux_stream_provisioned_with_signed_playback
       FROM users
-      WHERE wallet = ${wallet}
+      WHERE wallet = ${wallet} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {

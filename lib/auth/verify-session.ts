@@ -17,6 +17,11 @@
  *   have re-authenticated with the new signed cookie.
  *
  * Uses req.cookies (Next.js built-in) instead of manual header parsing.
+ *
+ * Accounts pending deletion (users.deleted_at set) are rejected with 403
+ * ACCOUNT_PENDING_DELETION unless the route opts in with
+ * { allowPendingDeletion: true } — only the endpoints a user needs during the
+ * grace window (cancel deletion, export custodial key) do.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -38,8 +43,20 @@ function getSessionSecret(): string | null {
   return process.env.SESSION_SECRET ?? null;
 }
 
+export interface VerifySessionOptions {
+  allowPendingDeletion?: boolean;
+}
+
+function pendingDeletionResponse(): NextResponse {
+  return NextResponse.json(
+    { error: "Account is pending deletion", code: "ACCOUNT_PENDING_DELETION" },
+    { status: 403 }
+  );
+}
+
 export async function verifySession(
-  req: NextRequest
+  req: NextRequest,
+  options: VerifySessionOptions = {}
 ): Promise<VerifiedSession> {
   const privySessionId = req.cookies.get("privy_session")?.value;
   const walletSessionToken = req.cookies.get("wallet_session")?.value;
@@ -59,7 +76,7 @@ export async function verifySession(
 
     try {
       const { rows } = await sql`
-        SELECT id, privy_id, wallet, username, email
+        SELECT id, privy_id, wallet, username, email, deleted_at
         FROM users
         WHERE privy_id = ${privySessionId}
         LIMIT 1
@@ -76,6 +93,9 @@ export async function verifySession(
       }
 
       const u = rows[0];
+      if (u.deleted_at && !options.allowPendingDeletion) {
+        return { ok: false, response: pendingDeletionResponse() };
+      }
       return {
         ok: true,
         userId: u.id,
@@ -129,7 +149,7 @@ export async function verifySession(
       // Cross-check both userId AND wallet against DB — forged tokens with
       // valid signatures but mismatched fields are rejected here.
       const { rows } = await sql`
-        SELECT id, wallet, username, email, privy_id
+        SELECT id, wallet, username, email, privy_id, deleted_at
         FROM users
         WHERE id = ${payload.userId} AND wallet = ${payload.wallet}
         LIMIT 1
@@ -146,6 +166,9 @@ export async function verifySession(
       }
 
       const u = rows[0];
+      if (u.deleted_at && !options.allowPendingDeletion) {
+        return { ok: false, response: pendingDeletionResponse() };
+      }
       return {
         ok: true,
         userId: u.id,
@@ -181,7 +204,7 @@ export async function verifySession(
 
     try {
       const { rows } = await sql`
-        SELECT id, wallet, username, email, privy_id
+        SELECT id, wallet, username, email, privy_id, deleted_at
         FROM users
         WHERE wallet = ${legacyWalletCookie}
         LIMIT 1
@@ -198,6 +221,9 @@ export async function verifySession(
       }
 
       const u = rows[0];
+      if (u.deleted_at && !options.allowPendingDeletion) {
+        return { ok: false, response: pendingDeletionResponse() };
+      }
       return {
         ok: true,
         userId: u.id,

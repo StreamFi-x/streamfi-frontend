@@ -23,8 +23,12 @@ export async function GET(
         u.total_tips_received, u.total_tips_count, u.last_tip_at,
         u.stream_privacy, u.share_token,
         u.created_at, u.updated_at,
-        (SELECT COUNT(*)::int FROM user_follows WHERE followee_id = u.id) AS follower_count,
-        (SELECT COUNT(*)::int FROM user_follows WHERE follower_id = u.id) AS following_count,
+        (SELECT COUNT(*)::int FROM user_follows f
+           JOIN users fu ON fu.id = f.follower_id AND fu.deleted_at IS NULL
+           WHERE f.followee_id = u.id) AS follower_count,
+        (SELECT COUNT(*)::int FROM user_follows f
+           JOIN users fu ON fu.id = f.followee_id AND fu.deleted_at IS NULL
+           WHERE f.follower_id = u.id) AS following_count,
         EXISTS(
           SELECT 1 FROM user_follows uf
           JOIN users viewer ON viewer.id = uf.follower_id
@@ -32,7 +36,7 @@ export async function GET(
             AND uf.followee_id = u.id
         ) AS is_following
       FROM users u
-      WHERE LOWER(u.username) = ${normalizedUsername}
+      WHERE LOWER(u.username) = ${normalizedUsername} AND u.deleted_at IS NULL
     `;
 
     const user = result.rows[0];
@@ -45,7 +49,8 @@ export async function GET(
     let viewerUserId: string | null = null;
     if (viewerUsername) {
       const viewer = await sql`
-        SELECT id FROM users WHERE LOWER(username) = LOWER(${viewerUsername})
+        SELECT id FROM users
+        WHERE LOWER(username) = LOWER(${viewerUsername}) AND deleted_at IS NULL
       `;
       viewerUserId = viewer.rows[0]?.id ?? null;
     }

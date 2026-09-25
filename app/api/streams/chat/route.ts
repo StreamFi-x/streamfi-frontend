@@ -62,6 +62,8 @@ export async function POST(req: NextRequest) {
       CROSS JOIN users streamer
       WHERE sender.wallet = ${wallet}
         AND streamer.mux_playback_id = ${playbackId}
+        AND sender.deleted_at IS NULL
+        AND streamer.deleted_at IS NULL
     `;
 
     if (result.rows.length === 0) {
@@ -151,7 +153,7 @@ export async function GET(req: Request) {
       SELECT ss.id as session_id
       FROM users u
       JOIN stream_sessions ss ON u.id = ss.user_id AND ss.ended_at IS NULL
-      WHERE u.mux_playback_id = ${playbackId}
+      WHERE u.mux_playback_id = ${playbackId} AND u.deleted_at IS NULL
       ORDER BY ss.started_at DESC
       LIMIT 1
     `;
@@ -174,7 +176,7 @@ export async function GET(req: Request) {
         u.wallet,
         u.avatar
       FROM chat_messages cm
-      JOIN users u ON cm.user_id = u.id
+      JOIN users u ON cm.user_id = u.id AND u.deleted_at IS NULL
       WHERE cm.stream_session_id = ${sessionId}
         AND cm.is_deleted = false
         AND (${beforeId}::int IS NULL OR cm.id < ${beforeId})
@@ -216,7 +218,7 @@ export async function DELETE(req: Request) {
     }
 
     const moderatorResult = await sql`
-      SELECT id FROM users WHERE wallet = ${moderatorWallet}
+      SELECT id FROM users WHERE wallet = ${moderatorWallet} AND deleted_at IS NULL
     `;
 
     if (moderatorResult.rows.length === 0) {

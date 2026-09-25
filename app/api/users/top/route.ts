@@ -21,9 +21,12 @@ export async function GET(req: NextRequest) {
              THEN u.is_live ELSE FALSE END AS is_live,
         CASE WHEN COALESCE(u.stream_privacy, 'public') = 'public'
              THEN u.current_viewers ELSE 0 END AS current_viewers,
-        (SELECT COUNT(*)::int FROM user_follows WHERE followee_id = u.id) AS follower_count
+        (SELECT COUNT(*)::int FROM user_follows f
+           JOIN users fu ON fu.id = f.follower_id AND fu.deleted_at IS NULL
+           WHERE f.followee_id = u.id) AS follower_count
       FROM users u
       WHERE u.username IS NOT NULL
+        AND u.deleted_at IS NULL
       ORDER BY follower_count DESC, u.current_viewers DESC
       LIMIT ${limit}
     `;

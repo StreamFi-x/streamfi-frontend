@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Verify session
-  const session = await verifySession(req);
+  const session = await verifySession(req, { allowPendingDeletion: true });
   if (!session.ok) {
     return session.response;
   }
@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
   let encryptedKey: string | null = null;
   try {
     const { rows } = await sql`
+      -- tombstone-aware: users can export their key during the deletion grace window
       SELECT encrypted_stellar_key
       FROM users
       WHERE id = ${session.userId}
