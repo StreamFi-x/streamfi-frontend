@@ -122,3 +122,30 @@ export async function sendWelcomeEmail(email: string, name: string) {
     return false;
   }
 }
+
+/**
+ * Operational alert to the on-call recipients (plain text). Throws on failure
+ * so callers can record the delivery as failed and retry.
+ */
+export async function sendOpsAlertEmail(
+  recipients: string[],
+  subject: string,
+  text: string
+) {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    throw new Error("EMAIL_USER/EMAIL_PASS not configured");
+  }
+  const transporter = nodemailer.createTransport({
+    service: "Gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+  await transporter.sendMail({
+    from: { name: "StreamFi Alerts", address: process.env.EMAIL_USER },
+    to: recipients,
+    subject,
+    text,
+  });
+}
