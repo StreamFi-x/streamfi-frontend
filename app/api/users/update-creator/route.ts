@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { JsonbContractError, prepareCreator } from "@/lib/db/jsonb-contracts";
 
 export async function PATCH(req: Request) {
   try {
@@ -21,19 +22,30 @@ export async function PATCH(req: Request) {
       thumbnail = "",
     } = creator;
 
-    const updatedCreator = {
-      streamTitle,
-      tags,
-      category,
-      payout,
-      thumbnail,
-    };
+    let updatedCreator: ReturnType<typeof prepareCreator>;
+    try {
+      updatedCreator = prepareCreator({
+        streamTitle,
+        tags,
+        category,
+        payout,
+        thumbnail,
+      });
+    } catch (error) {
+      if (error instanceof JsonbContractError) {
+        return NextResponse.json(
+          { error: "Invalid creator data", issues: error.issues },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
 
     const result = await sql`
       UPDATE users
       SET creator = ${JSON.stringify(updatedCreator)},
           updated_at = CURRENT_TIMESTAMP
-      WHERE email = ${email}
+      WHERE email = ${email} AND deleted_at IS NULL
     `;
 
     if (result.rowCount === 0) {

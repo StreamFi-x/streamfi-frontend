@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { uploadImageFromBuffer, deleteImage } from "@/utils/upload/cloudinary";
+import {
+  uploadImageFromBuffer,
+  deleteImage,
+  extractPublicIdFromUrl,
+} from "@/utils/upload/cloudinary";
+import { JsonbContractError } from "@/lib/db/jsonb-contracts";
+import { parseProfileJsonbFields } from "@/lib/users/profile-form";
 import { validateUserUpdate } from "../../../../../../utils/userValidators";
 import { UserUpdateInput } from "../../../../../../types/user";
 
@@ -16,7 +22,7 @@ export async function PUT(
       SELECT id, username, email, bio, streamkey, avatar, banner, sociallinks,
              emailverified, emailnotifications, creator, enable_recording,
              privy_id
-      FROM users WHERE privy_id = ${privyId}
+      FROM users WHERE privy_id = ${privyId} AND deleted_at IS NULL
     `;
     const user = existingResult.rows[0];
     if (!user) {
@@ -32,48 +38,17 @@ export async function PUT(
     const emailNotifications =
       formData.get("emailNotifications") ?? user.emailnotifications;
 
-    // Social links
-    let processedSocialLinks = user.sociallinks;
-    const socialLinks = formData.get("socialLinks");
-    if (
-      socialLinks &&
-      socialLinks !== "" &&
-      socialLinks !== "null" &&
-      socialLinks !== "undefined"
-    ) {
-      try {
-        const parsedLinks =
-          typeof socialLinks === "string"
-            ? JSON.parse(socialLinks)
-            : socialLinks;
-        processedSocialLinks = JSON.stringify(parsedLinks);
-      } catch (err) {
-        console.error("Invalid socialLinks JSON:", err);
+    let jsonbFields: ReturnType<typeof parseProfileJsonbFields>;
+    try {
+      jsonbFields = parseProfileJsonbFields(formData);
+    } catch (err) {
+      if (err instanceof JsonbContractError) {
         return NextResponse.json(
-          { error: "Invalid socialLinks format" },
+          { error: `Invalid ${err.column} format`, issues: err.issues },
           { status: 400 }
         );
       }
-    }
-
-    const creatorRaw = formData.get("creator");
-    let creator = user.creator;
-    if (
-      creatorRaw &&
-      creatorRaw !== "" &&
-      creatorRaw !== "null" &&
-      creatorRaw !== "undefined"
-    ) {
-      try {
-        creator =
-          typeof creatorRaw === "string" ? JSON.parse(creatorRaw) : creatorRaw;
-      } catch (err) {
-        console.error("Invalid creator JSON:", err);
-        return NextResponse.json(
-          { error: "Invalid creator format" },
-          { status: 400 }
-        );
-      }
+      throw err;
     }
 
     // Validate
@@ -84,11 +59,7 @@ export async function PUT(
       avatar: user.avatar,
       emailVerified: emailVerified as boolean | undefined,
       emailNotifications: emailNotifications as boolean | undefined,
-      socialLinks: processedSocialLinks
-        ? typeof processedSocialLinks === "string"
-          ? JSON.parse(processedSocialLinks)
-          : processedSocialLinks
-        : undefined,
+      socialLinks: jsonbFields.socialLinks,
     };
 
     const validation = validateUserUpdate(updateData);
@@ -101,6 +72,7 @@ export async function PUT(
     // evaluates to NULL in SQL, not TRUE, so they'd be silently excluded.
     if (username && username !== user.username) {
       const usernameExists = await sql`
+        -- tombstone-aware: identifiers stay reserved until the account is purged
         SELECT id FROM users
         WHERE username = ${username}
           AND (privy_id IS NULL OR privy_id != ${privyId})
@@ -164,12 +136,12 @@ export async function PUT(
         banner = ${bannerUrl},
         bio = ${bio},
         streamkey = ${streamkey},
-        sociallinks = ${processedSocialLinks},
+        sociallinks = COALESCE(${jsonbFields.socialLinks ? JSON.stringify(jsonbFields.socialLinks) : null}::jsonb, sociallinks),
         emailverified = ${emailVerified},
         emailnotifications = ${emailNotifications},
-        creator = ${creator ? JSON.stringify(creator) : user.creator},
+        creator = COALESCE(${jsonbFields.creator ? JSON.stringify(jsonbFields.creator) : null}::jsonb, creator),
         updated_at = CURRENT_TIMESTAMP
-      WHERE privy_id = ${privyId}
+      WHERE privy_id = ${privyId} AND deleted_at IS NULL
       RETURNING id, username, email, streamkey, avatar, banner, bio, sociallinks,
                 emailverified, emailnotifications, creator, privy_id,
                 created_at, updated_at
@@ -185,22 +157,5 @@ export async function PUT(
       { error: "Internal server error" },
       { status: 500 }
     );
-  }
-}
-
-function extractPublicIdFromUrl(url: string): string | null {
-  try {
-    const urlObj = new URL(url);
-    const parts = urlObj.pathname.split("/");
-    const uploadIndex = parts.indexOf("upload");
-    if (uploadIndex < 0 || uploadIndex + 2 >= parts.length) {
-      return null;
-    }
-    return parts
-      .slice(uploadIndex + 2)
-      .join("/")
-      .replace(/\.[^/.]+$/, "");
-  } catch {
-    return null;
   }
 }
