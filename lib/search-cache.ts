@@ -1,11 +1,12 @@
 /**
- * Server-side search result caching with TTL
+ * Server-side search result caching with TTL and tag-based invalidation
  * Designed for autocomplete/prefix queries to reduce redundant lookups
  */
 
 interface CacheEntry<T> {
   data: T;
   expiresAt: number;
+  tags?: Set<string>; // User IDs or other tags for selective invalidation
 }
 
 class SearchCache<T> {
@@ -34,9 +35,9 @@ class SearchCache<T> {
   }
 
   /**
-   * Set cache entry
+   * Set cache entry with optional tags for invalidation
    */
-  set(key: string, data: T): void {
+  set(key: string, data: T, tags?: Set<string>): void {
     // Evict oldest if at capacity
     if (this.cache.size >= this.maxSize) {
       let oldestKey: string | null = null;
@@ -57,7 +58,22 @@ class SearchCache<T> {
     this.cache.set(key, {
       data,
       expiresAt: Date.now() + this.ttlMs,
+      tags,
     });
+  }
+
+  /**
+   * Invalidate all entries with a specific tag (e.g., user ID)
+   */
+  invalidateByTag(tag: string): number {
+    let count = 0;
+    for (const [key, entry] of this.cache.entries()) {
+      if (entry.tags?.has(tag)) {
+        this.cache.delete(key);
+        count++;
+      }
+    }
+    return count;
   }
 
   /**
@@ -76,6 +92,13 @@ class SearchCache<T> {
       maxSize: this.maxSize,
     };
   }
+
+  /**
+   * Get underlying map for external invalidation systems
+   */
+  getStore(): Map<string, CacheEntry<T>> {
+    return this.cache;
+  }
 }
 
 // Global search cache instance
@@ -88,4 +111,12 @@ export const searchResultsCache = new SearchCache(1000, 10 * 60 * 1000); // 10 m
  */
 export function getCacheKey(query: string, prefix = ''): string {
   return `${prefix}:${query.trim().toLowerCase()}`;
+}
+
+/**
+ * Invalidate cache entries by tag (e.g., user ID)
+ * Used when a user's live status changes or profile is updated
+ */
+export function invalidateCacheByTag(cache: SearchCache<any>, tag: string): number {
+  return cache.invalidateByTag(tag);
 }
