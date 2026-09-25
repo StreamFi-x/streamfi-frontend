@@ -324,6 +324,40 @@ export async function getMuxStreamHealth(streamId: string) {
   }
 }
 
+export type MuxLiveState =
+  | { state: "active" | "idle" | "disabled" }
+  | { state: "not_found" }
+  | { state: "unknown"; httpStatus?: number; error: string };
+
+/**
+ * Ground truth for "is this stream live right now" used by reconciliation.
+ * Unlike the helpers above it keeps the failure mode: 404 means the stream no
+ * longer exists, while rate limits, 5xx and network errors mean the state is
+ * unknown and callers must not act on it.
+ */
+export async function getMuxLiveStreamState(
+  streamId: string
+): Promise<MuxLiveState> {
+  try {
+    const liveStream = await mux.video.liveStreams.retrieve(streamId);
+    const status = liveStream.status;
+    if (status === "active" || status === "idle" || status === "disabled") {
+      return { state: status };
+    }
+    return { state: "unknown", error: `unexpected status "${status}"` };
+  } catch (error) {
+    const httpStatus =
+      typeof (error as { status?: unknown })?.status === "number"
+        ? (error as { status: number }).status
+        : undefined;
+    if (httpStatus === 404) {
+      return { state: "not_found" };
+    }
+    return {
+      state: "unknown",
+      httpStatus,
+      error: error instanceof Error ? error.message : String(error),
+    };
 // ── Live-state reconciliation (#1399) ────────────────────────────────────────
 // Unlike the helpers above these throw instead of swallowing errors: the
 // reconciliation job must be able to tell "Mux says idle" apart from "we

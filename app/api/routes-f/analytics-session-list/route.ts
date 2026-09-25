@@ -22,6 +22,8 @@ export type SessionListItem = {
   started_at: string;
   ended_at: string | null;
   duration_seconds: number | null;
+  /** True when ended_at was estimated by session reconciliation (#1402). */
+  ended_at_estimated: boolean;
   peak_viewers: number;
   total_unique_viewers: number;
   total_messages: number;
@@ -72,6 +74,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         ss.started_at,
         ss.ended_at,
         ss.duration_seconds,
+        (ss.end_source = 'reconciliation') IS TRUE AS ended_at_estimated,
         ss.peak_viewers,
         ss.total_unique_viewers,
         ss.total_messages,

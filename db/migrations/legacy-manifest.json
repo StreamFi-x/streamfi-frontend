@@ -1,0 +1,85 @@
+{
+  "description": "Frozen list of migrations that predate the tracked runner, in the order they were added to the repository (git history). They keep their original file names as immutable ids. Existing environments record them with `db:migrate -- baseline`; each probe is a SQL boolean that must be true before a migration may be baselined. Never edit this list or the files it names; add a new versioned migration instead.",
+  "entries": [
+    {
+      "file": "add-stream-recording.sql",
+      "checksum": "8912b9748eef5a160e00d60ca224c7763f49f2785f3ce060fd13e089a870866c",
+      "probe": "to_regclass('stream_recordings') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = 'enable_recording')"
+    },
+    {
+      "file": "add-needs-review.sql",
+      "checksum": "76afc49f28a746b802c8c5e9ad12bc340662655bffef1763a6f2cbc92960b13a",
+      "probe": "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'stream_recordings' AND column_name = 'needs_review')"
+    },
+    {
+      "file": "add-admin-panel.sql",
+      "checksum": "5856dcbdf0acdb9c1f39d8e7f973b5c7fe5a726f8204b5ccd363c7a02d3bcdd1",
+      "probe": "to_regclass('stream_reports') IS NOT NULL AND to_regclass('bug_reports') IS NOT NULL"
+    },
+    {
+      "file": "20260327_routes_f_creator_finance_and_badges.sql",
+      "checksum": "58ece2d344ad6c30ac9fcde3ba829f590a5777fb0cd307c3b3d44a114eb663c0",
+      "probe": "to_regclass('tip_transactions') IS NOT NULL AND to_regclass('payouts') IS NOT NULL AND to_regclass('badge_definitions') IS NOT NULL"
+    },
+    {
+      "file": "add-routes-f-platform-features.sql",
+      "checksum": "3c32e59f57f904f0c3eadbf7b0953dcfbd5772e21a246a6cbbea11173d50d33c",
+      "probe": "to_regclass('moderation_queue') IS NOT NULL AND to_regclass('channel_emotes') IS NOT NULL"
+    },
+    {
+      "file": "add-latency-mode.sql",
+      "checksum": "1883486a2b73ff280f02f2df2c2d4a2c0da58d2e84dc1a4b8ac10adb66735b28",
+      "probe": "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = 'latency_mode')"
+    },
+    {
+      "file": "add-transcription-jobs.sql",
+      "checksum": "0c95f97f56a5ebaa81874939e68f62bca442d48a3e0fde9e905207ef0351474f",
+      "probe": "to_regclass('transcription_jobs') IS NOT NULL"
+    },
+    {
+      "file": "add-user-sessions.sql",
+      "checksum": "53b137a585db19507b26d33ee69cb365c5c7b283edc34ec284aec4506526f0bc",
+      "probe": "to_regclass('user_sessions') IS NOT NULL"
+    },
+    {
+      "file": "add-feature-flags-clips-whitelist-preferences.sql",
+      "checksum": "b1fa25e55303be476450e3945190a69d7962fbb3530a35993cb78e8077b6f330",
+      "probe": "to_regclass('feature_flags') IS NOT NULL AND to_regclass('stream_clips') IS NOT NULL"
+    },
+    {
+      "file": "20260427_backend_enhancements.sql",
+      "checksum": "9244e9d3f7198c38ed8b1923d4cdab1d13895b27d613356772afe248786fe90d",
+      "probe": "to_regclass('extension_catalog') IS NOT NULL AND to_regclass('raids') IS NOT NULL"
+    },
+    {
+      "file": "add-mux-provisioning-flags.sql",
+      "checksum": "a492a67a556fe1deb1406bb6cf54451d7ece21db6513869db9d0b5655abd2648",
+      "probe": "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = 'mux_stream_provisioned_with_dvr')"
+    },
+    {
+      "file": "add-stream-privacy-and-subs.sql",
+      "checksum": "de2497f664bfb96c9fbf9d356bfb148e34b9b3b4177e845e5a78d058515c8966",
+      "probe": "to_regclass('subscription_tiers') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = 'stream_privacy')"
+    },
+    {
+      "file": "add-auth-email-tokens.sql",
+      "checksum": "11a3f854c8b55a7a289d0eb33a2d749bacf20b2da7e6b2895211230f35338bfd",
+      "probe": "to_regclass('magic_link_tokens') IS NOT NULL AND to_regclass('password_reset_tokens') IS NOT NULL"
+    },
+    {
+      "file": "add-user-two-factor.sql",
+      "checksum": "9aa85b55ee37f08c9a39eaffe3d4b0e53d12d7fcc842fa549fc4c1aae8d120c3",
+      "probe": "to_regclass('user_two_factor') IS NOT NULL"
+    },
+    {
+      "file": "20260924_session_retention_analytics.sql",
+      "checksum": "3be71509d65f2090e378a4f77798765e3e02ed1da2f27bb4efbccca49b156ab8",
+      "probe": "to_regclass('route_f_session_retention') IS NOT NULL AND to_regclass('route_f_backfill_status') IS NOT NULL"
+    },
+    {
+      "file": "add-analytics-and-experimentation.sql",
+      "checksum": "2ab0dc2de470b7e124c0cf703dde764247916b141ff02c301cf765e3b38822e0",
+      "probe": "to_regclass('experiments') IS NOT NULL AND to_regclass('concurrent_viewer_cache') IS NOT NULL"
+    }
+  ]
+}
