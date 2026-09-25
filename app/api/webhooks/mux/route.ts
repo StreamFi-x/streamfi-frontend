@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { upsertRecordingFromAsset } from "@/lib/mux/recordings";
 
 /**
  * Mux Webhook Handler
@@ -110,7 +111,7 @@ export async function POST(req: Request) {
             stream_started_at = CURRENT_TIMESTAMP,
             current_viewers = 0,
             updated_at = CURRENT_TIMESTAMP
-          WHERE mux_stream_id = ${streamId}
+          WHERE mux_stream_id = ${streamId} AND deleted_at IS NULL
         `;
 
         // Create stream session record — only one per broadcast
@@ -245,65 +246,51 @@ export async function POST(req: Request) {
           break;
         }
 
-        try {
-          let userId: string | null = null;
-          let streamSessionId: string | null = null;
-          let sessionTitle: string | null = "Stream Recording";
+        let userId: string | null = null;
+        let streamSessionId: string | null = null;
+        let sessionTitle: string | null = "Stream Recording";
 
-          if (liveStreamId) {
-            const userResult = await sql`
-              SELECT id, mux_playback_id, creator FROM users WHERE mux_stream_id = ${liveStreamId}
+        if (liveStreamId) {
+          const userResult = await sql`
+            SELECT id, mux_playback_id, creator FROM users WHERE mux_stream_id = ${liveStreamId}
+          `;
+          if (userResult.rows.length > 0) {
+            const u = userResult.rows[0];
+            userId = u.id;
+            sessionTitle =
+              u.creator?.streamTitle ?? u.creator?.title ?? sessionTitle;
+            const sessionResult = await sql`
+              SELECT id FROM stream_sessions
+              WHERE user_id = ${u.id} AND ended_at IS NOT NULL
+              ORDER BY ended_at DESC LIMIT 1
             `;
-            if (userResult.rows.length > 0) {
-              const u = userResult.rows[0];
-              userId = u.id;
-              sessionTitle =
-                u.creator?.streamTitle ?? u.creator?.title ?? sessionTitle;
-              const sessionResult = await sql`
-                SELECT id FROM stream_sessions
-                WHERE user_id = ${u.id} AND ended_at IS NOT NULL
-                ORDER BY ended_at DESC LIMIT 1
-              `;
-              if (sessionResult.rows.length > 0) {
-                streamSessionId = sessionResult.rows[0].id;
-              }
+            if (sessionResult.rows.length > 0) {
+              streamSessionId = sessionResult.rows[0].id;
             }
           }
-
-          if (!userId) {
-            console.warn(
-              "⚠️ video.asset.ready: could not resolve user for asset",
-              assetId
-            );
-            break;
-          }
-
-          // Insert new recording with needs_review=true so the owner is prompted.
-          // ON CONFLICT: update status/duration only — preserve needs_review in case
-          // the user already dismissed or deleted the prompt.
-          await sql`
-            INSERT INTO stream_recordings (
-              user_id, stream_session_id, mux_asset_id, playback_id,
-              title, duration, status, needs_review
-            )
-            VALUES (
-              ${userId},
-              ${streamSessionId},
-              ${assetId},
-              ${playbackId},
-              ${sessionTitle},
-              ${duration ?? 0},
-              'ready',
-              true
-            )
-            ON CONFLICT (mux_asset_id) DO UPDATE SET
-              status = 'ready',
-              duration = COALESCE(EXCLUDED.duration, stream_recordings.duration)
-          `;
-          console.log(`✅ Stream recording saved: ${assetId}`);
-        } catch (recErr) {
-          console.error("❌ Failed to save stream recording:", recErr);
         }
+
+        if (!userId) {
+          // Retrying cannot fix this; the Mux reconciliation sweep reports the
+          // asset as MUX_ASSET_WITHOUT_DB_ROW for review.
+          console.warn(
+            "⚠️ video.asset.ready: could not resolve user for asset",
+            assetId
+          );
+          break;
+        }
+
+        // A database failure propagates to the outer handler and returns 500
+        // so Mux redelivers the event instead of the asset being orphaned.
+        await upsertRecordingFromAsset({
+          userId,
+          streamSessionId,
+          assetId,
+          playbackId,
+          title: sessionTitle,
+          duration,
+        });
+        console.log(`✅ Stream recording saved: ${assetId}`);
         break;
       }
 
