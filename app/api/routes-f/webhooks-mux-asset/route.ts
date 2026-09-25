@@ -28,6 +28,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { upsertRecordingFromAsset } from "@/lib/mux/recordings";
 import { createHmac, timingSafeEqual } from "crypto";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { writeNotification } from "@/lib/notifications";
@@ -192,34 +193,14 @@ export async function POST(req: NextRequest) {
             break;
           }
 
-          // Insert new recording with needs_review=true so the owner is prompted
-          // ON CONFLICT: update status/duration only — preserve needs_review if already dismissed
-          await sql`
-            INSERT INTO stream_recordings (
-              user_id,
-              stream_session_id,
-              mux_asset_id,
-              playback_id,
-              title,
-              duration,
-              status,
-              needs_review
-            )
-            VALUES (
-              ${userId},
-              ${streamSessionId},
-              ${assetId},
-              ${playbackId},
-              ${sessionTitle},
-              ${duration ?? 0},
-              'ready',
-              true
-            )
-            ON CONFLICT (mux_asset_id) DO UPDATE SET
-              status = 'ready',
-              duration = COALESCE(EXCLUDED.duration, stream_recordings.duration),
-              playback_id = EXCLUDED.playback_id
-          `;
+          await upsertRecordingFromAsset({
+            userId,
+            streamSessionId,
+            assetId,
+            playbackId,
+            title: sessionTitle,
+            duration: typeof duration === "number" ? Math.round(duration) : null,
+          });
 
           console.log(`✅ Stream recording saved: ${assetId}`);
 
@@ -236,7 +217,10 @@ export async function POST(req: NextRequest) {
             console.error("Failed to send recording notification:", notifError);
           }
         } catch (recErr) {
+          // Propagate so the handler returns 500 and Mux redelivers the event
+          // instead of the asset being orphaned (#1409).
           console.error("❌ Failed to save stream recording:", recErr);
+          throw recErr;
         }
         break;
       }
