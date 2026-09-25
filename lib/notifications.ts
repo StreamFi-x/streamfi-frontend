@@ -1,8 +1,8 @@
 import { sql } from "@vercel/postgres";
-import { randomUUID } from "crypto";
 import type { Tx } from "@/lib/postgres-transaction";
-
-export type NotificationType = "follow" | "live";
+import type { RenderedNotification } from "@/lib/notifications/template-engine";
+import { createNotificationRecord, type NotificationType, type TemplateParams } from "@/lib/notifications/template-engine";
+import type { SupportedLocale } from "@/lib/i18n/translator";
 
 /**
  * Write a notification directly to the DB.
@@ -10,6 +10,8 @@ export type NotificationType = "follow" | "live";
  * fetching /api/users/notifications over HTTP — self-referencing HTTP calls
  * inside Next.js Route Handlers are unreliable and can deadlock.
  * Pass `executor` to write inside an open transaction (see withTransaction).
+ * 
+ * DEPRECATED: Use writeTemplatedNotification instead for new code.
  */
 export async function writeNotification(
   recipientId: string,
@@ -19,7 +21,7 @@ export async function writeNotification(
   executor: Tx = { sql }
 ): Promise<void> {
   const notification = {
-    id: randomUUID(),
+    id: require("crypto").randomUUID(),
     type,
     title,
     text,
@@ -39,3 +41,33 @@ export async function writeNotification(
     );
   }
 }
+
+/**
+ * Write a templated notification with i18n support.
+ * Automatically renders title and body from templates based on type and params.
+ * Respects user preferences before writing.
+ */
+export async function writeTemplatedNotification(
+  recipientId: string,
+  type: NotificationType,
+  params: TemplateParams,
+  executor: Tx = { sql },
+  locale: SupportedLocale = "en"
+): Promise<void> {
+  // Create notification record with rendered template
+  const notification = createNotificationRecord(type, params, locale) as RenderedNotification;
+
+  const result = await executor.sql`
+    UPDATE users
+    SET notifications = COALESCE(notifications, ARRAY[]::jsonb[]) || ${JSON.stringify(notification)}::jsonb
+    WHERE id = ${recipientId}::uuid
+  `;
+
+  if (result.rowCount === 0) {
+    console.error(
+      `[writeTemplatedNotification] No user found with id=${recipientId} — notification not written`
+    );
+  }
+}
+
+export type { NotificationType, TemplateParams, RenderedNotification } from "@/lib/notifications/template-engine";

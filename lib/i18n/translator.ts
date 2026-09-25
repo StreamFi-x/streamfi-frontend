@@ -22,6 +22,41 @@ const EN_TRANSLATIONS: TranslationDictionary = {
     unauthorized: 'You must be logged in to perform this action.',
     networkError: 'Network connection lost. Reconnecting...',
   },
+  notifications: {
+    follow: {
+      title: '{{actor}} followed you',
+      body: '{{actor}} is now following your channel.',
+    },
+    live: {
+      title: '{{actor}} went live',
+      body: '{{actor}} is now streaming "{{title}}"',
+    },
+    tip_received: {
+      title: 'You received a tip',
+      body: '{{actor}} tipped you {{amount}} {{currency}}.',
+      body_plural: '{{count}} people tipped you {{amount}} {{currency}}.',
+    },
+    new_subscriber: {
+      title: 'New subscriber',
+      body: '{{actor}} subscribed to your channel.',
+    },
+    stream_live: {
+      title: '{{actor}} went live',
+      body: '{{actor}} is now streaming "{{title}}"',
+    },
+    clip_featured: {
+      title: 'Your clip was featured',
+      body: 'Your clip "{{clipTitle}}" was featured on the front page.',
+    },
+    payment_confirmed: {
+      title: 'Payout confirmed',
+      body: 'Your {{amount}} {{currency}} payout was confirmed on-chain.',
+    },
+    system: {
+      title: 'StreamFi Update',
+      body: '{{message}}',
+    },
+  },
 };
 
 const ES_TRANSLATIONS: TranslationDictionary = {
@@ -41,6 +76,41 @@ const ES_TRANSLATIONS: TranslationDictionary = {
   errors: {
     unauthorized: 'Debes iniciar sesión para realizar esta acción.',
     networkError: 'Conexión de red perdida. Reconectando...',
+  },
+  notifications: {
+    follow: {
+      title: '{{actor}} te siguió',
+      body: '{{actor}} ahora está siguiendo tu canal.',
+    },
+    live: {
+      title: '{{actor}} está en vivo',
+      body: '{{actor}} está transmitiendo "{{title}}"',
+    },
+    tip_received: {
+      title: 'Recibiste una propina',
+      body: '{{actor}} te envió una propina de {{amount}} {{currency}}.',
+      body_plural: '{{count}} personas te enviaron una propina de {{amount}} {{currency}}.',
+    },
+    new_subscriber: {
+      title: 'Nuevo suscriptor',
+      body: '{{actor}} se suscribió a tu canal.',
+    },
+    stream_live: {
+      title: '{{actor}} está en vivo',
+      body: '{{actor}} está transmitiendo "{{title}}"',
+    },
+    clip_featured: {
+      title: 'Tu clip fue destacado',
+      body: 'Tu clip "{{clipTitle}}" fue destacado en la página de inicio.',
+    },
+    payment_confirmed: {
+      title: 'Pago confirmado',
+      body: 'Tu pago de {{amount}} {{currency}} fue confirmado en la cadena.',
+    },
+    system: {
+      title: 'Actualización de StreamFi',
+      body: '{{message}}',
+    },
   },
 };
 
