@@ -22,6 +22,7 @@ import {
   CustodialKeyError,
   encryptCustodialSecret,
 } from "@/lib/custodial-keys";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 // ─── Rate limiter: 2 regenerations per 10 minutes per IP ──────────────────────
 const isRateLimited = createRateLimiter(10 * 60 * 1000, 2);
@@ -98,6 +99,11 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+  await invalidateUserCaches({
+    id: session.userId,
+    wallet: walletPublicKey,
+    previousWallet: session.wallet,
+  });
 
   return NextResponse.json({ ok: true, wallet: walletPublicKey });
 }

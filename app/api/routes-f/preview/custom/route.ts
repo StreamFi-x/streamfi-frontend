@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import sharp from "sharp";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 const MAX_THUMBNAIL_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -113,6 +114,7 @@ export async function POST(req: NextRequest) {
       updated_at = NOW()
       WHERE id = ${session.userId}
     `;
+    await invalidateUserCaches({ id: session.userId });
 
     return NextResponse.json({
       type: "custom",
@@ -141,6 +143,7 @@ export async function DELETE(req: NextRequest) {
       WHERE id = ${session.userId}
       RETURNING mux_playback_id, is_live
     `;
+    await invalidateUserCaches({ id: session.userId });
 
     const user = rows[0];
     const playbackId =

@@ -80,7 +80,16 @@ export interface MuxWebhookEvent {
   data: Record<string, unknown> & { id?: string };
 }
 
-export type MuxEventHandler = (tx: Tx, event: MuxWebhookEvent) => Promise<void>;
+/**
+ * `afterCommit` queues work that must only run once the event's transaction
+ * has committed, such as cache invalidation: invalidating inside the
+ * transaction would let a concurrent read re-cache the pre-commit row.
+ */
+export type MuxEventHandler = (
+  tx: Tx,
+  event: MuxWebhookEvent,
+  afterCommit?: (task: () => Promise<void>) => void
+) => Promise<void>;
 
 export type MuxEventOutcome = "processed" | "duplicate";
 
@@ -130,8 +139,9 @@ export async function processMuxEventOnce(
   endpoint: string,
   handler: MuxEventHandler
 ): Promise<MuxEventOutcome> {
+  const afterCommit: (() => Promise<void>)[] = [];
   try {
-    return await withTransaction(async tx => {
+    const outcome = await withTransaction(async tx => {
       await tx.sql`SELECT set_config('lock_timeout', ${CLAIM_LOCK_TIMEOUT}, true)`;
       const { rows } = await tx.sql`
         INSERT INTO mux_webhook_events
@@ -161,9 +171,21 @@ export async function processMuxEventOnce(
         return "duplicate" as const;
       }
 
-      await handler(tx, event);
+      await handler(tx, event, task => afterCommit.push(task));
       return "processed" as const;
     });
+    for (const task of afterCommit) {
+      try {
+        await task();
+      } catch (taskErr) {
+        // The event is committed; a failed follow-up must not trigger a retry.
+        logger.error("mux_webhook_after_commit_failed", {
+          event_id: event.id,
+          errorMessage: errorSummary(taskErr),
+        });
+      }
+    }
+    return outcome;
   } catch (err) {
     if ((err as { code?: string } | null)?.code === LOCK_NOT_AVAILABLE) {
       // Another delivery of this event is still being processed. Nothing

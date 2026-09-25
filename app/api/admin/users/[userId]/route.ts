@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { requireAdminSession } from "@/lib/admin-auth";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 export async function PATCH(
   req: NextRequest,
@@ -41,6 +42,7 @@ export async function PATCH(
         WHERE id = ${userId}
       `;
     }
+    await invalidateUserCaches({ id: userId });
 
     return Response.json({ ok: true });
   } catch (err) {
@@ -61,7 +63,12 @@ export async function DELETE(
   const { userId } = await params;
 
   try {
-    await sql`DELETE FROM users WHERE id = ${userId}`;
+    const { rows } = await sql`
+      DELETE FROM users WHERE id = ${userId} RETURNING username, wallet
+    `;
+    if (rows[0]) {
+      await invalidateUserCaches(rows[0]);
+    }
     return Response.json({ ok: true });
   } catch (err) {
     console.error("[admin/users/[userId]] DELETE error:", err);

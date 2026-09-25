@@ -11,15 +11,9 @@ ADD COLUMN IF NOT EXISTS mux_stream_key VARCHAR(255);
 ALTER TABLE stream_sessions
 ADD COLUMN IF NOT EXISTS mux_session_id VARCHAR(255);
 
--- Optional: Migrate existing data (if you have existing Livepeer streams)
--- UPDATE users
--- SET mux_stream_id = livepeer_stream_id,
---     mux_playback_id = playback_id
--- WHERE livepeer_stream_id IS NOT NULL;
-
--- Optional: After migration is complete and verified, you can remove old columns
--- ALTER TABLE users DROP COLUMN IF EXISTS livepeer_stream_id;
--- ALTER TABLE stream_sessions DROP COLUMN IF EXISTS livepeer_session_id;
+-- Do not copy Livepeer IDs into the mux_* columns: they are different
+-- providers' identifiers and Mux rejects them. Legacy columns are archived and
+-- dropped by db/migrations/20260925190100_retire_livepeer_columns.sql (#1408).
 
 -- Verify the changes
 SELECT column_name, data_type

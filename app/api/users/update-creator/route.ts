@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 export async function PATCH(req: Request) {
   try {
@@ -34,11 +35,13 @@ export async function PATCH(req: Request) {
       SET creator = ${JSON.stringify(updatedCreator)},
           updated_at = CURRENT_TIMESTAMP
       WHERE email = ${email}
+      RETURNING username, wallet
     `;
 
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    await invalidateUserCaches(result.rows[0]);
 
     return NextResponse.json(
       { message: "Creator info updated successfully" },

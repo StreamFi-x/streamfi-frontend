@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { CACHE_POLICIES } from "@/lib/cache";
 
 /**
  * GET /api/streams/recordings?limit=20&offset=0&username=foo
@@ -78,7 +79,7 @@ export async function GET(req: NextRequest) {
       },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+          "Cache-Control": CACHE_POLICIES.publicListing.cacheControl,
         },
       }
     );

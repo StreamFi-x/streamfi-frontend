@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
 import { requireAdminSession } from "@/lib/admin-auth";
+import { withTransaction } from "@/lib/postgres-transaction";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,20 +84,17 @@ export async function PUT(req: NextRequest) {
   const { streamIds } = validated;
 
   try {
-    await sql`BEGIN`;
+    await withTransaction(async client => {
+      await client.sql`DELETE FROM featured_streams`;
 
-    await sql`DELETE FROM featured_streams`;
-
-    for (let position = 0; position < streamIds.length; position++) {
-      await sql`
-        INSERT INTO featured_streams (stream_id, display_order, set_at)
-        VALUES (${streamIds[position]}, ${position}, CURRENT_TIMESTAMP)
-      `;
-    }
-
-    await sql`COMMIT`;
+      for (let position = 0; position < streamIds.length; position++) {
+        await client.sql`
+          INSERT INTO featured_streams (stream_id, display_order, set_at)
+          VALUES (${streamIds[position]}, ${position}, CURRENT_TIMESTAMP)
+        `;
+      }
+    });
   } catch (error) {
-    await sql`ROLLBACK`;
     console.error("[featured-streams-set] failed:", error);
     return NextResponse.json(
       { error: "Failed to update featured streams" },

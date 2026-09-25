@@ -12,6 +12,7 @@ import { mapWithConcurrency } from "@/lib/jobs/concurrency";
 import type { JobOutcome } from "@/lib/jobs/scheduled-job";
 import type { MuxLiveState } from "@/lib/mux/server";
 import { logger } from "@/lib/tracing/logger";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 export type StreamStateLookup = (streamId: string) => Promise<MuxLiveState>;
 
@@ -193,6 +194,9 @@ async function markOfflineIfStale(
      RETURNING id`,
     [userId, observedAt.toISOString()]
   );
+  if (rows.length > 0) {
+    await invalidateUserCaches({ id: userId });
+  }
   return rows.length > 0;
 }
 

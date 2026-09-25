@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { uploadImage } from "@/utils/upload/cloudinary";
 import { hashPassword } from "@/lib/stream-access/password";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 export async function PATCH(req: Request) {
   try {
@@ -86,6 +87,7 @@ export async function PATCH(req: Request) {
             updated_at = CURRENT_TIMESTAMP
           WHERE wallet = ${wallet}
         `;
+        await invalidateUserCaches({ wallet });
       } else {
         if (typeof password !== "string" || password.length < 4) {
           return NextResponse.json(
@@ -100,6 +102,7 @@ export async function PATCH(req: Request) {
             updated_at = CURRENT_TIMESTAMP
           WHERE wallet = ${wallet}
         `;
+        await invalidateUserCaches({ wallet });
       }
     }
 
@@ -139,6 +142,7 @@ export async function PATCH(req: Request) {
           updated_at = CURRENT_TIMESTAMP
         WHERE wallet = ${wallet}
       `;
+      await invalidateUserCaches({ wallet });
     }
 
     const updatedCreator = {
@@ -157,6 +161,7 @@ export async function PATCH(req: Request) {
         updated_at = CURRENT_TIMESTAMP
       WHERE wallet = ${wallet}
     `;
+    await invalidateUserCaches({ wallet });
 
     return NextResponse.json(
       {

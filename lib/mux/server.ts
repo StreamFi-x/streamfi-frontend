@@ -358,6 +358,9 @@ export async function getMuxLiveStreamState(
       httpStatus,
       error: error instanceof Error ? error.message : String(error),
     };
+  }
+}
+
 // ── Live-state reconciliation (#1399) ────────────────────────────────────────
 // Unlike the helpers above these throw instead of swallowing errors: the
 // reconciliation job must be able to tell "Mux says idle" apart from "we

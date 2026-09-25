@@ -21,6 +21,7 @@ import {
   CustodialKeyError,
   encryptCustodialSecret,
 } from "@/lib/custodial-keys";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 // ─── Username validation ───────────────────────────────────────────────────────
 
@@ -168,6 +169,12 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+  await invalidateUserCaches({
+    username,
+    wallet: walletPublicKey,
+    previousUsername: session.username,
+    previousWallet: session.wallet,
+  });
 
   return NextResponse.json({
     ok: true,

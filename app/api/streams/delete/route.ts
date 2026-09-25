@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { deleteMuxStream } from "@/lib/mux/server";
 import { verifySession } from "@/lib/auth/verify-session";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 export async function DELETE(req: NextRequest) {
   // Verify caller is authenticated — identity comes from the server-side session
@@ -69,6 +70,7 @@ export async function DELETE(req: NextRequest) {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${session.userId}
     `;
+    await invalidateUserCaches({ id: session.userId });
 
     return NextResponse.json(
       { message: "Stream deleted successfully" },

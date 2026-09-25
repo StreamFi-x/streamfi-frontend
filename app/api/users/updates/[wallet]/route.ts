@@ -5,6 +5,7 @@ import { updateMuxStreamRecording } from "@/lib/mux/server";
 import { validateEmail } from "@/utils/validators";
 import { validateUserUpdate } from "../../../../../utils/userValidators";
 import { UserUpdateInput } from "../../../../../types/user";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 export async function PUT(
   req: NextRequest,
@@ -208,6 +209,11 @@ export async function PUT(
       WHERE LOWER(wallet) = LOWER(${normalizedWallet})
       RETURNING id, username, email, streamkey, avatar, banner, bio, sociallinks, emailverified, emailnotifications, creator, wallet, enable_recording, latency_mode, created_at, updated_at
     `;
+    await invalidateUserCaches({
+      id: user.id,
+      username,
+      previousUsername: user.username,
+    });
 
     // Sync recording preference to Mux if it changed and the user has a stream
     const recordingChanged = enableRecording !== user.enable_recording;

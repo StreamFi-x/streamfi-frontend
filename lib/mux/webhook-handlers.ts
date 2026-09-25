@@ -5,6 +5,7 @@ import type {
   MuxLogOnlyEvents,
   MuxWebhookEvent,
 } from "@/lib/mux/webhook";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 /**
  * Side-effecting Mux event handlers. Each runs inside the transaction opened
@@ -15,18 +16,27 @@ import type {
 
 const streamId = (event: MuxWebhookEvent) => event.data.id as string;
 
+// is_live is part of the cached public profile (docs/caching-policy.md).
+async function invalidateUsers(userIds: string[]): Promise<void> {
+  for (const id of userIds) {
+    await invalidateUserCaches({ id });
+  }
+}
+
 export const liveStreamHandlers: Record<string, MuxEventHandler> = {
   // The stream is actively broadcasting. This is when we mark the user live.
-  "video.live_stream.active": async (tx, event) => {
+  "video.live_stream.active": async (tx, event, afterCommit) => {
     console.log(`🔴 Stream ACTIVE (broadcasting): ${streamId(event)}`);
-    await markMuxStreamLive(tx, streamId(event));
+    const userIds = await markMuxStreamLive(tx, streamId(event));
+    afterCommit?.(() => invalidateUsers(userIds));
     console.log("✅ Stream marked as LIVE");
   },
 
   // Stream is genuinely offline (reconnect window elapsed).
-  "video.live_stream.idle": async (tx, event) => {
+  "video.live_stream.idle": async (tx, event, afterCommit) => {
     console.log(`⚫ Stream OFFLINE (idle): ${streamId(event)}`);
-    await markMuxStreamOffline(tx, streamId(event));
+    const userIds = await markMuxStreamOffline(tx, streamId(event));
+    afterCommit?.(() => invalidateUsers(userIds));
     console.log("✅ Stream marked as OFFLINE");
   },
 };
