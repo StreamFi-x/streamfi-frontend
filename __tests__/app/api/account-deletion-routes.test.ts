@@ -12,14 +12,24 @@ jest.mock("@vercel/postgres", () => ({
   sql: (...args: unknown[]) => mockDb.sql(...args),
 }));
 
+// The admin guard itself (allowlist, session, brute-force throttling) is
+// covered by its own tests; here only its outcome matters.
 let mockAdminCookie: string | undefined;
-jest.mock("next/headers", () => ({
-  cookies: async () => ({
-    get: (name: string) =>
-      name === "privy_session" && mockAdminCookie
-        ? { value: mockAdminCookie }
-        : undefined,
-  }),
+const MOCK_ADMIN = "did:privy:admin";
+jest.mock("@/lib/admin-auth", () => ({
+  requireAdminSession: jest.fn(async () =>
+    mockAdminCookie === MOCK_ADMIN
+      ? null
+      : Response.json({ error: "Unauthorized" }, { status: 401 })
+  ),
+  requireAdminIdentity: jest.fn(async () =>
+    mockAdminCookie === MOCK_ADMIN
+      ? { admin: MOCK_ADMIN, response: null }
+      : {
+          admin: null,
+          response: Response.json({ error: "Unauthorized" }, { status: 401 }),
+        }
+  ),
 }));
 
 jest.mock("@/lib/users/deletion", () => ({
@@ -31,19 +41,20 @@ jest.mock("@/lib/users/deletion", () => ({
   deletionGraceDays: () => 30,
   purgeDueDeletions: jest.fn(),
 }));
-jest.mock("@/lib/jobs/run-job", () => ({
-  runScheduledJob: jest.fn(async () => ({ outcome: "completed" })),
+jest.mock("@/lib/jobs/scheduled-job", () => ({
+  runScheduledJob: jest.fn(async () => ({
+    job: "job",
+    runId: "run-1",
+    status: "succeeded",
+    startedAt: new Date().toISOString(),
+    durationMs: 0,
+    metrics: {},
+    alerts: [],
+  })),
+  jobHttpStatus: () => 200,
 }));
-jest.mock("@/lib/mux/reconciliation", () => ({
+jest.mock("@/lib/mux/asset-reconciliation", () => ({
   runMuxReconciliation: jest.fn(),
-}));
-jest.mock("@/lib/stellar/tip-reconciliation", () => ({
-  runTipReconciliation: jest.fn(),
-}));
-jest.mock("@/lib/alerts/tip-reconciliation-alerts", () => ({
-  TIP_RECONCILIATION_JOB: "tip-reconciliation",
-  evaluatePendingRuns: jest.fn(async () => ({ evaluated: 0, failed: 0 })),
-  deliverPendingAlerts: jest.fn(async () => ({ delivered: 0, failed: 0 })),
 }));
 
 import {
@@ -51,15 +62,14 @@ import {
   requestAccountDeletion,
   setLegalHold,
 } from "@/lib/users/deletion";
-import { runScheduledJob } from "@/lib/jobs/run-job";
+import { runScheduledJob } from "@/lib/jobs/scheduled-job";
 import { verifySession } from "@/lib/auth/verify-session";
 import * as selfService from "@/app/api/users/me/deletion/route";
 import { DELETE as adminDeleteUser } from "@/app/api/admin/users/[userId]/route";
 import * as adminDeletion from "@/app/api/admin/users/[userId]/deletion/route";
 import { GET as listDeletionsRoute } from "@/app/api/admin/users/deletions/route";
 import { GET as purgeCron } from "@/app/api/routes-f/cron-purge-deleted-users/route";
-import { GET as muxCron } from "@/app/api/routes-f/cron-mux-reconciliation/route";
-import { GET as tipCron } from "@/app/api/routes-f/cron-tip-reconciliation/route";
+import { GET as muxCron } from "@/app/api/routes-f/cron-mux-asset-reconciliation/route";
 
 const USER = "11111111-1111-1111-1111-111111111111";
 const OTHER = "22222222-2222-2222-2222-222222222222";
@@ -310,8 +320,7 @@ describe("admin deletion endpoints", () => {
 describe("cron endpoints", () => {
   const crons = [
     ["purge-deleted-users", purgeCron],
-    ["mux-reconciliation", muxCron],
-    ["tip-reconciliation", tipCron],
+    ["mux-asset-reconciliation", muxCron],
   ] as const;
 
   it.each(crons)("%s rejects missing or wrong credentials", async (_, cron) => {

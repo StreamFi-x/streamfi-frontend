@@ -1,359 +1,614 @@
 /**
- * Periodic reconciliation of tip_transactions against the Horizon ledger
- * (prerequisite for the #1405 alerting layer).
+ * #1400: derives users.total_tips_received / total_tips_count / last_tip_at
+ * from the Stellar ledger. Shared by the manual refresh endpoint
+ * (app/api/tips/refresh-total) and the scheduled reconciliation job, so both
+ * use the same definition of a tip (lib/stellar/horizon.ts
+ * fetchPaymentsReceived: incoming native XLM `payment` /
+ * `path_payment_strict_receive` operations).
  *
- * For every creator that has tip rows, the incoming native payments of the
- * last LOOKBACK window are compared with the stored rows by transaction hash:
- *
- *   MISSING_TIP_INSERTED  on the ledger, not in the DB       -> row inserted
- *   AMOUNT_CORRECTED      stored amount differs from ledger   -> amount updated
- *   CREATOR_MISMATCH      tx stored under a different creator -> flagged only
- *   NOT_ON_LEDGER         stored row with no matching payment -> flagged only
- *
- * Every applied correction and its audit row are written by ONE statement, so
- * tip_reconciliation_corrections can never disagree with what was changed; the
- * alert layer aggregates from that table. Corrections are conditional (insert
- * ON CONFLICT DO NOTHING, update WHERE amount = old value), so a retried run, a
- * concurrent run or a concurrent /api/tips/refresh-total cannot apply the same
- * correction twice or overwrite newer data. Financial rows are never deleted.
+ * Totals are always a full recalculation from the complete payment history,
+ * never an increment. Writes are guarded by users.tip_totals_version so a
+ * slower reconciliation can never overwrite a newer total.
  */
-import { sql } from "@vercel/postgres";
+import { defaultExecutor, SqlExecutor } from "@/lib/db/executor";
 import {
-  fetchPaymentsReceived,
-  isHorizonNotFound,
-} from "@/lib/stellar/horizon";
-import { absStroops, fromStroops, toStroops } from "@/lib/stellar/amounts";
-import { withRetry } from "@/lib/jobs/retry";
-import { errorMessage } from "@/lib/jobs/runs";
-import type { JobBodyResult, JobContext } from "@/lib/jobs/run-job";
+  mapWithConcurrency,
+  sleep as defaultSleep,
+} from "@/lib/jobs/concurrency";
+import type { JobOutcome } from "@/lib/jobs/scheduled-job";
+import { fetchPaymentsReceived } from "@/lib/stellar/horizon";
+import { logger } from "@/lib/tracing/logger";
 
-const HOUR_MS = 60 * 60 * 1000;
-const PAGE_SIZE = 200;
-const MAX_PAGES_PER_CREATOR = 10;
-const CREATOR_BATCH = 100;
-/**
- * Stored rows newer than windowStart + this margin are checked against the
- * ledger; the margin keeps rows at the very edge of the fetched window from
- * being reported as NOT_ON_LEDGER.
- */
-const WINDOW_EDGE_MARGIN_MS = HOUR_MS;
+const STROOPS_PER_XLM = BigInt(10_000_000);
 
-export function lookbackHours(): number {
-  const configured = Number(process.env.TIP_RECONCILIATION_LOOKBACK_HOURS);
-  return Number.isFinite(configured) && configured >= 1 ? configured : 72;
-}
-
-export interface TipReconMetrics {
-  creators_scanned: number;
-  creators_failed: number;
-  creators_incomplete: number;
-  payments_scanned: number;
-  stored_rows_checked: number;
-  failed_creator_ids: string[];
-}
-
-interface LedgerTip {
-  txHash: string;
+export interface LedgerTip {
   sender: string;
-  stroops: bigint;
+  amount: string;
+  txHash: string;
   timestamp: string;
 }
 
-interface StoredTip {
-  id: string;
-  txHash: string;
-  creatorId: string;
-  amount: string;
-  createdAt: Date;
+type FetchPayments = (params: {
+  publicKey: string;
+  limit?: number;
+  cursor?: string;
+}) => Promise<{ tips: LedgerTip[]; nextCursor: string | undefined }>;
+
+export interface HorizonPolicy {
+  pageSize: number;
+  /** A history longer than this is rejected rather than partially summed. */
+  maxPages: number;
+  maxRetries: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
 }
 
-export async function runTipReconciliation(
-  ctx: JobContext
-): Promise<JobBodyResult<TipReconMetrics>> {
-  const metrics: TipReconMetrics = {
-    creators_scanned: 0,
-    creators_failed: 0,
-    creators_incomplete: 0,
-    payments_scanned: 0,
-    stored_rows_checked: 0,
-    failed_creator_ids: [],
-  };
+export const DEFAULT_HORIZON_POLICY: HorizonPolicy = {
+  pageSize: 200,
+  maxPages: 100,
+  maxRetries: 4,
+  baseDelayMs: 500,
+  maxDelayMs: 8_000,
+};
 
-  const { rows: clock } = await sql`SELECT now() AS now`;
-  const windowStart = new Date(
-    new Date(clock[0].now).getTime() - lookbackHours() * HOUR_MS
-  );
+export interface LedgerFetchDeps {
+  fetchPayments?: FetchPayments;
+  policy?: Partial<HorizonPolicy>;
+  sleep?: (ms: number) => Promise<void>;
+}
 
-  let cursor = "00000000-0000-0000-0000-000000000000";
-  let partial = false;
-  for (;;) {
-    const { rows: creators } = await sql`
-      SELECT u.id, u.wallet
-      FROM users u
-      WHERE u.id > ${cursor}::uuid
-        AND u.wallet ~ '^G[A-Z2-7]{55}$'
-        AND EXISTS (SELECT 1 FROM tip_transactions t WHERE t.creator_id = u.id)
-      ORDER BY u.id
-      LIMIT ${CREATOR_BATCH}
-    `;
-    if (creators.length === 0) {
-      break;
-    }
-    cursor = String(creators[creators.length - 1].id);
+export interface LedgerTipTotals {
+  totalStroops: bigint;
+  totalReceived: string;
+  totalCount: number;
+  lastTipAt: string | null;
+  tips: LedgerTip[];
+  requests: number;
+  retries: number;
+  rateLimited: number;
+}
 
-    for (const creator of creators) {
-      if (ctx.deadlineExpired()) {
-        partial = true;
-        break;
-      }
-      metrics.creators_scanned++;
-      try {
-        const complete = await reconcileCreator(
-          ctx.runId,
-          String(creator.id),
-          String(creator.wallet),
-          windowStart,
-          metrics
-        );
-        if (!complete) {
-          metrics.creators_incomplete++;
-        }
-      } catch (err) {
-        // One creator's Horizon/DB failure must not stop the run.
-        metrics.creators_failed++;
-        if (metrics.failed_creator_ids.length < 20) {
-          metrics.failed_creator_ids.push(String(creator.id));
-        }
-        console.error(
-          `[tip-reconciliation] creator ${creator.id} failed: ${errorMessage(err)}`
-        );
-      }
-    }
-    if (partial) {
-      break;
-    }
-    await ctx.renewLease();
+export class HorizonRateLimitedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "HorizonRateLimitedError";
   }
-
-  return {
-    status:
-      partial || metrics.creators_failed > 0 || metrics.creators_incomplete > 0
-        ? "partial"
-        : "completed",
-    metrics,
-  };
 }
 
-function isRetryableHorizonError(err: unknown): boolean {
-  const status = (err as { response?: { status?: number } })?.response?.status;
-  // No response at all = network error / timeout.
+export class LedgerHistoryTooLargeError extends Error {
+  constructor(pages: number) {
+    super(
+      `Payment history exceeds ${pages} pages; refusing to write a partial total`
+    );
+    this.name = "LedgerHistoryTooLargeError";
+  }
+}
+
+export function toStroops(amount: string | number | null | undefined): bigint {
+  if (amount === null || amount === undefined || amount === "") {
+    return BigInt(0);
+  }
+  const text = String(amount).trim();
+  const match = /^(-?)(\d*)(?:\.(\d*))?$/.exec(text);
+  if (!match) {
+    throw new Error(`Invalid XLM amount "${text}"`);
+  }
+  const [, sign, whole, fraction = ""] = match;
+  const stroops =
+    BigInt(whole || "0") * STROOPS_PER_XLM +
+    BigInt((fraction + "0000000").slice(0, 7));
+  return sign === "-" ? -stroops : stroops;
+}
+
+export function fromStroops(stroops: bigint): string {
+  const negative = stroops < BigInt(0);
+  const abs = negative ? -stroops : stroops;
+  const whole = abs / STROOPS_PER_XLM;
+  const fraction = (abs % STROOPS_PER_XLM).toString().padStart(7, "0");
+  return `${negative ? "-" : ""}${whole}.${fraction}`;
+}
+
+function httpStatusOf(error: unknown): number | undefined {
+  const response = (error as { response?: { status?: unknown } })?.response;
+  return typeof response?.status === "number" ? response.status : undefined;
+}
+
+function isRetryable(status: number | undefined): boolean {
   return status === undefined || status === 429 || status >= 500;
 }
 
 /**
- * Incoming native payments to `wallet` since windowStart, aggregated per
- * transaction (a transaction can carry several payment operations; the table
- * stores one row per tx_hash). `complete` is false when the page cap was hit
- * before reaching windowStart.
+ * Pages through the account's complete payment history. Transient Horizon
+ * failures (429, 5xx, network) are retried with capped exponential backoff and
+ * jitter; a history larger than maxPages fails instead of producing a partial
+ * sum. An account Horizon does not know (404, unfunded) has no tips.
  */
-async function fetchLedgerTips(
-  wallet: string,
-  windowStart: Date
-): Promise<{ tips: Map<string, LedgerTip>; complete: boolean }> {
-  const tips = new Map<string, LedgerTip>();
+export async function fetchLedgerTipTotals(
+  publicKey: string,
+  deps: LedgerFetchDeps = {}
+): Promise<LedgerTipTotals> {
+  const fetchPayments = deps.fetchPayments ?? fetchPaymentsReceived;
+  const policy = { ...DEFAULT_HORIZON_POLICY, ...deps.policy };
+  const wait = deps.sleep ?? defaultSleep;
+
+  const tips: LedgerTip[] = [];
   let cursor: string | undefined;
+  let requests = 0;
+  let retries = 0;
+  let rateLimited = 0;
+  let pages = 0;
 
-  for (let page = 0; page < MAX_PAGES_PER_CREATOR; page++) {
-    let result: Awaited<ReturnType<typeof fetchPaymentsReceived>>;
-    try {
-      result = await withRetry(
-        () =>
-          fetchPaymentsReceived({
-            publicKey: wallet,
-            limit: PAGE_SIZE,
-            cursor,
-          }),
-        { attempts: 3, baseDelayMs: 500, isRetryable: isRetryableHorizonError }
-      );
-    } catch (err) {
-      if (isHorizonNotFound(err)) {
-        // The account does not exist on this network: it has no payments.
-        return { tips, complete: true };
-      }
-      throw err;
+  for (;;) {
+    if (pages >= policy.maxPages) {
+      throw new LedgerHistoryTooLargeError(policy.maxPages);
     }
 
-    for (const tip of result.tips) {
-      if (new Date(tip.timestamp) < windowStart) {
-        continue;
-      }
-      const existing = tips.get(tip.txHash);
-      tips.set(tip.txHash, {
-        txHash: tip.txHash,
-        sender: tip.sender,
-        stroops: (existing?.stroops ?? BigInt(0)) + toStroops(tip.amount),
-        timestamp: existing?.timestamp ?? tip.timestamp,
-      });
-    }
-
-    const reachedWindowStart =
-      !result.oldestRecordAt || new Date(result.oldestRecordAt) < windowStart;
-    if (!result.nextCursor || reachedWindowStart) {
-      return { tips, complete: true };
-    }
-    cursor = result.nextCursor;
-  }
-  return { tips, complete: false };
-}
-
-async function loadStoredTips(
-  creatorId: string,
-  txHashes: string[],
-  windowStart: Date
-): Promise<{ byHash: Map<string, StoredTip>; inWindow: StoredTip[] }> {
-  const { rows } = await sql`
-    SELECT id, tx_hash, creator_id, amount_xlm::text AS amount, created_at
-    FROM tip_transactions
-    WHERE tx_hash IS NOT NULL
-      AND (
-        tx_hash IN (SELECT jsonb_array_elements_text(${JSON.stringify(txHashes)}::jsonb))
-        OR (creator_id = ${creatorId} AND created_at >= ${windowStart.toISOString()}::timestamptz)
-      )
-  `;
-  const byHash = new Map<string, StoredTip>();
-  const inWindow: StoredTip[] = [];
-  const edge = windowStart.getTime() + WINDOW_EDGE_MARGIN_MS;
-  for (const row of rows) {
-    const tip: StoredTip = {
-      id: String(row.id),
-      txHash: String(row.tx_hash),
-      creatorId: String(row.creator_id),
-      amount: String(row.amount),
-      createdAt: new Date(row.created_at),
-    };
-    byHash.set(tip.txHash, tip);
-    if (tip.creatorId === creatorId && tip.createdAt.getTime() >= edge) {
-      inWindow.push(tip);
-    }
-  }
-  return { byHash, inWindow };
-}
-
-/** Returns false when the ledger window could not be read completely. */
-async function reconcileCreator(
-  runId: string,
-  creatorId: string,
-  wallet: string,
-  windowStart: Date,
-  metrics: TipReconMetrics
-): Promise<boolean> {
-  const ledger = await fetchLedgerTips(wallet, windowStart);
-  metrics.payments_scanned += ledger.tips.size;
-
-  const stored = await loadStoredTips(
-    creatorId,
-    [...ledger.tips.keys()],
-    windowStart
-  );
-
-  for (const tip of ledger.tips.values()) {
-    const row = stored.byHash.get(tip.txHash);
-    if (!row) {
-      await insertMissingTip(runId, creatorId, tip);
-      continue;
-    }
-    if (row.creatorId !== creatorId) {
-      await recordFlag(runId, "CREATOR_MISMATCH", row, tip.stroops);
-      continue;
-    }
-    if (toStroops(row.amount) !== tip.stroops) {
-      await correctAmount(runId, row, tip.stroops);
-    }
-  }
-
-  // Only a complete ledger window can prove a stored row has no payment.
-  if (ledger.complete) {
-    for (const row of stored.inWindow) {
-      metrics.stored_rows_checked++;
-      if (!ledger.tips.has(row.txHash)) {
-        await recordFlag(runId, "NOT_ON_LEDGER", row, null);
+    let page: Awaited<ReturnType<FetchPayments>> | null = null;
+    for (let attempt = 0; page === null; attempt++) {
+      requests++;
+      try {
+        page = await fetchPayments({
+          publicKey,
+          limit: policy.pageSize,
+          cursor,
+        });
+      } catch (error) {
+        const status = httpStatusOf(error);
+        if (status === 404 && pages === 0) {
+          return {
+            totalStroops: BigInt(0),
+            totalReceived: fromStroops(BigInt(0)),
+            totalCount: 0,
+            lastTipAt: null,
+            tips: [],
+            requests,
+            retries,
+            rateLimited,
+          };
+        }
+        if (status === 429) {
+          rateLimited++;
+        }
+        if (!isRetryable(status) || attempt >= policy.maxRetries) {
+          if (status === 429) {
+            throw new HorizonRateLimitedError(
+              `Horizon rate limited after ${attempt + 1} attempts`
+            );
+          }
+          throw error;
+        }
+        retries++;
+        const backoff = Math.min(
+          policy.maxDelayMs,
+          policy.baseDelayMs * 2 ** attempt
+        );
+        await wait(backoff / 2 + Math.random() * (backoff / 2));
       }
     }
+
+    pages++;
+    tips.push(...page.tips);
+    if (!page.nextCursor) {
+      break;
+    }
+    cursor = page.nextCursor;
   }
-  return ledger.complete;
+
+  let totalStroops = BigInt(0);
+  let lastTipAt: string | null = null;
+  for (const tip of tips) {
+    totalStroops += toStroops(tip.amount);
+    if (!lastTipAt || new Date(tip.timestamp) > new Date(lastTipAt)) {
+      lastTipAt = tip.timestamp;
+    }
+  }
+
+  return {
+    totalStroops,
+    totalReceived: fromStroops(totalStroops),
+    totalCount: tips.length,
+    lastTipAt,
+    tips,
+    requests,
+    retries,
+    rateLimited,
+  };
 }
 
-async function insertMissingTip(
-  runId: string,
+const TIP_INSERT_CHUNK = 500;
+
+/**
+ * Records ledger tips in tip_transactions in batches. The ON CONFLICT target
+ * repeats the partial unique index predicate; without it PostgreSQL cannot
+ * match idx_tip_transactions_tx_hash_unique and rejects the statement.
+ *
+ * When `runId` is set (the scheduled job), every tip that was actually
+ * missing is recorded as a TIP_INSERTED correction in the same statement, so
+ * the alerting layer (#1405) sees exactly what the job changed.
+ */
+async function recordTipTransactions(
+  executor: SqlExecutor,
   creatorId: string,
-  tip: LedgerTip
-) {
-  const amount = fromStroops(tip.stroops);
-  // price_usd is left NULL: the historical rate at tip time is unknown.
-  const { rows } = await sql`
-    WITH supporter AS (
-      -- tombstone-aware: financial records keep their supporter link
-      SELECT id FROM users WHERE wallet = ${tip.sender} LIMIT 1
-    ),
-    ins AS (
-      INSERT INTO tip_transactions (creator_id, supporter_id, amount_xlm, tx_hash, memo, created_at)
-      VALUES (
-        ${creatorId}, (SELECT id FROM supporter), ${amount}::numeric,
-        ${tip.txHash}, 'StreamFi Tip', ${tip.timestamp}::timestamptz
-      )
-      ON CONFLICT (tx_hash) WHERE tx_hash IS NOT NULL DO NOTHING
-      RETURNING id
-    )
-    INSERT INTO tip_reconciliation_corrections
-      (run_id, kind, applied, tip_transaction_id, tx_hash, creator_id, amount_before, amount_after, delta_abs)
-    SELECT ${runId}, 'MISSING_TIP_INSERTED', true, ins.id, ${tip.txHash}, ${creatorId},
-           NULL, ${amount}::numeric, ${amount}::numeric
-    FROM ins
-    ON CONFLICT (run_id, kind, tx_hash) DO NOTHING
-    RETURNING id
-  `;
-  if (rows.length === 0) {
-    // Another writer inserted this tx concurrently; nothing was changed here.
-    console.log(
-      `[tip-reconciliation] ${tip.txHash} inserted concurrently; no correction recorded`
+  tips: LedgerTip[],
+  xlmUsdPrice: number | null,
+  runId: string | null
+): Promise<void> {
+  for (let i = 0; i < tips.length; i += TIP_INSERT_CHUNK) {
+    const chunk = tips.slice(i, i + TIP_INSERT_CHUNK);
+    await executor(
+      `WITH ins AS (
+         INSERT INTO tip_transactions
+           (creator_id, supporter_id, amount_xlm, price_usd, tx_hash, memo, created_at)
+         SELECT $1, supporter.id, t.amount, $2, t.tx_hash, 'StreamFi Tip', t.created_at
+           FROM unnest($3::text[], $4::numeric[], $5::text[], $6::timestamptz[])
+                AS t(sender, amount, tx_hash, created_at)
+           -- tombstone-aware: financial records keep their supporter link
+           LEFT JOIN users supporter ON supporter.wallet = t.sender
+         ON CONFLICT (tx_hash) WHERE tx_hash IS NOT NULL DO NOTHING
+         RETURNING creator_id, tx_hash, amount_xlm
+       )
+       INSERT INTO tip_reconciliation_corrections
+         (run_id, kind, user_id, tx_hash, amount_after, delta)
+       SELECT $7::uuid, 'TIP_INSERTED', creator_id, tx_hash, amount_xlm, amount_xlm
+         FROM ins
+        WHERE $7::uuid IS NOT NULL
+       ON CONFLICT DO NOTHING`,
+      [
+        creatorId,
+        xlmUsdPrice,
+        chunk.map(t => t.sender),
+        chunk.map(t => t.amount),
+        chunk.map(t => t.txHash),
+        chunk.map(t => t.timestamp),
+        runId,
+      ]
     );
   }
 }
 
-async function correctAmount(runId: string, row: StoredTip, ledger: bigint) {
-  const after = fromStroops(ledger);
-  const delta = fromStroops(absStroops(ledger - toStroops(row.amount)));
-  await sql`
-    WITH upd AS (
-      UPDATE tip_transactions
-      SET amount_xlm = ${after}::numeric
-      WHERE id = ${row.id} AND amount_xlm = ${row.amount}::numeric
-      RETURNING id
-    )
-    INSERT INTO tip_reconciliation_corrections
-      (run_id, kind, applied, tip_transaction_id, tx_hash, creator_id, amount_before, amount_after, delta_abs)
-    SELECT ${runId}, 'AMOUNT_CORRECTED', true, upd.id, ${row.txHash}, ${row.creatorId},
-           ${row.amount}::numeric, ${after}::numeric, ${delta}::numeric
-    FROM upd
-    ON CONFLICT (run_id, kind, tx_hash) DO NOTHING
-  `;
+export interface ReconcileUserOptions {
+  executor?: SqlExecutor;
+  ledger?: LedgerFetchDeps;
+  getXlmUsdPrice?: () => Promise<number>;
+  /** Re-run when a concurrent writer changed the totals (manual refresh). */
+  maxAttempts?: number;
+  /**
+   * Scheduled-job run id (job_runs.run_id). When set, every change is also
+   * recorded in tip_reconciliation_corrections for anomaly alerting (#1405).
+   */
+  runId?: string;
 }
 
-async function recordFlag(
-  runId: string,
-  kind: "CREATOR_MISMATCH" | "NOT_ON_LEDGER",
-  row: StoredTip,
-  ledger: bigint | null
-) {
-  await sql`
-    INSERT INTO tip_reconciliation_corrections
-      (run_id, kind, applied, tip_transaction_id, tx_hash, creator_id, amount_before, amount_after, delta_abs)
-    VALUES (
-      ${runId}, ${kind}, false, ${row.id}, ${row.txHash}, ${row.creatorId},
-      ${row.amount}::numeric,
-      ${ledger === null ? null : fromStroops(ledger)}::numeric,
-      ${row.amount}::numeric
-    )
-    ON CONFLICT (run_id, kind, tx_hash) DO NOTHING
-  `;
+export interface ReconcileUserResult {
+  status: "updated" | "stale" | "not_found";
+  previousTotal: string | null;
+  totals: LedgerTipTotals | null;
+  /** New total minus previous total, in XLM. */
+  discrepancy: string | null;
+  countChanged: boolean;
+}
+
+/**
+ * Recalculates one user's totals from the ledger and writes them only if no
+ * other writer (manual refresh, scheduled job, payment webhook) changed the
+ * totals since this reconciliation started.
+ */
+export async function reconcileUserTipTotals(
+  userId: string,
+  publicKey: string,
+  options: ReconcileUserOptions = {}
+): Promise<ReconcileUserResult> {
+  const executor = options.executor ?? defaultExecutor;
+  const maxAttempts = options.maxAttempts ?? 1;
+  let lastPrevious: string | null = null;
+  let lastTotals: LedgerTipTotals | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const { rows } = await executor(
+      `SELECT tip_totals_version, total_tips_received, total_tips_count
+         FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (!rows[0]) {
+      return {
+        status: "not_found",
+        previousTotal: null,
+        totals: null,
+        discrepancy: null,
+        countChanged: false,
+      };
+    }
+    const version = String(rows[0].tip_totals_version);
+    const previousStroops = toStroops(rows[0].total_tips_received);
+    const previousCount = Number(rows[0].total_tips_count ?? 0);
+    lastPrevious = fromStroops(previousStroops);
+
+    const totals = await fetchLedgerTipTotals(publicKey, options.ledger);
+    lastTotals = totals;
+
+    if (totals.tips.length > 0) {
+      const price = options.getXlmUsdPrice
+        ? await options.getXlmUsdPrice()
+        : null;
+      await recordTipTransactions(
+        executor,
+        userId,
+        totals.tips,
+        price,
+        options.runId ?? null
+      );
+    }
+
+    // The correction row (#1405) is written by the same statement as the
+    // totals, and only when the versioned update actually applied.
+    const updated = await executor(
+      `WITH upd AS (
+         UPDATE users
+            SET total_tips_received = $2,
+                total_tips_count = $3,
+                last_tip_at = $4,
+                tip_totals_version = tip_totals_version + 1,
+                tips_reconciled_at = NOW(),
+                updated_at = NOW()
+          WHERE id = $1 AND tip_totals_version = $5
+        RETURNING id
+       ),
+       correction AS (
+         INSERT INTO tip_reconciliation_corrections
+           (run_id, kind, user_id, amount_before, amount_after, delta, count_before, count_after)
+         SELECT $6::uuid, 'TOTALS_CORRECTED', id, $7::numeric, $2::numeric,
+                $2::numeric - $7::numeric, $8::int, $3::int
+           FROM upd
+          WHERE $6::uuid IS NOT NULL
+            AND ($2::numeric <> $7::numeric OR $3::int <> $8::int)
+         ON CONFLICT DO NOTHING
+       )
+       SELECT id FROM upd`,
+      [
+        userId,
+        totals.totalReceived,
+        totals.totalCount,
+        totals.lastTipAt,
+        version,
+        options.runId ?? null,
+        lastPrevious,
+        previousCount,
+      ]
+    );
+
+    if (updated.rows.length > 0) {
+      return {
+        status: "updated",
+        previousTotal: lastPrevious,
+        totals,
+        discrepancy: fromStroops(totals.totalStroops - previousStroops),
+        countChanged: totals.totalCount !== previousCount,
+      };
+    }
+  }
+
+  return {
+    status: "stale",
+    previousTotal: lastPrevious,
+    totals: lastTotals,
+    discrepancy: null,
+    countChanged: false,
+  };
+}
+
+export interface TipReconciliationJobOptions {
+  executor?: SqlExecutor;
+  ledger?: LedgerFetchDeps;
+  getXlmUsdPrice?: () => Promise<number>;
+  onTotalsChanged?: (userId: string) => Promise<void>;
+  batchSize?: number;
+  /** A user is due once their last successful reconciliation is this old. */
+  staleAfterMinutes?: number;
+  /** Minimum gap between attempts for a user whose reconciliation failed. */
+  retryAfterMinutes?: number;
+  concurrency?: number;
+  /** Stop starting new users after this long, leaving time to finish. */
+  timeBudgetMs?: number;
+  /** Absolute change (XLM) reported as a large discrepancy. */
+  discrepancyAlertXlm?: number;
+  /** job_runs.run_id of this run; enables correction recording (#1405). */
+  runId?: string;
+  now?: () => number;
+}
+
+export interface TipReconciliationDetail {
+  userId: string;
+  outcome: "corrected" | "unchanged" | "stale" | "failed" | "deferred";
+  discrepancy?: string;
+  error?: string;
+}
+
+interface DueUser {
+  id: string;
+  wallet: string;
+  tips_reconciled_at: string | null;
+  prev_attempted_at: string | null;
+}
+
+/**
+ * Scheduled job body: claims a bounded batch of the stalest users (never
+ * reconciled first, then oldest reconciliation) and reconciles them with
+ * bounded concurrency. The claim uses FOR UPDATE SKIP LOCKED so overlapping
+ * runs never pick the same users, and stamps tips_reconcile_attempted_at so a
+ * user that keeps failing backs off instead of blocking the queue.
+ */
+export async function reconcileStaleTipTotals(
+  options: TipReconciliationJobOptions = {}
+): Promise<JobOutcome<TipReconciliationDetail[]>> {
+  const executor = options.executor ?? defaultExecutor;
+  const now = options.now ?? Date.now;
+  const started = now();
+  const batchSize = options.batchSize ?? 25;
+  const budget = options.timeBudgetMs ?? 45_000;
+  const alertThreshold = toStroops(String(options.discrepancyAlertXlm ?? 100));
+
+  const metrics = {
+    selected: 0,
+    reconciled: 0,
+    corrected: 0,
+    unchanged: 0,
+    stale_skipped: 0,
+    failed: 0,
+    deferred: 0,
+    ledger_requests: 0,
+    retries: 0,
+    rate_limited: 0,
+    large_discrepancies: 0,
+  };
+  const details: TipReconciliationDetail[] = [];
+  const largeDiscrepancyUsers: string[] = [];
+
+  const { rows } = await executor(
+    `WITH due AS (
+       SELECT id, tips_reconcile_attempted_at AS prev_attempted_at
+         FROM users
+        WHERE wallet ~ '^G[A-Z2-7]{55}$'
+          AND (tips_reconciled_at IS NULL
+               OR tips_reconciled_at < NOW() - make_interval(mins => $1::int))
+          AND (tips_reconcile_attempted_at IS NULL
+               OR tips_reconcile_attempted_at < NOW() - make_interval(mins => $2::int))
+        ORDER BY tips_reconciled_at ASC NULLS FIRST, id
+        LIMIT $3
+        FOR UPDATE SKIP LOCKED
+     )
+     UPDATE users u
+        SET tips_reconcile_attempted_at = NOW()
+       FROM due
+      WHERE u.id = due.id
+     RETURNING u.id, u.wallet, u.tips_reconciled_at, due.prev_attempted_at`,
+    [
+      options.staleAfterMinutes ?? 360,
+      options.retryAfterMinutes ?? 30,
+      batchSize,
+    ]
+  );
+
+  const users = (rows as DueUser[]).sort((a, b) => {
+    if (!a.tips_reconciled_at) {
+      return b.tips_reconciled_at ? -1 : 0;
+    }
+    if (!b.tips_reconciled_at) {
+      return 1;
+    }
+    return (
+      new Date(a.tips_reconciled_at).getTime() -
+      new Date(b.tips_reconciled_at).getTime()
+    );
+  });
+  metrics.selected = users.length;
+
+  let rateLimitCircuitOpen = false;
+  const deferred: DueUser[] = [];
+
+  await mapWithConcurrency(users, options.concurrency ?? 2, async user => {
+    if (rateLimitCircuitOpen || now() - started > budget) {
+      deferred.push(user);
+      details.push({ userId: user.id, outcome: "deferred" });
+      return;
+    }
+    try {
+      const result = await reconcileUserTipTotals(user.id, user.wallet, {
+        executor,
+        ledger: options.ledger,
+        getXlmUsdPrice: options.getXlmUsdPrice,
+        runId: options.runId,
+      });
+      if (result.totals) {
+        metrics.ledger_requests += result.totals.requests;
+        metrics.retries += result.totals.retries;
+        metrics.rate_limited += result.totals.rateLimited;
+      }
+      if (result.status === "stale") {
+        metrics.stale_skipped++;
+        details.push({ userId: user.id, outcome: "stale" });
+        return;
+      }
+      if (result.status === "not_found") {
+        return;
+      }
+      metrics.reconciled++;
+      const diff = toStroops(result.discrepancy);
+      if (diff === BigInt(0) && !result.countChanged) {
+        metrics.unchanged++;
+        details.push({ userId: user.id, outcome: "unchanged" });
+        return;
+      }
+      metrics.corrected++;
+      details.push({
+        userId: user.id,
+        outcome: "corrected",
+        discrepancy: result.discrepancy ?? undefined,
+      });
+      const magnitude = diff < BigInt(0) ? -diff : diff;
+      if (magnitude >= alertThreshold) {
+        metrics.large_discrepancies++;
+        largeDiscrepancyUsers.push(user.id);
+        logger.warn("Large tip total discrepancy corrected", {
+          operation: "reconcileStaleTipTotals",
+          userId: user.id,
+          previousTotal: result.previousTotal,
+          newTotal: result.totals?.totalReceived,
+        });
+      }
+      if (result.countChanged && options.onTotalsChanged) {
+        await options.onTotalsChanged(user.id).catch(error =>
+          logger.warn("Post-reconciliation hook failed", {
+            userId: user.id,
+            errorMessage:
+              error instanceof Error ? error.message : String(error),
+          })
+        );
+      }
+    } catch (error) {
+      metrics.failed++;
+      if (error instanceof HorizonRateLimitedError) {
+        metrics.rate_limited++;
+        rateLimitCircuitOpen = true;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      details.push({ userId: user.id, outcome: "failed", error: message });
+      logger.error("Tip reconciliation failed for user", {
+        operation: "reconcileStaleTipTotals",
+        userId: user.id,
+        errorMessage: message,
+      });
+    }
+  });
+
+  // Deferred users were never attempted: give back their place in the queue.
+  for (const user of deferred) {
+    await executor(
+      `UPDATE users SET tips_reconcile_attempted_at = $2 WHERE id = $1`,
+      [user.id, user.prev_attempted_at]
+    );
+  }
+  metrics.deferred = deferred.length;
+
+  const alerts: string[] = [];
+  if (metrics.large_discrepancies > 0) {
+    alerts.push(
+      `${metrics.large_discrepancies} user(s) had tip totals corrected by at least ` +
+        `${fromStroops(alertThreshold)} XLM (e.g. ${largeDiscrepancyUsers.slice(0, 5).join(", ")})`
+    );
+  }
+  if (rateLimitCircuitOpen) {
+    alerts.push(
+      `Horizon rate limiting stopped the run early; ${metrics.deferred} user(s) deferred`
+    );
+  }
+
+  const attempted = metrics.selected - metrics.deferred;
+  const status =
+    attempted > 0 && metrics.failed >= attempted
+      ? "failed"
+      : metrics.failed > 0 || metrics.deferred > 0
+        ? "partial"
+        : "succeeded";
+
+  return { status, metrics, alerts, detail: details };
 }

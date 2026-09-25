@@ -1,7 +1,7 @@
 -- Database-level tests for the data-integrity migrations (#1405, #1406, #1407, #1409).
 --
 -- Run against a DISPOSABLE database that has the schema and every migration
--- applied (including 20260925_01..06):
+-- applied (`npm run db:migrate`, including the 20260925110000..120100 files):
 --
 --   psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/tests/data-integrity.test.sql
 --
@@ -11,6 +11,8 @@
 BEGIN;
 
 -- ── fixtures ─────────────────────────────────────────────────────────────────
+-- referred_by is provisioned by hand (see app/api/routes-f/referrals/route.ts).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by UUID REFERENCES users(id);
 INSERT INTO users (id, wallet, username, email, sociallinks, creator, notifications, mux_stream_id) VALUES
   ('a0000000-0000-0000-0000-00000000000c', 'GTESTCREATOR', 'test_creator', 'creator@test.invalid',
    '{"twitter":"https://x.com/c"}', '{"streamTitle":"hi"}', '{}', 'test-ls-1'),
@@ -192,9 +194,6 @@ END $$;
 INSERT INTO users (wallet, username, email) VALUES ('GTESTCREATOR', 'test_creator', 'creator@test.invalid');
 
 -- ── #1409 Mux drift findings ────────────────────────────────────────────────
-INSERT INTO job_runs (id, job_name) VALUES
-  ('d0000000-0000-0000-0000-000000000001', 'mux-reconciliation'),
-  ('d0000000-0000-0000-0000-000000000002', 'mux-reconciliation');
 INSERT INTO stream_recordings (id, user_id, mux_asset_id, playback_id, status) VALUES
   ('e0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-00000000000e', 'test-gone', 'pb', 'ready');
 
@@ -228,32 +227,77 @@ INSERT INTO stream_clips (clipped_by, streamer_id, start_offset, duration, statu
 VALUES ('a0000000-0000-0000-0000-00000000000e', 'a0000000-0000-0000-0000-00000000000e', 0, 10, 'unavailable');
 
 -- ── #1405 corrections are applied and recorded atomically, exactly once ─────
-INSERT INTO job_runs (id, job_name, status) VALUES
-  ('f0000000-0000-0000-0000-000000000001', 'tip-reconciliation', 'completed');
+INSERT INTO job_runs (job_name, status, started_at, duration_ms, run_id) VALUES
+  ('tip-total-reconciliation', 'succeeded', now(), 0, 'f0000000-0000-0000-0000-000000000001');
 DO $$
 DECLARE
   n integer;
+  v bigint;
 BEGIN
+  -- Same statement shape as recordTipTransactions in lib/stellar/tip-reconciliation.ts.
   FOR i IN 1..2 LOOP
     WITH ins AS (
       INSERT INTO tip_transactions (creator_id, amount_xlm, tx_hash)
       VALUES ('a0000000-0000-0000-0000-00000000000e', 1.5, 'test-missing')
       ON CONFLICT (tx_hash) WHERE tx_hash IS NOT NULL DO NOTHING
-      RETURNING id
+      RETURNING creator_id, tx_hash, amount_xlm
     )
-    INSERT INTO tip_reconciliation_corrections (run_id, kind, applied, tip_transaction_id, tx_hash, creator_id, amount_after, delta_abs)
-    SELECT 'f0000000-0000-0000-0000-000000000001', 'MISSING_TIP_INSERTED', true, ins.id, 'test-missing',
-           'a0000000-0000-0000-0000-00000000000e', 1.5, 1.5
+    INSERT INTO tip_reconciliation_corrections (run_id, kind, user_id, tx_hash, amount_after, delta)
+    SELECT 'f0000000-0000-0000-0000-000000000001'::uuid, 'TIP_INSERTED', creator_id, tx_hash, amount_xlm, amount_xlm
     FROM ins
-    ON CONFLICT (run_id, kind, tx_hash) DO NOTHING;
+    ON CONFLICT DO NOTHING;
   END LOOP;
   SELECT count(*) INTO n FROM tip_reconciliation_corrections WHERE tx_hash = 'test-missing';
   ASSERT n = 1, 'a retried insert records one correction';
 
-  WITH upd AS (
-    UPDATE tip_transactions SET amount_xlm = 2 WHERE tx_hash = 'test-missing' AND amount_xlm = 9.99 RETURNING id
-  ) SELECT count(*) INTO n FROM upd;
-  ASSERT n = 0, 'a correction based on a stale amount changes nothing';
+  -- Same statement shape as reconcileUserTipTotals: the correction row exists
+  -- only when the version-guarded update applied and the totals changed.
+  SELECT tip_totals_version INTO v FROM users WHERE id = 'a0000000-0000-0000-0000-00000000000e';
+  FOR i IN 1..2 LOOP
+    WITH upd AS (
+      UPDATE users SET total_tips_received = 1.5, total_tips_count = 1,
+                       tip_totals_version = tip_totals_version + 1
+      WHERE id = 'a0000000-0000-0000-0000-00000000000e' AND tip_totals_version = v
+      RETURNING id
+    ), correction AS (
+      INSERT INTO tip_reconciliation_corrections
+        (run_id, kind, user_id, amount_before, amount_after, delta, count_before, count_after)
+      SELECT 'f0000000-0000-0000-0000-000000000001'::uuid, 'TOTALS_CORRECTED', id, 3::numeric, 1.5, 1.5 - 3, 2, 1
+      FROM upd
+      ON CONFLICT DO NOTHING
+    )
+    SELECT count(*) INTO n FROM upd;
+  END LOOP;
+  ASSERT n = 0, 'a stale version changes nothing';
+  ASSERT (SELECT delta FROM tip_reconciliation_corrections WHERE kind = 'TOTALS_CORRECTED'
+          AND user_id = 'a0000000-0000-0000-0000-00000000000e') = -1.5,
+    'decrease recorded with its signed delta';
+
+  BEGIN
+    INSERT INTO tip_reconciliation_corrections (run_id, kind, user_id, delta)
+    VALUES ('f0000000-0000-0000-0000-000000000001', 'SOMETHING_ELSE', 'a0000000-0000-0000-0000-00000000000e', 0);
+    RAISE EXCEPTION 'unknown correction kind accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- An alert fingerprint is stored once and claimed for delivery once.
+DO $$
+DECLARE
+  n integer;
+BEGIN
+  FOR i IN 1..2 LOOP
+    INSERT INTO reconciliation_alerts (fingerprint, source, run_id, severity, signature, payload)
+    VALUES ('test-fp', 'tip-total-reconciliation', 'f0000000-0000-0000-0000-000000000001', 'critical', 'sig', '{}')
+    ON CONFLICT (fingerprint) DO UPDATE SET fingerprint = EXCLUDED.fingerprint;
+  END LOOP;
+  ASSERT (SELECT count(*) FROM reconciliation_alerts WHERE fingerprint = 'test-fp') = 1, 'one alert per fingerprint';
+  WITH c AS (UPDATE reconciliation_alerts SET delivered_at = now() WHERE fingerprint = 'test-fp' AND delivered_at IS NULL RETURNING id)
+  SELECT count(*) INTO n FROM c;
+  ASSERT n = 1, 'first claim wins';
+  WITH c AS (UPDATE reconciliation_alerts SET delivered_at = now() WHERE fingerprint = 'test-fp' AND delivered_at IS NULL RETURNING id)
+  SELECT count(*) INTO n FROM c;
+  ASSERT n = 0, 'second claim loses';
 END $$;
 
 ROLLBACK;

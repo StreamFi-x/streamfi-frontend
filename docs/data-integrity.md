@@ -5,7 +5,7 @@ This document covers four related pieces of infrastructure:
 1. [JSONB contracts](#1-jsonb-contracts-1407) for `users.sociallinks`, `users.creator` and `users.notifications` (#1407)
 2. [Account deletion: tombstones and delayed purge](#2-account-deletion-tombstones-and-delayed-purge-1406) (#1406)
 3. [Mux asset ↔ recordings and clips consistency sweep](#3-mux-asset--recordings-and-clips-sweep-1409) (#1409)
-4. [Tip reconciliation and anomaly alerting](#4-tip-reconciliation-and-anomaly-alerting-1405) (#1405)
+4. [Tip reconciliation anomaly alerting](#4-tip-reconciliation-anomaly-alerting-1405) (#1405)
 
 The [scheduled jobs](#scheduled-jobs), [configuration](#configuration) and
 [deployment order](#deployment) sections apply to all of them.
@@ -67,7 +67,8 @@ New code that writes one of these columns must use the helpers above.
 Postgres has no built-in JSON Schema support, and `pg_jsonschema` is not
 available on every host, so the database enforces a coarser structural
 invariant through `IMMUTABLE` functions used in `CHECK` constraints
-(`db/migrations/20260925_02` and `_03`):
+(`db/migrations/20260925110000_jsonb_contract_functions.sql`,
+`20260925120000_jsonb_contract_constraints.sql` and `20260925120100_validate_jsonb_contract_constraints.sql`):
 
 - `sociallinks`: `NULL`, an object whose values are strings/`null`, or an array of objects;
 - `creator`: `NULL` or an object; known keys must have the documented JSON type;
@@ -77,7 +78,7 @@ These accept every current and recognised legacy shape, so direct SQL cannot
 store a value of the wrong JSON type, while the exact shape (URL format, enum
 values, lengths, unknown keys) stays in the application layer where it can
 evolve and produce useful errors. Rows that violate the invariant would make
-every `UPDATE` of that user fail, which is why migration `_03` refuses to run
+every `UPDATE` of that user fail, which is why `20260925120000` refuses to run
 until the audit reports none.
 
 ### Audit, normalisation and quarantine
@@ -88,7 +89,7 @@ until the audit reports none.
 - `normalizable` — legacy/double-encoded, with a deterministic lossless canonical form
 - `legacy` — recognised, readable, but no lossless canonical form (e.g. two links for one platform); left in place
 - `nonconforming` — allowed by the database constraint but fails the schema (e.g. `ftp://` URL, unknown key); needs review
-- `invalid` — violates the database invariant; must be fixed before migration `_03`
+- `invalid` — violates the database invariant; must be fixed before `20260925120000`
 
 The report lists user ids, columns and schema issue paths — never stored values.
 Page through with `nextCursor`.
@@ -232,7 +233,7 @@ skipped or silently cascade.
 Financial records are preserved: they keep pointing at the users row, which
 the purge scrubs of personal data (email, Privy id, custodial key, bio, avatar,
 banner, social links, creator metadata, notifications, stream keys and Mux ids)
-instead of deleting. Migration `_04` also changed the financial foreign keys
+instead of deleting. `20260925110100_user_tombstones` also changed the financial foreign keys
 that used `ON DELETE CASCADE` (`tip_transactions`, `gift_transactions`,
 `subscriptions`, `subscription_tiers`, `payouts`) to `ON DELETE RESTRICT`, so an
 accidental `DELETE FROM users` can no longer erase financial history.
@@ -252,7 +253,7 @@ set). A row and an asset correspond when `<table>.mux_asset_id = asset.id`.
 Playback ids are carried for investigation only. Findings record which table
 the row lives in (`row_table`, `row_id`).
 
-`GET /api/routes-f/cron-mux-reconciliation` (daily):
+`GET /api/routes-f/cron-mux-asset-reconciliation` (daily; `lib/mux/asset-reconciliation.ts`):
 
 1. Lists every Mux asset (100 per page, at most 200 pages; the SDK retries
    429/5xx/timeouts). Any listing error ends the listing and marks the run
@@ -288,10 +289,10 @@ to 20 asset ids), and whether direction B was skipped.
 
 Nothing is deleted automatically.
 
-| Drift                    | Automatic                                                                                                                                                                                                                                                                                                                   | Admin (`POST /api/admin/reconciliation/mux {"findingId","action"}`)                                                                     |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Mux asset without DB row | none; resolved automatically if the row appears or the asset disappears (confirmed 404)                                                                                                                                                                                                                                     | `adopt` — create the recording for the live stream's (active) owner; `delete_mux_asset` — only if still no row references it; `dismiss` |
-| DB row without Mux asset | after **two** 404 confirmations at least 24 hours apart, the recording or clip is hidden (`status = 'unavailable'`, `unavailable_at`; migration `_05` adds `unavailable` to the `stream_clips` status check); the row and its previous status are kept. Resolved automatically if the asset reappears or the row is deleted |
+| Drift                    | Automatic                                                                                                                                                                                                                                                                                                                                             | Admin (`POST /api/admin/reconciliation/mux {"findingId","action"}`)                                                                     |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Mux asset without DB row | none; resolved automatically if the row appears or the asset disappears (confirmed 404)                                                                                                                                                                                                                                                               | `adopt` — create the recording for the live stream's (active) owner; `delete_mux_asset` — only if still no row references it; `dismiss` |
+| DB row without Mux asset | after **two** 404 confirmations at least 24 hours apart, the recording or clip is hidden (`status = 'unavailable'`, `unavailable_at`; `20260925110200_mux_asset_reconciliation` adds `unavailable` to the `stream_clips` status check); the row and its previous status are kept. Resolved automatically if the asset reappears or the row is deleted |
 
 Every public read already filters `status = 'ready'`, so hidden recordings and
 clips stop appearing in the UI.
@@ -304,52 +305,35 @@ deletes its Mux asset (a failure there is left for the sweep to report).
 
 ---
 
-## 4. Tip reconciliation and anomaly alerting (#1405)
+## 4. Tip reconciliation anomaly alerting (#1405)
 
-### Reconciliation
+### What is observed
 
-No tip reconciliation existed before this change; the alerting layer needed
-one to observe. `GET /api/routes-f/cron-tip-reconciliation` (hourly) compares, for
-every creator with at least one `tip_transactions` row, the incoming native XLM
-payments of the last `TIP_RECONCILIATION_LOOKBACK_HOURS` (default 72) — the same
-payment filter as `/api/tips/refresh-total` — with the stored rows (written by
-`refresh-total` and the Stellar payment webhook), by
-transaction hash (payments in one transaction are summed; the table stores one
-row per hash):
+The tip totals job from #1400 (`/api/routes-f/cron-reconcile-tip-totals`,
+`lib/stellar/tip-reconciliation.ts`, see [reliability-jobs.md](reliability-jobs.md))
+re-derives each creator's totals from Horizon and inserts ledger tips missing
+from `tip_transactions`. Every change it applies is now also recorded in
+`tip_reconciliation_corrections`, keyed by the run's `job_runs.run_id`:
 
-| Kind                   | Meaning                                         | Action                               |
-| ---------------------- | ----------------------------------------------- | ------------------------------------ |
-| `MISSING_TIP_INSERTED` | on the ledger, not stored                       | row inserted (`price_usd` left NULL) |
-| `AMOUNT_CORRECTED`     | stored amount differs from the ledger           | amount updated                       |
-| `CREATOR_MISMATCH`     | the transaction is stored under another creator | flagged only                         |
-| `NOT_ON_LEDGER`        | stored row with no matching payment             | flagged only (never deleted)         |
+| Kind               | Written when                                                    | Recorded values                                   |
+| ------------------ | --------------------------------------------------------------- | ------------------------------------------------- |
+| `TOTALS_CORRECTED` | the version-guarded totals update applied and the totals differ | user, amount/count before and after, signed delta |
+| `TIP_INSERTED`     | a ledger tip was missing and the insert happened                | user, transaction hash, amount                    |
 
-Every applied correction and its row in `tip_reconciliation_corrections` are
-written by one statement, and every correction is conditional (`ON CONFLICT DO
-NOTHING`, `WHERE amount_xlm = <value read>`), so retries, overlapping runs and a
-concurrent `/api/tips/refresh-total` cannot apply a correction twice or
-overwrite newer data. `NOT_ON_LEDGER` is only evaluated when the whole window
-was read, and rows within 1 hour of the window edge are not checked. Horizon
-calls are retried 3 times with exponential backoff on 429/5xx/network errors;
-a creator that still fails is skipped for this run (the run is `partial`) and
-never treated as "no payments". Amounts are handled as integer stroops
-(`lib/stellar/amounts.ts`); stored as `NUMERIC(20,7)`.
-
-`/api/tips/refresh-total` and `/api/routes-f/webhooks-stellar-payment` used
-`ON CONFLICT (tx_hash)`, which cannot use the partial unique index on `tx_hash`
-and made every insert fail; both now name the index predicate. `refresh-total`
-sums amounts exactly, and the payment webhook only updates the creator's tip
-totals when the row is new, so a redelivered webhook no longer counts twice.
+The correction row is written by the same statement as the change
+(`WITH upd AS (UPDATE …) INSERT …`), only when the change actually applied, with
+`ON CONFLICT DO NOTHING` on `(run_id, user_id)` / `(run_id, tx_hash)`. A retried
+statement, an overlapping run or a lost version race therefore never records a
+correction that did not happen or records one twice. Corrections applied by the
+manual `POST /api/tips/refresh-total` have no run and are not recorded.
 
 ### Baseline and thresholds
 
 After each run the evaluator aggregates the run's corrections and compares them
-with up to `TIP_ALERT_BASELINE_RUNS` (30 — about 30 hours at the hourly
-schedule) previous completed or partial runs. Runs with no corrections count as
-zeros.
+with up to `TIP_ALERT_BASELINE_RUNS` (30) previous `succeeded` or `partial`
+runs. Runs with no corrections count as zeros.
 
-For **count** (corrections applied) and **magnitude** (sum of |delta|)
-separately:
+For **count** (totals corrected) and **magnitude** (sum of |delta|) separately:
 
 ```
 threshold = max(floor, median + K × 1.4826 × MAD, RATIO × median)
@@ -358,17 +342,21 @@ threshold = max(floor, median + K × 1.4826 × MAD, RATIO × median)
 with `K = 4`, `RATIO = 3`, count floor 5 and magnitude floor 100 XLM. Median and
 MAD are robust to occasional spikes, so one incident does not raise the bar for
 the next. The floor stops a quiet baseline (all zeros) from alerting on a single
-correction; the ratio term covers baselines with no spread.
+correction; the ratio term covers baselines with no spread. All arithmetic is
+in integer stroops.
 
 Independently of the baseline:
 
-| Reason                     | Condition                                     | Severity |
-| -------------------------- | --------------------------------------------- | -------- |
-| `LARGE_SINGLE_CORRECTION`  | any single correction ≥ 500 XLM               | critical |
-| `LEDGER_MISMATCH`          | any `NOT_ON_LEDGER` / `CREATOR_MISMATCH` flag | critical |
-| `RUN_FAILED`               | the run failed or was abandoned               | critical |
-| `COUNT_ABOVE_BASELINE`     | count above its threshold                     | warning  |
-| `MAGNITUDE_ABOVE_BASELINE` | magnitude above its threshold                 | warning  |
+| Reason                     | Condition                              | Severity |
+| -------------------------- | -------------------------------------- | -------- |
+| `RUN_FAILED`               | the run failed                         | critical |
+| `TOTAL_DECREASED`          | a stored total was corrected downwards | critical |
+| `LARGE_SINGLE_CORRECTION`  | any single correction ≥ 500 XLM        | critical |
+| `COUNT_ABOVE_BASELINE`     | count above its threshold              | warning  |
+| `MAGNITUDE_ABOVE_BASELINE` | magnitude above its threshold          | warning  |
+
+Tips only accumulate on the ledger, so a total that has to go down means the
+stored data was wrong (double counting, a wrong insert) and is always flagged.
 
 **Cold start**: with fewer than 5 previous runs there is no baseline; only
 `COLD_START_COUNT` (≥ 25 corrections) and `COLD_START_MAGNITUDE` (≥ 1000 XLM)
@@ -377,30 +365,32 @@ plus the baseline-independent rules apply. All values are configurable
 
 ### Delivery, deduplication and failure handling
 
-- Alerts are stored in `reconciliation_alerts` with fingerprint
-  `tip-reconciliation:run:<run id>`, so re-evaluating a run never creates a second alert.
-- An alert whose signature (reason codes, order of magnitude of the correction
-  amount, and the set of flagged transactions) matches an alert delivered within
-  `TIP_ALERT_COOLDOWN_HOURS` (6) is stored as `suppressed` instead of sent. An
-  escalation or a new flagged transaction produces a new signature and is sent.
-- Alerts are emailed to `RECONCILIATION_ALERT_EMAILS` through the existing
-  nodemailer/Gmail transport (`EMAIL_USER`, `EMAIL_PASS`). The payload contains
-  the run id and timestamps, observed metrics, baseline statistics, the exceeded
-  thresholds and up to 50 affected corrections (transaction hash, creator id,
-  tip id, before/after/delta). No usernames, wallets or emails.
-- Each alert is claimed before sending, so two invocations never send it twice.
-  A delivery failure (including no recipients configured) is recorded as
-  `failed` with the error, logged, and retried on the next run, up to 5 attempts.
-  An alert is never marked delivered unless the send succeeded.
+- Alerts are stored in `reconciliation_alerts` with the run id as fingerprint,
+  so re-evaluating a run never creates a second alert.
+- Delivery goes through the existing `sendOperationalAlert`
+  (`lib/security/alerts.ts`, category `tip_reconciliation`): a structured
+  `operational_alert` log line, plus a POST to `OPS_ALERT_WEBHOOK_URL`
+  (Slack/Discord compatible) when it is set. Its per-category hourly budget
+  applies.
+- The dedup key is the alert signature: reason codes, order of magnitude of the
+  correction amount and a hash of the users whose totals decreased. The same
+  signature is sent at most once per `TIP_ALERT_COOLDOWN_HOURS` (6); an
+  escalation or a newly affected user produces a new signature and is sent.
+- The payload contains the run id and time, observed metrics, baseline
+  statistics, the exceeded thresholds and up to 50 affected corrections (user
+  id, transaction hash, before/after/delta). No usernames, wallets or emails.
+- Each alert is claimed (`delivered_at IS NULL`) before sending, so two
+  invocations never send it twice. The delivery outcome (`sent`, `logged`,
+  `deduplicated`, `suppressed`) is stored on the alert.
 - A run is marked `alert_evaluated_at` only after evaluation succeeds. Every
-  invocation re-evaluates unevaluated runs from the last 7 days (including runs
-  that crashed or were abandoned), so a failed evaluation is retried rather than
-  lost.
+  invocation of the tip job evaluates the unevaluated runs of the last 7 days,
+  so an evaluation that failed or never ran is retried rather than lost. An
+  evaluation error is logged and never fails the reconciliation run.
 
 ### Investigating
 
-`GET /api/admin/reconciliation/tips` returns recent runs with their correction
-totals, recent alerts (including failed and suppressed ones) and runs still
+`GET /api/admin/reconciliation/tips` (admin) returns the recent runs with their
+correction totals, recent alerts with their delivery outcome, and runs still
 awaiting evaluation. The corrections of a run are in
 `tip_reconciliation_corrections` (`run_id`).
 
@@ -408,73 +398,74 @@ awaiting evaluation. The corrections of a run are in
 
 ## Scheduled jobs
 
-| Job                | Endpoint                                 | Schedule (`vercel.json`) |
-| ------------------ | ---------------------------------------- | ------------------------ |
-| Tip reconciliation | `/api/routes-f/cron-tip-reconciliation`  | hourly at :15            |
-| Mux sweep          | `/api/routes-f/cron-mux-reconciliation`  | daily 03:30 UTC          |
-| Account purge      | `/api/routes-f/cron-purge-deleted-users` | daily 04:00 UTC          |
+| Job                   | Endpoint                                      | Schedule (`vercel.json`) |
+| --------------------- | --------------------------------------------- | ------------------------ |
+| Tip totals + alerting | `/api/routes-f/cron-reconcile-tip-totals`     | every 15 minutes         |
+| Mux asset sweep       | `/api/routes-f/cron-mux-asset-reconciliation` | daily 03:45 UTC          |
+| Account purge         | `/api/routes-f/cron-purge-deleted-users`      | daily 05:00 UTC          |
 
-All three:
-
-- require `Authorization: Bearer $CRON_SECRET` (Vercel Cron sends it); they return
-  401 when `CRON_SECRET` is not set;
-- take a database lease (`job_leases`) so only one instance runs a job at a time — an
-  overlapping invocation returns `skipped_locked`. Session-level advisory locks are
-  not used because `@vercel/postgres` may run consecutive queries on different
-  connections;
-- record a `job_runs` row with metrics (`completed`, `partial`, `failed`; a run
-  left `running` by a crashed worker becomes `abandoned`);
-- stop before their time budget (below `maxDuration = 300`) and report `partial`
-  instead of being killed mid-step;
-- log one JSON line per run (`{"job": …, "outcome": …, "metrics": …}`).
+All of them run on the shared scheduler in `lib/jobs/scheduled-job.ts`
+([reliability-jobs.md](reliability-jobs.md)): `Authorization: Bearer
+$CRON_SECRET`, a `job_locks` lease so only one instance runs at a time
+(`skipped` otherwise), one `job_runs` row per run (`succeeded`, `partial`,
+`failed`, `skipped`, with numeric metrics and a `run_id`), 200/207/500 status
+codes, and the shared failure and staleness alerts. The Mux sweep and the purge
+stop before their time budget (below `maxDuration = 300`) and report `partial`
+instead of being killed mid-step.
 
 ## Configuration
 
-| Variable                             | Default | Used by                                                   |
-| ------------------------------------ | ------- | --------------------------------------------------------- |
-| `CRON_SECRET`                        | —       | all cron endpoints (required)                             |
-| `ADMIN_PRIVY_IDS`                    | —       | admin endpoints (existing)                                |
-| `ACCOUNT_DELETION_GRACE_DAYS`        | 30      | deletion                                                  |
-| `PURGE_CUSTODIAL_MAX_XLM`            | 2       | purge custodial-wallet check                              |
-| `TIP_RECONCILIATION_LOOKBACK_HOURS`  | 72      | tip reconciliation                                        |
-| `RECONCILIATION_ALERT_EMAILS`        | —       | alert recipients, comma-separated (required for delivery) |
-| `EMAIL_USER`, `EMAIL_PASS`           | —       | alert email transport (existing)                          |
-| `TIP_ALERT_BASELINE_RUNS`            | 30      | alerting                                                  |
-| `TIP_ALERT_MIN_BASELINE_RUNS`        | 5       | alerting (cold start)                                     |
-| `TIP_ALERT_MAD_MULTIPLIER`           | 4       | alerting                                                  |
-| `TIP_ALERT_RATIO_MULTIPLIER`         | 3       | alerting                                                  |
-| `TIP_ALERT_COUNT_FLOOR`              | 5       | alerting                                                  |
-| `TIP_ALERT_MAGNITUDE_FLOOR_XLM`      | 100     | alerting                                                  |
-| `TIP_ALERT_SINGLE_CORRECTION_XLM`    | 500     | alerting                                                  |
-| `TIP_ALERT_COLD_START_COUNT`         | 25      | alerting                                                  |
-| `TIP_ALERT_COLD_START_MAGNITUDE_XLM` | 1000    | alerting                                                  |
-| `TIP_ALERT_COOLDOWN_HOURS`           | 6       | alerting                                                  |
+| Variable                             | Default | Used by                                        |
+| ------------------------------------ | ------- | ---------------------------------------------- |
+| `CRON_SECRET`                        | —       | all cron endpoints (required)                  |
+| `ADMIN_PRIVY_IDS`                    | —       | admin endpoints (existing)                     |
+| `ACCOUNT_DELETION_GRACE_DAYS`        | 30      | deletion                                       |
+| `PURGE_CUSTODIAL_MAX_XLM`            | 2       | purge custodial-wallet check                   |
+| `OPS_ALERT_WEBHOOK_URL`              | —       | alert delivery (existing; log only when unset) |
+| `OPS_ALERT_HOURLY_BUDGET`            | 20      | alert delivery (existing)                      |
+| `TIP_ALERT_BASELINE_RUNS`            | 30      | alerting                                       |
+| `TIP_ALERT_MIN_BASELINE_RUNS`        | 5       | alerting (cold start)                          |
+| `TIP_ALERT_MAD_MULTIPLIER`           | 4       | alerting                                       |
+| `TIP_ALERT_RATIO_MULTIPLIER`         | 3       | alerting                                       |
+| `TIP_ALERT_COUNT_FLOOR`              | 5       | alerting                                       |
+| `TIP_ALERT_MAGNITUDE_FLOOR_XLM`      | 100     | alerting                                       |
+| `TIP_ALERT_SINGLE_CORRECTION_XLM`    | 500     | alerting                                       |
+| `TIP_ALERT_COLD_START_COUNT`         | 25      | alerting                                       |
+| `TIP_ALERT_COLD_START_MAGNITUDE_XLM` | 1000    | alerting                                       |
+| `TIP_ALERT_COOLDOWN_HOURS`           | 6       | alerting                                       |
 
 ## Deployment
 
-Migrations are run manually with `psql -f` (outside a transaction: `_03` and
-`_04` manage their own transactions and `_04` uses `CREATE INDEX CONCURRENTLY`).
-All of them are idempotent.
+Migrations run through the tracked runner (`npm run db:migrate`, see
+[database-migrations.md](database-migrations.md)). Files marked
+`-- migrate:no-transaction` run statement by statement (`CREATE INDEX
+CONCURRENTLY`, `VALIDATE CONSTRAINT`); every other file runs in one
+transaction. All of them are idempotent.
 
 The application code reads the new tables and `users.deleted_at`, so the
 schema migrations go first; the JSONB constraints go last because they need
 the audit, which runs through the deployed application.
 
-1. `20260925_01_job_infrastructure.sql`
-2. `20260925_02_jsonb_contract_functions.sql`
-3. `20260925_04_user_tombstones.sql`
-4. `20260925_05_mux_reconciliation.sql`
-5. `20260925_06_tip_reconciliation_alerting.sql`
-6. Set `CRON_SECRET` and `RECONCILIATION_ALERT_EMAILS`, then deploy the application.
-7. Run the JSONB audit (`GET /api/admin/jsonb-audit`, page through `nextCursor`),
+1. `npm run db:migrate` applies `20260925110000` … `20260925110400` (JSONB
+   check functions, tombstones and FK policy, Mux findings, tip corrections and
+   alerts, online index and constraint validation). If any `users` row violates
+   a JSONB contract, `20260925120000_jsonb_contract_constraints` then stops the
+   run with the count of violating rows; it is transactional, so it leaves no
+   trace and is retried by the next run.
+2. Set `CRON_SECRET` (and `OPS_ALERT_WEBHOOK_URL` for alert delivery), then
+   deploy the application.
+3. Run the JSONB audit (`GET /api/admin/jsonb-audit`, page through `nextCursor`),
    apply `normalize`, review the `nonconforming` and `legacy` findings, and
    `quarantine` whatever is still `invalid`.
-8. `20260925_03_jsonb_contract_constraints.sql` — refuses to run while any row is invalid.
+4. `npm run db:migrate` again: `20260925120000_jsonb_contract_constraints`
+   adds the constraints `NOT VALID` and
+   `20260925120100_validate_jsonb_contract_constraints` validates them without
+   blocking writes.
 
 `db/tests/data-integrity.test.sql` checks the database side (constraints, the
-purge function, foreign-key policy, finding upserts, correction idempotency)
-against a disposable database with all migrations applied; it runs in a
-transaction and rolls back:
+purge function, foreign-key policy, finding upserts, correction and alert
+idempotency) against a disposable database with all migrations applied; it
+runs in a transaction and rolls back:
 
 ```bash
 psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/tests/data-integrity.test.sql

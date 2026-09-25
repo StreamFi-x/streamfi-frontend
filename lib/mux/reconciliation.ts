@@ -1,781 +1,382 @@
-/**
- * Mux asset <-> stream_recordings consistency sweep (#1409).
- * See docs/data-integrity.md for the drift model, grace periods and the
- * remediation lifecycle.
- *
- * Tables: stream_recordings (live recordings, written by the video.asset.ready
- * webhook) and stream_clips (rows with a mux_asset_id). A row and a Mux asset
- * correspond when <table>.mux_asset_id = asset.id. Playback IDs are carried
- * for investigation only — an asset can have several and they are not used for
- * matching.
- *
- * Safety rules:
- *  - "could not fetch" is never treated as "does not exist": an asset is only
- *    considered missing after a direct retrieve returns 404;
- *  - direction B (row without asset) only runs when the full asset listing
- *    succeeded;
- *  - nothing is deleted automatically. The only automatic action hides a
- *    recording (status = 'unavailable') after two 404 confirmations at least
- *    AUTO_HIDE_MIN_SPAN_MS apart; the row and an audit trail are preserved.
- */
 import { sql } from "@vercel/postgres";
+import { logger } from "@/lib/tracing/logger";
+import { sendOperationalAlert } from "@/lib/security/alerts";
+import { withTransaction } from "@/lib/postgres-transaction";
 import {
-  deleteMuxAssetIfExists,
-  listMuxAssetsPage,
-  retrieveMuxAsset,
-  type MuxAssetSummary,
+  closeOpenSessions,
+  openSessionIfMissing,
+  type LiveUserRow,
+} from "@/lib/mux/live-state";
+import type {
+  ActiveMuxLiveStreams,
+  MuxLiveStreamStatus,
 } from "@/lib/mux/server";
-import { upsertRecordingFromAsset } from "@/lib/mux/recordings";
-import { errorMessage } from "@/lib/jobs/runs";
-import type { JobBodyResult, JobContext } from "@/lib/jobs/run-job";
-
-const HOUR_MS = 60 * 60 * 1000;
 
 /**
- * Mux asset without a DB row: the row is written by the video.asset.ready
- * webhook. A live recording asset exists from the moment the stream starts
- * (up to Mux's 12 h maximum live duration) and Mux redelivers a failed
- * webhook for up to 24 h, so an asset younger than 12 h + 24 h may still get
- * its row legitimately.
+ * Mux ↔ DB live-state reconciliation (#1399).
+ *
+ * Mux is the source of truth for whether a stream is broadcasting. Webhooks
+ * keep users.is_live in sync in real time; this job repairs whatever they
+ * missed, in both directions:
+ *
+ *   DB live,  Mux not active → mark offline, close dangling stream_sessions
+ *   DB idle,  Mux active     → mark live, open a stream session
+ *
+ * Safety properties (see docs/mux-live-state-reconciliation.md):
+ *   - Fail closed: any Mux error, malformed response or truncated listing
+ *     aborts the run before a single write.
+ *   - "DB live, Mux not active" candidates are re-confirmed one by one with a
+ *     direct Mux lookup before being ended (bounded per run), so a stream
+ *     that shifted between list pages is never ended by mistake.
+ *   - Race protection: every correction is a conditional UPDATE that only
+ *     applies if the row still has the state we observed AND its live state
+ *     last changed before (run start − grace window). A webhook that lands
+ *     while the job runs always wins; the grace window additionally covers
+ *     Mux's own list/API propagation delay.
+ *   - Each correction is its own transaction, reusing the webhook's
+ *     transition helpers, so reconciliation and webhooks do identical
+ *     session bookkeeping and cannot double-open or double-close sessions.
  */
-export const MUX_ORPHAN_GRACE_MS = 36 * HOUR_MS;
-/**
- * DB row without a Mux asset: rows are only written after the asset is ready,
- * so there is no creation lag to wait out; the hour covers listing/API
- * eventual consistency around very recent writes.
- */
-export const DB_ROW_GRACE_MS = 1 * HOUR_MS;
-/** Two independent 404 confirmations this far apart before auto-hiding. */
-export const AUTO_HIDE_MIN_SPAN_MS = 24 * HOUR_MS;
-/** Mux timestamps are compared with the database clock; allow for skew. */
-export const CLOCK_SKEW_MS = 5 * 60 * 1000;
 
-const PAGE_SIZE = 100;
-const MAX_PAGES = 200;
-const DB_BATCH = 500;
-/** Direct retrieve calls per run (confirmations), to respect Mux rate limits. */
-const MAX_CONFIRMATIONS = 200;
-const MAX_REPORTED_IDS = 20;
+export const MUX_RECONCILE_JOB = "mux_live_reconciliation";
 
-export type RowTable = "stream_recordings" | "stream_clips";
-const ROW_TABLES: RowTable[] = ["stream_recordings", "stream_clips"];
-
-export interface MuxSweepMetrics {
-  mux_assets_listed: number;
-  listing_complete: boolean;
-  listing_error: string | null;
-  db_rows_scanned: number;
-  matched: number;
-  recent_propagation: number;
-  mux_asset_without_db_row: number;
-  db_row_without_mux_asset: number;
-  new_findings: number;
-  auto_hidden: number;
-  findings_resolved: number;
-  check_failed: number;
-  check_failed_asset_ids: string[];
-  direction_b_skipped: boolean;
-  confirmations_used: number;
+export interface MuxLiveStateSource {
+  listActive(): Promise<ActiveMuxLiveStreams>;
+  getStatus(streamId: string): Promise<MuxLiveStreamStatus>;
 }
 
-function newMetrics(): MuxSweepMetrics {
+export interface ReconciliationConfig {
+  graceSeconds: number;
+  maxConfirmationsPerRun: number;
+  driftAlertThreshold: number;
+  persistentDriftRuns: number;
+}
+
+function intFromEnv(name: string, fallback: number, min: number, max: number) {
+  const parsed = Number(process.env[name]);
+  if (!Number.isInteger(parsed)) {
+    return fallback;
+  }
+  return Math.min(Math.max(parsed, min), max);
+}
+
+export function reconciliationConfigFromEnv(): ReconciliationConfig {
   return {
-    mux_assets_listed: 0,
-    listing_complete: false,
-    listing_error: null,
-    db_rows_scanned: 0,
-    matched: 0,
-    recent_propagation: 0,
-    mux_asset_without_db_row: 0,
-    db_row_without_mux_asset: 0,
-    new_findings: 0,
-    auto_hidden: 0,
-    findings_resolved: 0,
-    check_failed: 0,
-    check_failed_asset_ids: [],
-    direction_b_skipped: false,
-    confirmations_used: 0,
+    graceSeconds: intFromEnv("MUX_RECONCILE_GRACE_SECONDS", 180, 30, 3600),
+    maxConfirmationsPerRun: intFromEnv(
+      "MUX_RECONCILE_MAX_CONFIRMATIONS",
+      25,
+      1,
+      200
+    ),
+    driftAlertThreshold: intFromEnv(
+      "MUX_RECONCILE_DRIFT_ALERT_THRESHOLD",
+      5,
+      1,
+      10_000
+    ),
+    persistentDriftRuns: intFromEnv(
+      "MUX_RECONCILE_PERSISTENT_DRIFT_RUNS",
+      3,
+      2,
+      1000
+    ),
   };
 }
 
-function recordCheckFailed(metrics: MuxSweepMetrics, assetId: string) {
-  metrics.check_failed++;
-  if (metrics.check_failed_asset_ids.length < MAX_REPORTED_IDS) {
-    metrics.check_failed_asset_ids.push(assetId);
-  }
+export class IncompleteMuxListingError extends Error {}
+
+export interface ReconciliationSummary {
+  observed_at: string;
+  mux_active_streams: number;
+  db_live_users: number;
+  marked_offline: number;
+  marked_live: number;
+  sessions_closed: number;
+  sessions_opened: number;
+  skipped_recent_change: number;
+  skipped_still_active: number;
+  skipped_banned: number;
+  confirmation_failures: number;
+  deferred: number;
+  [key: string]: unknown;
 }
 
-export async function runMuxReconciliation(
-  ctx: JobContext
-): Promise<JobBodyResult<MuxSweepMetrics>> {
-  const metrics = newMetrics();
-  const { rows: clock } = await sql`SELECT now() AS now`;
-  const dbNow = new Date(clock[0].now).getTime();
+type Correction = "marked_offline" | "marked_live";
 
-  const assets = await listAllAssets(ctx, metrics);
-
-  await reconcileMuxToDb(ctx, assets, dbNow, metrics);
-
-  if (metrics.listing_complete && !ctx.deadlineExpired()) {
-    await reconcileDbToMux(ctx, assets, dbNow, metrics);
-  } else {
-    metrics.direction_b_skipped = true;
-  }
-
-  const partial =
-    !metrics.listing_complete ||
-    metrics.direction_b_skipped ||
-    metrics.check_failed > 0 ||
-    ctx.deadlineExpired();
-  return { status: partial ? "partial" : "completed", metrics };
+function logCorrection(fields: {
+  correction: Correction;
+  userId: string;
+  muxStreamId: string | null;
+  reason: string;
+  observedMuxState: string;
+  observedAt: string;
+  liveStateChangedAt: string | null;
+  sessionsClosed?: number;
+  sessionOpened?: boolean;
+}) {
+  logger.warn("mux_reconciliation_correction", {
+    source: "reconciliation",
+    correction: fields.correction,
+    user_id: fields.userId,
+    mux_stream_id: fields.muxStreamId,
+    previous_db_state:
+      fields.correction === "marked_offline" ? "live" : "offline",
+    observed_mux_state: fields.observedMuxState,
+    reason: fields.reason,
+    observed_at: fields.observedAt,
+    live_state_changed_at: fields.liveStateChangedAt,
+    sessions_closed: fields.sessionsClosed,
+    session_opened: fields.sessionOpened,
+  });
 }
 
-async function listAllAssets(
-  ctx: JobContext,
-  metrics: MuxSweepMetrics
-): Promise<Map<string, MuxAssetSummary>> {
-  const assets = new Map<string, MuxAssetSummary>();
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    if (ctx.deadlineExpired()) {
-      metrics.listing_error = "time budget exhausted while listing";
-      return assets;
-    }
-    let batch: MuxAssetSummary[];
-    try {
-      batch = await listMuxAssetsPage(page, PAGE_SIZE);
-    } catch (err) {
-      // Includes rate limits / timeouts that survived the SDK's retries. The
-      // listing is incomplete, so absence from it proves nothing.
-      metrics.listing_error = errorMessage(err);
-      return assets;
-    }
-    // Pages are newest-first; an asset created mid-listing can shift an item
-    // onto the next page, so duplicates are expected and harmless.
-    for (const asset of batch) {
-      assets.set(asset.id, asset);
-    }
-    metrics.mux_assets_listed = assets.size;
-    if (batch.length < PAGE_SIZE) {
-      metrics.listing_complete = true;
-      return assets;
-    }
-    if (page % 20 === 0) {
-      await ctx.renewLease();
-    }
-  }
-  metrics.listing_error = `stopped after ${MAX_PAGES} pages`;
-  return assets;
+interface DbLiveRow {
+  id: string;
+  mux_stream_id: string | null;
+  live_state_changed_at: string | null;
 }
 
-// ── Direction A: Mux asset without a DB row ──────────────────────────────────
-
-async function findRecordedAssetIds(ids: string[]): Promise<Set<string>> {
-  const found = new Set<string>();
-  for (let i = 0; i < ids.length; i += DB_BATCH) {
-    const chunk = ids.slice(i, i + DB_BATCH);
-    const idList = JSON.stringify(chunk);
-    const { rows } = await sql`
-      SELECT mux_asset_id FROM stream_recordings
-      WHERE mux_asset_id IN (SELECT jsonb_array_elements_text(${idList}::jsonb))
-      UNION
-      SELECT mux_asset_id FROM stream_clips
-      WHERE mux_asset_id IN (SELECT jsonb_array_elements_text(${idList}::jsonb))
+async function markOffline(
+  row: DbLiveRow,
+  observedAt: string,
+  graceSeconds: number
+): Promise<{ applied: boolean; sessionsClosed: number }> {
+  return withTransaction(async tx => {
+    const { rows } = await tx.sql`
+      UPDATE users SET
+        is_live = false,
+        stream_started_at = NULL,
+        current_viewers = 0,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${row.id}
+        AND is_live = true
+        AND mux_stream_id IS NOT DISTINCT FROM ${row.mux_stream_id}
+        AND (live_state_changed_at IS NULL
+             OR live_state_changed_at < ${observedAt}::timestamptz
+                                         - make_interval(secs => ${graceSeconds}))
+      RETURNING id
     `;
-    rows.forEach(r => found.add(String(r.mux_asset_id)));
-  }
-  return found;
+    if (rows.length === 0) {
+      return { applied: false, sessionsClosed: 0 };
+    }
+    return {
+      applied: true,
+      sessionsClosed: await closeOpenSessions(tx, row.id),
+    };
+  });
 }
 
-async function reconcileMuxToDb(
-  ctx: JobContext,
-  assets: Map<string, MuxAssetSummary>,
-  dbNow: number,
-  metrics: MuxSweepMetrics
-) {
-  const all = [...assets.values()];
-  const recorded = await findRecordedAssetIds(all.map(a => a.id));
-  metrics.matched += recorded.size;
-
-  const eligibleBefore = dbNow - MUX_ORPHAN_GRACE_MS - CLOCK_SKEW_MS;
-  const unmatched = all.filter(a => !recorded.has(a.id));
-  const candidates: MuxAssetSummary[] = [];
-  for (const asset of unmatched) {
-    const settled =
-      asset.createdAt.getTime() < eligibleBefore &&
-      asset.status !== "preparing" &&
-      !asset.isLive;
-    if (settled) {
-      candidates.push(asset);
-    } else {
-      metrics.recent_propagation++;
+async function markLive(
+  row: DbLiveRow,
+  observedAt: string,
+  graceSeconds: number
+): Promise<{ applied: boolean; sessionOpened: boolean }> {
+  return withTransaction(async tx => {
+    const { rows } = await tx.sql<LiveUserRow>`
+      UPDATE users SET
+        is_live = true,
+        stream_started_at = CURRENT_TIMESTAMP,
+        current_viewers = 0,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${row.id}
+        AND COALESCE(is_live, false) = false
+        AND COALESCE(is_banned, false) = false
+        AND mux_stream_id = ${row.mux_stream_id}
+        AND (live_state_changed_at IS NULL
+             OR live_state_changed_at < ${observedAt}::timestamptz
+                                         - make_interval(secs => ${graceSeconds}))
+      RETURNING id, mux_stream_id, mux_playback_id, creator
+    `;
+    if (rows.length === 0) {
+      return { applied: false, sessionOpened: false };
     }
+    return {
+      applied: true,
+      sessionOpened: await openSessionIfMissing(tx, rows[0]),
+    };
+  });
+}
+
+/**
+ * One reconciliation pass. Throws (without having written anything) if Mux
+ * cannot be read completely.
+ */
+export async function reconcileMuxLiveState(
+  source: MuxLiveStateSource,
+  config: ReconciliationConfig = reconciliationConfigFromEnv()
+): Promise<ReconciliationSummary> {
+  // DB clock, captured BEFORE asking Mux: anything that changes a row's live
+  // state after this instant is newer than our observation.
+  const { rows: clock } = await sql<{ now: string }>`SELECT NOW()::text AS now`;
+  const observedAt = clock[0].now;
+
+  const listing = await source.listActive();
+  if (!listing.complete) {
+    throw new IncompleteMuxListingError(
+      `Mux active-stream listing truncated after ${listing.pages} pages`
+    );
   }
+  const activeIds = [...listing.ids];
 
-  // Re-check just before recording findings: a webhook may have written the
-  // row while the listing was running.
-  const lateArrivals = await findRecordedAssetIds(candidates.map(a => a.id));
-  const orphans = candidates.filter(a => !lateArrivals.has(a.id));
-  metrics.matched += lateArrivals.size;
-  metrics.mux_asset_without_db_row = orphans.length;
-
-  const owners = await resolveOwners(orphans);
-  for (const asset of orphans) {
-    const inserted = await upsertFinding({
-      kind: "MUX_ASSET_WITHOUT_DB_ROW",
-      runId: ctx.runId,
-      muxAssetId: asset.id,
-      rowTable: null,
-      rowId: null,
-      playbackId: asset.playbackId,
-      userId: asset.liveStreamId
-        ? (owners.get(asset.liveStreamId) ?? null)
-        : null,
-      liveStreamId: asset.liveStreamId,
-      assetCreatedAt: asset.createdAt,
-      previousStatus: null,
-    });
-    if (inserted) {
-      metrics.new_findings++;
-    }
-  }
-
-  // Close findings whose row has since appeared (e.g. webhook redelivered).
-  const { rowCount } = await sql`
-    UPDATE mux_drift_findings f
-    SET status = 'resolved', resolved_at = now(), notes = 'database row now exists'
-    WHERE f.kind = 'MUX_ASSET_WITHOUT_DB_ROW'
-      AND f.status = 'open'
-      AND (
-        EXISTS (SELECT 1 FROM stream_recordings r WHERE r.mux_asset_id = f.mux_asset_id)
-        OR EXISTS (SELECT 1 FROM stream_clips c WHERE c.mux_asset_id = f.mux_asset_id)
-      )
+  const { rows: dbLive } = await sql<DbLiveRow>`
+    SELECT id, mux_stream_id, live_state_changed_at::text AS live_state_changed_at
+    FROM users
+    WHERE is_live = true
   `;
-  metrics.findings_resolved += rowCount ?? 0;
+  const { rows: missedLive } =
+    activeIds.length === 0
+      ? { rows: [] as Array<DbLiveRow & { is_banned: boolean | null }> }
+      : await sql<DbLiveRow & { is_banned: boolean | null }>`
+          SELECT id, mux_stream_id, is_banned,
+                 live_state_changed_at::text AS live_state_changed_at
+          FROM users
+          WHERE mux_stream_id IN (
+            SELECT jsonb_array_elements_text(${JSON.stringify(activeIds)}::jsonb)
+          )
+            AND COALESCE(is_live, false) = false
+        `;
 
-  // Close findings whose asset no longer exists in Mux (confirmed by 404).
-  if (metrics.listing_complete) {
-    const { rows: open } = await sql`
-      SELECT id, mux_asset_id FROM mux_drift_findings
-      WHERE kind = 'MUX_ASSET_WITHOUT_DB_ROW' AND status = 'open'
-    `;
-    for (const finding of open) {
-      const assetId = String(finding.mux_asset_id);
-      if (assets.has(assetId) || !canConfirm(metrics)) {
+  const summary: ReconciliationSummary = {
+    observed_at: observedAt,
+    mux_active_streams: activeIds.length,
+    db_live_users: dbLive.length,
+    marked_offline: 0,
+    marked_live: 0,
+    sessions_closed: 0,
+    sessions_opened: 0,
+    skipped_recent_change: 0,
+    skipped_still_active: 0,
+    skipped_banned: 0,
+    confirmation_failures: 0,
+    deferred: 0,
+  };
+
+  // ── DB live, Mux not active ────────────────────────────────────────────
+  const staleLive = dbLive.filter(
+    r => !r.mux_stream_id || !listing.ids.has(r.mux_stream_id)
+  );
+  let confirmations = 0;
+  for (const row of staleLive) {
+    let observedMuxState = "no_mux_stream";
+    if (row.mux_stream_id) {
+      if (confirmations >= config.maxConfirmationsPerRun) {
+        summary.deferred++;
         continue;
       }
-      const exists = await confirmAsset(assetId, metrics);
-      if (exists === false) {
-        const { rowCount: resolved } = await sql`
-          UPDATE mux_drift_findings
-          SET status = 'resolved', resolved_at = now(), notes = 'asset no longer exists in Mux'
-          WHERE id = ${finding.id} AND status = 'open'
-        `;
-        metrics.findings_resolved += resolved ?? 0;
+      confirmations++;
+      try {
+        observedMuxState = await source.getStatus(row.mux_stream_id);
+      } catch (err) {
+        summary.confirmation_failures++;
+        logger.warn("mux_reconciliation_confirmation_failed", {
+          source: "reconciliation",
+          user_id: row.id,
+          mux_stream_id: row.mux_stream_id,
+          errorMessage: err instanceof Error ? err.message : String(err),
+        });
+        continue;
+      }
+      if (observedMuxState === "active") {
+        summary.skipped_still_active++;
+        continue;
       }
     }
-  }
-}
 
-async function resolveOwners(
-  assets: MuxAssetSummary[]
-): Promise<Map<string, string>> {
-  const streamIds = [
-    ...new Set(assets.map(a => a.liveStreamId).filter(Boolean)),
-  ] as string[];
-  const owners = new Map<string, string>();
-  if (streamIds.length === 0) {
-    return owners;
-  }
-  const { rows } = await sql`
-    SELECT id, mux_stream_id FROM users
-    WHERE mux_stream_id IN (
-      SELECT jsonb_array_elements_text(${JSON.stringify(streamIds)}::jsonb)
-    )
-  `;
-  rows.forEach(r => owners.set(String(r.mux_stream_id), String(r.id)));
-  return owners;
-}
-
-// ── Direction B: DB row without a Mux asset ──────────────────────────────────
-
-async function reconcileDbToMux(
-  ctx: JobContext,
-  assets: Map<string, MuxAssetSummary>,
-  dbNow: number,
-  metrics: MuxSweepMetrics
-) {
-  for (const table of ROW_TABLES) {
-    await reconcileTable(table, ctx, assets, dbNow, metrics);
-  }
-
-  // Close findings whose asset reappeared or whose row is gone.
-  const { rows: open } = await sql`
-    SELECT f.id, f.mux_asset_id,
-           CASE WHEN f.row_table = 'stream_clips'
-                THEN NOT EXISTS (SELECT 1 FROM stream_clips c WHERE c.id = f.row_id)
-                ELSE NOT EXISTS (SELECT 1 FROM stream_recordings r WHERE r.id = f.row_id)
-           END AS row_gone
-    FROM mux_drift_findings f
-    WHERE f.kind = 'DB_ROW_WITHOUT_MUX_ASSET' AND f.status = 'open'
-  `;
-  for (const finding of open) {
-    const note = finding.row_gone
-      ? "database row no longer exists"
-      : assets.has(String(finding.mux_asset_id))
-        ? "asset exists in Mux again"
-        : null;
-    if (!note) {
+    const result = await markOffline(row, observedAt, config.graceSeconds);
+    if (!result.applied) {
+      summary.skipped_recent_change++;
       continue;
     }
-    const { rowCount } = await sql`
-      UPDATE mux_drift_findings
-      SET status = 'resolved', resolved_at = now(), notes = ${note}
-      WHERE id = ${finding.id} AND status = 'open'
-    `;
-    metrics.findings_resolved += rowCount ?? 0;
-  }
-}
-
-/** One keyset page of rows that reference a Mux asset and are not hidden. */
-async function scanRows(table: RowTable, cursor: string) {
-  const { rows } =
-    table === "stream_recordings"
-      ? await sql`
-          SELECT id, mux_asset_id, playback_id, user_id AS owner_id, status, created_at
-          FROM stream_recordings
-          WHERE id > ${cursor}::uuid AND status <> 'unavailable'
-          ORDER BY id
-          LIMIT ${DB_BATCH}
-        `
-      : await sql`
-          SELECT id, mux_asset_id, playback_id, streamer_id AS owner_id, status, created_at
-          FROM stream_clips
-          WHERE id > ${cursor}::uuid
-            AND mux_asset_id IS NOT NULL
-            AND status <> 'unavailable'
-          ORDER BY id
-          LIMIT ${DB_BATCH}
-        `;
-  return rows;
-}
-
-async function reconcileTable(
-  table: RowTable,
-  ctx: JobContext,
-  assets: Map<string, MuxAssetSummary>,
-  dbNow: number,
-  metrics: MuxSweepMetrics
-) {
-  const eligibleBefore = new Date(dbNow - DB_ROW_GRACE_MS);
-  let cursor = "00000000-0000-0000-0000-000000000000";
-
-  for (;;) {
-    if (ctx.deadlineExpired()) {
-      return;
-    }
-    const rows = await scanRows(table, cursor);
-    if (rows.length === 0) {
-      return;
-    }
-    cursor = String(rows[rows.length - 1].id);
-
-    for (const row of rows) {
-      metrics.db_rows_scanned++;
-      const assetId = String(row.mux_asset_id);
-      if (assets.has(assetId)) {
-        continue;
-      }
-      if (new Date(row.created_at) > eligibleBefore) {
-        metrics.recent_propagation++;
-        continue;
-      }
-      if (!canConfirm(metrics)) {
-        recordCheckFailed(metrics, assetId);
-        continue;
-      }
-      const exists = await confirmAsset(assetId, metrics);
-      if (exists !== false) {
-        // true: listing raced with creation; null: check failed (recorded).
-        continue;
-      }
-      metrics.db_row_without_mux_asset++;
-      const inserted = await upsertFinding({
-        kind: "DB_ROW_WITHOUT_MUX_ASSET",
-        runId: ctx.runId,
-        muxAssetId: assetId,
-        rowTable: table,
-        rowId: String(row.id),
-        playbackId: row.playback_id ? String(row.playback_id) : null,
-        userId: String(row.owner_id),
-        liveStreamId: null,
-        assetCreatedAt: null,
-        previousStatus: String(row.status),
-      });
-      if (inserted) {
-        metrics.new_findings++;
-      }
-      metrics.auto_hidden += await autoHideIfConfirmed(table, assetId, dbNow);
-    }
-    await ctx.renewLease();
-  }
-}
-
-/**
- * Hide a row whose asset has been confirmed missing on two runs at least
- * AUTO_HIDE_MIN_SPAN_MS apart. Conditional on the row still pointing at the
- * same asset and not already hidden; the finding keeps previous_status so an
- * admin can restore it.
- */
-async function autoHideIfConfirmed(
-  table: RowTable,
-  assetId: string,
-  dbNow: number
-): Promise<number> {
-  const confirmedBefore = new Date(dbNow - AUTO_HIDE_MIN_SPAN_MS).toISOString();
-  const { rows } =
-    table === "stream_recordings"
-      ? await sql`
-          WITH finding AS (
-            SELECT id, row_id FROM mux_drift_findings
-            WHERE kind = 'DB_ROW_WITHOUT_MUX_ASSET'
-              AND status = 'open'
-              AND row_table = 'stream_recordings'
-              AND mux_asset_id = ${assetId}
-              AND detection_count >= 2
-              AND first_detected_at <= ${confirmedBefore}::timestamptz
-            FOR UPDATE
-          ),
-          hidden AS (
-            UPDATE stream_recordings r
-            SET status = 'unavailable', unavailable_at = now()
-            FROM finding
-            WHERE r.id = finding.row_id
-              AND r.mux_asset_id = ${assetId}
-              AND r.status <> 'unavailable'
-            RETURNING finding.id AS finding_id
-          )
-          UPDATE mux_drift_findings f
-          SET status = 'remediated', remediation_action = 'auto_marked_unavailable',
-              remediated_at = now(), remediated_by = 'system'
-          FROM hidden
-          WHERE f.id = hidden.finding_id
-          RETURNING f.id
-        `
-      : await sql`
-          WITH finding AS (
-            SELECT id, row_id FROM mux_drift_findings
-            WHERE kind = 'DB_ROW_WITHOUT_MUX_ASSET'
-              AND status = 'open'
-              AND row_table = 'stream_clips'
-              AND mux_asset_id = ${assetId}
-              AND detection_count >= 2
-              AND first_detected_at <= ${confirmedBefore}::timestamptz
-            FOR UPDATE
-          ),
-          hidden AS (
-            UPDATE stream_clips c
-            SET status = 'unavailable', unavailable_at = now()
-            FROM finding
-            WHERE c.id = finding.row_id
-              AND c.mux_asset_id = ${assetId}
-              AND c.status <> 'unavailable'
-            RETURNING finding.id AS finding_id
-          )
-          UPDATE mux_drift_findings f
-          SET status = 'remediated', remediation_action = 'auto_marked_unavailable',
-              remediated_at = now(), remediated_by = 'system'
-          FROM hidden
-          WHERE f.id = hidden.finding_id
-          RETURNING f.id
-        `;
-  return rows.length;
-}
-
-/** Set a row's status (hide or restore), conditional on its current state. */
-async function setRowStatus(
-  table: RowTable,
-  rowId: string,
-  assetId: string,
-  status: string,
-  fromStatus: "visible" | "unavailable"
-): Promise<number> {
-  const unavailableAt =
-    status === "unavailable" ? new Date().toISOString() : null;
-  const hidden = fromStatus === "unavailable";
-  const result =
-    table === "stream_recordings"
-      ? await sql`
-          UPDATE stream_recordings
-          SET status = ${status}, unavailable_at = ${unavailableAt}::timestamptz
-          WHERE id = ${rowId}
-            AND mux_asset_id = ${assetId}
-            AND (status = 'unavailable') = ${hidden}
-        `
-      : await sql`
-          UPDATE stream_clips
-          SET status = ${status}, unavailable_at = ${unavailableAt}::timestamptz
-          WHERE id = ${rowId}
-            AND mux_asset_id = ${assetId}
-            AND (status = 'unavailable') = ${hidden}
-        `;
-  return result.rowCount ?? 0;
-}
-
-// ── shared ───────────────────────────────────────────────────────────────────
-
-function canConfirm(metrics: MuxSweepMetrics): boolean {
-  return metrics.confirmations_used < MAX_CONFIRMATIONS;
-}
-
-/** true = exists, false = confirmed 404, null = could not check (recorded). */
-async function confirmAsset(
-  assetId: string,
-  metrics: MuxSweepMetrics
-): Promise<boolean | null> {
-  metrics.confirmations_used++;
-  try {
-    return (await retrieveMuxAsset(assetId)) !== null;
-  } catch {
-    recordCheckFailed(metrics, assetId);
-    return null;
-  }
-}
-
-interface FindingInput {
-  kind: "MUX_ASSET_WITHOUT_DB_ROW" | "DB_ROW_WITHOUT_MUX_ASSET";
-  runId: string;
-  muxAssetId: string;
-  rowTable: RowTable | null;
-  rowId: string | null;
-  playbackId: string | null;
-  userId: string | null;
-  liveStreamId: string | null;
-  assetCreatedAt: Date | null;
-  previousStatus: string | null;
-}
-
-/** Idempotent per (kind, asset) while open; returns true for a new finding. */
-async function upsertFinding(input: FindingInput): Promise<boolean> {
-  const { rows } = await sql`
-    INSERT INTO mux_drift_findings (
-      kind, mux_asset_id, row_table, row_id, playback_id, user_id,
-      mux_live_stream_id, asset_created_at, previous_status,
-      first_detected_run_id, last_detected_run_id
-    )
-    VALUES (
-      ${input.kind}, ${input.muxAssetId}, ${input.rowTable}, ${input.rowId}, ${input.playbackId},
-      ${input.userId}, ${input.liveStreamId},
-      ${input.assetCreatedAt ? input.assetCreatedAt.toISOString() : null},
-      ${input.previousStatus}, ${input.runId}, ${input.runId}
-    )
-    ON CONFLICT (kind, mux_asset_id) WHERE status = 'open' DO UPDATE
-      SET last_detected_run_id = EXCLUDED.last_detected_run_id,
-          last_detected_at = now(),
-          detection_count = mux_drift_findings.detection_count +
-            CASE WHEN mux_drift_findings.last_detected_run_id = EXCLUDED.last_detected_run_id
-                 THEN 0 ELSE 1 END
-    RETURNING (xmax = 0) AS inserted
-  `;
-  return rows[0]?.inserted === true;
-}
-
-// ── admin ────────────────────────────────────────────────────────────────────
-
-export type RemediationAction =
-  | "dismiss"
-  | "delete_mux_asset"
-  | "adopt"
-  | "mark_unavailable"
-  | "restore";
-
-export type RemediationResult =
-  | { ok: true; action: RemediationAction }
-  | { ok: false; status: 404 | 409 | 422; error: string };
-
-export async function listFindings(status: string | null, limit = 200) {
-  const { rows } = await sql`
-    SELECT * FROM mux_drift_findings
-    WHERE status = COALESCE(${status}, 'open')
-    ORDER BY last_detected_at DESC
-    LIMIT ${limit}
-  `;
-  return rows;
-}
-
-/**
- * Explicit admin remediation. Every action re-validates the current state
- * (finding still open, row/asset still in the expected state) immediately
- * before acting.
- */
-export async function remediateFinding(
-  findingId: string,
-  action: RemediationAction,
-  actor: string
-): Promise<RemediationResult> {
-  const { rows } = await sql`
-    SELECT * FROM mux_drift_findings WHERE id = ${findingId}
-  `;
-  const finding = rows[0];
-  if (!finding) {
-    return { ok: false, status: 404, error: "Finding not found" };
+    summary.marked_offline++;
+    summary.sessions_closed += result.sessionsClosed;
+    logCorrection({
+      correction: "marked_offline",
+      userId: row.id,
+      muxStreamId: row.mux_stream_id,
+      reason: row.mux_stream_id
+        ? "db_live_but_mux_not_active"
+        : "db_live_without_mux_stream",
+      observedMuxState,
+      observedAt,
+      liveStateChangedAt: row.live_state_changed_at,
+      sessionsClosed: result.sessionsClosed,
+    });
   }
 
-  const isOrphanAsset = finding.kind === "MUX_ASSET_WITHOUT_DB_ROW";
-  const assetId = String(finding.mux_asset_id);
-
-  if (action === "restore") {
-    if (
-      finding.kind !== "DB_ROW_WITHOUT_MUX_ASSET" ||
-      finding.status !== "remediated"
-    ) {
-      return {
-        ok: false,
-        status: 409,
-        error: "Only a hidden row can be restored",
-      };
+  // ── DB not live, Mux active ────────────────────────────────────────────
+  for (const row of missedLive) {
+    if (row.is_banned) {
+      summary.skipped_banned++;
+      continue;
     }
-    if (!(await retrieveMuxAsset(assetId))) {
-      return {
-        ok: false,
-        status: 422,
-        error: "The Mux asset still does not exist",
-      };
+    const result = await markLive(row, observedAt, config.graceSeconds);
+    if (!result.applied) {
+      summary.skipped_recent_change++;
+      continue;
     }
-    const rowCount = await setRowStatus(
-      finding.row_table as RowTable,
-      String(finding.row_id),
-      assetId,
-      String(finding.previous_status ?? "ready"),
-      "unavailable"
-    );
-    // Keep the original remediation_action for the audit trail.
-    await sql`
-      UPDATE mux_drift_findings
-      SET status = 'resolved', resolved_at = now(),
-          notes = ${`recording restored by ${actor}`}
-      WHERE id = ${findingId} AND status = 'remediated'
-    `;
-    return rowCount === 1
-      ? { ok: true, action }
-      : { ok: false, status: 409, error: "Row is no longer hidden" };
+    summary.marked_live++;
+    if (result.sessionOpened) {
+      summary.sessions_opened++;
+    }
+    logCorrection({
+      correction: "marked_live",
+      userId: row.id,
+      muxStreamId: row.mux_stream_id,
+      reason: "mux_active_but_db_not_live",
+      observedMuxState: "active",
+      observedAt,
+      liveStateChangedAt: row.live_state_changed_at,
+      sessionOpened: result.sessionOpened,
+    });
   }
 
-  if (finding.status !== "open") {
-    return { ok: false, status: 409, error: `Finding is ${finding.status}` };
-  }
-
-  switch (action) {
-    case "dismiss":
-      await closeFinding(findingId, "dismissed", action, actor);
-      return { ok: true, action };
-
-    case "delete_mux_asset": {
-      if (!isOrphanAsset) {
-        return {
-          ok: false,
-          status: 409,
-          error: "Only orphaned Mux assets can be deleted",
-        };
-      }
-      const { rows: recorded } = await sql`
-        SELECT 1 FROM stream_recordings WHERE mux_asset_id = ${assetId}
-        UNION ALL
-        SELECT 1 FROM stream_clips WHERE mux_asset_id = ${assetId}
-      `;
-      if (recorded.length > 0) {
-        await closeFinding(findingId, "resolved", "none", actor);
-        return {
-          ok: false,
-          status: 409,
-          error: "A recording now references this asset; nothing deleted",
-        };
-      }
-      await deleteMuxAssetIfExists(assetId);
-      await closeFinding(findingId, "remediated", action, actor);
-      return { ok: true, action };
-    }
-
-    case "adopt": {
-      if (!isOrphanAsset) {
-        return {
-          ok: false,
-          status: 409,
-          error: "Only orphaned Mux assets can be adopted",
-        };
-      }
-      const asset = await retrieveMuxAsset(assetId);
-      if (!asset || asset.status !== "ready" || !asset.playbackId) {
-        return {
-          ok: false,
-          status: 422,
-          error: "Asset is missing, not ready or has no playback ID",
-        };
-      }
-      const { rows: owner } = await sql`
-        SELECT id FROM users
-        WHERE mux_stream_id = ${asset.liveStreamId} AND deleted_at IS NULL
-      `;
-      if (!asset.liveStreamId || owner.length === 0) {
-        return {
-          ok: false,
-          status: 422,
-          error: "Asset does not belong to an active user's live stream",
-        };
-      }
-      await upsertRecordingFromAsset({
-        userId: String(owner[0].id),
-        streamSessionId: null,
-        assetId,
-        playbackId: asset.playbackId,
-        title: "Stream Recording",
-        duration: null,
-      });
-      await closeFinding(findingId, "remediated", action, actor);
-      return { ok: true, action };
-    }
-
-    case "mark_unavailable": {
-      if (isOrphanAsset) {
-        return {
-          ok: false,
-          status: 409,
-          error: "Only database rows can be marked unavailable",
-        };
-      }
-      if (await retrieveMuxAsset(assetId)) {
-        await closeFinding(findingId, "resolved", "none", actor);
-        return {
-          ok: false,
-          status: 409,
-          error: "The Mux asset exists; row left visible",
-        };
-      }
-      await setRowStatus(
-        finding.row_table as RowTable,
-        String(finding.row_id),
-        assetId,
-        "unavailable",
-        "visible"
-      );
-      await closeFinding(findingId, "remediated", action, actor);
-      return { ok: true, action };
-    }
-  }
+  return summary;
 }
 
-async function closeFinding(
-  findingId: string,
-  status: "resolved" | "remediated" | "dismissed",
-  action: string,
-  actor: string
-) {
-  await sql`
-    UPDATE mux_drift_findings
-    SET status = ${status},
-        remediation_action = ${action},
-        remediated_by = ${actor},
-        remediated_at = now(),
-        resolved_at = CASE WHEN ${status} = 'resolved' THEN now() ELSE resolved_at END
-    WHERE id = ${findingId} AND status = 'open'
-  `;
+export function correctionCount(summary: ReconciliationSummary): number {
+  return summary.marked_offline + summary.marked_live;
+}
+
+/** Drift alerting, evaluated after the run has been recorded. */
+export async function alertOnAbnormalDrift(
+  summary: ReconciliationSummary,
+  consecutiveDriftRuns: number,
+  config: ReconciliationConfig = reconciliationConfigFromEnv()
+): Promise<void> {
+  const corrections = correctionCount(summary);
+  const details = {
+    corrections,
+    marked_offline: summary.marked_offline,
+    marked_live: summary.marked_live,
+    deferred: summary.deferred,
+    mux_active_streams: summary.mux_active_streams,
+    db_live_users: summary.db_live_users,
+    consecutive_drift_runs: consecutiveDriftRuns,
+  };
+
+  if (corrections + summary.deferred >= config.driftAlertThreshold) {
+    await sendOperationalAlert({
+      category: "mux_reconciliation",
+      event: "mux_reconciliation_abnormal_drift",
+      severity: "critical",
+      title:
+        "Mux reconciliation corrected an abnormal number of streams — webhook delivery may be degraded",
+      dedupKey: "mux_reconciliation:abnormal_drift",
+      cooldownSeconds: 60 * 60,
+      details: { ...details, threshold: config.driftAlertThreshold },
+    });
+  }
+
+  if (consecutiveDriftRuns >= config.persistentDriftRuns) {
+    await sendOperationalAlert({
+      category: "mux_reconciliation",
+      event: "mux_reconciliation_persistent_drift",
+      severity: "warning",
+      title: `Mux reconciliation has corrected drift on ${consecutiveDriftRuns} consecutive runs`,
+      dedupKey: "mux_reconciliation:persistent_drift",
+      cooldownSeconds: 6 * 60 * 60,
+      details,
+    });
+  }
 }

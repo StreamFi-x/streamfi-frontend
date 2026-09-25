@@ -1,35 +1,38 @@
 /**
- * Anomaly alerting for tip reconciliation runs (#1405).
+ * Anomaly alerting for the tip reconciliation job (#1405).
  * See docs/data-integrity.md for the model and its tuning.
  *
- * Inputs come only from tip_reconciliation_corrections (what the job actually
- * did) joined to job_runs, so this layer cannot disagree with reconciliation.
+ * The job (lib/stellar/tip-reconciliation.ts, #1400, cron
+ * tip-total-reconciliation) records every change it makes in
+ * tip_reconciliation_corrections, in the same statement as the change, keyed
+ * by job_runs.run_id. This module only reads those rows and job_runs, so it
+ * cannot disagree with what the job actually did.
  *
  * Model — per run, compared with up to BASELINE_RUNS previous runs:
- *   count      corrections applied
- *   magnitude  sum |delta| of applied corrections (exact, in stroops)
+ *   count      users whose tip totals were corrected
+ *   magnitude  sum |delta| of those corrections (exact, in stroops)
  * For each metric: threshold = max(absolute floor,
  *                                  median + K × 1.4826 × MAD,
  *                                  RATIO × median)
  * Median/MAD are robust to the occasional spike, so one incident does not
  * inflate the baseline for the next. Independently of the baseline:
  *   - any single correction >= SINGLE_CORRECTION_XLM          (critical)
- *   - any NOT_ON_LEDGER / CREATOR_MISMATCH flag               (critical;
- *     a stored tip the ledger does not show is never timing drift)
- *   - a failed or abandoned run                                (critical)
+ *   - any total corrected downwards: the ledger shows less than was
+ *     recorded, which timing drift cannot explain              (critical)
+ *   - a failed run                                             (critical)
  * Cold start (< MIN_BASELINE_RUNS prior runs): only the absolute cold-start
  * thresholds and the baseline-independent rules above apply.
  */
 import { createHash } from "crypto";
 import { sql } from "@vercel/postgres";
-import { fromStroops, toStroops } from "@/lib/stellar/amounts";
-import { errorMessage } from "@/lib/jobs/runs";
-import { sendOpsAlertEmail } from "@/utils/send-email";
+import { fromStroops, toStroops } from "@/lib/stellar/tip-reconciliation";
+import { sendOperationalAlert, type AlertOutcome } from "@/lib/security/alerts";
+import { logger } from "@/lib/tracing/logger";
 
-export const TIP_RECONCILIATION_JOB = "tip-reconciliation";
+export const TIP_RECONCILIATION_JOB = "tip-total-reconciliation";
 const ALERT_SOURCE = "tip-reconciliation";
-const MAX_DELIVERY_ATTEMPTS = 5;
 const MAX_AFFECTED_IN_PAYLOAD = 50;
+const MAX_AFFECTED_IN_MESSAGE = 10;
 
 export interface AlertThresholds {
   baselineRuns: number;
@@ -82,17 +85,16 @@ export interface RunAggregate {
   runId: string;
   status: string;
   startedAt: string;
-  finishedAt: string | null;
   correctionsCount: number;
   correctionStroops: bigint;
   largestStroops: bigint;
-  flaggedCount: number;
-  byKind: Record<string, number>;
+  decreasedCount: number;
+  tipsInserted: number;
 }
 
 export type ReasonCode =
   | "RUN_FAILED"
-  | "LEDGER_MISMATCH"
+  | "TOTAL_DECREASED"
   | "LARGE_SINGLE_CORRECTION"
   | "COUNT_ABOVE_BASELINE"
   | "MAGNITUDE_ABOVE_BASELINE"
@@ -125,7 +127,7 @@ export interface Evaluation {
 
 const CRITICAL: ReasonCode[] = [
   "RUN_FAILED",
-  "LEDGER_MISMATCH",
+  "TOTAL_DECREASED",
   "LARGE_SINGLE_CORRECTION",
 ];
 
@@ -179,13 +181,13 @@ export function evaluateRun(
 ): Evaluation {
   const reasons: AlertReason[] = [];
 
-  if (run.status === "failed" || run.status === "abandoned") {
+  if (run.status === "failed") {
     reasons.push({ code: "RUN_FAILED", observed: run.status, threshold: "-" });
   }
-  if (run.flaggedCount > 0) {
+  if (run.decreasedCount > 0) {
     reasons.push({
-      code: "LEDGER_MISMATCH",
-      observed: String(run.flaggedCount),
+      code: "TOTAL_DECREASED",
+      observed: String(run.decreasedCount),
       threshold: "0",
     });
   }
@@ -265,16 +267,16 @@ export function evaluateRun(
 }
 
 /**
- * Two alerts with the same signature describe the same situation, so a repeat
- * within the cooldown is recorded as suppressed instead of sent. The signature
+ * Two alerts with the same signature describe the same situation; the
+ * delivery layer sends it at most once per cooldown (dedup key). The signature
  * includes the order of magnitude of the correction amount (an escalation
- * re-alerts) and the exact set of flagged transactions (a new mismatch
- * re-alerts; the same unresolved one does not page every hour).
+ * re-alerts) and the users whose totals went down (a new affected user
+ * re-alerts; the same one does not page every run).
  */
 export function alertSignature(
   evaluation: Evaluation,
   run: RunAggregate,
-  flaggedTxHashes: string[]
+  decreasedUsers: string[]
 ): string {
   const codes = evaluation.reasons.map(r => r.code).sort();
   const parts = [codes.join("+")];
@@ -284,10 +286,10 @@ export function alertSignature(
     const xlm = fromStroops(run.correctionStroops).split(".")[0];
     parts.push(`mag${xlm.length}`);
   }
-  if (flaggedTxHashes.length > 0) {
+  if (decreasedUsers.length > 0) {
     parts.push(
       createHash("sha256")
-        .update([...flaggedTxHashes].sort().join(","))
+        .update([...decreasedUsers].sort().join(","))
         .digest("hex")
         .slice(0, 16)
     );
@@ -297,85 +299,87 @@ export function alertSignature(
 
 // ── persistence ──────────────────────────────────────────────────────────────
 
+const AGGREGATE_COLUMNS = `
+  r.run_id, r.status, r.started_at,
+  count(c.id) FILTER (WHERE c.kind = 'TOTALS_CORRECTED') AS corrections_count,
+  COALESCE(sum(abs(c.delta)) FILTER (WHERE c.kind = 'TOTALS_CORRECTED'), 0)::text AS correction_amount,
+  COALESCE(max(abs(c.delta)) FILTER (WHERE c.kind = 'TOTALS_CORRECTED'), 0)::text AS largest_correction,
+  count(c.id) FILTER (WHERE c.kind = 'TOTALS_CORRECTED' AND c.delta < 0) AS decreased_count,
+  count(c.id) FILTER (WHERE c.kind = 'TIP_INSERTED') AS tips_inserted`;
+
 function toAggregate(row: Record<string, unknown>): RunAggregate {
   return {
-    runId: String(row.id),
+    runId: String(row.run_id),
     status: String(row.status),
     startedAt: new Date(String(row.started_at)).toISOString(),
-    finishedAt: row.finished_at
-      ? new Date(String(row.finished_at)).toISOString()
-      : null,
     correctionsCount: Number(row.corrections_count),
     correctionStroops: toStroops(String(row.correction_amount)),
     largestStroops: toStroops(String(row.largest_correction)),
-    flaggedCount: Number(row.flagged_count),
-    byKind: (row.by_kind as Record<string, number>) ?? {},
+    decreasedCount: Number(row.decreased_count),
+    tipsInserted: Number(row.tips_inserted),
   };
 }
 
+async function loadRun(runId: string): Promise<RunAggregate | null> {
+  const { rows } = await sql.query(
+    `SELECT ${AGGREGATE_COLUMNS}
+       FROM job_runs r
+       LEFT JOIN tip_reconciliation_corrections c ON c.run_id = r.run_id
+      WHERE r.run_id = $1
+      GROUP BY r.run_id, r.status, r.started_at`,
+    [runId]
+  );
+  return rows[0] ? toAggregate(rows[0]) : null;
+}
+
+/** Previous completed runs; runs without corrections count as zeros. */
 async function loadHistory(
   before: string,
   limit: number
 ): Promise<RunAggregate[]> {
-  const { rows } = await sql`
-    SELECT r.id, r.status, r.started_at, r.finished_at,
-           count(c.id) FILTER (WHERE c.applied) AS corrections_count,
-           COALESCE(sum(c.delta_abs) FILTER (WHERE c.applied), 0)::text AS correction_amount,
-           COALESCE(max(c.delta_abs) FILTER (WHERE c.applied), 0)::text AS largest_correction,
-           count(c.id) FILTER (WHERE NOT c.applied) AS flagged_count,
-           '{}'::jsonb AS by_kind
-    FROM job_runs r
-    LEFT JOIN tip_reconciliation_corrections c ON c.run_id = r.id
-    WHERE r.job_name = ${TIP_RECONCILIATION_JOB}
-      AND r.status IN ('completed', 'partial')
-      AND r.started_at < ${before}::timestamptz
-    GROUP BY r.id
-    ORDER BY r.started_at DESC
-    LIMIT ${limit}
-  `;
+  const { rows } = await sql.query(
+    `SELECT ${AGGREGATE_COLUMNS}
+       FROM job_runs r
+       LEFT JOIN tip_reconciliation_corrections c ON c.run_id = r.run_id
+      WHERE r.job_name = $1
+        AND r.run_id IS NOT NULL
+        AND r.status IN ('succeeded', 'partial')
+        AND r.started_at < $2::timestamptz
+      GROUP BY r.run_id, r.status, r.started_at
+      ORDER BY r.started_at DESC
+      LIMIT $3`,
+    [TIP_RECONCILIATION_JOB, before, limit]
+  );
   return rows.map(toAggregate);
-}
-
-async function loadRun(runId: string): Promise<RunAggregate | null> {
-  const { rows } = await sql`
-    SELECT r.id, r.status, r.started_at, r.finished_at,
-           count(c.id) FILTER (WHERE c.applied) AS corrections_count,
-           COALESCE(sum(c.delta_abs) FILTER (WHERE c.applied), 0)::text AS correction_amount,
-           COALESCE(max(c.delta_abs) FILTER (WHERE c.applied), 0)::text AS largest_correction,
-           count(c.id) FILTER (WHERE NOT c.applied) AS flagged_count,
-           COALESCE(
-             (SELECT jsonb_object_agg(kind, n) FROM (
-                SELECT kind, count(*) AS n FROM tip_reconciliation_corrections
-                WHERE run_id = r.id GROUP BY kind) k),
-             '{}'::jsonb) AS by_kind
-    FROM job_runs r
-    LEFT JOIN tip_reconciliation_corrections c ON c.run_id = r.id
-    WHERE r.id = ${runId}
-    GROUP BY r.id
-  `;
-  return rows[0] ? toAggregate(rows[0]) : null;
 }
 
 async function loadAffected(runId: string) {
   const { rows } = await sql`
-    SELECT kind, applied, tx_hash, creator_id, tip_transaction_id,
-           amount_before::text, amount_after::text, delta_abs::text
+    SELECT kind, user_id, tx_hash, amount_before::text, amount_after::text,
+           delta::text, count_before, count_after
     FROM tip_reconciliation_corrections
     WHERE run_id = ${runId}
-    ORDER BY applied ASC, delta_abs DESC
+    ORDER BY abs(delta) DESC
     LIMIT ${MAX_AFFECTED_IN_PAYLOAD}
   `;
   return rows;
 }
 
+export interface EvaluationResult {
+  abnormal: boolean;
+  alertId: string | null;
+  delivery: AlertOutcome | null;
+}
+
 /**
- * Evaluate one finished run and store an alert if it is abnormal. Idempotent:
- * the alert fingerprint is the run id, and the run is marked evaluated.
+ * Evaluate one finished run and, if it is abnormal, store and deliver an
+ * alert. Idempotent: the alert fingerprint is the run id, a stored alert is
+ * delivered at most once, and the run is marked evaluated at the end.
  */
 export async function evaluateTipReconciliationRun(
   runId: string,
   thresholds: AlertThresholds = loadThresholds()
-): Promise<{ abnormal: boolean; alertId: string | null; status?: string }> {
+): Promise<EvaluationResult> {
   const run = await loadRun(runId);
   if (!run) {
     throw new Error(`run ${runId} not found`);
@@ -384,102 +388,156 @@ export async function evaluateTipReconciliationRun(
   const evaluation = evaluateRun(run, history, thresholds);
 
   let alertId: string | null = null;
-  let alertStatus: string | undefined;
+  let delivery: AlertOutcome | null = null;
   if (evaluation.abnormal) {
     const affected = await loadAffected(runId);
-    const flagged = affected
-      .filter(a => a.applied === false)
-      .map(a => String(a.tx_hash));
-    const signature = alertSignature(evaluation, run, flagged);
+    const decreasedUsers = affected
+      .filter(
+        a => a.kind === "TOTALS_CORRECTED" && String(a.delta).startsWith("-")
+      )
+      .map(a => String(a.user_id));
+    const signature = alertSignature(evaluation, run, decreasedUsers);
     const payload = {
       source: ALERT_SOURCE,
       severity: evaluation.severity,
-      run: {
-        id: run.runId,
-        status: run.status,
-        started_at: run.startedAt,
-        finished_at: run.finishedAt,
-      },
+      run: { id: run.runId, status: run.status, started_at: run.startedAt },
       observed: {
         corrections_count: run.correctionsCount,
         correction_amount_xlm: fromStroops(run.correctionStroops),
         largest_correction_xlm: fromStroops(run.largestStroops),
-        flagged_count: run.flaggedCount,
-        by_kind: run.byKind,
+        decreased_totals: run.decreasedCount,
+        tips_inserted: run.tipsInserted,
       },
       reasons: evaluation.reasons,
       cold_start: evaluation.coldStart,
       baseline: evaluation.baseline,
-      affected_total: run.correctionsCount + run.flaggedCount,
-      // Transaction hashes are public on-chain data; creators are identified
-      // by id only (no usernames, wallets or emails).
+      // Transaction hashes are public on-chain data; users are identified by
+      // id only (no usernames, wallets or emails).
       affected: affected.map(a => ({
         kind: a.kind,
-        applied: a.applied,
+        user_id: a.user_id,
         tx_hash: a.tx_hash,
-        creator_id: a.creator_id,
-        tip_transaction_id: a.tip_transaction_id,
         amount_before_xlm: a.amount_before,
         amount_after_xlm: a.amount_after,
-        delta_xlm: a.delta_abs,
+        delta_xlm: a.delta,
       })),
     };
 
     const { rows } = await sql`
-      WITH recent AS (
-        SELECT 1 FROM reconciliation_alerts
-        WHERE source = ${ALERT_SOURCE}
-          AND signature = ${signature}
-          AND status = 'delivered'
-          AND delivered_at > now() - make_interval(secs => ${Math.round(thresholds.cooldownHours * 3600)})
-        LIMIT 1
-      )
-      INSERT INTO reconciliation_alerts (fingerprint, source, run_id, severity, signature, status, payload)
+      INSERT INTO reconciliation_alerts (fingerprint, source, run_id, severity, signature, payload)
       VALUES (
-        ${`${ALERT_SOURCE}:run:${runId}`}, ${ALERT_SOURCE}, ${runId},
-        ${evaluation.severity}, ${signature},
-        CASE WHEN EXISTS (SELECT 1 FROM recent) THEN 'suppressed' ELSE 'pending' END,
-        ${JSON.stringify(payload)}::jsonb
+        ${`${TIP_RECONCILIATION_JOB}:run:${runId}`}, ${ALERT_SOURCE}, ${runId},
+        ${evaluation.severity}, ${signature}, ${JSON.stringify(payload)}::jsonb
       )
-      ON CONFLICT (fingerprint) DO NOTHING
-      RETURNING id, status
+      ON CONFLICT (fingerprint) DO UPDATE SET fingerprint = EXCLUDED.fingerprint
+      RETURNING id
     `;
-    alertId = rows[0]?.id ?? null;
-    alertStatus = rows[0]?.status;
+    alertId = String(rows[0].id);
+    delivery = await deliverAlert(
+      alertId,
+      evaluation,
+      run,
+      payload,
+      signature,
+      thresholds
+    );
   }
 
   await sql`
     UPDATE job_runs SET alert_evaluated_at = now()
-    WHERE id = ${runId} AND alert_evaluated_at IS NULL
+    WHERE run_id = ${runId} AND alert_evaluated_at IS NULL
   `;
 
-  console.log(
-    JSON.stringify({
-      job: "tip-reconciliation-alerts",
-      runId,
-      abnormal: evaluation.abnormal,
-      severity: evaluation.abnormal ? evaluation.severity : null,
-      reasons: evaluation.reasons.map(r => r.code),
-      coldStart: evaluation.coldStart,
-      alertId,
-      alertStatus,
-    })
-  );
-  return { abnormal: evaluation.abnormal, alertId, status: alertStatus };
+  logger.info("tip_reconciliation_alert_evaluated", {
+    runId,
+    abnormal: evaluation.abnormal,
+    severity: evaluation.abnormal ? evaluation.severity : null,
+    reasons: evaluation.reasons.map(r => r.code).join(","),
+    coldStart: evaluation.coldStart,
+    alertId,
+    delivery,
+  });
+  return { abnormal: evaluation.abnormal, alertId, delivery };
 }
 
 /**
- * Evaluate every finished run that has not been evaluated yet (the current one
- * and any left behind by a crash). Failures are logged and retried next time.
+ * Sends a stored alert through the shared operational alert channel. The
+ * conditional claim (delivered_at IS NULL) means a retried evaluation never
+ * sends the same alert twice; sendOperationalAlert additionally de-duplicates
+ * by signature within the cooldown and never throws.
  */
-export async function evaluatePendingRuns(): Promise<{
-  evaluated: number;
-  failed: number;
-}> {
+async function deliverAlert(
+  alertId: string,
+  evaluation: Evaluation,
+  run: RunAggregate,
+  payload: { affected: Array<{ user_id: unknown; tx_hash: unknown }> },
+  signature: string,
+  t: AlertThresholds
+): Promise<AlertOutcome | null> {
+  const { rows: claimed } = await sql`
+    UPDATE reconciliation_alerts SET delivered_at = now()
+    WHERE id = ${alertId} AND delivered_at IS NULL
+    RETURNING id
+  `;
+  if (claimed.length === 0) {
+    return null;
+  }
+
+  const users = [...new Set(payload.affected.map(a => String(a.user_id)))];
+  const txHashes = payload.affected
+    .map(a => a.tx_hash)
+    .filter((h): h is string => typeof h === "string");
+  const outcome = await sendOperationalAlert({
+    category: "tip_reconciliation",
+    event: "tip_reconciliation_anomaly",
+    severity: evaluation.severity,
+    title: "Tip reconciliation corrected more than expected",
+    dedupKey: `tip_reconciliation:${signature}`,
+    cooldownSeconds: Math.round(t.cooldownHours * 3600),
+    details: {
+      run_id: run.runId,
+      run_started_at: run.startedAt,
+      run_status: run.status,
+      reasons: evaluation.reasons
+        .map(
+          r => `${r.code} (observed ${r.observed}, threshold ${r.threshold})`
+        )
+        .join("; "),
+      corrections_count: run.correctionsCount,
+      correction_amount_xlm: fromStroops(run.correctionStroops),
+      largest_correction_xlm: fromStroops(run.largestStroops),
+      decreased_totals: run.decreasedCount,
+      tips_inserted: run.tipsInserted,
+      cold_start: evaluation.coldStart,
+      baseline_runs: evaluation.baseline?.runs ?? 0,
+      baseline_count_median: evaluation.baseline?.countMedian ?? null,
+      baseline_magnitude_median_xlm:
+        evaluation.baseline?.magnitudeMedianXlm ?? null,
+      affected_users: users.slice(0, MAX_AFFECTED_IN_MESSAGE).join(", "),
+      affected_tx_hashes: txHashes.slice(0, MAX_AFFECTED_IN_MESSAGE).join(", "),
+      investigate: "GET /api/admin/reconciliation/tips",
+    },
+  });
+  await sql`
+    UPDATE reconciliation_alerts SET delivery = ${outcome}
+    WHERE id = ${alertId}
+  `;
+  return outcome;
+}
+
+/**
+ * Evaluate every finished run that has not been evaluated yet (the current
+ * one and any left behind by a crash). Failures are logged and retried next
+ * time; they never break the reconciliation job.
+ */
+export async function evaluatePendingRuns(
+  thresholds: AlertThresholds = loadThresholds()
+): Promise<{ evaluated: number; failed: number }> {
   const { rows } = await sql`
-    SELECT id FROM job_runs
+    SELECT run_id FROM job_runs
     WHERE job_name = ${TIP_RECONCILIATION_JOB}
-      AND status <> 'running'
+      AND run_id IS NOT NULL
+      AND status <> 'skipped'
       AND alert_evaluated_at IS NULL
       AND started_at > now() - interval '7 days'
     ORDER BY started_at
@@ -489,111 +547,15 @@ export async function evaluatePendingRuns(): Promise<{
   let failed = 0;
   for (const row of rows) {
     try {
-      await evaluateTipReconciliationRun(String(row.id));
+      await evaluateTipReconciliationRun(String(row.run_id), thresholds);
       evaluated++;
     } catch (err) {
       failed++;
-      console.error(
-        `[tip-reconciliation-alerts] evaluation of run ${row.id} failed: ${errorMessage(err)}`
-      );
+      logger.error("tip_reconciliation_alert_evaluation_failed", {
+        runId: String(row.run_id),
+        errorMessage: err instanceof Error ? err.message : String(err),
+      });
     }
   }
   return { evaluated, failed };
-}
-
-// ── delivery ─────────────────────────────────────────────────────────────────
-
-function alertRecipients(): string[] {
-  return (process.env.RECONCILIATION_ALERT_EMAILS ?? "")
-    .split(",")
-    .map(s => s.trim())
-    .filter(Boolean);
-}
-
-export function formatAlertEmail(payload: Record<string, unknown>): {
-  subject: string;
-  text: string;
-} {
-  const run = payload.run as { id: string };
-  const reasons = (payload.reasons as AlertReason[])
-    .map(r => `  - ${r.code}: observed ${r.observed}, threshold ${r.threshold}`)
-    .join("\n");
-  return {
-    subject: `[StreamFi][${String(payload.severity).toUpperCase()}] Tip reconciliation anomaly (run ${run.id})`,
-    text: [
-      "Tip reconciliation produced corrections outside the expected range.",
-      "",
-      "Reasons:",
-      reasons,
-      "",
-      "Full details (run, observed metrics, baseline, affected transactions):",
-      JSON.stringify(payload, null, 2),
-      "",
-      "Investigate: GET /api/admin/reconciliation/tips",
-    ].join("\n"),
-  };
-}
-
-/**
- * Send pending alerts. Each alert is claimed with a conditional update so two
- * invocations never send the same alert; a failure is recorded (never marked
- * delivered) and retried up to MAX_DELIVERY_ATTEMPTS times.
- */
-export async function deliverPendingAlerts(): Promise<{
-  delivered: number;
-  failed: number;
-}> {
-  const { rows: claimed } = await sql`
-    UPDATE reconciliation_alerts
-    SET status = 'sending',
-        claimed_until = now() + interval '5 minutes',
-        attempts = attempts + 1
-    WHERE id IN (
-      SELECT id FROM reconciliation_alerts
-      WHERE (status IN ('pending', 'failed') AND attempts < ${MAX_DELIVERY_ATTEMPTS})
-         OR (status = 'sending' AND claimed_until < now())
-      ORDER BY created_at
-      LIMIT 20
-      FOR UPDATE SKIP LOCKED
-    )
-    RETURNING id, payload, attempts
-  `;
-
-  let delivered = 0;
-  let failed = 0;
-  const recipients = alertRecipients();
-  for (const alert of claimed) {
-    try {
-      if (recipients.length === 0) {
-        throw new Error("RECONCILIATION_ALERT_EMAILS is not configured");
-      }
-      const { subject, text } = formatAlertEmail(alert.payload);
-      await sendOpsAlertEmail(recipients, subject, text);
-      await sql`
-        UPDATE reconciliation_alerts
-        SET status = 'delivered', delivered_at = now(), last_error = NULL, claimed_until = NULL
-        WHERE id = ${alert.id}
-      `;
-      delivered++;
-    } catch (err) {
-      failed++;
-      const message = errorMessage(err);
-      console.error(
-        JSON.stringify({
-          job: "tip-reconciliation-alerts",
-          event: "delivery_failed",
-          alertId: alert.id,
-          attempt: alert.attempts,
-          final: alert.attempts >= MAX_DELIVERY_ATTEMPTS,
-          error: message,
-        })
-      );
-      await sql`
-        UPDATE reconciliation_alerts
-        SET status = 'failed', last_error = ${message}, claimed_until = NULL
-        WHERE id = ${alert.id}
-      `;
-    }
-  }
-  return { delivered, failed };
 }

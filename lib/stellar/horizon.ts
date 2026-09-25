@@ -22,8 +22,6 @@ interface TipRecord {
 interface FetchPaymentsResult {
   tips: TipRecord[];
   nextCursor: string | undefined;
-  /** created_at of the last (oldest, in desc order) raw record on the page. */
-  oldestRecordAt: string | undefined;
 }
 
 /**
@@ -79,11 +77,12 @@ export async function fetchPaymentsReceived(
       durationMs,
     });
 
-    const last = payments.records[payments.records.length - 1];
     return {
       tips,
-      nextCursor: last?.paging_token,
-      oldestRecordAt: last?.created_at,
+      nextCursor:
+        payments.records.length > 0
+          ? payments.records[payments.records.length - 1]?.paging_token
+          : undefined,
     };
   } catch (error) {
     const durationMs = Date.now() - startTime;

@@ -1,317 +1,286 @@
 /**
  * @jest-environment node
  */
-import { createSqlMock, type SqlCall } from "@/testing/sql-mock";
+jest.mock("@vercel/postgres", () => ({ sql: { query: jest.fn() } }));
+jest.mock("@/lib/tracing/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
 
-const mockDb = createSqlMock();
-jest.mock("@vercel/postgres", () => ({
-  sql: (...args: unknown[]) => mockDb.sql(...args),
-}));
-jest.mock("@/lib/stellar/horizon", () => ({
-  fetchPaymentsReceived: jest.fn(),
-  isHorizonNotFound: (err: { response?: { status?: number } }) =>
-    err?.response?.status === 404,
-}));
-jest.mock("@/lib/jobs/retry", () => {
-  const actual = jest.requireActual("@/lib/jobs/retry");
+const mockCall = jest.fn();
+jest.mock("@stellar/stellar-sdk", () => {
+  const actual = jest.requireActual("@stellar/stellar-sdk");
+  const builder = {
+    forAccount: jest.fn(() => builder),
+    limit: jest.fn(() => builder),
+    cursor: jest.fn(() => builder),
+    order: jest.fn(() => builder),
+    call: (...args: unknown[]) => mockCall(...args),
+  };
   return {
     ...actual,
-    withRetry: (fn: () => Promise<unknown>, opts: object) =>
-      actual.withRetry(fn, { ...opts, sleep: async () => {} }),
+    Horizon: { Server: jest.fn(() => ({ payments: () => builder })) },
   };
 });
 
-import { fetchPaymentsReceived } from "@/lib/stellar/horizon";
-import { runTipReconciliation } from "@/lib/stellar/tip-reconciliation";
+import {
+  fetchLedgerTipTotals,
+  fromStroops,
+  HorizonRateLimitedError,
+  LedgerHistoryTooLargeError,
+  LedgerTip,
+  toStroops,
+} from "@/lib/stellar/tip-reconciliation";
 
-const fetchPayments = fetchPaymentsReceived as jest.Mock;
-const NOW = new Date("2026-09-25T12:00:00Z");
-const HOUR = 60 * 60 * 1000;
-const RECENT = new Date(NOW.getTime() - 5 * HOUR).toISOString();
-const CREATOR = "c1111111-1111-1111-1111-111111111111";
-const OTHER_CREATOR = "c2222222-2222-2222-2222-222222222222";
-const WALLET = "GCREATORWALLETAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const ACCOUNT = "GCREATORXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
 
-const ctx = (deadlineExpired: () => boolean = () => false) => ({
-  runId: "run-1",
-  deadlineExpired,
-  renewLease: jest.fn(async () => true),
+function tip(amount: string, hash: string, timestamp: string): LedgerTip {
+  return { sender: "GSENDER", amount, txHash: hash, timestamp };
+}
+
+function horizonError(status: number) {
+  return Object.assign(new Error(`status ${status}`), {
+    response: { status },
+  });
+}
+
+describe("stroop arithmetic", () => {
+  it("sums amounts exactly, unlike floating point", () => {
+    const total = ["0.1", "0.2", "1234567.1234567"]
+      .map(toStroops)
+      .reduce((a, b) => a + b, BigInt(0));
+    expect(fromStroops(total)).toBe("1234567.4234567");
+  });
+
+  it("handles integers, empty values and negatives", () => {
+    expect(fromStroops(toStroops("5"))).toBe("5.0000000");
+    expect(fromStroops(toStroops(null))).toBe("0.0000000");
+    expect(fromStroops(toStroops("-1.5"))).toBe("-1.5000000");
+    expect(toStroops(12.5)).toBe(BigInt(125_000_000));
+  });
+
+  it("rejects malformed amounts", () => {
+    expect(() => toStroops("1.2.3")).toThrow(/Invalid XLM amount/);
+  });
 });
 
-function tip(txHash: string, amount: string, timestamp = RECENT) {
-  return {
-    id: `${txHash}-op`,
-    sender: "GSENDER",
-    amount,
-    asset: "XLM",
-    txHash,
-    timestamp,
-    ledger: 1,
-  };
-}
+describe("fetchLedgerTipTotals", () => {
+  const sleep = jest.fn(async () => undefined);
 
-function page(
-  tips: ReturnType<typeof tip>[],
-  { next, oldest }: { next?: string; oldest?: string } = {}
-) {
-  return {
-    tips,
-    nextCursor: next,
-    oldestRecordAt: oldest ?? tips[tips.length - 1]?.timestamp,
-  };
-}
+  beforeEach(() => {
+    sleep.mockClear();
+    mockCall.mockReset();
+  });
 
-function stored(
-  txHash: string,
-  amount: string,
-  { creator = CREATOR, createdAt = RECENT } = {}
-) {
-  return {
-    id: `row-${txHash}`,
-    tx_hash: txHash,
-    creator_id: creator,
-    amount,
-    created_at: createdAt,
-  };
-}
-
-function stubDb(
-  creators: Array<{ id: string; wallet: string }>,
-  rowsByCreator: Record<string, ReturnType<typeof stored>[]>
-) {
-  mockDb.on(/SELECT now\(\) AS now/, { rows: [{ now: NOW.toISOString() }] });
-  mockDb.once(/FROM users u WHERE u.id > /, { rows: creators });
-  mockDb.on(/FROM users u WHERE u.id > /, { rows: [] });
-  mockDb.on(
-    /amount_xlm::text AS amount, created_at FROM tip_transactions/,
-    (call: SqlCall) => ({
-      rows: rowsByCreator[String(call.values[1])] ?? [],
-    })
-  );
-  mockDb.on(/WITH supporter AS/, { rows: [{ id: "corr" }] });
-  mockDb.on(/WITH upd AS/, { rowCount: 1 });
-  mockDb.on(/INSERT INTO tip_reconciliation_corrections/, { rowCount: 1 });
-}
-
-const corrections = (pattern: RegExp) => mockDb.callsMatching(pattern);
-
-beforeEach(() => {
-  mockDb.reset();
-  jest.clearAllMocks();
-  jest.spyOn(console, "log").mockImplementation(() => {});
-  jest.spyOn(console, "error").mockImplementation(() => {});
-});
-
-describe("runTipReconciliation", () => {
-  it("applies and records every drift type for a creator", async () => {
-    fetchPayments.mockResolvedValueOnce(
-      page(
-        [
-          tip("tx-missing", "10.0000000"),
-          tip("tx-amount", "5.0000000"),
-          tip("tx-multi", "1.0000000"),
-          tip("tx-multi", "2.0000000"),
-          tip("tx-foreign", "7.0000000"),
+  it("pages through the complete history and aggregates it", async () => {
+    const fetchPayments = jest
+      .fn()
+      .mockResolvedValueOnce({
+        tips: [
+          tip("10", "h3", "2026-09-03T00:00:00Z"),
+          tip("0.1", "h2", "2026-09-02T00:00:00Z"),
         ],
-        { oldest: new Date(NOW.getTime() - 100 * HOUR).toISOString() }
-      )
-    );
-    stubDb([{ id: CREATOR, wallet: WALLET }], {
-      [CREATOR]: [
-        stored("tx-amount", "4.5000000"),
-        stored("tx-multi", "3.0000000"),
-        stored("tx-phantom", "99.0000000"),
-        stored("tx-foreign", "7.0000000", { creator: OTHER_CREATOR }),
-      ],
+        nextCursor: "c1",
+      })
+      .mockResolvedValueOnce({
+        tips: [tip("0.2", "h1", "2026-09-01T00:00:00Z")],
+        nextCursor: "c2",
+      })
+      .mockResolvedValueOnce({ tips: [], nextCursor: undefined });
+
+    const totals = await fetchLedgerTipTotals(ACCOUNT, {
+      fetchPayments,
+      sleep,
     });
 
-    const { status, metrics } = await runTipReconciliation(ctx());
-
-    expect(status).toBe("completed");
-    expect(metrics).toMatchObject({ creators_scanned: 1, payments_scanned: 4 });
-
-    const [insert] = corrections(/WITH supporter AS/);
-    expect(insert.values).toEqual(
-      expect.arrayContaining(["tx-missing", "10.0000000", CREATOR, "run-1"])
+    expect(fetchPayments.mock.calls.map(c => c[0].cursor)).toEqual([
+      undefined,
+      "c1",
+      "c2",
+    ]);
+    expect(totals).toEqual(
+      expect.objectContaining({
+        totalReceived: "10.3000000",
+        totalCount: 3,
+        lastTipAt: "2026-09-03T00:00:00Z",
+        requests: 3,
+        retries: 0,
+      })
     );
-    expect(insert.text).toMatch(
-      /ON CONFLICT \(tx_hash\) WHERE tx_hash IS NOT NULL DO NOTHING/
-    );
-
-    const [update] = corrections(/WITH upd AS/);
-    expect(update.values).toEqual(
-      expect.arrayContaining([
-        "5.0000000",
-        "row-tx-amount",
-        "4.5000000",
-        "0.5000000",
-      ])
-    );
-    // Conditional on the amount that was read: a concurrent writer wins.
-    expect(update.text).toMatch(/AND amount_xlm = \$\?::numeric/);
-
-    const flags = corrections(/^INSERT INTO tip_reconciliation_corrections/);
-    const kinds = flags.map(f => f.values[1]);
-    expect(kinds.sort()).toEqual(["CREATOR_MISMATCH", "NOT_ON_LEDGER"]);
-    // Aggregated multi-op tx (1 + 2 = 3) matches the stored row: no correction.
-    expect(
-      JSON.stringify(
-        corrections(/tip_reconciliation_corrections/).map(c => c.values)
-      )
-    ).not.toMatch(/tx-multi/);
-    // Financial rows are never deleted.
-    expect(corrections(/DELETE FROM tip_transactions/)).toHaveLength(0);
   });
 
-  it("paginates Horizon until the lookback window is covered", async () => {
-    fetchPayments
-      .mockResolvedValueOnce(
-        page([tip("tx-a", "1")], { next: "c1", oldest: RECENT })
-      )
-      .mockResolvedValueOnce(
-        page(
-          [
-            tip(
-              "tx-old",
-              "1",
-              new Date(NOW.getTime() - 200 * HOUR).toISOString()
-            ),
-          ],
-          {
-            next: "c2",
-          }
-        )
-      );
-    stubDb([{ id: CREATOR, wallet: WALLET }], {
-      [CREATOR]: [stored("tx-a", "1.0000000")],
+  it("keeps paging past pages that contain no tips", async () => {
+    const fetchPayments = jest
+      .fn()
+      .mockResolvedValueOnce({ tips: [], nextCursor: "outgoing-only" })
+      .mockResolvedValueOnce({
+        tips: [tip("1", "h", "2026-01-01T00:00:00Z")],
+        nextCursor: "x",
+      })
+      .mockResolvedValueOnce({ tips: [], nextCursor: undefined });
+
+    const totals = await fetchLedgerTipTotals(ACCOUNT, {
+      fetchPayments,
+      sleep,
     });
 
-    const { metrics } = await runTipReconciliation(ctx());
-
-    expect(fetchPayments).toHaveBeenCalledTimes(2);
-    expect(fetchPayments.mock.calls[1][0]).toMatchObject({ cursor: "c1" });
-    // tx-old is outside the window: not inserted.
-    expect(corrections(/WITH supporter AS/)).toHaveLength(0);
-    expect(metrics.payments_scanned).toBe(1);
+    expect(totals.totalCount).toBe(1);
   });
 
-  it("never flags NOT_ON_LEDGER when the window could not be read completely", async () => {
-    fetchPayments.mockImplementation(async () =>
-      page([tip(`tx-${Math.random()}`, "1")], { next: "more", oldest: RECENT })
+  it("treats an account Horizon does not know as having no tips", async () => {
+    const fetchPayments = jest.fn().mockRejectedValue(horizonError(404));
+
+    const totals = await fetchLedgerTipTotals(ACCOUNT, {
+      fetchPayments,
+      sleep,
+    });
+
+    expect(totals).toEqual(
+      expect.objectContaining({
+        totalReceived: "0.0000000",
+        totalCount: 0,
+        lastTipAt: null,
+      })
     );
-    stubDb([{ id: CREATOR, wallet: WALLET }], {
-      [CREATOR]: [stored("tx-unseen", "1.0000000")],
-    });
-
-    const { status, metrics } = await runTipReconciliation(ctx());
-
-    expect(status).toBe("partial");
-    expect(metrics.creators_incomplete).toBe(1);
-    expect(fetchPayments).toHaveBeenCalledTimes(10);
-    expect(
-      corrections(/^INSERT INTO tip_reconciliation_corrections/).map(
-        c => c.values[1]
-      )
-    ).not.toContain("NOT_ON_LEDGER");
   });
 
-  it("does not flag rows at the edge of the window", async () => {
-    fetchPayments.mockResolvedValueOnce(page([], { oldest: undefined }));
-    const edge = new Date(NOW.getTime() - 71.5 * HOUR).toISOString();
-    stubDb([{ id: CREATOR, wallet: WALLET }], {
-      [CREATOR]: [stored("tx-edge", "1.0000000", { createdAt: edge })],
+  it("retries rate limits and server errors with exponential backoff", async () => {
+    const fetchPayments = jest
+      .fn()
+      .mockRejectedValueOnce(horizonError(429))
+      .mockRejectedValueOnce(horizonError(503))
+      .mockRejectedValueOnce(new Error("socket hang up"))
+      .mockResolvedValueOnce({
+        tips: [tip("2", "h", "2026-01-01T00:00:00Z")],
+        nextCursor: undefined,
+      });
+
+    const totals = await fetchLedgerTipTotals(ACCOUNT, {
+      fetchPayments,
+      sleep,
+      policy: { baseDelayMs: 100, maxDelayMs: 1000 },
     });
 
-    await runTipReconciliation(ctx());
-
-    expect(
-      corrections(/^INSERT INTO tip_reconciliation_corrections/)
-    ).toHaveLength(0);
+    expect(totals.totalReceived).toBe("2.0000000");
+    expect(totals).toEqual(
+      expect.objectContaining({ requests: 4, retries: 3, rateLimited: 1 })
+    );
+    const delays = (sleep.mock.calls as unknown as number[][]).map(c => c[0]);
+    expect(delays[0]).toBeGreaterThanOrEqual(50);
+    expect(delays[0]).toBeLessThanOrEqual(100);
+    expect(delays[2]).toBeGreaterThanOrEqual(200);
+    expect(delays[2]).toBeLessThanOrEqual(400);
   });
 
-  it("retries transient Horizon errors", async () => {
-    fetchPayments
-      .mockRejectedValueOnce({ response: { status: 503 } })
-      .mockRejectedValueOnce({ response: { status: 429 } })
-      .mockResolvedValueOnce(page([], {}));
-    stubDb([{ id: CREATOR, wallet: WALLET }], {});
+  it("gives up with a rate-limit error after the retry budget", async () => {
+    const fetchPayments = jest.fn().mockRejectedValue(horizonError(429));
 
-    const { status } = await runTipReconciliation(ctx());
-
-    expect(status).toBe("completed");
+    await expect(
+      fetchLedgerTipTotals(ACCOUNT, {
+        fetchPayments,
+        sleep,
+        policy: { maxRetries: 2 },
+      })
+    ).rejects.toBeInstanceOf(HorizonRateLimitedError);
     expect(fetchPayments).toHaveBeenCalledTimes(3);
   });
 
-  it("treats a Horizon outage as a failed check, not as an empty ledger", async () => {
-    fetchPayments
-      .mockRejectedValueOnce(new Error("socket hang up"))
-      .mockRejectedValueOnce(new Error("socket hang up"))
-      .mockRejectedValueOnce(new Error("socket hang up"))
-      .mockResolvedValueOnce(page([tip("tx-b", "2.0000000")], {}));
-    stubDb(
-      [
-        { id: CREATOR, wallet: WALLET },
-        { id: OTHER_CREATOR, wallet: WALLET },
-      ],
-      {
-        [CREATOR]: [stored("tx-would-be-flagged", "5.0000000")],
-        [OTHER_CREATOR]: [],
-      }
-    );
+  it("does not retry client errors", async () => {
+    const fetchPayments = jest.fn().mockRejectedValue(horizonError(400));
 
-    const { status, metrics } = await runTipReconciliation(ctx());
-
-    expect(status).toBe("partial");
-    expect(metrics).toMatchObject({
-      creators_scanned: 2,
-      creators_failed: 1,
-      failed_creator_ids: [CREATOR],
-    });
-    expect(
-      corrections(/^INSERT INTO tip_reconciliation_corrections/).map(
-        c => c.values[1]
-      )
-    ).not.toContain("NOT_ON_LEDGER");
-    // The second creator was still reconciled.
-    expect(corrections(/WITH supporter AS/)).toHaveLength(1);
-  });
-
-  it("does not retry a permanent Horizon error", async () => {
-    fetchPayments.mockRejectedValueOnce({ response: { status: 400 } });
-    stubDb([{ id: CREATOR, wallet: WALLET }], {});
-    const { metrics } = await runTipReconciliation(ctx());
+    await expect(
+      fetchLedgerTipTotals(ACCOUNT, { fetchPayments, sleep })
+    ).rejects.toThrow("status 400");
     expect(fetchPayments).toHaveBeenCalledTimes(1);
-    expect(metrics.creators_failed).toBe(1);
   });
 
-  it("treats a non-existent account as having no payments", async () => {
-    fetchPayments.mockRejectedValueOnce({ response: { status: 404 } });
-    stubDb([{ id: CREATOR, wallet: WALLET }], {
-      [CREATOR]: [stored("tx-stored", "1.0000000")],
-    });
-    const { metrics } = await runTipReconciliation(ctx());
-    expect(metrics.creators_failed).toBe(0);
-    expect(
-      corrections(/^INSERT INTO tip_reconciliation_corrections/).map(
-        c => c.values[1]
-      )
-    ).toEqual(["NOT_ON_LEDGER"]);
+  it("does not treat a 404 after the first page as an empty account", async () => {
+    const fetchPayments = jest
+      .fn()
+      .mockResolvedValueOnce({
+        tips: [tip("1", "h", "2026-01-01T00:00:00Z")],
+        nextCursor: "c",
+      })
+      .mockRejectedValue(horizonError(404));
+
+    await expect(
+      fetchLedgerTipTotals(ACCOUNT, { fetchPayments, sleep })
+    ).rejects.toThrow("status 404");
   });
 
-  it("stops at the deadline and reports a partial run", async () => {
-    stubDb(
-      [
-        { id: CREATOR, wallet: WALLET },
-        { id: OTHER_CREATOR, wallet: WALLET },
-      ],
-      {}
-    );
-    fetchPayments.mockResolvedValue(page([], {}));
-    let checks = 0;
-    const { status, metrics } = await runTipReconciliation(
-      ctx(() => ++checks > 1)
-    );
-    expect(status).toBe("partial");
-    expect(metrics.creators_scanned).toBe(1);
+  it("refuses to produce a partial total for an oversized history", async () => {
+    const fetchPayments = jest
+      .fn()
+      .mockResolvedValue({
+        tips: [tip("1", "h", "2026-01-01T00:00:00Z")],
+        nextCursor: "more",
+      });
+
+    await expect(
+      fetchLedgerTipTotals(ACCOUNT, {
+        fetchPayments,
+        sleep,
+        policy: { maxPages: 3 },
+      })
+    ).rejects.toBeInstanceOf(LedgerHistoryTooLargeError);
+    expect(fetchPayments).toHaveBeenCalledTimes(3);
+  });
+
+  it("uses the existing Horizon tip definition by default (native incoming payments only)", async () => {
+    mockCall
+      .mockResolvedValueOnce({
+        records: [
+          {
+            type: "payment",
+            to: ACCOUNT,
+            from: "GA",
+            asset_type: "native",
+            amount: "5",
+            transaction_hash: "t1",
+            created_at: "2026-02-01T00:00:00Z",
+            paging_token: "p1",
+          },
+          {
+            type: "payment",
+            to: ACCOUNT,
+            from: "GB",
+            asset_type: "credit_alphanum4",
+            amount: "7",
+            transaction_hash: "t2",
+            created_at: "2026-02-01T00:00:00Z",
+            paging_token: "p2",
+          },
+          {
+            type: "payment",
+            to: "GOTHER",
+            from: ACCOUNT,
+            asset_type: "native",
+            amount: "9",
+            transaction_hash: "t3",
+            created_at: "2026-02-01T00:00:00Z",
+            paging_token: "p3",
+          },
+          {
+            type: "path_payment_strict_receive",
+            to: ACCOUNT,
+            from: "GC",
+            asset_type: "native",
+            amount: "1.5",
+            transaction_hash: "t4",
+            created_at: "2026-03-01T00:00:00Z",
+            paging_token: "p4",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ records: [] });
+
+    const totals = await fetchLedgerTipTotals(ACCOUNT, { sleep });
+
+    expect(totals.totalReceived).toBe("6.5000000");
+    expect(totals.tips.map(t => t.txHash)).toEqual(["t1", "t4"]);
   });
 });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminUnauthorized, verifyAdminSession } from "@/lib/admin-auth";
+import { requireAdminSession } from "@/lib/admin-auth";
 import { listDeletions } from "@/lib/users/deletion";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +18,9 @@ const STATUSES = new Set([
  * purge first.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  if (!(await verifyAdminSession())) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("admin/users/deletions");
+  if (adminDenied) {
+    return adminDenied;
   }
   const status = new URL(req.url).searchParams.get("status");
   if (status && !STATUSES.has(status)) {

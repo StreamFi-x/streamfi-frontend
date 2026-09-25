@@ -23,7 +23,7 @@ import {
   type Classification,
   type JsonbColumn,
 } from "@/lib/db/jsonb-contracts";
-import { finishJobRun, startJobRun } from "@/lib/jobs/runs";
+import { randomUUID } from "crypto";
 
 export type AuditAction = "report" | "normalize" | "quarantine";
 
@@ -59,7 +59,8 @@ export async function auditUsersJsonb(options: {
   actor: string;
 }): Promise<AuditReport> {
   const limit = Math.min(Math.max(options.limit ?? 200, 1), MAX_BATCH);
-  const runId = await startJobRun("jsonb-audit", { abandonStale: false });
+  const runId = randomUUID();
+  const startedAt = new Date();
 
   const report: AuditReport = {
     runId,
@@ -93,13 +94,13 @@ export async function auditUsersJsonb(options: {
 
     report.nextCursor = rows.length === limit ? rows[rows.length - 1].id : null;
 
-    await finishJobRun(runId, "completed", summarize(report));
+    await recordAuditRun(report, startedAt, "succeeded");
     return report;
   } catch (err) {
-    await finishJobRun(
-      runId,
+    await recordAuditRun(
+      report,
+      startedAt,
       "failed",
-      summarize(report),
       err instanceof Error ? err.message : String(err)
     );
     throw err;
@@ -280,6 +281,25 @@ async function quarantineNotifications(
     WHERE id IN (SELECT row_id FROM q)
   `;
   return result.rowCount === 1;
+}
+
+/** One job_runs row per audit batch (same table as the scheduled jobs). */
+async function recordAuditRun(
+  report: AuditReport,
+  startedAt: Date,
+  status: "succeeded" | "failed",
+  error?: string
+) {
+  await sql`
+    INSERT INTO job_runs (job_name, status, started_at, duration_ms, metrics, error, run_id)
+    VALUES (
+      'jsonb-audit', ${status}, ${startedAt.toISOString()},
+      ${Date.now() - startedAt.getTime()},
+      ${JSON.stringify(summarize(report))}::jsonb,
+      ${error ? error.slice(0, 500) : null},
+      ${report.runId}
+    )
+  `;
 }
 
 function summarize(report: AuditReport): Record<string, unknown> {

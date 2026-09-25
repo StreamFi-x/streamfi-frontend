@@ -1,10 +1,11 @@
-// app/api/tips/refresh-total/route.ts
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { fetchPaymentsReceived } from "@/lib/stellar/horizon";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
 import { getXlmUsdPrice } from "@/lib/routes-f/price";
-import { fromStroops, toStroops } from "@/lib/stellar/amounts";
+import {
+  LedgerHistoryTooLargeError,
+  reconcileUserTipTotals,
+} from "@/lib/stellar/tip-reconciliation";
 
 export async function POST(request: Request) {
   try {
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
     }
 
     const user = userResult.rows[0];
+
     if (!user.stellar_public_key) {
       return NextResponse.json(
         { error: "User has not configured Stellar wallet" },
@@ -39,90 +41,39 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Fetch all tips from Horizon API
-    let allTips: any[] = [];
-    let cursor: string | undefined = undefined;
-    let hasMore = true;
-
-    while (hasMore) {
-      const {
-        tips,
-        nextCursor,
-      }: { tips: any[]; nextCursor: string | undefined } =
-        await fetchPaymentsReceived({
-          publicKey: user.stellar_public_key,
-          limit: 200,
-          cursor,
-        });
-
-      allTips = [...allTips, ...tips];
-      cursor = nextCursor || undefined;
-      hasMore = !!nextCursor;
-    }
-
-    // 3. Calculate totals
-    const totalReceived = fromStroops(
-      allTips.reduce((sum, tip) => sum + toStroops(tip.amount), BigInt(0))
+    // 2. Recalculate from the full ledger history (shared with the scheduled
+    // reconciliation job). A concurrent writer bumps tip_totals_version, in
+    // which case the recalculation is retried against the newer state.
+    const result = await reconcileUserTipTotals(
+      String(user.id),
+      String(user.stellar_public_key),
+      { getXlmUsdPrice, maxAttempts: 3 }
     );
 
-    const totalCount = allTips.length;
-    const lastTipAt = allTips.length > 0 ? allTips[0].timestamp : null;
-    const xlmUsdPrice = await getXlmUsdPrice();
-
-    for (const tip of allTips) {
-      const supporterResult = await sql`
-        -- tombstone-aware: financial records keep their supporter link
-        SELECT id
-        FROM users
-        WHERE wallet = ${tip.sender}
-        LIMIT 1
-      `;
-
-      await sql`
-        INSERT INTO tip_transactions (
-          creator_id,
-          supporter_id,
-          amount_xlm,
-          price_usd,
-          tx_hash,
-          memo,
-          created_at
-        )
-        VALUES (
-          ${user.id},
-          ${supporterResult.rows[0]?.id ?? null},
-          ${tip.amount},
-          ${xlmUsdPrice},
-          ${tip.txHash},
-          'StreamFi Tip',
-          ${tip.timestamp}
-        )
-        ON CONFLICT (tx_hash) WHERE tx_hash IS NOT NULL DO NOTHING
-      `;
+    if (result.status === "not_found") {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-
-    // 4. Update database
-    await sql`
-      UPDATE users
-      SET 
-        total_tips_received = ${totalReceived},
-        total_tips_count = ${totalCount},
-        last_tip_at = ${lastTipAt},
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${user.id}
-    `;
+    if (result.status === "stale" || !result.totals) {
+      return NextResponse.json(
+        { error: "Tip totals are being updated; try again shortly" },
+        { status: 409 }
+      );
+    }
 
     await evaluateAndAwardBadges(String(user.id));
 
-    // 5. Return updated statistics
+    // 3. Return updated statistics
     return NextResponse.json({
       username: user.username,
-      totalReceived,
-      totalCount,
-      lastTipAt,
+      totalReceived: result.totals.totalReceived,
+      totalCount: result.totals.totalCount,
+      lastTipAt: result.totals.lastTipAt,
       refreshedAt: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof LedgerHistoryTooLargeError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
     console.error("Refresh total error:", error);
     return NextResponse.json(
       { error: "Failed to refresh tip totals" },

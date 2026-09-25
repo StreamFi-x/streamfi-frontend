@@ -1,466 +1,487 @@
 /**
  * @jest-environment node
+ *
+ * #1399 — Mux ↔ DB live-state reconciliation.
  */
-import { createSqlMock, type SqlCall } from "@/testing/sql-mock";
 
-const mockDb = createSqlMock();
-jest.mock("@vercel/postgres", () => ({
-  sql: (...args: unknown[]) => mockDb.sql(...args),
-}));
+jest.mock(
+  "@vercel/postgres",
+  () => jest.requireActual("@/testing/fake-postgres").vercelPostgresMock
+);
 jest.mock("@/lib/mux/server", () => ({
-  listMuxAssetsPage: jest.fn(),
-  retrieveMuxAsset: jest.fn(),
-  deleteMuxAssetIfExists: jest.fn(async () => "deleted"),
-}));
-jest.mock("@/lib/mux/recordings", () => ({
-  upsertRecordingFromAsset: jest.fn(async () => true),
+  listActiveMuxLiveStreamIds: jest.fn(),
+  getMuxLiveStreamStatus: jest.fn(),
 }));
 
+import { fakePostgres as db } from "@/testing/fake-postgres";
 import {
-  deleteMuxAssetIfExists,
-  listMuxAssetsPage,
-  retrieveMuxAsset,
-  type MuxAssetSummary,
-} from "@/lib/mux/server";
-import { upsertRecordingFromAsset } from "@/lib/mux/recordings";
-import {
-  MUX_ORPHAN_GRACE_MS,
-  remediateFinding,
-  runMuxReconciliation,
+  IncompleteMuxListingError,
+  alertOnAbnormalDrift,
+  reconcileMuxLiveState,
+  type MuxLiveStateSource,
+  type ReconciliationConfig,
 } from "@/lib/mux/reconciliation";
+import { markMuxStreamLive, markMuxStreamOffline } from "@/lib/mux/live-state";
+import { withTransaction } from "@/lib/postgres-transaction";
+import {
+  getMuxLiveStreamStatus,
+  listActiveMuxLiveStreamIds,
+} from "@/lib/mux/server";
+import { GET as reconcileCron } from "@/app/api/routes-f/cron-mux-reconcile/route";
+import {
+  MemoryKvStore,
+  setSecurityKvStoreForTesting,
+} from "@/lib/security/kv-store";
 
-const NOW = new Date("2026-09-25T12:00:00Z");
-const HOUR = 60 * 60 * 1000;
-const OLD = new Date(NOW.getTime() - MUX_ORPHAN_GRACE_MS - 6 * HOUR);
+const MIN = 60_000;
+const CONFIG: ReconciliationConfig = {
+  graceSeconds: 180,
+  maxConfirmationsPerRun: 25,
+  driftAlertThreshold: 5,
+  persistentDriftRuns: 3,
+};
 
-const listPage = listMuxAssetsPage as jest.Mock;
-const retrieve = retrieveMuxAsset as jest.Mock;
+const ORIGINAL_ENV = process.env;
+const fetchMock = jest.fn();
+let logs: string[] = [];
+let spies: jest.SpyInstance[] = [];
 
-function asset(id: string, overrides: Partial<MuxAssetSummary> = {}) {
+function source(
+  active: string[],
+  statuses: Record<string, string> = {}
+): MuxLiveStateSource & { getStatus: jest.Mock; listActive: jest.Mock } {
   return {
-    id,
-    status: "ready",
-    createdAt: OLD,
-    liveStreamId: "ls-1",
-    isLive: false,
-    playbackId: `pb-${id}`,
-    ...overrides,
+    listActive: jest.fn(async () => ({
+      ids: new Set(active),
+      complete: true,
+      pages: 1,
+    })),
+    getStatus: jest.fn(async (id: string) => (statuses[id] ?? "idle") as never),
   };
 }
 
-function recording(id: string, assetId: string, createdAt = OLD) {
-  return {
+/** A streamer whose live state last changed `ageMs` ago. */
+function streamer(
+  id: string,
+  opts: {
+    live: boolean;
+    ageMs?: number;
+    banned?: boolean;
+    stream?: string | null;
+  }
+) {
+  db.addUser({
     id,
-    mux_asset_id: assetId,
-    playback_id: `pb-${assetId}`,
-    owner_id: "user-1",
-    status: "ready",
-    created_at: createdAt.toISOString(),
-  };
+    mux_stream_id: opts.stream === undefined ? `mux-${id}` : opts.stream,
+    mux_playback_id: `pb-${id}`,
+    creator: { title: `${id} live` },
+    is_live: opts.live,
+    is_banned: opts.banned ?? false,
+    live_state_changed_at: new Date(
+      db.clock.getTime() - (opts.ageMs ?? 60 * MIN)
+    ),
+  });
+  if (opts.live) {
+    db.state.stream_sessions.push({
+      id: `open-${id}`,
+      user_id: id,
+      title: null,
+      playback_id: null,
+      mux_session_id: `mux-${id}`,
+      started_at: new Date(db.clock.getTime() - 90 * MIN),
+      ended_at: null,
+    });
+  }
 }
 
-const ctx = (deadlineExpired: () => boolean = () => false) => ({
-  runId: "run-1",
-  deadlineExpired,
-  renewLease: jest.fn(async () => true),
-});
-
-/**
- * DB state: which asset ids have rows (optionally a second set that appears
- * between the first and second lookup), the recordings table and open findings.
- */
-function stubDb({
-  recorded = [] as string[],
-  lateRecorded = [] as string[],
-  recordings = [] as ReturnType<typeof recording>[],
-  clips = [] as ReturnType<typeof recording>[],
-  openOrphanFindings = [] as Array<{ id: string; mux_asset_id: string }>,
-  findingInserted = true,
-} = {}) {
-  let lookups = 0;
-  mockDb.on(/SELECT now\(\) AS now/, { rows: [{ now: NOW.toISOString() }] });
-  mockDb.on(
-    /SELECT mux_asset_id FROM stream_recordings WHERE mux_asset_id IN/,
-    (call: SqlCall) => {
-      lookups++;
-      const ids: string[] = JSON.parse(String(call.values[0]));
-      const present = new Set(
-        lookups === 1 ? recorded : [...recorded, ...lateRecorded]
-      );
-      return {
-        rows: ids
-          .filter(id => present.has(id))
-          .map(id => ({ mux_asset_id: id })),
-      };
-    }
+const writes = () =>
+  db.statements.filter(
+    s => /^(UPDATE|INSERT|DELETE)/.test(s) && !s.includes("scheduled_job_runs")
   );
-  mockDb.on(/SELECT id, mux_stream_id FROM users/, {
-    rows: [{ id: "user-1", mux_stream_id: "ls-1" }],
-  });
-  mockDb.on(/INSERT INTO mux_drift_findings/, {
-    rows: [{ inserted: findingInserted }],
-  });
-  mockDb.on(/database row now exists/, { rowCount: 0 });
-  mockDb.on(/SELECT id, mux_asset_id FROM mux_drift_findings/, {
-    rows: openOrphanFindings,
-  });
-  mockDb.on(/asset no longer exists in Mux/, { rowCount: 1 });
-  mockDb.once(/FROM stream_recordings WHERE id > /, { rows: recordings });
-  mockDb.on(/FROM stream_recordings WHERE id > /, { rows: [] });
-  mockDb.once(/FROM stream_clips WHERE id > /, { rows: clips });
-  mockDb.on(/FROM stream_clips WHERE id > /, { rows: [] });
-  mockDb.on(/WITH finding AS/, { rows: [] });
-  mockDb.on(/SELECT f.id, f.mux_asset_id, CASE WHEN f.row_table/, { rows: [] });
-}
 
-const findingInserts = () =>
-  mockDb.callsMatching(/INSERT INTO mux_drift_findings/).map(c => ({
-    kind: c.values[0],
-    assetId: c.values[1],
-    rowTable: c.values[2],
-    rowId: c.values[3],
-    userId: c.values[5],
-  }));
+const corrections = () =>
+  logs
+    .map(l => {
+      try {
+        return JSON.parse(l);
+      } catch {
+        return null;
+      }
+    })
+    .filter(l => l?.message === "mux_reconciliation_correction");
 
 beforeEach(() => {
-  mockDb.reset();
-  jest.clearAllMocks();
-  retrieve.mockResolvedValue(null);
+  db.reset();
+  logs = [];
+  setSecurityKvStoreForTesting(new MemoryKvStore());
+  process.env = {
+    ...ORIGINAL_ENV,
+    OPS_ALERT_WEBHOOK_URL: "https://hooks.example.test/ops",
+    CRON_SECRET: "SENTINEL-cron-secret",
+  };
+  fetchMock.mockReset().mockResolvedValue(new Response("ok"));
+  global.fetch = fetchMock as unknown as typeof fetch;
+  spies = (["log", "warn", "error", "info"] as const).map(m =>
+    jest.spyOn(console, m).mockImplementation((line: unknown) => {
+      logs.push(String(line));
+    })
+  );
 });
 
-describe("runMuxReconciliation", () => {
-  it("reports nothing when every asset and row match", async () => {
-    listPage.mockResolvedValueOnce([asset("a1"), asset("a2")]);
-    stubDb({
-      recorded: ["a1", "a2"],
-      recordings: [recording("r1", "a1"), recording("r2", "a2")],
-    });
+afterEach(() => spies.forEach(s => s.mockRestore()));
+afterAll(() => {
+  process.env = ORIGINAL_ENV;
+  setSecurityKvStoreForTesting(null);
+});
 
-    const { status, metrics } = await runMuxReconciliation(ctx());
-
-    expect(status).toBe("completed");
-    expect(metrics).toMatchObject({
-      mux_assets_listed: 2,
-      listing_complete: true,
-      matched: 2,
-      mux_asset_without_db_row: 0,
-      db_row_without_mux_asset: 0,
-    });
-    expect(findingInserts()).toEqual([]);
-    expect(retrieve).not.toHaveBeenCalled();
+describe("drift detection in both directions", () => {
+  it("does nothing when Mux and the DB agree", async () => {
+    streamer("alice", { live: true });
+    streamer("bob", { live: false });
+    const summary = await reconcileMuxLiveState(source(["mux-alice"]), CONFIG);
+    expect(summary).toMatchObject({ marked_offline: 0, marked_live: 0 });
+    expect(writes()).toHaveLength(0);
   });
 
-  it("flags a settled Mux asset with no row, attributed to its owner", async () => {
-    listPage.mockResolvedValueOnce([asset("orphan")]);
-    stubDb();
+  it("ends a stream the DB thinks is live but Mux reports idle, closing its session", async () => {
+    streamer("alice", { live: true });
+    const src = source([], { "mux-alice": "idle" });
 
-    const { metrics } = await runMuxReconciliation(ctx());
+    const summary = await reconcileMuxLiveState(src, CONFIG);
 
-    expect(metrics.mux_asset_without_db_row).toBe(1);
-    expect(findingInserts()).toEqual([
-      {
-        kind: "MUX_ASSET_WITHOUT_DB_ROW",
-        assetId: "orphan",
-        rowTable: null,
-        rowId: null,
-        userId: "user-1",
-      },
+    expect(summary).toMatchObject({ marked_offline: 1, sessions_closed: 1 });
+    expect(src.getStatus).toHaveBeenCalledWith("mux-alice");
+    expect(db.user("alice")).toMatchObject({
+      is_live: false,
+      stream_started_at: null,
+      current_viewers: 0,
+    });
+    expect(db.openSessions("alice")).toHaveLength(0);
+    expect(corrections()).toEqual([
+      expect.objectContaining({
+        source: "reconciliation",
+        correction: "marked_offline",
+        user_id: "alice",
+        mux_stream_id: "mux-alice",
+        previous_db_state: "live",
+        observed_mux_state: "idle",
+        reason: "db_live_but_mux_not_active",
+      }),
     ]);
-    expect(deleteMuxAssetIfExists).not.toHaveBeenCalled();
   });
 
-  it("does not flag assets still inside the propagation grace period", async () => {
-    listPage.mockResolvedValueOnce([
-      asset("fresh", { createdAt: new Date(NOW.getTime() - HOUR) }),
-      asset("preparing", { status: "preparing" }),
-      asset("live", { isLive: true }),
+  it("brings a stream live when Mux is broadcasting but the DB missed it", async () => {
+    streamer("bob", { live: false });
+    const summary = await reconcileMuxLiveState(source(["mux-bob"]), CONFIG);
+    expect(summary).toMatchObject({ marked_live: 1, sessions_opened: 1 });
+    expect(db.user("bob").is_live).toBe(true);
+    expect(db.openSessions("bob")).toEqual([
+      expect.objectContaining({ title: "bob live", playback_id: "pb-bob" }),
     ]);
-    stubDb();
-
-    const { metrics } = await runMuxReconciliation(ctx());
-
-    expect(metrics.recent_propagation).toBe(3);
-    expect(findingInserts()).toEqual([]);
-  });
-
-  it("does not flag an asset whose row lands while the sweep runs", async () => {
-    listPage.mockResolvedValueOnce([asset("racing")]);
-    stubDb({ lateRecorded: ["racing"] });
-
-    const { metrics } = await runMuxReconciliation(ctx());
-
-    expect(metrics.mux_asset_without_db_row).toBe(0);
-    expect(findingInserts()).toEqual([]);
-  });
-
-  it("paginates the asset list until a short page", async () => {
-    const page1 = Array.from({ length: 100 }, (_, i) => asset(`p1-${i}`));
-    listPage
-      .mockResolvedValueOnce(page1)
-      .mockResolvedValueOnce([asset("p2-0")]);
-    stubDb({ recorded: [...page1.map(a => a.id), "p2-0"] });
-
-    const { metrics } = await runMuxReconciliation(ctx());
-
-    expect(listPage).toHaveBeenNthCalledWith(1, 1, 100);
-    expect(listPage).toHaveBeenNthCalledWith(2, 2, 100);
-    expect(metrics).toMatchObject({
-      mux_assets_listed: 101,
-      listing_complete: true,
+    expect(corrections()[0]).toMatchObject({
+      source: "reconciliation",
+      correction: "marked_live",
+      observed_mux_state: "active",
     });
   });
 
-  it("never treats a failed listing as missing assets", async () => {
-    const page1 = Array.from({ length: 100 }, (_, i) => asset(`p1-${i}`));
-    listPage
-      .mockResolvedValueOnce(page1)
-      .mockRejectedValueOnce(
-        Object.assign(new Error("Too Many Requests"), { status: 429 })
-      );
-    stubDb({
-      recorded: page1.map(a => a.id),
-      recordings: [recording("r-unlisted", "on-page-2")],
+  it("ends a DB-live row that has no Mux stream at all without asking Mux", async () => {
+    streamer("ghost", { live: true, stream: null });
+    const src = source([]);
+    const summary = await reconcileMuxLiveState(src, CONFIG);
+    expect(summary.marked_offline).toBe(1);
+    expect(src.getStatus).not.toHaveBeenCalled();
+    expect(corrections()[0].reason).toBe("db_live_without_mux_stream");
+  });
+
+  it("treats a stream deleted on Mux as offline", async () => {
+    streamer("alice", { live: true });
+    await reconcileMuxLiveState(
+      source([], { "mux-alice": "not_found" }),
+      CONFIG
+    );
+    expect(db.user("alice").is_live).toBe(false);
+  });
+
+  it("never brings a banned streamer back live", async () => {
+    streamer("banned", { live: false, banned: true });
+    const summary = await reconcileMuxLiveState(source(["mux-banned"]), CONFIG);
+    expect(summary).toMatchObject({ marked_live: 0, skipped_banned: 1 });
+    expect(db.user("banned").is_live).toBe(false);
+  });
+});
+
+describe("fail closed on bad Mux data", () => {
+  it("writes nothing when the Mux listing fails", async () => {
+    streamer("alice", { live: true });
+    streamer("bob", { live: true });
+    const src = source([]);
+    src.listActive.mockRejectedValue(new Error("Mux 503"));
+    await expect(reconcileMuxLiveState(src, CONFIG)).rejects.toThrow("Mux 503");
+    expect(writes()).toHaveLength(0);
+    expect(db.user("alice").is_live).toBe(true);
+  });
+
+  it("writes nothing when the listing was truncated", async () => {
+    streamer("alice", { live: true });
+    const src = source([]);
+    src.listActive.mockResolvedValue({
+      ids: new Set(),
+      complete: false,
+      pages: 50,
+    });
+    await expect(reconcileMuxLiveState(src, CONFIG)).rejects.toBeInstanceOf(
+      IncompleteMuxListingError
+    );
+    expect(writes()).toHaveLength(0);
+  });
+
+  it("keeps a stream live when the confirmation lookup disagrees with the listing", async () => {
+    streamer("alice", { live: true });
+    const summary = await reconcileMuxLiveState(
+      source([], { "mux-alice": "active" }),
+      CONFIG
+    );
+    expect(summary).toMatchObject({
+      marked_offline: 0,
+      skipped_still_active: 1,
+    });
+    expect(db.user("alice").is_live).toBe(true);
+  });
+
+  it("skips (does not end) a stream whose confirmation lookup fails", async () => {
+    streamer("alice", { live: true });
+    const src = source([]);
+    src.getStatus.mockRejectedValue(new Error("timeout"));
+    const summary = await reconcileMuxLiveState(src, CONFIG);
+    expect(summary).toMatchObject({
+      marked_offline: 0,
+      confirmation_failures: 1,
+    });
+    expect(db.user("alice").is_live).toBe(true);
+  });
+
+  it("bounds confirmation lookups per run and defers the rest", async () => {
+    for (let i = 0; i < 4; i++) {
+      streamer(`s${i}`, { live: true });
+    }
+    const src = source([]);
+    const summary = await reconcileMuxLiveState(src, {
+      ...CONFIG,
+      maxConfirmationsPerRun: 2,
+    });
+    expect(src.getStatus).toHaveBeenCalledTimes(2);
+    expect(summary).toMatchObject({ marked_offline: 2, deferred: 2 });
+  });
+});
+
+describe("race protection", () => {
+  it("does not end a stream that went live while the job was querying Mux", async () => {
+    streamer("alice", { live: false });
+    // T0: job captures the DB clock and lists Mux — alice is not active yet.
+    // T1–T2: alice starts; the active webhook lands mid-run.
+    const src = source([], { "mux-alice": "idle" });
+    src.listActive.mockImplementation(async () => {
+      db.advance(5_000);
+      await withTransaction(tx => markMuxStreamLive(tx, "mux-alice"));
+      return { ids: new Set<string>(), complete: true, pages: 1 };
     });
 
-    const { status, metrics } = await runMuxReconciliation(ctx());
+    // T3: the job must not write its stale "not active" observation.
+    const summary = await reconcileMuxLiveState(src, CONFIG);
 
-    expect(status).toBe("partial");
-    expect(metrics.listing_complete).toBe(false);
-    expect(metrics.listing_error).toMatch(/Too Many Requests/);
-    expect(metrics.direction_b_skipped).toBe(true);
-    expect(retrieve).not.toHaveBeenCalled();
-    expect(findingInserts()).toEqual([]);
-  });
-
-  it("stops listing when the time budget is exhausted", async () => {
-    stubDb();
-    const { status, metrics } = await runMuxReconciliation(ctx(() => true));
-    expect(status).toBe("partial");
-    expect(listPage).not.toHaveBeenCalled();
-    expect(metrics.direction_b_skipped).toBe(true);
-  });
-
-  it("flags a row only after a direct 404 and then attempts the guarded auto-hide", async () => {
-    listPage.mockResolvedValueOnce([]);
-    stubDb({ recordings: [recording("r-dead", "gone")] });
-    retrieve.mockResolvedValueOnce(null);
-
-    const { metrics } = await runMuxReconciliation(ctx());
-
-    expect(retrieve).toHaveBeenCalledWith("gone");
-    expect(metrics.db_row_without_mux_asset).toBe(1);
-    expect(findingInserts()).toEqual([
-      {
-        kind: "DB_ROW_WITHOUT_MUX_ASSET",
-        assetId: "gone",
-        rowTable: "stream_recordings",
-        rowId: "r-dead",
-        userId: "user-1",
-      },
-    ]);
-    const hide = mockDb.callsMatching(/WITH finding AS/)[0];
-    expect(hide.text).toMatch(/detection_count >= 2/);
-    expect(hide.text).toMatch(/first_detected_at <= /);
-  });
-
-  it("sweeps stream_clips rows the same way and hides through the clips table", async () => {
-    listPage.mockResolvedValueOnce([]);
-    stubDb({ clips: [recording("clip-1", "clip-asset-gone")] });
-    retrieve.mockResolvedValueOnce(null);
-
-    const { metrics } = await runMuxReconciliation(ctx());
-
-    expect(metrics.db_row_without_mux_asset).toBe(1);
-    expect(findingInserts()).toEqual([
-      {
-        kind: "DB_ROW_WITHOUT_MUX_ASSET",
-        assetId: "clip-asset-gone",
-        rowTable: "stream_clips",
-        rowId: "clip-1",
-        userId: "user-1",
-      },
-    ]);
-    const [scan] = mockDb.callsMatching(/FROM stream_clips WHERE id > /);
-    expect(scan.text).toMatch(/mux_asset_id IS NOT NULL/);
-    const hide = mockDb.callsMatching(/WITH finding AS/)[0];
-    expect(hide.text).toMatch(/UPDATE stream_clips c/);
-  });
-
-  it("treats an asset referenced by a clip as matched", async () => {
-    listPage.mockResolvedValueOnce([asset("clip-asset")]);
-    stubDb({ recorded: ["clip-asset"] });
-    const [{ metrics }] = [await runMuxReconciliation(ctx())];
-    expect(metrics.mux_asset_without_db_row).toBe(0);
-    const [lookup] = mockDb.callsMatching(/WHERE mux_asset_id IN/);
-    expect(lookup.text).toMatch(/UNION SELECT mux_asset_id FROM stream_clips/);
-  });
-
-  it("records a failed check instead of a missing asset when Mux errors", async () => {
-    listPage.mockResolvedValueOnce([]);
-    stubDb({ recordings: [recording("r1", "unknown")] });
-    retrieve.mockRejectedValueOnce(new Error("timeout"));
-
-    const { status, metrics } = await runMuxReconciliation(ctx());
-
-    expect(status).toBe("partial");
-    expect(metrics).toMatchObject({
-      check_failed: 1,
-      check_failed_asset_ids: ["unknown"],
-      db_row_without_mux_asset: 0,
+    expect(summary).toMatchObject({
+      marked_offline: 0,
+      skipped_recent_change: 1,
     });
-    expect(findingInserts()).toEqual([]);
+    expect(db.user("alice").is_live).toBe(true);
+    expect(db.openSessions("alice")).toHaveLength(1);
   });
 
-  it("ignores a row whose asset exists but was missed by the listing", async () => {
-    listPage.mockResolvedValueOnce([]);
-    stubDb({ recordings: [recording("r1", "created-mid-listing")] });
-    retrieve.mockResolvedValueOnce(asset("created-mid-listing"));
-
-    const { metrics } = await runMuxReconciliation(ctx());
-
-    expect(metrics.db_row_without_mux_asset).toBe(0);
-    expect(findingInserts()).toEqual([]);
-  });
-
-  it("skips rows younger than the DB grace period", async () => {
-    listPage.mockResolvedValueOnce([]);
-    stubDb({
-      recordings: [
-        recording(
-          "r-new",
-          "just-written",
-          new Date(NOW.getTime() - 10 * 60 * 1000)
-        ),
-      ],
+  it("does not resurrect a stream that ended while the job was querying Mux", async () => {
+    streamer("bob", { live: true });
+    const src = source([]);
+    src.listActive.mockImplementation(async () => {
+      const listing = { ids: new Set(["mux-bob"]), complete: true, pages: 1 };
+      db.advance(5_000);
+      await withTransaction(tx => markMuxStreamOffline(tx, "mux-bob"));
+      return listing;
     });
 
-    const { metrics } = await runMuxReconciliation(ctx());
+    const summary = await reconcileMuxLiveState(src, CONFIG);
 
-    expect(metrics.recent_propagation).toBe(1);
-    expect(retrieve).not.toHaveBeenCalled();
+    expect(summary).toMatchObject({ marked_live: 0, skipped_recent_change: 1 });
+    expect(db.user("bob").is_live).toBe(false);
   });
 
-  it("is repeat-safe: a known finding is updated, not duplicated", async () => {
-    listPage.mockResolvedValueOnce([asset("orphan")]);
-    stubDb({ findingInserted: false });
+  it("leaves rows alone inside the grace window and corrects them after it", async () => {
+    streamer("alice", { live: true, ageMs: 60_000 });
+    const src = source([], { "mux-alice": "idle" });
 
-    const { metrics } = await runMuxReconciliation(ctx());
+    const first = await reconcileMuxLiveState(src, CONFIG);
+    expect(first).toMatchObject({
+      marked_offline: 0,
+      skipped_recent_change: 1,
+    });
 
-    expect(metrics.mux_asset_without_db_row).toBe(1);
-    expect(metrics.new_findings).toBe(0);
-    const [upsert] = mockDb.callsMatching(/INSERT INTO mux_drift_findings/);
-    expect(upsert.text).toMatch(
-      /ON CONFLICT \(kind, mux_asset_id\) WHERE status = 'open'/
+    db.advance(3 * MIN);
+    const second = await reconcileMuxLiveState(src, CONFIG);
+    expect(second.marked_offline).toBe(1);
+  });
+
+  it("honours a configured grace window", async () => {
+    process.env.MUX_RECONCILE_GRACE_SECONDS = "900";
+    streamer("alice", { live: true, ageMs: 10 * MIN });
+    const { reconciliationConfigFromEnv } = jest.requireActual(
+      "@/lib/mux/reconciliation"
+    );
+    const cfg = reconciliationConfigFromEnv();
+    expect(cfg.graceSeconds).toBe(900);
+    const summary = await reconcileMuxLiveState(
+      source([], { "mux-alice": "idle" }),
+      cfg
+    );
+    expect(summary.marked_offline).toBe(0);
+  });
+
+  it("does not open a second session when the missed webhook arrives after a correction", async () => {
+    streamer("bob", { live: false });
+    await reconcileMuxLiveState(source(["mux-bob"]), CONFIG);
+    await withTransaction(tx => markMuxStreamLive(tx, "mux-bob"));
+    expect(db.openSessions("bob")).toHaveLength(1);
+  });
+});
+
+describe("drift alerting", () => {
+  it("does not alert on isolated corrections", async () => {
+    streamer("alice", { live: true });
+    const summary = await reconcileMuxLiveState(
+      source([], { "mux-alice": "idle" }),
+      CONFIG
+    );
+    await alertOnAbnormalDrift(summary, 1, CONFIG);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("alerts once when a run corrects an abnormal number of streams", async () => {
+    for (let i = 0; i < 6; i++) {
+      streamer(`s${i}`, { live: true });
+    }
+    const summary = await reconcileMuxLiveState(source([]), CONFIG);
+    await alertOnAbnormalDrift(summary, 1, CONFIG);
+    await alertOnAbnormalDrift(summary, 1, CONFIG);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).text).toContain(
+      "webhook delivery may be degraded"
     );
   });
 
-  it("resolves an open orphan finding once Mux confirms the asset is gone", async () => {
-    listPage.mockResolvedValueOnce([]);
-    stubDb({
-      openOrphanFindings: [{ id: "f1", mux_asset_id: "deleted-in-dashboard" }],
-    });
-    retrieve.mockResolvedValueOnce(null);
-
-    const { metrics } = await runMuxReconciliation(ctx());
-
-    expect(metrics.findings_resolved).toBe(1);
+  it("alerts when drift persists across consecutive runs", async () => {
+    streamer("alice", { live: true });
+    const summary = await reconcileMuxLiveState(
+      source([], { "mux-alice": "idle" }),
+      CONFIG
+    );
+    await alertOnAbnormalDrift(summary, 3, CONFIG);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).text).toContain(
+      "consecutive runs"
+    );
   });
 });
 
-describe("remediateFinding", () => {
-  const orphanFinding = {
-    id: "f1",
-    kind: "MUX_ASSET_WITHOUT_DB_ROW",
-    status: "open",
-    mux_asset_id: "orphan",
-  };
-  const missingFinding = {
-    id: "f2",
-    kind: "DB_ROW_WITHOUT_MUX_ASSET",
-    status: "remediated",
-    mux_asset_id: "gone",
-    row_table: "stream_recordings",
-    row_id: "r1",
-    previous_status: "ready",
-  };
+describe("cron route: scheduling, overlap and failure monitoring", () => {
+  const listMock = listActiveMuxLiveStreamIds as jest.Mock;
+  const statusMock = getMuxLiveStreamStatus as jest.Mock;
+  const call = (auth = "Bearer SENTINEL-cron-secret") =>
+    reconcileCron(
+      new Request("http://localhost/api/routes-f/cron-mux-reconcile", {
+        headers: { authorization: auth },
+      })
+    );
 
   beforeEach(() => {
-    mockDb.on(/UPDATE mux_drift_findings/, { rowCount: 1 });
+    listMock
+      .mockReset()
+      .mockResolvedValue({ ids: new Set(), complete: true, pages: 1 });
+    statusMock.mockReset().mockResolvedValue("idle");
   });
 
-  it("refuses to delete an asset that a recording now references", async () => {
-    mockDb.on(/SELECT \* FROM mux_drift_findings/, { rows: [orphanFinding] });
-    mockDb.on(/SELECT 1 FROM stream_recordings/, { rows: [{ "?column?": 1 }] });
-
-    const result = await remediateFinding("f1", "delete_mux_asset", "admin:a");
-
-    expect(result).toMatchObject({ ok: false, status: 409 });
-    expect(deleteMuxAssetIfExists).not.toHaveBeenCalled();
+  it("rejects calls without the cron secret", async () => {
+    expect((await call("Bearer wrong")).status).toBe(401);
+    expect(listMock).not.toHaveBeenCalled();
   });
 
-  it("deletes a still-orphaned asset on explicit request", async () => {
-    mockDb.on(/SELECT \* FROM mux_drift_findings/, { rows: [orphanFinding] });
-    mockDb.on(/SELECT 1 FROM stream_recordings/, { rows: [] });
-
-    const result = await remediateFinding("f1", "delete_mux_asset", "admin:a");
-
-    expect(result).toEqual({ ok: true, action: "delete_mux_asset" });
-    expect(deleteMuxAssetIfExists).toHaveBeenCalledWith("orphan");
-    const close = mockDb.callsMatching(/UPDATE mux_drift_findings/)[0];
-    expect(close.text).toMatch(/status = 'open'/);
-    expect(close.values).toContain("admin:a");
-  });
-
-  it("adopts an asset only for an active owner", async () => {
-    mockDb.on(/SELECT \* FROM mux_drift_findings/, { rows: [orphanFinding] });
-    retrieve.mockResolvedValue(asset("orphan"));
-    mockDb.once(/SELECT id FROM users/, { rows: [] });
-
-    expect(await remediateFinding("f1", "adopt", "admin:a")).toMatchObject({
-      ok: false,
-      status: 422,
+  it("records a successful run", async () => {
+    streamer("alice", { live: true });
+    const res = await call();
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({
+      status: "completed",
+      consecutiveDriftRuns: 1,
     });
-
-    mockDb.once(/SELECT id FROM users/, { rows: [{ id: "user-1" }] });
-    expect(await remediateFinding("f1", "adopt", "admin:a")).toEqual({
-      ok: true,
-      action: "adopt",
+    expect(
+      db.state.scheduled_job_runs.get("mux_live_reconciliation")
+    ).toMatchObject({
+      consecutive_failures: 0,
+      lease_owner: null,
+      last_summary: expect.objectContaining({ marked_offline: 1 }),
     });
-    expect(upsertRecordingFromAsset).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user-1", assetId: "orphan" })
+  });
+
+  it("makes failures observable and alerts on them", async () => {
+    listMock.mockRejectedValue(new Error("Mux API unreachable"));
+    const first = await call();
+    expect(first.status).toBe(500);
+    await call();
+    const job = db.state.scheduled_job_runs.get("mux_live_reconciliation");
+    expect(job).toMatchObject({
+      consecutive_failures: 2,
+      last_error: "Mux API unreachable",
+      lease_owner: null,
+    });
+    // De-duplicated: one alert for the ongoing failure.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).text).toContain(
+      "mux_live_reconciliation"
     );
+
+    listMock.mockResolvedValue({ ids: new Set(), complete: true, pages: 1 });
+    await call();
+    expect(
+      db.state.scheduled_job_runs.get("mux_live_reconciliation")
+        ?.consecutive_failures
+    ).toBe(0);
   });
 
-  it("restores a hidden recording only when the asset exists again", async () => {
-    mockDb.on(/SELECT \* FROM mux_drift_findings/, { rows: [missingFinding] });
-    retrieve.mockResolvedValueOnce(null);
-    expect(await remediateFinding("f2", "restore", "admin:a")).toMatchObject({
-      ok: false,
-      status: 422,
+  it("skips a run while another holds the lease", async () => {
+    let finish!: () => void;
+    listMock.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          finish = () => resolve({ ids: new Set(), complete: true, pages: 1 });
+        })
+    );
+    const running = call();
+    await new Promise(r => setTimeout(r, 10));
+    const overlapping = await call();
+    expect(await overlapping.json()).toEqual({
+      status: "skipped",
+      reason: "lease_held",
     });
-
-    retrieve.mockResolvedValueOnce(asset("gone"));
-    mockDb.on(/UPDATE stream_recordings/, { rowCount: 1 });
-    expect(await remediateFinding("f2", "restore", "admin:a")).toEqual({
-      ok: true,
-      action: "restore",
-    });
-    const restore = mockDb.callsMatching(/UPDATE stream_recordings/)[0];
-    expect(restore.values).toContain("ready");
+    finish();
+    expect((await running).status).toBe(200);
   });
 
-  it("rejects actions on closed findings and unknown ids", async () => {
-    mockDb.once(/SELECT \* FROM mux_drift_findings/, {
-      rows: [{ ...orphanFinding, status: "dismissed" }],
+  it("reclaims the lease after a crashed run's lease expires", async () => {
+    db.state.scheduled_job_runs.set("mux_live_reconciliation", {
+      job_name: "mux_live_reconciliation",
+      lease_owner: "crashed-run",
+      lease_expires_at: new Date(db.clock.getTime() - 1_000),
+      consecutive_failures: 0,
+      consecutive_drift_runs: 0,
     });
-    expect(await remediateFinding("f1", "dismiss", "admin:a")).toMatchObject({
-      ok: false,
-      status: 409,
-    });
-    mockDb.once(/SELECT \* FROM mux_drift_findings/, { rows: [] });
-    expect(await remediateFinding("nope", "dismiss", "admin:a")).toMatchObject({
-      ok: false,
-      status: 404,
-    });
+    expect(await (await call()).json()).toMatchObject({ status: "completed" });
   });
 });

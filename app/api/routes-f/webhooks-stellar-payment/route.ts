@@ -290,49 +290,50 @@ export async function POST(req: NextRequest) {
     const amountXLM = parseFloat(payload.amount);
     const priceUSD = amountXLM * xlmPriceUSD;
 
-    // Insert the tip and update the creator's totals in one statement. The
-    // totals only move when the row is new, so a redelivered webhook cannot
-    // count the same transaction twice. The conflict target names the partial
-    // unique index predicate; without it Postgres rejects the statement. The
-    // amount is bound as the validated decimal string, not a float.
-    const { rows: inserted } = await sql`
-      WITH ins AS (
-        INSERT INTO tip_transactions (
-          creator_id,
-          supporter_id,
-          amount_xlm,
-          price_usd,
-          tx_hash,
-          memo,
-          created_at
-        )
-        VALUES (
-          ${creator.id},
-          ${supporterId},
-          ${payload.amount}::numeric,
-          ${priceUSD},
-          ${payload.tx_hash},
-          ${payload.memo || null},
-          NOW()
-        )
-        ON CONFLICT (tx_hash) WHERE tx_hash IS NOT NULL DO NOTHING
-        RETURNING id
+    // Insert tip transaction. The conflict target repeats the partial unique
+    // index predicate so PostgreSQL can match idx_tip_transactions_tx_hash_unique.
+    const inserted = await sql`
+      INSERT INTO tip_transactions (
+        creator_id,
+        supporter_id,
+        amount_xlm,
+        price_usd,
+        tx_hash,
+        memo,
+        created_at
       )
-      UPDATE users SET
-        total_tips_received = COALESCE(total_tips_received, 0) + ${payload.amount}::numeric,
-        total_tips_count = COALESCE(total_tips_count, 0) + 1,
-        last_tip_at = NOW()
-      WHERE id = ${creator.id} AND EXISTS (SELECT 1 FROM ins)
+      VALUES (
+        ${creator.id},
+        ${supporterId},
+        ${amountXLM},
+        ${priceUSD},
+        ${payload.tx_hash},
+        ${payload.memo || null},
+        NOW()
+      )
+      ON CONFLICT (tx_hash) WHERE tx_hash IS NOT NULL DO NOTHING
       RETURNING id
     `;
 
-    if (inserted.length === 0) {
-      console.log(`⏭️ Transaction already processed: ${payload.tx_hash}`);
+    // A concurrent delivery of the same transaction already credited it.
+    if (inserted.rows.length === 0) {
       return NextResponse.json({
         message: "Transaction already processed",
         tx_hash: payload.tx_hash,
       });
     }
+
+    // Update creator's tip statistics. Bumping tip_totals_version makes any
+    // ledger reconciliation that started before this tip discard its result
+    // instead of overwriting the increment (#1400).
+    await sql`
+      UPDATE users SET
+        total_tips_received = COALESCE(total_tips_received, 0) + ${amountXLM},
+        total_tips_count = COALESCE(total_tips_count, 0) + 1,
+        last_tip_at = NOW(),
+        tip_totals_version = tip_totals_version + 1
+      WHERE id = ${creator.id}
+    `;
 
     console.log(`✅ Tip credited: ${amountXLM} XLM ($${priceUSD.toFixed(2)}) to ${creator.username}`);
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,9 +62,11 @@ function validateBody(
 }
 
 export async function PUT(req: NextRequest) {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession(
+    "routes-f/featured-streams-set"
+  );
+  if (adminDenied) {
+    return adminDenied;
   }
 
   let body: unknown;

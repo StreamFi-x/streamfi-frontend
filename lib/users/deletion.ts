@@ -20,9 +20,13 @@ import {
   enableMuxStream,
 } from "@/lib/mux/server";
 import { deleteImage, extractPublicIdFromUrl } from "@/utils/upload/cloudinary";
-import { errorMessage } from "@/lib/jobs/runs";
 import { getAccountBalances } from "@/lib/stellar/horizon";
-import { toStroops } from "@/lib/stellar/amounts";
+import { toStroops } from "@/lib/stellar/tip-reconciliation";
+
+function errorMessage(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.length > 500 ? `${message.slice(0, 500)}…` : message;
+}
 
 export const PURGE_STEPS = [
   "mux_assets",
@@ -235,13 +239,13 @@ export async function listDeletions(status: string | null, limit = 100) {
 
 // ── purge ────────────────────────────────────────────────────────────────────
 
-export interface PurgeMetrics {
+export type PurgeMetrics = {
   claimed: number;
   purged: number;
   failed: number;
   released_for_legal_hold: number;
   skipped_deadline: number;
-}
+};
 
 /** Claim up to `batchSize` due deletions for this worker. */
 export async function claimDueDeletions(

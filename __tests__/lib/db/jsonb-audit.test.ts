@@ -25,8 +25,7 @@ const validNotification = {
 
 beforeEach(() => {
   mockDb.reset();
-  mockDb.on(/INSERT INTO job_runs/, { rows: [{ id: "run-1" }] });
-  mockDb.on(/UPDATE job_runs/, { rowCount: 1 });
+  mockDb.on(/INSERT INTO job_runs/, { rowCount: 1 });
   mockDb.on(/SELECT id, sociallinks, creator, notifications FROM users/, {
     rows: [
       {
@@ -140,8 +139,7 @@ describe("auditUsersJsonb", () => {
 
   it("records a failed run and rethrows when the scan fails", async () => {
     mockDb.reset();
-    mockDb.on(/INSERT INTO job_runs/, { rows: [{ id: "run-2" }] });
-    mockDb.on(/UPDATE job_runs/, { rowCount: 1 });
+    mockDb.on(/INSERT INTO job_runs/, { rowCount: 1 });
     mockDb.on(/FROM users/, () => {
       throw new Error("db down");
     });
@@ -149,7 +147,8 @@ describe("auditUsersJsonb", () => {
     await expect(
       auditUsersJsonb({ action: "report", actor: "a" })
     ).rejects.toThrow("db down");
-    const finish = mockDb.callsMatching(/UPDATE job_runs/)[0];
+    const finish = mockDb.callsMatching(/INSERT INTO job_runs/)[0];
     expect(finish.values).toContain("failed");
+    expect(finish.values).toContain("db down");
   });
 });

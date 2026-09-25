@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminUnauthorized, getAdminIdentity } from "@/lib/admin-auth";
+import { requireAdminIdentity } from "@/lib/admin-auth";
 import { auditUsersJsonb, type AuditAction } from "@/lib/db/jsonb-audit";
 
 export const dynamic = "force-dynamic";
@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
  * Page through with `nextCursor` until it is null.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  const admin = await getAdminIdentity();
-  if (!admin) {
-    return adminUnauthorized();
+  const { admin, response } = await requireAdminIdentity("admin/jsonb-audit");
+  if (response) {
+    return response;
   }
   const { searchParams } = new URL(req.url);
   return runAudit("report", admin, {
@@ -26,9 +26,9 @@ export async function GET(req: NextRequest): Promise<Response> {
  * Applies the explicit repair action to one batch.
  */
 export async function POST(req: NextRequest): Promise<Response> {
-  const admin = await getAdminIdentity();
-  if (!admin) {
-    return adminUnauthorized();
+  const { admin, response } = await requireAdminIdentity("admin/jsonb-audit");
+  if (response) {
+    return response;
   }
   let body: { action?: string; cursor?: string | null; limit?: number };
   try {

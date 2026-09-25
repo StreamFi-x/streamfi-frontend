@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminUnauthorized, getAdminIdentity } from "@/lib/admin-auth";
+import { requireAdminIdentity, requireAdminSession } from "@/lib/admin-auth";
 import {
   cancelAccountDeletion,
   resetPurgeAttempts,
@@ -16,9 +16,11 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ): Promise<Response> {
-  const admin = await getAdminIdentity();
-  if (!admin) {
-    return adminUnauthorized();
+  const { admin, response } = await requireAdminIdentity(
+    "admin/users/[userId]/deletion"
+  );
+  if (response) {
+    return response;
   }
   const { userId } = await params;
   try {
@@ -40,9 +42,11 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ): Promise<Response> {
-  const admin = await getAdminIdentity();
-  if (!admin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession(
+    "admin/users/[userId]/deletion"
+  );
+  if (adminDenied) {
+    return adminDenied;
   }
   const { userId } = await params;
 

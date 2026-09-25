@@ -1,47 +1,57 @@
 /**
  * @jest-environment node
  */
-import { createSqlMock } from "@/testing/sql-mock";
+import { createSqlMock, type SqlCall } from "@/testing/sql-mock";
 
 const mockDb = createSqlMock();
-jest.mock("@vercel/postgres", () => ({
-  sql: (...args: unknown[]) => mockDb.sql(...args),
+jest.mock("@vercel/postgres", () => {
+  const sql = (...args: unknown[]) => mockDb.sql(...args);
+  // sql.query(text, params): route through the same mock.
+  sql.query = (text: string, params: unknown[] = []) =>
+    mockDb.sql(Object.assign([text], { raw: [text] }), ...params);
+  return { sql };
+});
+jest.mock("@/lib/security/alerts", () => ({
+  sendOperationalAlert: jest.fn(async () => "sent"),
 }));
-jest.mock("@/utils/send-email", () => ({
-  sendOpsAlertEmail: jest.fn(async () => undefined),
+jest.mock("@/lib/tracing/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 
-import { sendOpsAlertEmail } from "@/utils/send-email";
-import { toStroops } from "@/lib/stellar/amounts";
+import { sendOperationalAlert } from "@/lib/security/alerts";
+import { toStroops } from "@/lib/stellar/tip-reconciliation";
 import {
   alertSignature,
-  deliverPendingAlerts,
   evaluatePendingRuns,
   evaluateRun,
   evaluateTipReconciliationRun,
-  formatAlertEmail,
   loadThresholds,
   type RunAggregate,
 } from "@/lib/alerts/tip-reconciliation-alerts";
 
 const thresholds = loadThresholds();
+const sendAlert = sendOperationalAlert as jest.Mock;
 
 function run(overrides: Partial<RunAggregate> = {}): RunAggregate {
   return {
     runId: "run-x",
-    status: "completed",
+    status: "succeeded",
     startedAt: "2026-09-25T12:00:00.000Z",
-    finishedAt: "2026-09-25T12:01:00.000Z",
     correctionsCount: 0,
     correctionStroops: BigInt(0),
     largestStroops: BigInt(0),
-    flaggedCount: 0,
-    byKind: {},
+    decreasedCount: 0,
+    tipsInserted: 0,
     ...overrides,
   };
 }
 
-/** A realistic trickle: 0–3 corrections of a few XLM per run. */
+/** A realistic trickle: 0–3 corrected totals of a few XLM per run. */
 const normalHistory = [1, 0, 2, 3, 1, 0, 2, 1, 1, 2].map((n, i) =>
   run({
     runId: `h${i}`,
@@ -54,9 +64,6 @@ const normalHistory = [1, 0, 2, 3, 1, 0, 2, 1, 1, 2].map((n, i) =>
 beforeEach(() => {
   mockDb.reset();
   jest.clearAllMocks();
-  jest.spyOn(console, "log").mockImplementation(() => {});
-  jest.spyOn(console, "error").mockImplementation(() => {});
-  delete process.env.RECONCILIATION_ALERT_EMAILS;
 });
 
 describe("evaluateRun (baseline model)", () => {
@@ -114,12 +121,12 @@ describe("evaluateRun (baseline model)", () => {
     );
   });
 
-  it("treats ledger mismatches and failed runs as critical", () => {
+  it("treats a total corrected downwards and a failed run as critical", () => {
     expect(
-      evaluateRun(run({ flaggedCount: 1 }), normalHistory, thresholds)
+      evaluateRun(run({ decreasedCount: 1 }), normalHistory, thresholds)
     ).toMatchObject({ abnormal: true, severity: "critical" });
     expect(
-      evaluateRun(run({ status: "abandoned" }), normalHistory, thresholds)
+      evaluateRun(run({ status: "failed" }), normalHistory, thresholds)
         .reasons[0].code
     ).toBe("RUN_FAILED");
   });
@@ -172,188 +179,190 @@ describe("evaluateRun (baseline model)", () => {
 });
 
 describe("alertSignature", () => {
-  it("is stable for the same situation and changes on escalation", () => {
+  it("is stable for the same situation and changes with the affected users", () => {
     const evaluation = evaluateRun(
       run({ correctionsCount: 40, correctionStroops: toStroops("40") }),
       normalHistory,
       thresholds
     );
-    const a = alertSignature(evaluation, run(), []);
-    const b = alertSignature(evaluation, run(), []);
-    expect(a).toBe(b);
+    expect(alertSignature(evaluation, run(), [])).toBe(
+      alertSignature(evaluation, run(), [])
+    );
 
-    const mismatch = evaluateRun(
-      run({ flaggedCount: 1 }),
+    const decreased = evaluateRun(
+      run({ decreasedCount: 1 }),
       normalHistory,
       thresholds
     );
-    expect(alertSignature(mismatch, run(), ["tx1"])).not.toBe(
-      alertSignature(mismatch, run(), ["tx2"])
+    expect(alertSignature(decreased, run(), ["u1"])).not.toBe(
+      alertSignature(decreased, run(), ["u2"])
     );
-    expect(alertSignature(mismatch, run(), ["tx1", "tx2"])).toBe(
-      alertSignature(mismatch, run(), ["tx2", "tx1"])
+    expect(alertSignature(decreased, run(), ["u1", "u2"])).toBe(
+      alertSignature(decreased, run(), ["u2", "u1"])
     );
   });
 });
 
 describe("evaluateTipReconciliationRun", () => {
-  function stubRun(current: Record<string, unknown>) {
-    mockDb.on(/WHERE r.id = /, { rows: [current] });
-    mockDb.on(/AND r.started_at < /, { rows: [] });
-    mockDb.on(
-      /FROM tip_reconciliation_corrections\s+WHERE run_id = \$\?\s+ORDER BY/,
-      {
-        rows: [
-          {
-            kind: "NOT_ON_LEDGER",
-            applied: false,
-            tx_hash: "tx-phantom",
-            creator_id: "c1",
-            tip_transaction_id: "t1",
-            amount_before: "99.0000000",
-            amount_after: null,
-            delta_abs: "99.0000000",
-          },
-        ],
-      }
-    );
-    mockDb.on(/INSERT INTO reconciliation_alerts/, {
-      rows: [{ id: "alert-1", status: "pending" }],
+  function stubRun(current: Record<string, unknown>, claimed = true) {
+    mockDb.on(/WHERE r\.run_id = \$1/, { rows: [current] });
+    mockDb.on(/AND r\.started_at < \$2::timestamptz/, { rows: [] });
+    mockDb.on(/FROM tip_reconciliation_corrections\s+WHERE run_id = \$\?/, {
+      rows: [
+        {
+          kind: "TOTALS_CORRECTED",
+          user_id: "u1",
+          tx_hash: null,
+          amount_before: "120.0000000",
+          amount_after: "20.0000000",
+          delta: "-100.0000000",
+        },
+        {
+          kind: "TIP_INSERTED",
+          user_id: "u2",
+          tx_hash: "tx-new",
+          amount_before: null,
+          amount_after: "3.0000000",
+          delta: "3.0000000",
+        },
+      ],
     });
+    mockDb.on(/INSERT INTO reconciliation_alerts/, {
+      rows: [{ id: "alert-1" }],
+    });
+    mockDb.on(/SET delivered_at = now\(\)/, {
+      rows: claimed ? [{ id: "alert-1" }] : [],
+    });
+    mockDb.on(/SET delivery = /, { rowCount: 1 });
     mockDb.on(/SET alert_evaluated_at = now\(\)/, { rowCount: 1 });
   }
 
-  it("stores one alert per run with a redacted payload and marks the run evaluated", async () => {
-    stubRun({
-      id: "run-9",
-      status: "completed",
-      started_at: "2026-09-25T12:00:00Z",
-      finished_at: "2026-09-25T12:01:00Z",
-      corrections_count: "0",
-      correction_amount: "0",
-      largest_correction: "0",
-      flagged_count: "1",
-      by_kind: { NOT_ON_LEDGER: 1 },
-    });
+  const abnormalRow = {
+    run_id: "run-9",
+    status: "succeeded",
+    started_at: "2026-09-25T12:00:00Z",
+    corrections_count: "1",
+    correction_amount: "100.0000000",
+    largest_correction: "100.0000000",
+    decreased_count: "1",
+    tips_inserted: "1",
+  };
+
+  it("stores one alert per run and delivers it through the operational channel", async () => {
+    stubRun(abnormalRow);
 
     const result = await evaluateTipReconciliationRun("run-9", thresholds);
 
     expect(result).toEqual({
       abnormal: true,
       alertId: "alert-1",
-      status: "pending",
+      delivery: "sent",
     });
     const [insert] = mockDb.callsMatching(/INSERT INTO reconciliation_alerts/);
-    expect(insert.values).toContain("tip-reconciliation:run:run-9");
-    expect(insert.text).toMatch(/ON CONFLICT \(fingerprint\) DO NOTHING/);
-    expect(insert.text).toMatch(/'suppressed'/);
+    expect(insert.values).toContain("tip-total-reconciliation:run:run-9");
+    expect(insert.text).toMatch(/ON CONFLICT \(fingerprint\)/);
     const payload = JSON.parse(String(insert.values[insert.values.length - 1]));
     expect(payload).toMatchObject({
       severity: "critical",
       run: { id: "run-9" },
-      observed: { flagged_count: 1 },
-      affected: [{ tx_hash: "tx-phantom", creator_id: "c1" }],
+      observed: { decreased_totals: 1, tips_inserted: 1 },
+      affected: [{ user_id: "u1" }, { tx_hash: "tx-new" }],
     });
     expect(JSON.stringify(payload)).not.toMatch(/wallet|email|username/i);
+
+    expect(sendAlert).toHaveBeenCalledTimes(1);
+    const alert = sendAlert.mock.calls[0][0];
+    expect(alert).toMatchObject({
+      category: "tip_reconciliation",
+      severity: "critical",
+      details: expect.objectContaining({
+        run_id: "run-9",
+        affected_tx_hashes: "tx-new",
+        reasons: expect.stringContaining("TOTAL_DECREASED"),
+      }),
+    });
+    expect(alert.dedupKey).toMatch(/^tip_reconciliation:TOTAL_DECREASED/);
+    const delivery = mockDb.callsMatching(/SET delivery = /)[0];
+    expect(delivery.values).toContain("sent");
     expect(mockDb.callsMatching(/SET alert_evaluated_at/)).toHaveLength(1);
+  });
+
+  it("never sends the same stored alert twice when an evaluation is retried", async () => {
+    stubRun(abnormalRow, false);
+    const result = await evaluateTipReconciliationRun("run-9", thresholds);
+    expect(result.delivery).toBeNull();
+    expect(sendAlert).not.toHaveBeenCalled();
+  });
+
+  it("records a log-only delivery honestly", async () => {
+    stubRun(abnormalRow);
+    sendAlert.mockResolvedValueOnce("logged");
+    const result = await evaluateTipReconciliationRun("run-9", thresholds);
+    expect(result.delivery).toBe("logged");
+    expect(mockDb.callsMatching(/SET delivery = /)[0].values).toContain(
+      "logged"
+    );
   });
 
   it("marks a normal run evaluated without creating an alert", async () => {
     stubRun({
-      id: "run-ok",
-      status: "completed",
-      started_at: "2026-09-25T12:00:00Z",
-      finished_at: null,
+      ...abnormalRow,
       corrections_count: "1",
       correction_amount: "2.0000000",
       largest_correction: "2.0000000",
-      flagged_count: "0",
-      by_kind: {},
+      decreased_count: "0",
     });
-    const result = await evaluateTipReconciliationRun("run-ok", thresholds);
+    const result = await evaluateTipReconciliationRun("run-9", thresholds);
     expect(result.abnormal).toBe(false);
     expect(
       mockDb.callsMatching(/INSERT INTO reconciliation_alerts/)
     ).toHaveLength(0);
+    expect(sendAlert).not.toHaveBeenCalled();
     expect(mockDb.callsMatching(/SET alert_evaluated_at/)).toHaveLength(1);
+  });
+
+  it("builds the baseline from previous completed runs of the job", async () => {
+    stubRun(abnormalRow);
+    await evaluateTipReconciliationRun("run-9", thresholds);
+    const [history] = mockDb.callsMatching(
+      /AND r\.started_at < \$2::timestamptz/
+    );
+    expect(history.values[0]).toBe("tip-total-reconciliation");
+    expect(history.text).toMatch(/r\.status IN \('succeeded', 'partial'\)/);
+    expect(history.text).toMatch(/LEFT JOIN tip_reconciliation_corrections/);
   });
 
   it("evaluatePendingRuns keeps going when one evaluation fails", async () => {
     mockDb.on(/alert_evaluated_at IS NULL\s+AND started_at > /, {
-      rows: [{ id: "missing-run" }, { id: "run-ok" }],
+      rows: [{ run_id: "missing-run" }, { run_id: "run-9" }],
     });
-    mockDb.once(/WHERE r.id = /, { rows: [] });
+    mockDb.once(/WHERE r\.run_id = \$1/, { rows: [] });
     stubRun({
-      id: "run-ok",
-      status: "completed",
-      started_at: "2026-09-25T12:00:00Z",
-      finished_at: null,
-      corrections_count: "0",
+      ...abnormalRow,
+      decreased_count: "0",
       correction_amount: "0",
       largest_correction: "0",
-      flagged_count: "0",
-      by_kind: {},
+      corrections_count: "0",
     });
-    expect(await evaluatePendingRuns()).toEqual({ evaluated: 1, failed: 1 });
-  });
-});
-
-describe("deliverPendingAlerts", () => {
-  const payload = {
-    severity: "critical",
-    run: { id: "run-9" },
-    reasons: [{ code: "LEDGER_MISMATCH", observed: "1", threshold: "0" }],
-  };
-
-  beforeEach(() => {
-    mockDb.on(/SET status = 'sending'/, {
-      rows: [{ id: "alert-1", payload, attempts: 1 }],
+    expect(await evaluatePendingRuns(thresholds)).toEqual({
+      evaluated: 1,
+      failed: 1,
     });
-    mockDb.on(/SET status = 'delivered'/, { rowCount: 1 });
-    mockDb.on(/SET status = 'failed'/, { rowCount: 1 });
   });
 
-  it("claims alerts atomically with SKIP LOCKED", async () => {
-    process.env.RECONCILIATION_ALERT_EMAILS = "oncall@streamfi.test";
-    await deliverPendingAlerts();
-    const [claim] = mockDb.callsMatching(/SET status = 'sending'/);
-    expect(claim.text).toMatch(/FOR UPDATE SKIP LOCKED/);
-    expect(claim.text).toMatch(/attempts < \$\?/);
-  });
-
-  it("delivers to the configured recipients", async () => {
-    process.env.RECONCILIATION_ALERT_EMAILS = "a@x.io, b@x.io";
-    expect(await deliverPendingAlerts()).toEqual({ delivered: 1, failed: 0 });
-    expect(sendOpsAlertEmail).toHaveBeenCalledWith(
-      ["a@x.io", "b@x.io"],
-      expect.stringContaining("[CRITICAL]"),
-      expect.stringContaining("LEDGER_MISMATCH")
+  it("only picks up finished, unevaluated runs of this job", async () => {
+    mockDb.on(
+      /alert_evaluated_at IS NULL\s+AND started_at > /,
+      (call: SqlCall) => {
+        expect(call.values).toContain("tip-total-reconciliation");
+        expect(call.text).toMatch(/status <> 'skipped'/);
+        expect(call.text).toMatch(/run_id IS NOT NULL/);
+        return { rows: [] };
+      }
     );
-  });
-
-  it("records a failure (never 'delivered') when no channel is configured", async () => {
-    expect(await deliverPendingAlerts()).toEqual({ delivered: 0, failed: 1 });
-    expect(mockDb.callsMatching(/SET status = 'delivered'/)).toHaveLength(0);
-    const [failed] = mockDb.callsMatching(/SET status = 'failed'/);
-    expect(failed.values[0]).toMatch(/RECONCILIATION_ALERT_EMAILS/);
-    expect(console.error).toHaveBeenCalled();
-  });
-
-  it("records a transport failure for retry", async () => {
-    process.env.RECONCILIATION_ALERT_EMAILS = "a@x.io";
-    (sendOpsAlertEmail as jest.Mock).mockRejectedValueOnce(
-      new Error("SMTP 421")
-    );
-    expect(await deliverPendingAlerts()).toEqual({ delivered: 0, failed: 1 });
-    const [failed] = mockDb.callsMatching(/SET status = 'failed'/);
-    expect(failed.values[0]).toBe("SMTP 421");
-  });
-
-  it("formats an actionable email", () => {
-    const { subject, text } = formatAlertEmail(payload);
-    expect(subject).toBe(
-      "[StreamFi][CRITICAL] Tip reconciliation anomaly (run run-9)"
-    );
-    expect(text).toMatch(/LEDGER_MISMATCH: observed 1, threshold 0/);
+    expect(await evaluatePendingRuns(thresholds)).toEqual({
+      evaluated: 0,
+      failed: 0,
+    });
   });
 });

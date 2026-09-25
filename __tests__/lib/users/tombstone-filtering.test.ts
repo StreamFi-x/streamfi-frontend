@@ -31,7 +31,11 @@ const INTERNAL_FILES: Record<string, string> = {
     "provider events must be recorded for every account",
   "lib/db/jsonb-audit.ts": "audits every row",
   "lib/users/deletion.ts": "manages the deletion lifecycle itself",
-  "lib/mux/reconciliation.ts": "reconciles assets of every account",
+  "lib/mux/reconciliation.ts":
+    "live-state reconciliation; markMuxStreamLive skips pending-deletion accounts",
+  "lib/mux/asset-reconciliation.ts": "reconciles assets of every account",
+  "lib/mux/webhook-handlers.ts":
+    "provider events must be recorded for every account",
   "lib/stellar/tip-reconciliation.ts": "financial reconciliation",
   "lib/routes-f/badges.ts": "internal lookup by id",
 };

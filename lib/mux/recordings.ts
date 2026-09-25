@@ -1,4 +1,5 @@
 import { sql } from "@vercel/postgres";
+import type { Tx } from "@/lib/postgres-transaction";
 
 export interface RecordingFromAsset {
   userId: string;
@@ -11,8 +12,9 @@ export interface RecordingFromAsset {
 
 /**
  * Create (or refresh) the stream_recordings row for a ready Mux asset. Shared
- * by the video.asset.ready webhook and the reconciliation "adopt" remediation
- * so both write identical rows.
+ * by the video.asset.ready webhook handler and the Mux asset reconciliation
+ * "adopt" remediation so both write identical rows. Pass `executor` to write
+ * inside an open transaction (see withTransaction).
  *
  * New rows get needs_review = true so the owner is prompted. On conflict only
  * status/duration change — needs_review is preserved in case the owner already
@@ -20,9 +22,10 @@ export interface RecordingFromAsset {
  * Returns true when a new row was inserted.
  */
 export async function upsertRecordingFromAsset(
-  recording: RecordingFromAsset
+  recording: RecordingFromAsset,
+  executor: Tx = { sql }
 ): Promise<boolean> {
-  const { rows } = await sql`
+  const { rows } = await executor.sql`
     INSERT INTO stream_recordings (
       user_id, stream_session_id, mux_asset_id, playback_id,
       title, duration, status, needs_review

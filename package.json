@@ -11,6 +11,7 @@
     "lint:fix": "eslint . --fix",
     "setup-db": "node scripts/setup-db.js",
     "update-schema": "node scripts/updateUserSchema.mjs",
+    "db:migrate": "tsx scripts/migrate.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "jest",
@@ -24,9 +25,11 @@
     "analyze": "ANALYZE=true npm run build",
     "clean": "rm -rf .next out coverage",
     "prebuild": "npm run type-check",
-    "backfill": "tsx scripts/backfill-analytics.ts"
+    "backfill": "tsx scripts/backfill-analytics.ts",
+    "migrate:custodial-keys": "tsx scripts/migrate-custodial-keys-to-kms.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-kms": "^3.1140.0",
     "@creit.tech/stellar-wallets-kit": "^1.9.5",
     "@fontsource/inter": "^5.1.1",
     "@hookform/resolvers": "^5.1.1",
@@ -70,6 +73,7 @@
     "next": "^16.1.6",
     "nodemailer": "^8.0.1",
     "nprogress": "^0.2.0",
+    "pg": "^8.23.0",
     "react": "^18",
     "react-dom": "^18",
     "react-dropzone": "^14.3.8",
@@ -110,6 +114,7 @@
     "@types/node": "^20",
     "@types/nodemailer": "^6.4.17",
     "@types/nprogress": "^0.2.3",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@types/react-transition-group": "^4.4.12",

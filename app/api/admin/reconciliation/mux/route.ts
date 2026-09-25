@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { adminUnauthorized, getAdminIdentity } from "@/lib/admin-auth";
+import { requireAdminIdentity, requireAdminSession } from "@/lib/admin-auth";
 import {
   listFindings,
   remediateFinding,
   type RemediationAction,
-} from "@/lib/mux/reconciliation";
+} from "@/lib/mux/asset-reconciliation";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +23,9 @@ const ACTIONS = new Set<RemediationAction>([
  * Drift findings (default: open) plus the most recent sweep runs.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  if (!(await getAdminIdentity())) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("admin/reconciliation/mux");
+  if (adminDenied) {
+    return adminDenied;
   }
   const status = new URL(req.url).searchParams.get("status");
   if (status && !STATUSES.has(status)) {
@@ -34,9 +35,9 @@ export async function GET(req: NextRequest): Promise<Response> {
     const [findings, runs] = await Promise.all([
       listFindings(status),
       sql`
-        SELECT id, status, started_at, finished_at, metrics, error
+        SELECT id, run_id, status, started_at, finished_at, duration_ms, metrics, error
         FROM job_runs
-        WHERE job_name = 'mux-reconciliation'
+        WHERE job_name = 'mux-asset-reconciliation'
         ORDER BY started_at DESC
         LIMIT 10
       `,
@@ -56,9 +57,11 @@ export async function GET(req: NextRequest): Promise<Response> {
  * action: dismiss | delete_mux_asset | adopt | mark_unavailable | restore
  */
 export async function POST(req: NextRequest): Promise<Response> {
-  const admin = await getAdminIdentity();
-  if (!admin) {
-    return adminUnauthorized();
+  const { admin, response } = await requireAdminIdentity(
+    "admin/reconciliation/mux"
+  );
+  if (response) {
+    return response;
   }
   let body: { findingId?: unknown; action?: unknown };
   try {
