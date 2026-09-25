@@ -2,7 +2,8 @@ import { StellarPublicKey } from "@/types/user";
 
 /** Message as returned by the chat API */
 export interface ChatMessageAPI {
-  id: number;
+  /** chat_messages.id (uuid) */
+  id: string;
   content: string;
   messageType: "message" | "emote" | "system";
   createdAt: string;
@@ -14,9 +15,17 @@ export interface ChatMessageAPI {
   };
 }
 
+/** GET /api/streams/chat response (shared cursor contract, newest first) */
+export interface ChatPage {
+  items: ChatMessageAPI[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 /** Normalized message used by all chat UI components */
 export interface ChatMessage {
-  id: number;
+  /** Server uuid, or `pending-N` for an optimistic message */
+  id: string;
   username: string;
   message: string;
   color: string;
@@ -40,9 +49,14 @@ export interface SendChatMessagePayload {
 
 /** Return type of the useChat hook */
 export interface UseChatReturn {
+  /** Oldest first, ready to render */
   messages: ChatMessage[];
   sendMessage: (content: string) => Promise<void>;
-  deleteMessage: (messageId: number) => Promise<void>;
+  deleteMessage: (messageId: string) => Promise<void>;
+  /** Loads the next page of older history */
+  loadOlder: () => void;
+  hasOlder: boolean;
+  isLoadingOlder: boolean;
   isLoading: boolean;
   isSending: boolean;
   error: string | null;

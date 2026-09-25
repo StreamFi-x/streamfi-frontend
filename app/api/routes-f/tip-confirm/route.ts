@@ -33,6 +33,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { verifySession } from "@/lib/auth/verify-session";
+import { markRecentWrite } from "@/lib/db/replica";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { getStellarNetwork, getHorizonUrl } from "@/lib/stellar/config";
 import { sql } from "@vercel/postgres";
@@ -295,16 +296,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Emit chat event (best-effort)
     await emitTipChatEvent(recipient_id, session.userId, amount, tip_id);
 
-    return NextResponse.json(
-      {
-        tip_id,
-        tx_hash,
-        amount,
-        status: "confirmed",
-        ledger: txDetails.ledger,
-        created_at,
-      },
-      { status: 201 }
+    return markRecentWrite(
+      NextResponse.json(
+        {
+          tip_id,
+          tx_hash,
+          amount,
+          status: "confirmed",
+          ledger: txDetails.ledger,
+          created_at,
+        },
+        { status: 201 }
+      )
     );
   } catch (error) {
     console.error("[tip-confirm] Unexpected error:", error);

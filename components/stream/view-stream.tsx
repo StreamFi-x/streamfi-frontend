@@ -292,6 +292,9 @@ const ViewStream = ({
     messages: chatMessages,
     sendMessage,
     isSending,
+    loadOlder,
+    hasOlder,
+    isLoadingOlder,
   } = useChat(userData?.playbackId, address, isLive);
 
   // Stable refs so the native keydown listener always reads current values
@@ -358,8 +361,8 @@ const ViewStream = ({
     )
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
-        if (data?.recordings) {
-          setRecordings(data.recordings);
+        if (data?.items) {
+          setRecordings(data.items);
         }
       })
       .catch(() => {});
@@ -1028,6 +1031,9 @@ const ViewStream = ({
                   isWalletConnected={!!address}
                   isSending={isSending}
                   onLoginClick={() => login()}
+                  onLoadOlder={loadOlder}
+                  hasOlder={hasOlder}
+                  isLoadingOlder={isLoadingOlder}
                 />
               </div>
             )}
@@ -1055,6 +1061,9 @@ const ViewStream = ({
                 isWalletConnected={!!address}
                 isSending={isSending}
                 onLoginClick={() => login()}
+                onLoadOlder={loadOlder}
+                hasOlder={hasOlder}
+                isLoadingOlder={isLoadingOlder}
               />
             </div>
           )}

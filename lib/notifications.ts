@@ -1,5 +1,4 @@
 import { sql } from "@vercel/postgres";
-import { randomUUID } from "crypto";
 import type { Tx } from "@/lib/postgres-transaction";
 
 export type NotificationType = "follow" | "live";
@@ -10,6 +9,10 @@ export type NotificationType = "follow" | "live";
  * fetching /api/users/notifications over HTTP — self-referencing HTTP calls
  * inside Next.js Route Handlers are unreliable and can deadlock.
  * Pass `executor` to write inside an open transaction (see withTransaction).
+ *
+ * The INSERT selects the recipient row, so an unknown recipient inserts
+ * nothing rather than raising a foreign-key error, which would abort the
+ * caller's transaction.
  */
 export async function writeNotification(
   recipientId: string,
@@ -18,18 +21,10 @@ export async function writeNotification(
   text: string,
   executor: Tx = { sql }
 ): Promise<void> {
-  const notification = {
-    id: randomUUID(),
-    type,
-    title,
-    text,
-    read: false,
-    created_at: new Date().toISOString(),
-  };
-
   const result = await executor.sql`
-    UPDATE users
-    SET notifications = COALESCE(notifications, ARRAY[]::jsonb[]) || ${JSON.stringify(notification)}::jsonb
+    INSERT INTO notifications (user_id, type, title, body)
+    SELECT id, ${type}, ${title}, ${text}
+    FROM users
     WHERE id = ${recipientId}::uuid
   `;
 

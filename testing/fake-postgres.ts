@@ -524,12 +524,17 @@ export class FakePostgres {
       const had = this.state.stream_recordings.delete(String(p[0]));
       return { rows: [], rowCount: had ? 1 : 0 };
     });
-    rule(/^UPDATE users SET notifications = /, p => {
-      const u = this.state.users.get(String(p[1]));
+    // lib/notifications.ts: INSERT ... SELECT ... FROM users WHERE id = $4.
+    // Rows are kept on the fake user so tests can count them per recipient.
+    rule(/^INSERT INTO notifications \(user_id, type, title, body\) SELECT/, p => {
+      const u = this.state.users.get(String(p[3]));
       if (!u) {
         return { rows: [], rowCount: 0 };
       }
-      u.notifications = [...(u.notifications ?? []), JSON.parse(String(p[0]))];
+      u.notifications = [
+        ...(u.notifications ?? []),
+        { type: p[0], title: p[1], text: p[2], read: false },
+      ];
       return { rows: [], rowCount: 1 };
     });
 

@@ -7,6 +7,7 @@ import { verifySession } from '@/lib/auth/verify-session';
 import { buildTipTransaction, submitTransaction, getCurrentNetwork } from '@/lib/stellar/payments';
 import { sql } from '@vercel/postgres';
 import { addTraceComment, logDbQuery } from '@/lib/tracing/db-tracer';
+import { markRecentWrite } from '@/lib/db/replica';
 
 const bodySchema = z.object({
   destinationPublicKey: z.string(),
@@ -227,7 +228,7 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
     );
 
     response.headers.set('x-request-id', traceId || '');
-    return response;
+    return markRecentWrite(response);
   } catch (error) {
     logger.error('Unhandled error in tip send endpoint', {
       errorMessage: error instanceof Error ? error.message : String(error),

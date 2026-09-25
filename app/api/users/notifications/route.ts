@@ -2,33 +2,77 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { writeNotification } from "@/lib/notifications";
+import {
+  buildPage,
+  keysetBounds,
+  readPageParams,
+  type KeysetRow,
+} from "@/lib/pagination/cursor";
 
-// ─── GET — fetch caller's notifications ──────────────────────────────────────
+interface NotificationRow extends KeysetRow {
+  type: string;
+  title: string;
+  body: string | null;
+  is_read: boolean;
+  created_at: Date | string;
+}
+
+// ─── GET — caller's notifications, newest first ──────────────────────────────
+// Shared cursor contract (docs/api/pagination.md):
+//   ?limit&cursor → { items, nextCursor, hasMore, unreadCount }
+// The user filter comes from the session, never from the cursor.
 export async function GET(req: NextRequest) {
   const session = await verifySession(req);
   if (!session.ok) {
     return session.response;
   }
 
+  const params = readPageParams(new URL(req.url).searchParams, {
+    defaultLimit: 20,
+    maxLimit: 50,
+  });
+  if (!params.ok) {
+    return params.response;
+  }
+  const { page } = params;
+  const bound = keysetBounds(page.after);
+
   try {
-    const { rows } = await sql`
-      SELECT COALESCE(notifications, ARRAY[]::jsonb[]) AS notifications
-      FROM users
-      WHERE id = ${session.userId}
-    `;
+    const [{ rows }, { rows: unread }] = await Promise.all([
+      sql<NotificationRow>`
+        SELECT
+          id, type, title, body, is_read, created_at,
+          to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts
+        FROM notifications
+        WHERE user_id = ${session.userId}
+          AND (created_at, id) < (${bound.ts}::timestamptz, ${bound.id}::uuid)
+        ORDER BY created_at DESC, id DESC
+        LIMIT ${page.limit + 1}
+      `,
+      sql<{ count: string }>`
+        SELECT count(*) AS count
+        FROM notifications
+        WHERE user_id = ${session.userId} AND is_read = false
+      `,
+    ]);
 
-    if (rows.length === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // notifications is JSONB[] — already parsed by @vercel/postgres into an array
-    const raw: Record<string, unknown>[] = rows[0].notifications ?? [];
-
-    // Newest-first, cap at 50
-    const notifications = [...raw].reverse().slice(0, 50);
-    const unreadCount = notifications.filter(n => n.read === false).length;
-
-    return NextResponse.json({ notifications, unreadCount });
+    return NextResponse.json(
+      {
+        ...buildPage(rows, page.limit, n => ({
+          id: n.id,
+          type: n.type,
+          title: n.title,
+          text: n.body ?? "",
+          read: n.is_read,
+          created_at:
+            n.created_at instanceof Date
+              ? n.created_at.toISOString()
+              : n.created_at,
+        })),
+        unreadCount: Number(unread[0]?.count ?? 0),
+      },
+      { headers: { "Cache-Control": "private, no-store" } }
+    );
   } catch (error) {
     console.error("GET notifications error:", error);
     return NextResponse.json(
@@ -78,12 +122,9 @@ export async function PATCH(req: NextRequest) {
 
   try {
     await sql`
-      UPDATE users
-      SET notifications = ARRAY(
-        SELECT jsonb_set(n::jsonb, '{read}', 'true'::jsonb)
-        FROM unnest(COALESCE(notifications, ARRAY[]::jsonb[])) AS t(n)
-      )
-      WHERE id = ${session.userId}
+      UPDATE notifications
+      SET is_read = true
+      WHERE user_id = ${session.userId} AND is_read = false
     `;
 
     return NextResponse.json({ message: "All notifications marked as read" });

@@ -199,67 +199,146 @@ describe("GET /api/streams/chat", () => {
     consoleErrorSpy?.mockRestore();
   });
 
+  // The route caches each window for 1s per instance, so every test uses its
+  // own playbackId.
+  const SESSION = "5e5510a0-0000-4000-8000-000000000001";
+  const msgRow = (n: number, ts: string) => ({
+    id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
+    content: `m${n}`,
+    message_type: "message",
+    created_at: ts,
+    cursor_ts: ts,
+    username: "Alice",
+    wallet: "0xABC",
+    avatar: null,
+  });
+  const onlySession = async (strings: TemplateStringsArray) =>
+    strings.join("").includes("stream_sessions")
+      ? { rows: [{ session_id: SESSION }] }
+      : { rows: [] };
+
   it("returns 400 when playbackId is missing", async () => {
     const req = makeRequest("GET", undefined, "");
     const res = await GET(req);
     expect(res.status).toBe(400);
   });
 
-  it("returns empty messages when no active session found", async () => {
+  it("returns an empty page when no active session found", async () => {
     sqlMock.mockResolvedValueOnce({ rows: [] }); // session lookup
     const req = makeRequest("GET", undefined, "?playbackId=pb-empty");
     const res = await GET(req);
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.messages).toEqual([]);
+    expect(await res.json()).toEqual({
+      items: [],
+      nextCursor: null,
+      hasMore: false,
+    });
   });
 
-  it("returns messages for an active session", async () => {
+  it("returns the newest page, newest first, edge-cacheable", async () => {
     sqlMock
-      .mockResolvedValueOnce({ rows: [{ session_id: 10 }] }) // session lookup
+      .mockResolvedValueOnce({ rows: [{ session_id: SESSION }] })
       .mockResolvedValueOnce({
-        // messages query
         rows: [
-          {
-            id: 1,
-            content: "hello",
-            message_type: "message",
-            created_at: "2025-01-01T00:00:00Z",
-            username: "Alice",
-            wallet: "0xABC",
-            avatar: null,
-          },
+          msgRow(2, "2025-01-01T00:00:01.000000Z"),
+          msgRow(1, "2025-01-01T00:00:00.000000Z"),
         ],
       });
 
-    const req = makeRequest("GET", undefined, "?playbackId=pb-active");
-    const res = await GET(req);
+    const res = await GET(
+      makeRequest("GET", undefined, "?playbackId=pb-active")
+    );
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe(
       "public, s-maxage=1, stale-while-revalidate=1"
     );
 
     const body = await res.json();
-    expect(body.messages).toHaveLength(1);
-    expect(body.messages[0].content).toBe("hello");
-    expect(body.messages[0].user.username).toBe("Alice");
+    expect(body.hasMore).toBe(false);
+    expect(body.nextCursor).toBeNull();
+    expect(body.items.map((m: { content: string }) => m.content)).toEqual([
+      "m2",
+      "m1",
+    ]);
+    expect(body.items[0].user.username).toBe("Alice");
+    expect(body.items[0]).not.toHaveProperty("cursor_ts");
   });
 
-  it("respects the limit query param", async () => {
+  it("starts the first page from sentinels and fetches limit + 1 rows", async () => {
     sqlMock
-      .mockResolvedValueOnce({ rows: [{ session_id: 10 }] })
+      .mockResolvedValueOnce({ rows: [{ session_id: SESSION }] })
       .mockResolvedValueOnce({ rows: [] });
 
-    const req = makeRequest("GET", undefined, "?playbackId=pb-limit&limit=10");
-    await GET(req);
+    await GET(makeRequest("GET", undefined, "?playbackId=pb-limit&limit=10"));
 
-    // Tagged template literals are called as sql(strings, ...values).
-    // The interpolated values are the 2nd+ arguments in the call array,
-    // not embedded in the template strings array. Check that 10 appears
-    // as one of the interpolated values in the messages query call.
-    const secondCallArgs = sqlMock.mock.calls[1]; // [templateStrings, val1, val2, ...]
-    const interpolatedValues = secondCallArgs.slice(1);
-    expect(interpolatedValues).toContain(10);
+    expect(sqlMock.mock.calls[1].slice(1)).toEqual([
+      SESSION,
+      "infinity",
+      "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      11,
+    ]);
+    const text = (sqlMock.mock.calls[1][0] as string[]).join("?");
+    expect(text).toContain("ORDER BY cm.created_at DESC, cm.id DESC");
+    expect(text).toContain("(cm.created_at, cm.id) <");
+  });
+
+  it("emits a cursor that resumes after the last row, ties included", async () => {
+    const tie = "2025-01-01T00:00:00.123456Z";
+    sqlMock
+      .mockResolvedValueOnce({ rows: [{ session_id: SESSION }] })
+      .mockResolvedValueOnce({
+        rows: [msgRow(3, tie), msgRow(2, tie), msgRow(1, tie)],
+      });
+
+    const first = await (
+      await GET(makeRequest("GET", undefined, "?playbackId=pb-tie&limit=2"))
+    ).json();
+    expect(first.hasMore).toBe(true);
+    expect(first.items).toHaveLength(2);
+
+    sqlMock
+      .mockResolvedValueOnce({ rows: [{ session_id: SESSION }] })
+      .mockResolvedValueOnce({ rows: [msgRow(1, tie)] });
+    await GET(
+      makeRequest(
+        "GET",
+        undefined,
+        "?playbackId=pb-tie&limit=2&cursor=" + first.nextCursor
+      )
+    );
+
+    // Full-precision timestamp plus id: the next page starts strictly after
+    // the last row returned, inside the same microsecond.
+    expect(sqlMock.mock.calls[3].slice(1)).toEqual([
+      SESSION,
+      tie,
+      msgRow(2, tie).id,
+      3,
+    ]);
+  });
+
+  it("caps limit at 200", async () => {
+    sqlMock
+      .mockResolvedValueOnce({ rows: [{ session_id: SESSION }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await GET(makeRequest("GET", undefined, "?playbackId=pb-cap&limit=100000"));
+
+    expect(sqlMock.mock.calls[1].slice(-1)).toEqual([201]);
+  });
+
+  it.each([
+    ["a zero limit", "limit=0"],
+    ["a negative limit", "limit=-5"],
+    ["a non-numeric limit", "limit=abc"],
+    ["a tampered cursor", "cursor=not-a-cursor"],
+    ["the retired before parameter", "before=5"],
+  ])("rejects %s with 400 before querying", async (_name, query) => {
+    const res = await GET(
+      makeRequest("GET", undefined, "?playbackId=pb-bad&" + query)
+    );
+    expect(res.status).toBe(400);
+    expect(sqlMock).not.toHaveBeenCalled();
   });
 
   it("returns 500 on unexpected error", async () => {
@@ -269,29 +348,8 @@ describe("GET /api/streams/chat", () => {
     expect(res.status).toBe(500);
   });
 
-  it.each([
-    ["100000", 200],
-    ["0", 50],
-    ["-5", 50],
-    ["abc", 50],
-  ])("clamps limit=%s to %d", async (raw, expected) => {
-    sqlMock
-      .mockResolvedValueOnce({ rows: [{ session_id: 10 }] })
-      .mockResolvedValueOnce({ rows: [] });
-
-    await GET(
-      makeRequest("GET", undefined, `?playbackId=pb-clamp-${raw}&limit=${raw}`)
-    );
-
-    expect(sqlMock.mock.calls[1].slice(1)).toContain(expected);
-  });
-
   it("serves concurrent polls of one stream from a single load", async () => {
-    sqlMock.mockImplementation(async (strings: TemplateStringsArray) =>
-      strings.join("").includes("stream_sessions")
-        ? { rows: [{ session_id: 10 }] }
-        : { rows: [] }
-    );
+    sqlMock.mockImplementation(onlySession);
 
     const responses = await Promise.all(
       Array.from({ length: 50 }, () =>
@@ -303,13 +361,27 @@ describe("GET /api/streams/chat", () => {
     expect(sqlMock).toHaveBeenCalledTimes(2);
   });
 
+  it("caches history pages separately from the live window", async () => {
+    sqlMock.mockImplementation(onlySession);
+    const cursor = Buffer.from(
+      JSON.stringify({
+        v: 1,
+        t: "2025-01-01T00:00:00.000000Z",
+        i: msgRow(1, "").id,
+      })
+    ).toString("base64url");
+
+    await GET(makeRequest("GET", undefined, "?playbackId=pb-hist"));
+    await GET(
+      makeRequest("GET", undefined, "?playbackId=pb-hist&cursor=" + cursor)
+    );
+
+    expect(sqlMock).toHaveBeenCalledTimes(4);
+  });
+
   it("reloads after the one-second window expires", async () => {
     const now = jest.spyOn(Date, "now").mockReturnValue(1_000_000);
-    sqlMock.mockImplementation(async (strings: TemplateStringsArray) =>
-      strings.join("").includes("stream_sessions")
-        ? { rows: [{ session_id: 10 }] }
-        : { rows: [] }
-    );
+    sqlMock.mockImplementation(onlySession);
 
     await GET(makeRequest("GET", undefined, "?playbackId=pb-ttl"));
     await GET(makeRequest("GET", undefined, "?playbackId=pb-ttl"));
@@ -322,22 +394,15 @@ describe("GET /api/streams/chat", () => {
   });
 
   it("does not serve a window cached before a new message was posted", async () => {
-    const message = (id: number, content: string) => ({
-      id,
-      content,
-      message_type: "message",
-      created_at: "2025-01-01T00:00:00Z",
-      username: "Alice",
-      wallet: "0xABC",
-      avatar: null,
-    });
     sqlMock
-      .mockResolvedValueOnce({ rows: [{ session_id: 10 }] })
-      .mockResolvedValueOnce({ rows: [message(1, "first")] });
+      .mockResolvedValueOnce({ rows: [{ session_id: SESSION }] })
+      .mockResolvedValueOnce({
+        rows: [msgRow(1, "2025-01-01T00:00:00.000000Z")],
+      });
     const before = await GET(
       makeRequest("GET", undefined, "?playbackId=pb-fresh")
     );
-    expect((await before.json()).messages).toHaveLength(1);
+    expect((await before.json()).items).toHaveLength(1);
 
     sqlMock
       .mockResolvedValueOnce({
@@ -347,12 +412,12 @@ describe("GET /api/streams/chat", () => {
             sender_username: "Alice",
             streamer_id: 2,
             is_live: true,
-            session_id: 10,
+            session_id: SESSION,
           },
         ],
       })
       .mockResolvedValueOnce({
-        rows: [{ id: 2, created_at: "2025-01-01T00:00:01Z" }],
+        rows: [{ id: msgRow(2, "").id, created_at: "2025-01-01T00:00:01Z" }],
       })
       .mockResolvedValueOnce({ rows: [] });
     const posted = await POST(
@@ -365,16 +430,19 @@ describe("GET /api/streams/chat", () => {
     expect(posted.status).toBe(201);
 
     sqlMock
-      .mockResolvedValueOnce({ rows: [{ session_id: 10 }] })
+      .mockResolvedValueOnce({ rows: [{ session_id: SESSION }] })
       .mockResolvedValueOnce({
-        rows: [message(2, "second"), message(1, "first")],
+        rows: [
+          msgRow(2, "2025-01-01T00:00:01.000000Z"),
+          msgRow(1, "2025-01-01T00:00:00.000000Z"),
+        ],
       });
     const after = await GET(
       makeRequest("GET", undefined, "?playbackId=pb-fresh")
     );
     expect(
-      (await after.json()).messages.map((m: { content: string }) => m.content)
-    ).toEqual(["first", "second"]);
+      (await after.json()).items.map((m: { content: string }) => m.content)
+    ).toEqual(["m2", "m1"]);
   });
 });
 

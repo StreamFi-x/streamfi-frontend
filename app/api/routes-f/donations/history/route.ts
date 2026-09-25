@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
+import {
+  readFromReplica,
+  ReplicaUnavailableError,
+  replicaUnavailableResponse,
+} from "@/lib/db/replica";
 
 export const dynamic = "force-dynamic";
 
@@ -87,7 +91,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   params.push(limit + 1);
 
   try {
-    const { rows } = await sql.query(queryText, params);
+    const rows = await readFromReplica(
+      "routes-f.donations-history",
+      db => db.query(queryText, params).then(r => r.rows),
+      { request: req }
+    );
     const hasMore = rows.length > limit;
     const items = hasMore ? rows.slice(0, limit) : rows;
     const nextCursor =
@@ -107,7 +115,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       })),
       pagination: { limit, nextCursor, hasMore },
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof ReplicaUnavailableError) {
+      return replicaUnavailableResponse();
+    }
     return NextResponse.json(
       { error: "Failed to load donation history" },
       { status: 500 },

@@ -89,7 +89,7 @@ export function ExploreClient({
   );
 
   // Always fetch recordings — used as featured carousel fallback when nobody is live
-  const { data: recordingsData } = useSWR<{ recordings: Recording[] }>(
+  const { data: recordingsData } = useSWR<{ items: Recording[] }>(
     "/api/streams/recordings",
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 60_000 }
@@ -120,7 +120,7 @@ export function ExploreClient({
   }));
 
   // When nobody is live, map recordings into the same CarouselStream shape
-  const recordingCarouselItems = (recordingsData?.recordings ?? []).map(r => ({
+  const recordingCarouselItems = (recordingsData?.items ?? []).map(r => ({
     id: r.id,
     title: r.title || "Stream Recording",
     thumbnail: `https://image.mux.com/${r.playback_id}/thumbnail.jpg?time=5`,

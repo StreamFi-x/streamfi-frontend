@@ -6,23 +6,72 @@ jest.mock("swr", () => ({
   __esModule: true,
   default: jest.fn(),
 }));
+jest.mock("swr/infinite", () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
 
 import useSWR from "swr";
+import useSWRInfinite from "swr/infinite";
 
 const mockMutate = jest.fn();
+const mockHistoryMutate = jest.fn();
+const mockSetSize = jest.fn();
+
+const msg = (n: number) => ({
+  id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
+  username: "Alice",
+  message: `m${n}`,
+  color: "#9333ea",
+  messageType: "message" as const,
+  createdAt: `2026-01-01T00:00:${String(n).padStart(2, "0")}.000Z`,
+});
+
+const apiMsg = (n: number) => ({
+  id: msg(n).id,
+  content: `m${n}`,
+  messageType: "message" as const,
+  createdAt: msg(n).createdAt,
+  user: { username: "Alice", wallet: "GABC", avatar: null },
+});
+
+/** Live window as the hook's fetcher produces it: oldest first. */
+const liveWindow = (ns: number[], extra = {}) => ({
+  messages: ns.map(msg),
+  nextCursor: null,
+  hasMore: false,
+  ...extra,
+});
 
 const makeSwrReturn = (overrides = {}) => ({
-  data: [],
+  data: undefined,
   error: undefined,
   isLoading: false,
   mutate: mockMutate,
   ...overrides,
 });
 
+const makeInfiniteReturn = (overrides = {}) => ({
+  data: undefined,
+  error: undefined,
+  size: 1,
+  setSize: mockSetSize,
+  isLoading: false,
+  isValidating: false,
+  mutate: mockHistoryMutate,
+  ...overrides,
+});
+
+const lastHistoryKey = () => {
+  const calls = (useSWRInfinite as jest.Mock).mock.calls;
+  return calls[calls.length - 1][0](0, null);
+};
+
 describe("useChat", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useSWR as jest.Mock).mockReturnValue(makeSwrReturn());
+    (useSWRInfinite as jest.Mock).mockReturnValue(makeInfiniteReturn());
     global.fetch = jest.fn();
   });
 
@@ -48,7 +97,6 @@ describe("useChat", () => {
     });
 
     it("still fetches history (non-null key) when stream is offline", () => {
-      // History is always loaded when playbackId exists — isLive only gates polling.
       renderHook(() => useChat("playback-abc", "0xWALLET", false));
 
       expect(useSWR).toHaveBeenCalledWith(
@@ -78,34 +126,35 @@ describe("useChat", () => {
       );
     });
 
-    it("returns empty messages array when data is undefined", () => {
-      (useSWR as jest.Mock).mockReturnValue(makeSwrReturn({ data: undefined }));
+    it("does not fetch older history until asked", () => {
+      renderHook(() => useChat("playback-abc", "0xWALLET", true));
 
+      expect(lastHistoryKey()).toBeNull();
+    });
+
+    it("returns empty messages array when data is undefined", () => {
       const { result } = renderHook(() =>
         useChat("playback-abc", "0xWALLET", true)
       );
 
       expect(result.current.messages).toEqual([]);
+      expect(result.current.hasOlder).toBe(false);
     });
 
-    it("returns messages from SWR data", () => {
-      const messages = [
-        {
-          id: 1,
-          username: "Alice",
-          message: "hello",
-          color: "#9333ea",
-          messageType: "message" as const,
-          createdAt: new Date().toISOString(),
-        },
-      ];
-      (useSWR as jest.Mock).mockReturnValue(makeSwrReturn({ data: messages }));
+    it("renders the live window oldest first", () => {
+      (useSWR as jest.Mock).mockReturnValue(
+        makeSwrReturn({ data: liveWindow([1, 2, 3]) })
+      );
 
       const { result } = renderHook(() =>
         useChat("playback-abc", "0xWALLET", true)
       );
 
-      expect(result.current.messages).toEqual(messages);
+      expect(result.current.messages.map(m => m.message)).toEqual([
+        "m1",
+        "m2",
+        "m3",
+      ]);
     });
 
     it("returns isLoading from SWR", () => {
@@ -116,6 +165,166 @@ describe("useChat", () => {
       );
 
       expect(result.current.isLoading).toBe(true);
+    });
+
+    it("normalizes API items in the fetcher", async () => {
+      renderHook(() => useChat("playback-abc", "0xWALLET", true));
+      const fetcher = (useSWR as jest.Mock).mock.calls[0][1];
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [apiMsg(2)],
+          nextCursor: "c1",
+          hasMore: true,
+        }),
+      });
+
+      await expect(fetcher("/url")).resolves.toEqual({
+        messages: [expect.objectContaining({ id: msg(2).id, message: "m2" })],
+        nextCursor: "c1",
+        hasMore: true,
+      });
+    });
+  });
+
+  describe("older history", () => {
+    const withOlder = () =>
+      (useSWR as jest.Mock).mockReturnValue(
+        makeSwrReturn({
+          data: liveWindow([2, 3], {
+            nextCursor: "live-cursor",
+            hasMore: true,
+          }),
+        })
+      );
+
+    it("anchors history at the live window's cursor", () => {
+      withOlder();
+      const { result } = renderHook(() =>
+        useChat("playback-abc", "0xWALLET", true)
+      );
+      expect(result.current.hasOlder).toBe(true);
+
+      act(() => result.current.loadOlder());
+
+      expect(lastHistoryKey()).toBe(
+        "/api/streams/chat?playbackId=playback-abc&limit=50&cursor=live-cursor"
+      );
+    });
+
+    it("prepends history pages and continues with loadMore", () => {
+      withOlder();
+      const { result, rerender } = renderHook(() =>
+        useChat("playback-abc", "0xWALLET", true)
+      );
+      act(() => result.current.loadOlder());
+
+      (useSWRInfinite as jest.Mock).mockReturnValue(
+        makeInfiniteReturn({
+          data: [{ items: [apiMsg(1)], nextCursor: "h1", hasMore: true }],
+        })
+      );
+      rerender();
+
+      expect(result.current.messages.map(m => m.message)).toEqual([
+        "m1",
+        "m2",
+        "m3",
+      ]);
+      expect(result.current.hasOlder).toBe(true);
+
+      act(() => result.current.loadOlder());
+      expect(mockSetSize).toHaveBeenCalledWith(2);
+    });
+
+    it("drops history only when a poll shares no message with the last one (gap)", () => {
+      withOlder();
+      const { result, rerender } = renderHook(() =>
+        useChat("playback-abc", "0xWALLET", true)
+      );
+      act(() => result.current.loadOlder());
+      (useSWRInfinite as jest.Mock).mockReturnValue(
+        makeInfiniteReturn({
+          data: [{ items: [apiMsg(1)], nextCursor: null, hasMore: false }],
+        })
+      );
+
+      // Message 2 (the anchor) is no longer in the live window.
+      (useSWR as jest.Mock).mockReturnValue(
+        makeSwrReturn({
+          data: liveWindow([4, 5], { nextCursor: "later", hasMore: true }),
+        })
+      );
+      rerender();
+
+      expect(result.current.messages.map(m => m.message)).toEqual(["m4", "m5"]);
+      expect(lastHistoryKey()).toBeNull();
+    });
+
+    it("keeps history when a new message pushes the oldest out of the window", () => {
+      withOlder();
+      const { result, rerender } = renderHook(() =>
+        useChat("playback-abc", "0xWALLET", true)
+      );
+      act(() => result.current.loadOlder());
+      (useSWRInfinite as jest.Mock).mockReturnValue(
+        makeInfiniteReturn({
+          data: [{ items: [apiMsg(1)], nextCursor: "h1", hasMore: true }],
+        })
+      );
+      rerender();
+
+      // One new message: 2 scrolls out of the 200-message window.
+      (useSWR as jest.Mock).mockReturnValue(
+        makeSwrReturn({
+          data: liveWindow([3, 4], { nextCursor: "later", hasMore: true }),
+        })
+      );
+      rerender();
+
+      expect(result.current.messages.map(m => m.message)).toEqual([
+        "m1",
+        "m2",
+        "m3",
+        "m4",
+      ]);
+      expect(lastHistoryKey()).toBe(
+        "/api/streams/chat?playbackId=playback-abc&limit=50&cursor=live-cursor"
+      );
+    });
+
+    it("drops a message deleted inside the live window while history is open", () => {
+      (useSWR as jest.Mock).mockReturnValue(
+        makeSwrReturn({
+          data: liveWindow([2, 3, 4], { nextCursor: "c", hasMore: true }),
+        })
+      );
+      const { result, rerender } = renderHook(() =>
+        useChat("playback-abc", "0xWALLET", true)
+      );
+      act(() => result.current.loadOlder());
+
+      (useSWR as jest.Mock).mockReturnValue(
+        makeSwrReturn({
+          data: liveWindow([2, 4], { nextCursor: "c", hasMore: true }),
+        })
+      );
+      rerender();
+
+      expect(result.current.messages.map(m => m.message)).toEqual(["m2", "m4"]);
+    });
+
+    it("does nothing when there is no older history", () => {
+      (useSWR as jest.Mock).mockReturnValue(
+        makeSwrReturn({ data: liveWindow([1]) })
+      );
+      const { result } = renderHook(() =>
+        useChat("playback-abc", "0xWALLET", true)
+      );
+
+      act(() => result.current.loadOlder());
+
+      expect(lastHistoryKey()).toBeNull();
     });
   });
 
@@ -167,10 +376,59 @@ describe("useChat", () => {
       );
     });
 
+    it("adds an optimistic message at the head of the live window", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+      });
+      mockMutate.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() =>
+        useChat("playback-abc", "0xWALLET", true)
+      );
+      await act(async () => {
+        await result.current.sendMessage("hello");
+      });
+
+      const next = mockMutate.mock.calls[0][0](liveWindow([1]));
+      expect(next.messages[1]).toMatchObject({
+        id: "pending-1",
+        message: "hello",
+        isPending: true,
+      });
+      expect(next.messages[0].id).toBe(msg(1).id);
+    });
+
+    it("swaps the optimistic entry for the confirmed message without refetching", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ chatMessage: apiMsg(8) }),
+      });
+      mockMutate.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() =>
+        useChat("playback-swap", "0xWALLET", true)
+      );
+      await act(async () => {
+        await result.current.sendMessage("hello");
+      });
+
+      const [confirm, options] = mockMutate.mock.calls[1];
+      expect(options).toEqual({ revalidate: false });
+      const next = confirm({
+        ...liveWindow([1]),
+        messages: [msg(1), { ...msg(9), id: "pending-1" }],
+      });
+      expect(next.messages.map((m: { id: string }) => m.id)).toEqual([
+        msg(1).id,
+        msg(8).id,
+      ]);
+    });
+
     it("calls POST /api/streams/chat with correct payload", async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
-        json: async () => ({ chatMessage: { id: 99 } }),
+        json: async () => ({ chatMessage: apiMsg(7) }),
       });
       mockMutate.mockResolvedValue(undefined);
 
@@ -212,11 +470,17 @@ describe("useChat", () => {
         await result.current.sendMessage("hello");
       });
 
-      // mutate should be called with revalidate: true to roll back
-      expect(mockMutate).toHaveBeenCalledWith(
-        expect.any(Function),
-        expect.objectContaining({ revalidate: true })
+      const rollback = mockMutate.mock.calls.find(
+        ([, opts]) => opts?.revalidate === true
       );
+      expect(rollback).toBeDefined();
+      const restored = rollback![0]({
+        ...liveWindow([1]),
+        messages: [msg(1), { ...msg(9), id: "pending-1" }],
+      });
+      expect(restored.messages.map((m: { id: string }) => m.id)).toEqual([
+        msg(1).id,
+      ]);
       expect(result.current.error).toBe(
         "Cannot send message to offline stream"
       );
@@ -253,11 +517,13 @@ describe("useChat", () => {
   });
 
   describe("deleteMessage", () => {
+    const id = msg(4).id;
+
     it("does nothing when wallet is missing", async () => {
       const { result } = renderHook(() => useChat("playback-abc", null, true));
 
       await act(async () => {
-        await result.current.deleteMessage(42);
+        await result.current.deleteMessage(id);
       });
 
       expect(global.fetch).not.toHaveBeenCalled();
@@ -275,7 +541,7 @@ describe("useChat", () => {
       );
 
       await act(async () => {
-        await result.current.deleteMessage(42);
+        await result.current.deleteMessage(id);
       });
 
       expect(global.fetch).toHaveBeenCalledWith(
@@ -283,7 +549,7 @@ describe("useChat", () => {
         expect.objectContaining({
           method: "DELETE",
           body: JSON.stringify({
-            messageId: 42,
+            messageId: id,
             moderatorWallet: "0xWALLET",
           }),
         })
@@ -302,10 +568,9 @@ describe("useChat", () => {
       );
 
       await act(async () => {
-        await result.current.deleteMessage(42);
+        await result.current.deleteMessage(id);
       });
 
-      // Should revalidate to restore the optimistically removed message
       expect(mockMutate).toHaveBeenCalledWith();
     });
   });

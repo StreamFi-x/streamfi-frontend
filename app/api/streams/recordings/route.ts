@@ -1,24 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { CACHE_POLICIES } from "@/lib/cache";
+import {
+  buildPage,
+  keysetBounds,
+  readPageParams,
+  withoutCursorTs,
+  type KeysetRow,
+} from "@/lib/pagination/cursor";
 
 /**
- * GET /api/streams/recordings?limit=20&offset=0&username=foo
- * Public endpoint — returns ready recordings.
+ * GET /api/streams/recordings?username=foo&limit=20&cursor=<nextCursor>
+ * Public endpoint — returns ready recordings, newest first, on the shared
+ * cursor contract (docs/api/pagination.md): { items, nextCursor, hasMore }.
  * Pass ?username= to filter to a specific user's recordings.
  */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(
-      50,
-      Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10))
-    );
-    const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
+    const params = readPageParams(searchParams, {
+      defaultLimit: 20,
+      maxLimit: 50,
+    });
+    if (!params.ok) {
+      return params.response;
+    }
+    const { page } = params;
+    const bound = keysetBounds(page.after);
     const username = searchParams.get("username") ?? "";
 
     const { rows } = username
-      ? await sql`
+      ? await sql<KeysetRow>`
           SELECT
             r.id,
             r.mux_asset_id,
@@ -26,6 +38,7 @@ export async function GET(req: NextRequest) {
             r.title,
             r.duration,
             r.created_at,
+            to_char(r.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts,
             r.status,
             u.username,
             u.avatar,
@@ -35,10 +48,11 @@ export async function GET(req: NextRequest) {
           LEFT JOIN stream_sessions ss ON ss.id = r.stream_session_id
           WHERE r.status = 'ready'
             AND LOWER(u.username) = LOWER(${username})
-          ORDER BY r.created_at DESC
-          LIMIT ${limit} OFFSET ${offset}
+            AND (r.created_at, r.id) < (${bound.ts}::timestamptz, ${bound.id}::uuid)
+          ORDER BY r.created_at DESC, r.id DESC
+          LIMIT ${page.limit + 1}
         `
-      : await sql`
+      : await sql<KeysetRow>`
           SELECT
             r.id,
             r.mux_asset_id,
@@ -46,6 +60,7 @@ export async function GET(req: NextRequest) {
             r.title,
             r.duration,
             r.created_at,
+            to_char(r.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts,
             r.status,
             u.username,
             u.avatar,
@@ -54,35 +69,16 @@ export async function GET(req: NextRequest) {
           JOIN users u ON u.id = r.user_id
           LEFT JOIN stream_sessions ss ON ss.id = r.stream_session_id
           WHERE r.status = 'ready'
-          ORDER BY r.created_at DESC
-          LIMIT ${limit} OFFSET ${offset}
+            AND (r.created_at, r.id) < (${bound.ts}::timestamptz, ${bound.id}::uuid)
+          ORDER BY r.created_at DESC, r.id DESC
+          LIMIT ${page.limit + 1}
         `;
 
-    const { rows: countRows } = username
-      ? await sql`
-          SELECT COUNT(*) AS total
-          FROM stream_recordings r
-          JOIN users u ON u.id = r.user_id
-          WHERE r.status = 'ready' AND LOWER(u.username) = LOWER(${username})
-        `
-      : await sql`
-          SELECT COUNT(*) AS total FROM stream_recordings WHERE status = 'ready'
-        `;
-    const total = parseInt(countRows[0].total, 10);
-
-    return NextResponse.json(
-      {
-        recordings: rows,
-        total,
-        hasMore: offset + limit < total,
-        nextOffset: offset + limit < total ? offset + limit : null,
+    return NextResponse.json(buildPage(rows, page.limit, withoutCursorTs), {
+      headers: {
+        "Cache-Control": CACHE_POLICIES.publicListing.cacheControl,
       },
-      {
-        headers: {
-          "Cache-Control": CACHE_POLICIES.publicListing.cacheControl,
-        },
-      }
-    );
+    });
   } catch (error) {
     console.error("Error fetching public recordings:", error);
     return NextResponse.json(

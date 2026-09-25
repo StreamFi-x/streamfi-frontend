@@ -1,14 +1,21 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import useSWR from "swr";
-import type { ChatMessage, ChatMessageAPI, UseChatReturn } from "@/types/chat";
+import type {
+  ChatMessage,
+  ChatMessageAPI,
+  ChatPage,
+  UseChatReturn,
+} from "@/types/chat";
 import {
   reconcileWithRecentWrites,
   recentWritesFor,
   rememberDeleted,
   rememberSent,
 } from "@/lib/chat-recent-writes";
+import { useCursorPagination } from "@/hooks/useCursorPagination";
 
 const MAX_MESSAGES = 200;
+const HISTORY_PAGE_SIZE = 50;
 const POLL_INTERVAL_MS = 1000;
 
 /** Deterministic color for a username — same user always gets the same color */
@@ -51,18 +58,51 @@ function normalizeMessage(msg: ChatMessageAPI): ChatMessage {
   };
 }
 
-const chatFetcher = async (url: string): Promise<ChatMessage[]> => {
+interface LiveWindow {
+  /** Oldest first, ready to render. */
+  messages: ChatMessage[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+const chatFetcher = async (url: string): Promise<LiveWindow> => {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error("Failed to fetch chat messages");
   }
-  const data = await res.json();
-  const messages: ChatMessageAPI[] = data.messages || [];
-  return messages.map(normalizeMessage);
+  const data: ChatPage = await res.json();
+  return {
+    // The API returns newest first.
+    messages: (data.items ?? []).map(normalizeMessage).reverse(),
+    nextCursor: data.nextCursor ?? null,
+    hasMore: Boolean(data.hasMore),
+  };
 };
+
+function dedupeById(messages: ChatMessage[]): ChatMessage[] {
+  const seen = new Set<string>();
+  return messages.filter(m => {
+    if (seen.has(m.id)) {
+      return false;
+    }
+    seen.add(m.id);
+    return true;
+  });
+}
 
 /**
  * SWR-based chat hook used by all chat components.
+ *
+ * The newest MAX_MESSAGES are polled as the "live window". Older history is
+ * loaded on demand through the cursor API, starting at the cursor of the live
+ * window's oldest message when the reader first asks for it (the anchor), so
+ * polling never refetches history pages.
+ *
+ * While history is open, messages that scroll out of the live window are kept
+ * (the "bridge"), so history, bridge and live window stay contiguous as the
+ * chat moves. History is only dropped if one poll shares no message with the
+ * previous one: more than MAX_MESSAGES arrived between two polls, and the
+ * messages in between were never seen.
  *
  * @param playbackId  - Mux playback ID for the stream (null disables fetching)
  * @param wallet      - Connected wallet address (required to send messages)
@@ -75,7 +115,10 @@ export function useChat(
 ): UseChatReturn {
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
-  const optimisticIdCounter = useRef(-1);
+  const [anchor, setAnchor] = useState<string | null>(null);
+  const [bridge, setBridge] = useState<ChatMessage[]>([]);
+  const previousLive = useRef<ChatMessage[]>([]);
+  const optimisticIdCounter = useRef(0);
 
   // Always fetch history when we have a playbackId — isLive only controls polling.
   // This ensures the fullscreen overlay (and any late-mounting consumer) sees
@@ -85,13 +128,18 @@ export function useChat(
     : null;
   const shouldPoll = !!playbackId && isLive;
 
-  const { data, error, isLoading, mutate } = useSWR<ChatMessage[]>(
+  const { data, error, isLoading, mutate } = useSWR<LiveWindow>(
     cacheKey,
-    async (url: string) =>
-      reconcileWithRecentWrites(
-        await chatFetcher(url),
-        playbackId ? recentWritesFor(playbackId) : undefined
-      ),
+    async (url: string) => {
+      const window = await chatFetcher(url);
+      return {
+        ...window,
+        messages: reconcileWithRecentWrites(
+          window.messages,
+          playbackId ? recentWritesFor(playbackId) : undefined
+        ),
+      };
+    },
     {
       refreshInterval: shouldPoll ? POLL_INTERVAL_MS : 0,
       dedupingInterval: 500,
@@ -101,7 +149,77 @@ export function useChat(
     }
   );
 
-  const messages = data ? data.slice(-MAX_MESSAGES) : [];
+  const history = useCursorPagination<ChatMessageAPI>(
+    playbackId && anchor ? `/api/streams/chat?playbackId=${playbackId}` : null,
+    {
+      limit: HISTORY_PAGE_SIZE,
+      initialCursor: anchor,
+      getId: m => m.id,
+      revalidateFirstPage: false,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    }
+  );
+
+  const liveMessages = useMemo(() => data?.messages ?? [], [data]);
+
+  // A new stream or new playback ID starts from a clean history.
+  useEffect(() => {
+    setAnchor(null);
+    setBridge([]);
+    previousLive.current = [];
+  }, [playbackId]);
+
+  useEffect(() => {
+    const previous = previousLive.current;
+    previousLive.current = liveMessages;
+    if (!anchor || liveMessages.length === 0) {
+      return;
+    }
+
+    const liveIds = new Set(liveMessages.map(m => m.id));
+    if (previous.length > 0 && !previous.some(m => liveIds.has(m.id))) {
+      // Nothing in common with the last poll: messages were missed.
+      setAnchor(null);
+      setBridge([]);
+      return;
+    }
+
+    // Messages that left the window by scrolling out (older than its oldest
+    // entry). Ones that left from inside its range were deleted.
+    const oldestLive = Date.parse(liveMessages[0].createdAt);
+    const scrolledOut = previous.filter(
+      m =>
+        !liveIds.has(m.id) &&
+        !m.isPending &&
+        Date.parse(m.createdAt) <= oldestLive
+    );
+    if (scrolledOut.length > 0) {
+      setBridge(current => dedupeById([...current, ...scrolledOut]));
+    }
+  }, [anchor, liveMessages]);
+
+  const messages = useMemo(() => {
+    if (!anchor) {
+      return liveMessages.slice(-MAX_MESSAGES);
+    }
+    // History pages are newest first; render oldest first.
+    const older = history.items.map(normalizeMessage).reverse();
+    return dedupeById([...older, ...bridge, ...liveMessages]);
+  }, [anchor, bridge, history.items, liveMessages]);
+
+  const hasOlder = anchor ? history.hasMore : Boolean(data?.hasMore);
+
+  const loadOlder = useCallback(() => {
+    if (anchor) {
+      history.loadMore();
+      return;
+    }
+    if (data?.hasMore && data.nextCursor) {
+      setBridge([]);
+      setAnchor(data.nextCursor);
+    }
+  }, [anchor, data, history]);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -117,7 +235,8 @@ export function useChat(
       setIsSending(true);
 
       // Optimistic update — add message locally before API confirms
-      const optimisticId = optimisticIdCounter.current--;
+      optimisticIdCounter.current += 1;
+      const optimisticId = `pending-${optimisticIdCounter.current}`;
       const optimisticMessage: ChatMessage = {
         id: optimisticId,
         username: "You",
@@ -130,10 +249,13 @@ export function useChat(
 
       // Optimistically update the cache
       await mutate(
-        current => {
-          const updated = [...(current || []), optimisticMessage];
-          return updated.slice(-MAX_MESSAGES);
-        },
+        current => ({
+          nextCursor: current?.nextCursor ?? null,
+          hasMore: current?.hasMore ?? false,
+          messages: [...(current?.messages ?? []), optimisticMessage].slice(
+            -MAX_MESSAGES
+          ),
+        }),
         { revalidate: false }
       );
 
@@ -161,16 +283,23 @@ export function useChat(
         rememberSent(recentWritesFor(playbackId), confirmed);
         await mutate(
           current =>
-            reconcileWithRecentWrites(
-              (current || []).filter(m => m.id !== optimisticId),
-              recentWritesFor(playbackId)
-            ).slice(-MAX_MESSAGES),
+            current && {
+              ...current,
+              messages: reconcileWithRecentWrites(
+                current.messages.filter(m => m.id !== optimisticId),
+                recentWritesFor(playbackId)
+              ).slice(-MAX_MESSAGES),
+            },
           { revalidate: false }
         );
       } catch (err) {
         // Rollback optimistic update
         await mutate(
-          current => (current || []).filter(m => m.id !== optimisticId),
+          current =>
+            current && {
+              ...current,
+              messages: current.messages.filter(m => m.id !== optimisticId),
+            },
           { revalidate: true }
         );
         const errorMessage =
@@ -184,15 +313,21 @@ export function useChat(
   );
 
   const deleteMessage = useCallback(
-    async (messageId: number) => {
+    async (messageId: string) => {
       if (!wallet || !playbackId) {
         return;
       }
 
-      // Optimistically remove from UI
-      await mutate(current => (current || []).filter(m => m.id !== messageId), {
-        revalidate: false,
-      });
+      // Optimistically remove from UI (live window and any held history)
+      await mutate(
+        current =>
+          current && {
+            ...current,
+            messages: current.messages.filter(m => m.id !== messageId),
+          },
+        { revalidate: false }
+      );
+      setBridge(current => current.filter(m => m.id !== messageId));
 
       try {
         const res = await fetch("/api/streams/chat", {
@@ -210,20 +345,26 @@ export function useChat(
         }
 
         rememberDeleted(recentWritesFor(playbackId), messageId);
+        if (anchor) {
+          await history.mutate();
+        }
       } catch {
         // Revalidate to restore the message if delete failed
         await mutate();
       }
     },
-    [wallet, playbackId, mutate]
+    [wallet, playbackId, mutate, anchor, history]
   );
 
   return {
     messages,
     sendMessage,
     deleteMessage,
+    loadOlder,
+    hasOlder,
+    isLoadingOlder: history.isLoading || history.isLoadingMore,
     isLoading,
     isSending,
-    error: error?.message || sendError,
+    error: error?.message || history.error?.message || sendError,
   };
 }
