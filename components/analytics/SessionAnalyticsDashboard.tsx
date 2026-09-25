@@ -25,10 +25,8 @@ import {
   Loader,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type {
-  SessionListItem,
-  SessionDetailResponse,
-} from "@/app/api/routes-f/analytics-session-list/route";
+import type { SessionListItem } from "@/app/api/routes-f/analytics-session-list/route";
+import type { SessionDetailResponse } from "@/app/api/routes-f/analytics-session-detail/route";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -241,14 +239,14 @@ function SessionDetailView({ data }: SessionDetailViewProps) {
   const { session, retention_curve, chat_engagement, summary } = data;
 
   // Prepare retention curve for chart (convert seconds to minutes)
-  const retentionChartData = retention_curve.map((point) => ({
+  const retentionChartData = retention_curve.map((point: any) => ({
     minutes: Math.floor(point.bucket_seconds / 60),
     retained: point.percentage_retained,
     viewers: point.viewers_remaining,
   }));
 
   // Prepare chat engagement chart data
-  const chatChartData = chat_engagement.map((point) => ({
+  const chatChartData = chat_engagement.map((point: any) => ({
     minutes: Math.floor(point.bucket_seconds / 60),
     messages: point.message_count,
     chatters: point.unique_chatters,

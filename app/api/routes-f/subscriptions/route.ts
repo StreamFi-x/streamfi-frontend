@@ -15,7 +15,7 @@ interface TierConfig {
   durationDays: number;
 }
 
-const TIERS: Record<string, TierConfig> = {
+export const TIERS: Record<string, TierConfig> = {
   basic: { label: "Basic", durationDays: 30 },
   standard: { label: "Standard", durationDays: 90 },
   premium: { label: "Premium", durationDays: 365 },

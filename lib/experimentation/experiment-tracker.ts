@@ -300,15 +300,25 @@ export async function updateExperimentStatus(
       updateFields.concluded_at = new Date();
     }
 
-    await sql`
-      UPDATE experiments
-      SET
-        status = ${newStatus},
-        updated_at = NOW()
-        ${newStatus === 'running' ? sql`, started_at = NOW()` : sql``}
-        ${newStatus === 'concluded' ? sql`, concluded_at = NOW()` : sql``}
-      WHERE id = ${experimentId}
-    `;
+    if (newStatus === 'running') {
+      await sql`
+        UPDATE experiments
+        SET status = ${newStatus}, updated_at = NOW(), started_at = NOW()
+        WHERE id = ${experimentId}
+      `;
+    } else if (newStatus === 'concluded') {
+      await sql`
+        UPDATE experiments
+        SET status = ${newStatus}, updated_at = NOW(), concluded_at = NOW()
+        WHERE id = ${experimentId}
+      `;
+    } else {
+      await sql`
+        UPDATE experiments
+        SET status = ${newStatus}, updated_at = NOW()
+        WHERE id = ${experimentId}
+      `;
+    }
 
     logger.info('[experiment-tracker] Experiment status updated', {
       operation: 'updateExperimentStatus',
