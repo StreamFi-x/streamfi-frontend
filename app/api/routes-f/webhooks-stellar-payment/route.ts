@@ -337,6 +337,31 @@ export async function POST(req: NextRequest) {
 
     console.log(`✅ Tip credited: ${amountXLM} XLM ($${priceUSD.toFixed(2)}) to ${creator.username}`);
 
+    // Broadcast real-time tip alert to overlay (non-blocking)
+    try {
+      const broadcastURL = new URL(req.url);
+      broadcastURL.pathname = "/api/routes-f/tip-alerts/broadcast";
+      
+      fetch(broadcastURL.toString(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-secret": process.env.INTERNAL_API_SECRET || "",
+        },
+        body: JSON.stringify({
+          creator_id: creator.id,
+          tipper_name: supporterUsername,
+          amount_xlm: amountXLM.toFixed(7),
+          amount_usd: priceUSD.toFixed(2),
+          tx_hash: payload.tx_hash,
+        }),
+      }).catch((err) => {
+        console.error("Failed to broadcast tip alert:", err);
+      });
+    } catch (alertError) {
+      console.error("Tip alert broadcast error:", alertError);
+    }
+
     // Send notification to creator
     try {
       await writeNotification(
