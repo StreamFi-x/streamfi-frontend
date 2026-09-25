@@ -23,7 +23,8 @@ import { sql } from "@vercel/postgres";
 import { z } from "zod";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
-import { writeNotification } from "@/lib/notifications";
+import { writeTemplatedNotification } from "@/lib/notifications";
+import { shouldSendInAppNotification } from "@/lib/notifications/preferences";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { createHmac, timingSafeEqual } from "crypto";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
@@ -339,12 +340,20 @@ export async function POST(req: NextRequest) {
 
     // Send notification to creator
     try {
-      await writeNotification(
-        creator.id,
-        "live",
-        "New Tip Received!",
-        `${supporterUsername} tipped you ${amountXLM.toFixed(7)} XLM ($${priceUSD.toFixed(2)})`
-      );
+      // Check if creator has tip notifications enabled
+      const shouldSend = await shouldSendInAppNotification(creator.id, "tip_received", { sql });
+      if (shouldSend) {
+        await writeTemplatedNotification(
+          creator.id,
+          "tip_received",
+          {
+            actor: supporterUsername,
+            amount: amountXLM.toFixed(7),
+            currency: "XLM",
+          },
+          { sql }
+        );
+      }
     } catch (notifError) {
       console.error("Failed to send notification:", notifError);
     }
