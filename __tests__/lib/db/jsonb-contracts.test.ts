@@ -7,6 +7,7 @@ import {
   classifyCreator,
   classifyNotifications,
   classifySocialLinks,
+  detectPlatformFromUrl,
   isMergeableCreator,
   prepareCreator,
   prepareCreatorPatch,
@@ -60,6 +61,18 @@ describe("socialLinks contract", () => {
       tiktok: "https://www.tiktok.com/@a",
       website: "https://a.io",
     });
+  });
+
+  it("detects the platform from the URL host, not a substring", () => {
+    expect(detectPlatformFromUrl("https://x.com/a")).toBe("twitter");
+    expect(detectPlatformFromUrl("https://mobile.twitter.com/a")).toBe(
+      "twitter"
+    );
+    expect(detectPlatformFromUrl("https://www.fb.com/a")).toBe("facebook");
+    expect(detectPlatformFromUrl("https://evil.io/?next=x.com")).toBe("other");
+    expect(detectPlatformFromUrl("https://x.com.evil.io/a")).toBe("other");
+    expect(detectPlatformFromUrl("https://notfb.com/a")).toBe("other");
+    expect(detectPlatformFromUrl("not a url")).toBe("other");
   });
 
   it("rejects a legacy array that would lose a link on conversion", () => {

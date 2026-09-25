@@ -244,6 +244,24 @@ describe("purgeDueDeletions", () => {
     expect(mockDb.callsMatching(/streamfi_purge_user/)).toHaveLength(1);
   });
 
+  it("only deletes media hosted on Cloudinary itself", async () => {
+    mockDb.on(/SET status = 'purging'/, { rows: [deletion()] });
+    stubPurgeQueries();
+    mockDb.once(/SELECT avatar, banner/, {
+      rows: [
+        {
+          avatar: "https://res.cloudinary.com.evil.io/image/upload/v1/a.png",
+          banner: "https://evilres.cloudinary.com/image/upload/v1/b.png",
+          thumbnail: null,
+        },
+      ],
+    });
+
+    await run();
+
+    expect(deleteImage).not.toHaveBeenCalled();
+  });
+
   it("resumes after a partial purge without repeating completed steps", async () => {
     mockDb.on(/SET status = 'purging'/, {
       rows: [deletion({ completed_steps: ["mux_assets", "mux_live_stream"] })],

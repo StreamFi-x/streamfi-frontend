@@ -100,29 +100,32 @@ const legacySocialLinksArraySchema = z.array(
   z.union([legacyTitledLinkSchema, legacyPlatformLinkSchema])
 );
 
-/** Mirrors detectPlatformFromUrl in components/settings/profile/profile-page.tsx. */
+const PLATFORM_DOMAINS: Array<[string, string[]]> = [
+  ["instagram", ["instagram.com"]],
+  ["twitter", ["twitter.com", "x.com"]],
+  ["facebook", ["facebook.com", "fb.com"]],
+  ["youtube", ["youtube.com", "youtu.be"]],
+  ["telegram", ["telegram.org", "telegram.me", "t.me"]],
+  ["discord", ["discord.com", "discord.gg"]],
+  ["tiktok", ["tiktok.com"]],
+];
+
+/**
+ * Platform key for a social link, from the URL's host (the host itself or a
+ * subdomain of it). Same platform set as the settings page, but matched on
+ * the parsed hostname rather than a substring of the whole URL.
+ */
 export function detectPlatformFromUrl(url: string): string {
-  const domain = url.toLowerCase();
-  if (domain.includes("instagram")) {
-    return "instagram";
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return "other";
   }
-  if (domain.includes("twitter") || domain.includes("x.com")) {
-    return "twitter";
-  }
-  if (domain.includes("facebook") || domain.includes("fb.com")) {
-    return "facebook";
-  }
-  if (domain.includes("youtube") || domain.includes("youtu.be")) {
-    return "youtube";
-  }
-  if (domain.includes("telegram") || domain.includes("t.me")) {
-    return "telegram";
-  }
-  if (domain.includes("discord")) {
-    return "discord";
-  }
-  if (domain.includes("tiktok")) {
-    return "tiktok";
+  for (const [platform, domains] of PLATFORM_DOMAINS) {
+    if (domains.some(d => host === d || host.endsWith(`.${d}`))) {
+      return platform;
+    }
   }
   return "other";
 }

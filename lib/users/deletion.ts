@@ -459,7 +459,11 @@ function cloudinaryPublicId(url: unknown): string | null {
     return null;
   }
   try {
-    if (!new URL(url).hostname.endsWith("res.cloudinary.com")) {
+    const host = new URL(url).hostname;
+    if (
+      host !== "res.cloudinary.com" &&
+      !host.endsWith(".res.cloudinary.com")
+    ) {
       return null;
     }
   } catch {
