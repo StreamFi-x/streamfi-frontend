@@ -30,7 +30,7 @@ export function attributeSources(sessions: ViewerSession[]): {
       percent: total === 0 ? 0 : round2((viewers / total) * 100),
     }))
     .sort((a, b) => {
-      if (b.viewers !== a.viewers) return b.viewers - a.viewers;
+      if (b.viewers !== a.viewers) {return b.viewers - a.viewers;}
       return a.source.localeCompare(b.source);
     });
 

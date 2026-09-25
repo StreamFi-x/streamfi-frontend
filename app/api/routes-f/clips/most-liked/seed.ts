@@ -111,6 +111,6 @@ export const clipSeed: ClipRecord[] = [
 ];
 
 export function getClips(creatorId?: string): ClipRecord[] {
-  if (creatorId) return clipSeed.filter(c => c.creator_id === creatorId);
+  if (creatorId) {return clipSeed.filter(c => c.creator_id === creatorId);}
   return clipSeed;
 }

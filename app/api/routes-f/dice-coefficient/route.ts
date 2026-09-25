@@ -13,7 +13,7 @@ function getBigrams(value: string) {
 }
 
 function diceCoefficient(a: string, b: string) {
-  if (a === b) return 1;
+  if (a === b) {return 1;}
   const aBigrams = getBigrams(a);
   const bBigrams = getBigrams(b);
 

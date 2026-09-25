@@ -11,7 +11,7 @@ function parseQueryString(input: string): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
   for (const pair of qs.split("&")) {
-    if (!pair) continue;
+    if (!pair) {continue;}
     const eqIdx = pair.indexOf("=");
     const rawKey = eqIdx >= 0 ? pair.slice(0, eqIdx) : pair;
     const rawVal = eqIdx >= 0 ? pair.slice(eqIdx + 1) : "";
@@ -23,7 +23,7 @@ function parseQueryString(input: string): Record<string, unknown> {
     if (bracketMatch) {
       const parent = bracketMatch[1];
       const child = bracketMatch[2];
-      if (!isRecord(result[parent])) result[parent] = {};
+      if (!isRecord(result[parent])) {result[parent] = {};}
       (result[parent] as Record<string, string>)[child] = val;
       continue;
     }

@@ -46,7 +46,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     new URL(req.url).searchParams,
     getQuerySchema
   );
-  if (queryResult instanceof Response) {
+  if (queryResult instanceof NextResponse) {
     return queryResult;
   }
 
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const bodyResult = await validateBody(req, postBodySchema);
-  if (bodyResult instanceof Response) {
+  if (bodyResult instanceof NextResponse) {
     return bodyResult;
   }
 
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
   const bodyResult = await validateBody(req, deleteBodySchema);
-  if (bodyResult instanceof Response) {
+  if (bodyResult instanceof NextResponse) {
     return bodyResult;
   }
 

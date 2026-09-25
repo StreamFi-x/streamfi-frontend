@@ -47,7 +47,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, listQuerySchema);
-  if (queryResult instanceof Response) {
+  if (queryResult instanceof NextResponse) {
     return queryResult;
   }
 
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const bodyResult = await validateBody(req, createFollowSchema);
-  if (bodyResult instanceof Response) {
+  if (bodyResult instanceof NextResponse) {
     return bodyResult;
   }
 

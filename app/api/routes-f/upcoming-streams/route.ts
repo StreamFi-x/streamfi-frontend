@@ -43,8 +43,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .filter(stream => {
       const startsAt = new Date(stream.starts_at).getTime();
       // Must be in the future (not yet started) and within the window.
-      if (startsAt <= now || startsAt > windowEnd) return false;
-      if (category && stream.category.toLowerCase() !== category) return false;
+      if (startsAt <= now || startsAt > windowEnd) {return false;}
+      if (category && stream.category.toLowerCase() !== category) {return false;}
       return true;
     })
     .sort(

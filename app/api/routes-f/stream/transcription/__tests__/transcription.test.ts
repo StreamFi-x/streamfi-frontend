@@ -19,14 +19,14 @@ const OTHER_ID = "user-other-002";
 const RECORDING_ID = "rec-abc123";
 const JOB_ID = "job-xyz789";
 
-const recordings: Record
+const recordings: Record<
   string,
   { id: string; user_id: string; status: string }
 > = {
   [RECORDING_ID]: { id: RECORDING_ID, user_id: OWNER_ID, status: "ready" },
 };
 
-const jobs: Record
+const jobs: Record<
   string,
   {
     id: string;
@@ -224,7 +224,7 @@ describe("GET /api/routes-f/stream/transcription", () => {
 describe("POST /api/routes-f/stream/transcription", () => {
   beforeEach(() => {
     // Clear jobs so each test starts fresh
-    for (const key of Object.keys(jobs)) delete jobs[key];
+    for (const key of Object.keys(jobs)) {delete jobs[key];}
   });
 
   it("returns 401 for unauthenticated requests", async () => {

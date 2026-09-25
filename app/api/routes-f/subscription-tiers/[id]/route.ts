@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
-import { validateBody } from "../../_lib/validate";
+import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { z } from "zod";
 
 export const runtime = "nodejs";

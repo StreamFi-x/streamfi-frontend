@@ -21,7 +21,7 @@ export interface TipAlertConfig {
 export const store = new Map<string, TipAlertConfig>();
 
 function getOrDefault(creator_id: string): TipAlertConfig {
-  if (store.has(creator_id)) return store.get(creator_id)!;
+  if (store.has(creator_id)) {return store.get(creator_id)!;}
   return {
     creator_id,
     min_amount_usdc: 1,

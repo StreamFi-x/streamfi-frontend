@@ -16,7 +16,7 @@ export function normalizeHexColor(input: string): HexColorResult {
   const invalid: HexColorResult = { valid: false, normalized: null, has_alpha: false };
   const hex = input.trim().replace(/^#/, "").toLowerCase();
 
-  if (!/^[0-9a-f]+$/.test(hex)) return invalid;
+  if (!/^[0-9a-f]+$/.test(hex)) {return invalid;}
 
   const expand = (s: string) => [...s].map((ch) => ch + ch).join("");
 
@@ -38,6 +38,6 @@ const schema = z.object({ color: z.string() });
 
 export async function POST(request: Request): Promise<NextResponse> {
   const result = await validateBody(request, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   return NextResponse.json(normalizeHexColor(result.data.color));
 }

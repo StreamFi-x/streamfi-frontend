@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
     const invalidCharRegex = allow_unicode ? /[^\\p{L}\\p{N}-]/gu : /[^a-z0-9-]/g;
 
     let suggestion = slug;
-    let reasons: string[] = [];
+    const reasons: string[] = [];
 
     // Check uppercase
     if (slug !== slug.toLowerCase()) {

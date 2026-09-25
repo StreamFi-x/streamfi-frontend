@@ -16,7 +16,7 @@ function gcd(a: number, b: number): number {
 function getDecimalPlaces(num: number): number {
   const str = num.toString();
   const dotIndex = str.indexOf(".");
-  if (dotIndex === -1) return 0;
+  if (dotIndex === -1) {return 0;}
   // Handle exponential notation like 1e-7
   if (str.includes("e")) {
     const parts = str.split("e");

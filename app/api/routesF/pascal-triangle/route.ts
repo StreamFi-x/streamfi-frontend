@@ -18,11 +18,11 @@ const querySchema = z.object({
 // Calculate binomial coefficient using integer arithmetic that stays in Number
 // range for the supported row limit.
 function binomialCoefficient(n: number, k: number): number {
-  if (k > n || k < 0) return 0;
-  if (k === 0 || k === n) return 1;
+  if (k > n || k < 0) {return 0;}
+  if (k === 0 || k === n) {return 1;}
 
   // Use symmetry: C(n,k) = C(n,n-k)
-  if (k > n - k) k = n - k;
+  if (k > n - k) {k = n - k;}
 
   let result = 1;
   for (let i = 0; i < k; i++) {

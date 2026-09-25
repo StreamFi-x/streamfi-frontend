@@ -7,11 +7,11 @@ import type { CreatorNode, SimilarCreator } from "./types";
 export function jaccard(a: string[], b: string[]): number {
   const setA = new Set(a);
   const setB = new Set(b);
-  if (setA.size === 0 && setB.size === 0) return 0;
+  if (setA.size === 0 && setB.size === 0) {return 0;}
 
   let intersection = 0;
   for (const item of setA) {
-    if (setB.has(item)) intersection++;
+    if (setB.has(item)) {intersection++;}
   }
   const union = setA.size + setB.size - intersection;
   return union === 0 ? 0 : intersection / union;
@@ -41,7 +41,7 @@ function buildReason(
       }`
     );
   }
-  if (parts.length === 0) return "no shared categories or followers";
+  if (parts.length === 0) {return "no shared categories or followers";}
   return parts.join(" and ");
 }
 
@@ -60,12 +60,12 @@ export function rankSimilarCreators(
   const ranked: SimilarCreator[] = [];
 
   for (const candidate of candidates) {
-    if (candidate.creator_id === target.creator_id) continue;
+    if (candidate.creator_id === target.creator_id) {continue;}
 
     const categoryScore = jaccard(target.categories, candidate.categories);
     const followerScore = jaccard(target.followers, candidate.followers);
     const score = categoryScore + followerScore;
-    if (score === 0) continue;
+    if (score === 0) {continue;}
 
     const sharedCategories = intersection(
       target.categories,

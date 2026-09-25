@@ -68,7 +68,7 @@ export function syncParty(
   paused: boolean
 ): WatchPartyState | undefined {
   const party = parties.get(partyId);
-  if (!party) return undefined;
+  if (!party) {return undefined;}
   party.position_seconds = positionSeconds;
   party.paused = paused;
   party.updated_at = new Date().toISOString();
@@ -84,7 +84,7 @@ export function joinParty(
   viewerId: string
 ): WatchPartyState | undefined {
   const party = parties.get(partyId);
-  if (!party) return undefined;
+  if (!party) {return undefined;}
   if (!party.members.includes(viewerId)) {
     party.members.push(viewerId);
   }

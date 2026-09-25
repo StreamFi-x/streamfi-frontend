@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const MAX_BYTES = 5 * 1024 * 1024;
 
 function sortKeys(obj: unknown): unknown {
-  if (Array.isArray(obj)) return obj.map(sortKeys);
+  if (Array.isArray(obj)) {return obj.map(sortKeys);}
   if (obj !== null && typeof obj === "object") {
     return Object.fromEntries(
       Object.keys(obj as Record<string, unknown>)

@@ -9,7 +9,7 @@ const snapshotRateLimit = new Map<string, number>();
 
 export function getSnapshot(playbackId: string): SnapshotCacheEntry | null {
   const entry = snapshotCache.get(playbackId);
-  if (!entry) return null;
+  if (!entry) {return null;}
   if (Date.now() > entry.expiresAt) {
     snapshotCache.delete(playbackId);
     return null;

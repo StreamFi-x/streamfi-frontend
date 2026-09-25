@@ -35,7 +35,7 @@ const DEFAULT_PREFS = (viewerId: string): DigestPreferences => ({
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const queryResult = validateQuery(searchParams, getQuerySchema);
-  if (queryResult instanceof NextResponse) return queryResult;
+  if (queryResult instanceof NextResponse) {return queryResult;}
 
   const { viewer_id } = queryResult.data;
   const prefs = getPrefs(viewer_id) ?? DEFAULT_PREFS(viewer_id);
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
 export async function PUT(req: NextRequest): Promise<NextResponse> {
   const bodyResult = await validateBody(req, putBodySchema);
-  if (bodyResult instanceof NextResponse) return bodyResult;
+  if (bodyResult instanceof NextResponse) {return bodyResult;}
 
   const { viewer_id, enabled, day_of_week, sections } = bodyResult.data;
   const existing = getPrefs(viewer_id) ?? DEFAULT_PREFS(viewer_id);

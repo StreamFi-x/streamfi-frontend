@@ -63,10 +63,10 @@ interface GoalProgressResponse {
 
 function computeProgress(creator_id: string): GoalProgressResponse | null {
   const goal = goals.get(creator_id);
-  if (!goal) return null;
+  if (!goal) {return null;}
 
   // Check expiry
-  if (goal.ends_at && new Date(goal.ends_at) < new Date()) return null;
+  if (goal.ends_at && new Date(goal.ends_at) < new Date()) {return null;}
 
   const records = tipRecords.get(creator_id) ?? [];
   const current_usdc = records.reduce((sum, r) => sum + r.amount_usdc, 0);

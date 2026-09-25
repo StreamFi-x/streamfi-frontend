@@ -45,7 +45,7 @@ const schema = z.object({
 export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
   const result = validateQuery(searchParams, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   const { count, seed, style } = result.data;
   return NextResponse.json({ names: generateTeamNames(count, seed, style) });
 }

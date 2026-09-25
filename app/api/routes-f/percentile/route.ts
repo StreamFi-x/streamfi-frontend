@@ -5,8 +5,8 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 function linearInterpolate(sorted: number[], p: number): number {
-  if (p === 0) return sorted[0];
-  if (p === 100) return sorted[sorted.length - 1];
+  if (p === 0) {return sorted[0];}
+  if (p === 100) {return sorted[sorted.length - 1];}
 
   const rank = (p / 100) * (sorted.length - 1);
   const lower = Math.floor(rank);

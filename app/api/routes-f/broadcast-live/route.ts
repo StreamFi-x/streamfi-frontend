@@ -44,7 +44,7 @@ const bodySchema = z.object({
 // ---------------------------------------------------------------------------
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const result = await validateBody(req, bodySchema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { creator_id } = result.data;
 

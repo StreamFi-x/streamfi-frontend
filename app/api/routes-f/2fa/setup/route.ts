@@ -9,7 +9,7 @@ import {
 
 export async function POST(request: NextRequest) {
   const session = await verifySession(request);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   try {
     const { rows } = await sql`

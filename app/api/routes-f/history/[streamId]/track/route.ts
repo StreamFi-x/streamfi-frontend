@@ -12,7 +12,7 @@ export async function POST(
   { params }: { params: Promise<{ streamId: string }> }
 ) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   const { userId } = session;
   const { streamId } = await params;

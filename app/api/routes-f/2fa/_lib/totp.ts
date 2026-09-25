@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 import {
   createCipheriv,
   createDecipheriv,
@@ -21,7 +22,7 @@ export function base32Encode(buf: Buffer): string {
       bits -= 5;
     }
   }
-  if (bits > 0) output += B32_ALPHA[(value << (5 - bits)) & 31];
+  if (bits > 0) {output += B32_ALPHA[(value << (5 - bits)) & 31];}
   return output;
 }
 
@@ -32,7 +33,7 @@ export function base32Decode(input: string): Buffer {
   const output: number[] = [];
   for (const ch of clean) {
     const idx = B32_ALPHA.indexOf(ch);
-    if (idx === -1) throw new Error("Invalid base32 character: " + ch);
+    if (idx === -1) {throw new Error("Invalid base32 character: " + ch);}
     value = (value << 5) | idx;
     bits += 5;
     if (bits >= 8) {
@@ -65,7 +66,7 @@ export function generateTotpCode(secret: string, windowOffset = 0): string {
 
 export function verifyTotpToken(secret: string, token: string): boolean {
   for (const w of [-1, 0, 1]) {
-    if (generateTotpCode(secret, w) === token) return true;
+    if (generateTotpCode(secret, w) === token) {return true;}
   }
   return false;
 }
@@ -86,8 +87,8 @@ function resolveKey(): Buffer {
     process.env.TWO_FA_ENCRYPTION_KEY ??
     process.env.STELLAR_ENCRYPTION_KEY ??
     process.env.SESSION_SECRET;
-  if (!raw) throw new Error("Missing encryption key env var");
-  if (/^[0-9a-fA-F]{64}$/.test(raw)) return Buffer.from(raw, "hex");
+  if (!raw) {throw new Error("Missing encryption key env var");}
+  if (/^[0-9a-fA-F]{64}$/.test(raw)) {return Buffer.from(raw, "hex");}
   // SHA-256 of passphrase → 32-byte key
   const { createHash } = require("crypto") as typeof import("crypto");
   return createHash("sha256").update(raw).digest();

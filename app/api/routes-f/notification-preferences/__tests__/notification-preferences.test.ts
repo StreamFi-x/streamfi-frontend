@@ -10,7 +10,7 @@ const OTHER_VIEWER = "v-0002-0000-4000-8000-000000000002";
 
 function makeGet(params: Record<string, string>) {
   const url = new URL(BASE_URL);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  for (const [k, v] of Object.entries(params)) {url.searchParams.set(k, v);}
   return new NextRequest(url.toString(), { method: "GET" });
 }
 

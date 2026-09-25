@@ -46,7 +46,7 @@ function fromStroops(stroops: bigint): string {
 export async function GET(req: NextRequest) {
   // 1. Authenticate creator
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   const { userId } = session;
 

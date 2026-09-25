@@ -23,7 +23,7 @@ export function base32Encode(input: string, padding = true): string {
     out += ALPHABET[(value << (5 - bits)) & 31];
   }
   if (padding) {
-    while (out.length % 8 !== 0) out += "=";
+    while (out.length % 8 !== 0) {out += "=";}
   }
   return out;
 }
@@ -58,7 +58,7 @@ const schema = z.object({
 
 export async function POST(request: Request): Promise<NextResponse> {
   const result = await validateBody(request, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   const { input, mode, padding } = result.data;
 
   if (mode === "encode") {

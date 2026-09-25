@@ -4,7 +4,7 @@ export const categoryTimelines = new Map<string, CategoryTimelineEntry[]>();
 
 export function getCurrentCategory(streamId: string): string | undefined {
   const timeline = categoryTimelines.get(streamId);
-  if (!timeline || timeline.length === 0) return undefined;
+  if (!timeline || timeline.length === 0) {return undefined;}
   return timeline[timeline.length - 1].category;
 }
 

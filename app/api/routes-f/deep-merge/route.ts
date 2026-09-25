@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
@@ -19,8 +20,8 @@ export function deepMerge(
   objects: Record<string, unknown>[],
   arrayStrategy: ArrayStrategy
 ): Record<string, unknown> {
-  if (objects.length === 0) return {};
-  if (objects.length === 1) return objects[0];
+  if (objects.length === 0) {return {};}
+  if (objects.length === 1) {return objects[0];}
 
   const result: Record<string, unknown> = {};
 

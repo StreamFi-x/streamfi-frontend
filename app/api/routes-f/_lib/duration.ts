@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 export type DurationComponents = {
   years?: number;
   months?: number;
@@ -52,16 +53,16 @@ export function formatDuration(components: DurationComponents): string {
 
   let text = "P";
 
-  if (years) text += `${years}Y`;
-  if (months) text += `${months}M`;
-  if (weeks) text += `${weeks}W`;
-  if (days) text += `${days}D`;
+  if (years) {text += `${years}Y`;}
+  if (months) {text += `${months}M`;}
+  if (weeks) {text += `${weeks}W`;}
+  if (days) {text += `${days}D`;}
 
   if (hours || minutes || seconds) {
     text += "T";
-    if (hours) text += `${hours}H`;
-    if (minutes) text += `${minutes}M`;
-    if (seconds) text += `${seconds}S`;
+    if (hours) {text += `${hours}H`;}
+    if (minutes) {text += `${minutes}M`;}
+    if (seconds) {text += `${seconds}S`;}
   }
 
   return text;

@@ -13,15 +13,15 @@ export interface SchemaError {
 type JsonSchema = Record<string, unknown>;
 
 function typeOf(v: unknown): string {
-  if (v === null) return "null";
-  if (Array.isArray(v)) return "array";
+  if (v === null) {return "null";}
+  if (Array.isArray(v)) {return "array";}
   return typeof v;
 }
 
 const join = (path: string, key: string) => (path ? `${path}.${key}` : key);
 
 function walk(schema: JsonSchema, data: unknown, path: string, errors: SchemaError[]): void {
-  if (typeof schema !== "object" || schema === null) return;
+  if (typeof schema !== "object" || schema === null) {return;}
 
   if (schema.type !== undefined) {
     const expected = Array.isArray(schema.type) ? (schema.type as string[]) : [schema.type as string];
@@ -39,7 +39,7 @@ function walk(schema: JsonSchema, data: unknown, path: string, errors: SchemaErr
     const match = (schema.enum as unknown[]).some(
       (e) => JSON.stringify(e) === JSON.stringify(data),
     );
-    if (!match) errors.push({ path, message: "value is not one of the allowed enum values" });
+    if (!match) {errors.push({ path, message: "value is not one of the allowed enum values" });}
   }
 
   if (typeof data === "number") {
@@ -64,12 +64,12 @@ function walk(schema: JsonSchema, data: unknown, path: string, errors: SchemaErr
     const obj = data as Record<string, unknown>;
     if (Array.isArray(schema.required)) {
       for (const key of schema.required as string[]) {
-        if (!(key in obj)) errors.push({ path: join(path, key), message: "required property is missing" });
+        if (!(key in obj)) {errors.push({ path: join(path, key), message: "required property is missing" });}
       }
     }
     if (schema.properties && typeof schema.properties === "object") {
       for (const [key, sub] of Object.entries(schema.properties as Record<string, JsonSchema>)) {
-        if (key in obj) walk(sub, obj[key], join(path, key), errors);
+        if (key in obj) {walk(sub, obj[key], join(path, key), errors);}
       }
     }
   }
@@ -91,7 +91,7 @@ const schema = z.object({
 
 export async function POST(request: Request): Promise<NextResponse> {
   const result = await validateBody(request, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   const { schema: jsonSchema, data } = result.data;
   return NextResponse.json(validateAgainstSchema(jsonSchema as JsonSchema, data));
 }

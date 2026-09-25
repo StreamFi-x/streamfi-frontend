@@ -44,7 +44,7 @@ const schema = z.object({
 export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
   const result = validateQuery(searchParams, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   const { date, fiscal_start_month } = result.data;
   return NextResponse.json(fiscalQuarter(date, fiscal_start_month));
 }

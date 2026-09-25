@@ -14,7 +14,7 @@ import { verifySession } from "@/lib/auth/verify-session";
  */
 export async function GET(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   const { searchParams } = new URL(req.url);
   const keysParam = searchParams.get("keys");

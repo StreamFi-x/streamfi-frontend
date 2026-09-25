@@ -46,7 +46,7 @@ export function getStatusesByCategory(): Record<string, HttpStatus[]> {
 
 export function findNearestStatus(code: number): HttpStatus | undefined {
   return HTTP_STATUSES.reduce<HttpStatus | undefined>((nearest, s) => {
-    if (!nearest) return s;
+    if (!nearest) {return s;}
     return Math.abs(s.code - code) < Math.abs(nearest.code - code) ? s : nearest;
   }, undefined);
 }

@@ -5,6 +5,7 @@
 
 import {
   buildTipTransaction,
+  buildUsdcTipTransaction,
   submitTransaction,
   hasInsufficientBalance,
   getXLMPrice,
@@ -131,6 +132,33 @@ describe("Stellar Payments", () => {
 
       expect(transaction).toBeDefined();
       expect(transaction.memo).toBeDefined();
+    });
+  });
+
+  describe("buildUsdcTipTransaction", () => {
+    beforeEach(() => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        accountId: () => validSenderKey,
+        sequenceNumber: () => "123456",
+        incrementSequenceNumber: jest.fn(),
+      });
+    });
+
+    it("builds a USDC payment with the configured issuer and custom memo", async () => {
+      const tx = await buildUsdcTipTransaction({
+        sourcePublicKey: validSenderKey,
+        destinationPublicKey: validRecipientKey,
+        amount: "10.50",
+        network: "testnet",
+        memo: "thanks for the stream",
+      });
+
+      expect(tx).toBeDefined();
+      expect(tx.operations).toHaveLength(1);
+      expect(tx.operations[0].type).toBe("payment");
+      expect(tx.operations[0].asset.code).toBe("USDC");
+      expect(tx.operations[0].asset.issuer).toBeDefined();
+      expect(tx.memo.value).toBe("thanks for the stream");
     });
   });
 

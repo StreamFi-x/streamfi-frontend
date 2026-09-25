@@ -236,7 +236,7 @@ export function selectByWeight(
   let cumulative = 0;
   for (const c of candidates) {
     cumulative += c.weight;
-    if (roll < cumulative) return c;
+    if (roll < cumulative) {return c;}
   }
   return candidates[candidates.length - 1];
 }

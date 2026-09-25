@@ -8,8 +8,8 @@ export type RoundingMode = "half_up" | "half_even" | "ceil" | "floor" | "trunc";
 function roundHalfEven(x: number): number {
   const floor = Math.floor(x);
   const diff = x - floor;
-  if (diff < 0.5) return floor;
-  if (diff > 0.5) return floor + 1;
+  if (diff < 0.5) {return floor;}
+  if (diff > 0.5) {return floor + 1;}
   // exactly .5 → round to the even neighbour
   return floor % 2 === 0 ? floor : floor + 1;
 }
@@ -48,7 +48,7 @@ const schema = z.object({
 
 export async function POST(request: Request): Promise<NextResponse> {
   const result = await validateBody(request, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   const { value, mode, decimals } = result.data;
   return NextResponse.json({ result: roundValue(value, mode, decimals), mode });
 }

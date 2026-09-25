@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * @jest-environment node
  */
@@ -18,7 +19,7 @@ jest.mock("@vercel/postgres", () => ({
     {
       get(_target, prop) {
         // Handle tagged-template usage: sql`...`
-        if (prop === Symbol.toPrimitive || prop === "toString") return undefined;
+        if (prop === Symbol.toPrimitive || prop === "toString") {return undefined;}
         return mockSql;
       },
       apply(_target, _thisArg, args) {

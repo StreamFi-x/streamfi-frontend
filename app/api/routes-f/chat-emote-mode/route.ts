@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
-import { validateBody } from "../_lib/validate";
+import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -13,11 +13,11 @@ const enableEmoteModeSchema = z.object({
 
 function isEmoteOnly(message: string): boolean {
   const trimmed = message.trim();
-  if (trimmed.length === 0) return false;
+  if (trimmed.length === 0) {return false;}
 
   for (const char of trimmed) {
     const code = char.codePointAt(0);
-    if (!code) continue;
+    if (!code) {continue;}
 
     if (code < 0x1F000) {
       if (!/[\p{Emoji}]/u.test(char)) {

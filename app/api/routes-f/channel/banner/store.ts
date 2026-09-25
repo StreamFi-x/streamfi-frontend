@@ -32,7 +32,7 @@ export function __resetBanners(): void {
 }
 
 export function isValidFocalPoint(value: unknown): value is FocalPoint {
-  if (typeof value !== "object" || value === null) return false;
+  if (typeof value !== "object" || value === null) {return false;}
   const fp = value as { x?: unknown; y?: unknown };
   return (
     typeof fp.x === "number" &&

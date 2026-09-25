@@ -89,14 +89,14 @@ export function computeCharStats(input: unknown): CharStatsResponse {
       whitespace++;
     } else if (RE_LETTER.test(firstChar)) {
       letters++;
-      if (RE_LATIN.test(firstChar)) scriptCounts.latin++;
-      else if (RE_CYRILLIC.test(firstChar)) scriptCounts.cyrillic++;
-      else if (RE_CJK.test(firstChar)) scriptCounts.cjk++;
-      else if (RE_ARABIC.test(firstChar)) scriptCounts.arabic++;
-      else if (RE_DEVANAGARI.test(firstChar)) scriptCounts.devanagari++;
-      else if (RE_GREEK.test(firstChar)) scriptCounts.greek++;
-      else if (RE_HEBREW.test(firstChar)) scriptCounts.hebrew++;
-      else scriptCounts.other++;
+      if (RE_LATIN.test(firstChar)) {scriptCounts.latin++;}
+      else if (RE_CYRILLIC.test(firstChar)) {scriptCounts.cyrillic++;}
+      else if (RE_CJK.test(firstChar)) {scriptCounts.cjk++;}
+      else if (RE_ARABIC.test(firstChar)) {scriptCounts.arabic++;}
+      else if (RE_DEVANAGARI.test(firstChar)) {scriptCounts.devanagari++;}
+      else if (RE_GREEK.test(firstChar)) {scriptCounts.greek++;}
+      else if (RE_HEBREW.test(firstChar)) {scriptCounts.hebrew++;}
+      else {scriptCounts.other++;}
     } else if (RE_DIGIT.test(firstChar)) {
       digits++;
     } else if (RE_PUNCTUATION.test(firstChar)) {

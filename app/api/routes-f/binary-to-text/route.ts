@@ -35,7 +35,7 @@ export function fromBinary(input: string, bits: number): string {
 
 export async function POST(request: Request): Promise<NextResponse> {
   const result = await validateBody(request, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
 
   const { input, mode, bits } = result.data;
 

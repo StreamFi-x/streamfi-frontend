@@ -1,10 +1,14 @@
 import Mux from "@mux/mux-node";
+import { logger } from "@/lib/tracing/logger";
+import { getTraceHeaders } from "@/lib/tracing/trace-context";
 
 // Check if Mux credentials are configured
 if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
-  console.error("⚠️ Mux credentials not configured!");
-  console.error("MUX_TOKEN_ID present:", !!process.env.MUX_TOKEN_ID);
-  console.error("MUX_TOKEN_SECRET present:", !!process.env.MUX_TOKEN_SECRET);
+  const errorMsg = "Mux credentials not configured!";
+  logger.error(errorMsg, {
+    muxTokenIdPresent: !!process.env.MUX_TOKEN_ID,
+    muxTokenSecretPresent: !!process.env.MUX_TOKEN_SECRET,
+  });
 }
 
 // Initialize Mux client
@@ -31,7 +35,16 @@ export async function createMuxStream(streamData?: {
   latencyMode?: "low" | "standard";
   withSignedPlayback?: boolean;
 }) {
+  const startTime = Date.now();
+  const traceHeaders = getTraceHeaders();
+
   try {
+    logger.info("Creating Mux stream", {
+      operation: "createMuxStream",
+      record: streamData?.record,
+      latencyMode: streamData?.latencyMode,
+    });
+
     const record = streamData?.record === true;
     const latencyMode = streamData?.latencyMode ?? "low";
 
@@ -58,6 +71,13 @@ export async function createMuxStream(streamData?: {
     // Get the playback ID from the created stream
     const playbackId = liveStream.playback_ids?.[0]?.id || "";
 
+    const durationMs = Date.now() - startTime;
+    logger.info("Mux stream created successfully", {
+      operation: "createMuxStream",
+      streamId: liveStream.id,
+      durationMs,
+    });
+
     return {
       id: liveStream.id,
       streamKey: liveStream.stream_key || "",
@@ -68,19 +88,34 @@ export async function createMuxStream(streamData?: {
       isActive: liveStream.status === "active",
     };
   } catch (error: any) {
-    console.error("❌ Mux stream creation error:", error);
-    console.error("Error details:", {
-      message: error?.message,
-      response: error?.response?.data,
-      status: error?.response?.status,
+    const durationMs = Date.now() - startTime;
+    logger.error("Mux stream creation failed", {
+      operation: "createMuxStream",
+      durationMs,
+      errorMessage: error?.message,
+      muxStatus: error?.response?.status,
     });
     throw new Error(`Failed to create Mux stream: ${error?.message || error}`);
   }
 }
 
 export async function getMuxStream(streamId: string) {
+  const startTime = Date.now();
+
   try {
+    logger.debug("Retrieving Mux stream", {
+      operation: "getMuxStream",
+      streamId,
+    });
+
     const liveStream = await mux.video.liveStreams.retrieve(streamId);
+
+    const durationMs = Date.now() - startTime;
+    logger.debug("Mux stream retrieved", {
+      operation: "getMuxStream",
+      streamId,
+      durationMs,
+    });
 
     return {
       id: liveStream.id,
@@ -92,24 +127,65 @@ export async function getMuxStream(streamId: string) {
       isActive: liveStream.status === "active",
     };
   } catch (error) {
-    console.error("Mux stream retrieval error:", error);
+    const durationMs = Date.now() - startTime;
+    logger.error("Mux stream retrieval failed", {
+      operation: "getMuxStream",
+      streamId,
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     throw new Error("Failed to retrieve Mux stream");
   }
 }
 
 export async function deleteMuxStream(streamId: string) {
+  const startTime = Date.now();
+
   try {
+    logger.info("Deleting Mux stream", {
+      operation: "deleteMuxStream",
+      streamId,
+    });
+
     await mux.video.liveStreams.delete(streamId);
+
+    const durationMs = Date.now() - startTime;
+    logger.info("Mux stream deleted", {
+      operation: "deleteMuxStream",
+      streamId,
+      durationMs,
+    });
+
     return true;
   } catch (error) {
-    console.error("Mux stream deletion error:", error);
+    const durationMs = Date.now() - startTime;
+    logger.error("Mux stream deletion failed", {
+      operation: "deleteMuxStream",
+      streamId,
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     throw new Error("Failed to delete Mux stream");
   }
 }
 
 export async function getMuxStreamMetrics(streamId: string) {
+  const startTime = Date.now();
+
   try {
+    logger.debug("Fetching Mux stream metrics", {
+      operation: "getMuxStreamMetrics",
+      streamId,
+    });
+
     const liveStream = await mux.video.liveStreams.retrieve(streamId);
+
+    const durationMs = Date.now() - startTime;
+    logger.debug("Mux stream metrics fetched", {
+      operation: "getMuxStreamMetrics",
+      streamId,
+      durationMs,
+    });
 
     return {
       streamId: liveStream.id,
@@ -120,7 +196,13 @@ export async function getMuxStreamMetrics(streamId: string) {
       latencyMode: liveStream.latency_mode,
     };
   } catch (error) {
-    console.error("Mux metrics error:", error);
+    const durationMs = Date.now() - startTime;
+    logger.error("Mux metrics fetch failed", {
+      operation: "getMuxStreamMetrics",
+      streamId,
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     throw new Error("Failed to get stream metrics");
   }
 }
@@ -147,14 +229,13 @@ export async function getPlaybackUrl(playbackId: string) {
  * This function is a no-op intentionally — recording changes take effect the
  * next time a Mux stream is created for this user.
  */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 export async function updateMuxStreamRecording(
   _streamId: string,
   _enable: boolean
 ): Promise<{ success: true }> {
   return { success: true };
 }
-/* eslint-enable @typescript-eslint/no-unused-vars */
 
 export async function enableMuxStreamRecording(streamId: string) {
   try {

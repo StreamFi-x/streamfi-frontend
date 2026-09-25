@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 function countSyllablesInWord(rawWord: string) {
   const word = rawWord.toLowerCase().replace(/[^a-z]/g, "");
-  if (!word) return 0;
+  if (!word) {return 0;}
 
   const groups = word.match(/[aeiouy]+/g)?.length ?? 0;
   const hasConsonantLeEnding = /[^aeiou]le$/.test(word);

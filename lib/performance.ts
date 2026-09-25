@@ -106,7 +106,7 @@ class PerformanceMonitor {
     return 0;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   private sendToAnalytics(_metric: PerformanceMetric) {
     // Send to your analytics service (e.g., Google Analytics, Sentry, etc.)
     // Example:

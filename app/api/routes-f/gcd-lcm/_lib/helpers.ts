@@ -26,8 +26,8 @@ function computeLcm(nums: bigint[]): bigint {
 }
 
 function normalizeOperation(value: unknown): Operation {
-  if (value === undefined || value === "both") return "both";
-  if (value === "gcd" || value === "lcm") return value;
+  if (value === undefined || value === "both") {return "both";}
+  if (value === "gcd" || value === "lcm") {return value;}
   throw new Error("operation must be both, gcd, or lcm.");
 }
 

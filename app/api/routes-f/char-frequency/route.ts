@@ -33,7 +33,7 @@ export function charFrequency(
   let total = 0;
 
   for (const char of normalized) {
-    if (ignoreWhitespace && /\s/.test(char)) continue;
+    if (ignoreWhitespace && /\s/.test(char)) {continue;}
     counts.set(char, (counts.get(char) ?? 0) + 1);
     total += 1;
   }
@@ -59,7 +59,7 @@ const schema = z.object({
 
 export async function POST(request: Request): Promise<NextResponse> {
   const result = await validateBody(request, schema);
-  if (result instanceof NextResponse) return result;
+  if (result instanceof NextResponse) {return result;}
   const { text, case_sensitive, ignore_whitespace, top } = result.data;
   return NextResponse.json(
     charFrequency(text, {

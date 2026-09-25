@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
   const userId = session.userId;
 
   const { searchParams } = new URL(req.url);

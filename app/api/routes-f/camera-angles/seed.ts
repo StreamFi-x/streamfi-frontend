@@ -39,8 +39,8 @@ export function findAngle(
   angleId: string
 ): { stream: MultiAngleStream; angle: MultiAngleStream["angles"][number] } | undefined {
   const stream = getStreamById(streamId);
-  if (!stream) return undefined;
+  if (!stream) {return undefined;}
   const angle = stream.angles.find(a => a.id === angleId);
-  if (!angle) return undefined;
+  if (!angle) {return undefined;}
   return { stream, angle };
 }

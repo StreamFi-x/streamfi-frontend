@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextRequest } from "next/server";
 import { POST } from "../route";
 import { resetGiftStore, getInboxForUser, chatGiftEventsStore, subscriptionStore, giftStore } from "../store";

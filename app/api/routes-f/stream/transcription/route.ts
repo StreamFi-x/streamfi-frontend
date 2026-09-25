@@ -8,7 +8,7 @@ const isRateLimited = createRateLimiter(60_000, 20); // 20 req/min per IP
 // ── GET /api/routes-f/stream/transcription?recording_id= ─────────────────────
 export async function GET(req: NextRequest) {
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   const recordingId = new URL(req.url).searchParams.get("recording_id");
   if (!recordingId) {
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
   }
 
   const session = await verifySession(req);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   let body: { recording_id?: string };
   try {

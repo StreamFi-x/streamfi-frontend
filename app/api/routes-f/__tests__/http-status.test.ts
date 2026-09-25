@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // @ts-nocheck
 /**
  * @jest-environment jsdom

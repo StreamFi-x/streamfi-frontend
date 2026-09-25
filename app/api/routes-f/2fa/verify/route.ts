@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sql } from "@vercel/postgres";
@@ -17,10 +18,10 @@ const verifySchema = z.object({
 
 export async function POST(request: NextRequest) {
   const session = await verifySession(request);
-  if (!session.ok) return session.response;
+  if (!session.ok) {return session.response;}
 
   const body = await validateBody(request, verifySchema);
-  if (body instanceof NextResponse) return body;
+  if (body instanceof NextResponse) {return body;}
 
   try {
     const { rows } = await sql`

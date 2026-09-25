@@ -15,7 +15,7 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 function wrapLine(line: string, width: number, hardBreak: boolean): string[] {
-  if (line.length <= width) return [line];
+  if (line.length <= width) {return [line];}
 
   const result: string[] = [];
   let remaining = line;
@@ -26,13 +26,13 @@ function wrapLine(line: string, width: number, hardBreak: boolean): string[] {
       remaining = remaining.substring(width);
     } else {
       let breakPoint = remaining.lastIndexOf(" ", width);
-      if (breakPoint <= 0) breakPoint = width;
+      if (breakPoint <= 0) {breakPoint = width;}
       result.push(remaining.substring(0, breakPoint));
       remaining = remaining.substring(breakPoint).replace(/^ /, "");
     }
   }
 
-  if (remaining.length > 0) result.push(remaining);
+  if (remaining.length > 0) {result.push(remaining);}
   return result;
 }
 
