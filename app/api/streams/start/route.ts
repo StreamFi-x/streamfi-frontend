@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
 import { verifySession } from "@/lib/auth/verify-session";
-import { writeNotification } from "@/lib/notifications";
+import { writeTemplatedNotification } from "@/lib/notifications";
+import { shouldSendInAppNotification } from "@/lib/notifications/preferences";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
 import { syncScheduleLiveStatusForCreator } from "@/lib/routes-f/schedule";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
@@ -74,14 +75,22 @@ export async function POST(req: NextRequest) {
 
     // Fire-and-forget live notifications to all followers via join table
     sql`SELECT follower_id FROM user_follows WHERE followee_id = ${updatedUser.id}`
-      .then(({ rows }) => {
+      .then(async ({ rows }) => {
         for (const { follower_id } of rows) {
-          writeNotification(
-            follower_id,
-            "live",
-            `${updatedUser.username} is live!`,
-            `${updatedUser.username} just started streaming`
-          ).catch(() => {});
+          try {
+            // Check if follower has live notifications enabled
+            const shouldSend = await shouldSendInAppNotification(follower_id, "live", { sql });
+            if (shouldSend) {
+              await writeTemplatedNotification(
+                follower_id,
+                "live",
+                { actor: updatedUser.username },
+                { sql }
+              );
+            }
+          } catch (err) {
+            console.error(`[stream-start] notification failed for ${follower_id}:`, err);
+          }
         }
       })
       .catch(() => {});
