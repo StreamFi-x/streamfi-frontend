@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { writeNotification } from "@/lib/notifications";
+import {
+  JsonbContractError,
+  NOTIFICATION_TYPES,
+  readNotifications,
+  type NotificationType,
+} from "@/lib/db/jsonb-contracts";
 
 // ─── GET — fetch caller's notifications ──────────────────────────────────────
 export async function GET(req: NextRequest) {
@@ -14,18 +20,26 @@ export async function GET(req: NextRequest) {
     const { rows } = await sql`
       SELECT COALESCE(notifications, ARRAY[]::jsonb[]) AS notifications
       FROM users
-      WHERE id = ${session.userId}
+      WHERE id = ${session.userId} AND deleted_at IS NULL
     `;
 
     if (rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // notifications is JSONB[] — already parsed by @vercel/postgres into an array
-    const raw: Record<string, unknown>[] = rows[0].notifications ?? [];
+    // notifications is JSONB[] — already parsed by @vercel/postgres into an array.
+    // readNotifications maps current and legacy elements to one view shape.
+    const { notifications: all, skipped } = readNotifications(
+      rows[0].notifications
+    );
+    if (skipped > 0) {
+      console.error(
+        `[notifications] skipped ${skipped} malformed element(s) for user ${session.userId}`
+      );
+    }
 
     // Newest-first, cap at 50
-    const notifications = [...raw].reverse().slice(0, 50);
+    const notifications = [...all].reverse().slice(0, 50);
     const unreadCount = notifications.filter(n => n.read === false).length;
 
     return NextResponse.json({ notifications, unreadCount });
@@ -57,10 +71,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (!NOTIFICATION_TYPES.includes(type)) {
+    return NextResponse.json(
+      { error: `type must be one of: ${NOTIFICATION_TYPES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
   try {
-    await writeNotification(recipientId, type, title, text);
+    await writeNotification(
+      recipientId,
+      type as NotificationType,
+      String(title),
+      String(text)
+    );
     return NextResponse.json({ message: "Notification added" });
   } catch (error) {
+    if (error instanceof JsonbContractError) {
+      return NextResponse.json(
+        { error: "Invalid notification", issues: error.issues },
+        { status: 400 }
+      );
+    }
     console.error("POST notification error:", error);
     return NextResponse.json(
       { error: "Failed to add notification" },
