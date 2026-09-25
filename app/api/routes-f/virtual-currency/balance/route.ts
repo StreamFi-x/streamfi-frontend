@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth/verify-session";
-import { getIncomingRaid } from "../store";
+import { getOrCreateBalance, ledgerEntries } from "../store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/routes-f/live/raid/incoming
- * Target creator polls for incoming raid.
+ * GET /api/routes-f/virtual-currency/balance
+ * Returns the authenticated user's current StreamBits balance and recent ledger transactions.
  */
 export async function GET(req: NextRequest) {
   let userId: string | null = null;
@@ -26,10 +26,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const raid = getIncomingRaid(userId);
-    return NextResponse.json({ raid });
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  const balance = getOrCreateBalance(userId);
+  const userLedger = ledgerEntries
+    .filter((entry) => entry.user_id === userId)
+    .slice(-20)
+    .reverse();
+
+  return NextResponse.json({
+    balance,
+    recent_transactions: userLedger,
+  });
 }
