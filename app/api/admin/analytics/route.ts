@@ -1,4 +1,3 @@
-import { sql } from "@vercel/postgres";
 import { currentAdminPrivyId, requireAdminSession } from "@/lib/admin-auth";
 import { CACHE_POLICIES, cacheHeaders, cached } from "@/lib/cache";
 import {
@@ -6,12 +5,12 @@ import {
   rateLimitHeaders,
   tooManyRequests,
 } from "@/lib/rate-limit";
+import { getCurrentAdminAnalytics } from "@/lib/analytics/admin-analytics-rollup";
 
 // The dashboard polls every 30s (hooks/admin/useAdminAnalytics.ts), i.e. 2/min
 // per open tab. 30/min per admin leaves room for several tabs and manual
-// refreshes while capping a runaway refresh loop. The COUNT scans themselves
-// are bounded by the shared 30s cache below, independent of how many admins
-// are looking.
+// refreshes while capping a runaway refresh loop. The metrics are served from
+// a materialized rollup, so no expensive COUNT(*) queries are run per request.
 const adminAnalyticsLimit = createRateLimit({
   namespace: "admin-analytics",
   limit: 30,
@@ -28,25 +27,16 @@ interface AdminAnalyticsStats {
 }
 
 async function loadStats(): Promise<AdminAnalyticsStats> {
-  const { rows } = await sql`
-    SELECT
-      (SELECT COUNT(*) FROM users WHERE is_banned = false)            AS total_users,
-      (SELECT COUNT(*) FROM users WHERE is_live = true)               AS live_now,
-      (SELECT COUNT(*) FROM stream_reports WHERE status = 'pending')  AS pending_stream_reports,
-      (SELECT COUNT(*) FROM bug_reports    WHERE status = 'pending')  AS pending_bug_reports,
-      (SELECT COUNT(*) FROM users
-        WHERE created_at > now() - INTERVAL '7 days')                AS new_users_7d,
-      (SELECT COUNT(*) FROM stream_categories)                        AS total_categories
-  `;
+  // Use materialized rollup instead of live COUNT(*) queries (#1373)
+  const snapshot = await getCurrentAdminAnalytics();
 
-  const row = rows[0];
   return {
-    totalUsers: Number(row.total_users),
-    liveNow: Number(row.live_now),
-    pendingStreamReports: Number(row.pending_stream_reports),
-    pendingBugReports: Number(row.pending_bug_reports),
-    newUsers7d: Number(row.new_users_7d),
-    totalCategories: Number(row.total_categories),
+    totalUsers: snapshot.totalUsersActive,
+    liveNow: snapshot.liveStreamsCount,
+    pendingStreamReports: snapshot.pendingStreamReports,
+    pendingBugReports: snapshot.pendingBugReports,
+    newUsers7d: snapshot.newUsersCount,
+    totalCategories: snapshot.totalCategories,
   };
 }
 
