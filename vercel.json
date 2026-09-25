@@ -11,6 +11,18 @@
     {
       "path": "/api/routes-f/cron-cleanup-expired-clips",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/routes-f/cron-tip-reconciliation",
+      "schedule": "15 * * * *"
+    },
+    {
+      "path": "/api/routes-f/cron-mux-reconciliation",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/routes-f/cron-purge-deleted-users",
+      "schedule": "0 4 * * *"
     }
   ]
 }

@@ -4,6 +4,7 @@ import { sql } from "@vercel/postgres";
 import { fetchPaymentsReceived } from "@/lib/stellar/horizon";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
 import { getXlmUsdPrice } from "@/lib/routes-f/price";
+import { fromStroops, toStroops } from "@/lib/stellar/amounts";
 
 export async function POST(request: Request) {
   try {
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
     const userResult = await sql`
       SELECT id, username, wallet AS stellar_public_key
       FROM users
-      WHERE LOWER(username) = ${username.toLowerCase()}
+      WHERE LOWER(username) = ${username.toLowerCase()} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -60,11 +61,9 @@ export async function POST(request: Request) {
     }
 
     // 3. Calculate totals
-    const totalReceived = allTips
-      .reduce((sum, tip) => {
-        return sum + parseFloat(tip.amount);
-      }, 0)
-      .toFixed(7);
+    const totalReceived = fromStroops(
+      allTips.reduce((sum, tip) => sum + toStroops(tip.amount), BigInt(0))
+    );
 
     const totalCount = allTips.length;
     const lastTipAt = allTips.length > 0 ? allTips[0].timestamp : null;
@@ -72,6 +71,7 @@ export async function POST(request: Request) {
 
     for (const tip of allTips) {
       const supporterResult = await sql`
+        -- tombstone-aware: financial records keep their supporter link
         SELECT id
         FROM users
         WHERE wallet = ${tip.sender}
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
           'StreamFi Tip',
           ${tip.timestamp}
         )
-        ON CONFLICT (tx_hash) DO NOTHING
+        ON CONFLICT (tx_hash) WHERE tx_hash IS NOT NULL DO NOTHING
       `;
     }
 

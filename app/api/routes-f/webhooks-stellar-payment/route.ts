@@ -257,6 +257,7 @@ export async function POST(req: NextRequest) {
 
     // Find creator by wallet address
     const creatorResult = await sql`
+      -- tombstone-aware: a payment to a pending-deletion account is still recorded
       SELECT id, username, wallet FROM users WHERE wallet = ${payload.to}
     `;
 
@@ -275,6 +276,7 @@ export async function POST(req: NextRequest) {
     let supporterUsername = "Anonymous";
     
     const supporterResult = await sql`
+      -- tombstone-aware: financial records keep their supporter link
       SELECT id, username FROM users WHERE wallet = ${payload.from}
     `;
 
@@ -288,37 +290,49 @@ export async function POST(req: NextRequest) {
     const amountXLM = parseFloat(payload.amount);
     const priceUSD = amountXLM * xlmPriceUSD;
 
-    // Insert tip transaction
-    await sql`
-      INSERT INTO tip_transactions (
-        creator_id,
-        supporter_id,
-        amount_xlm,
-        price_usd,
-        tx_hash,
-        memo,
-        created_at
+    // Insert the tip and update the creator's totals in one statement. The
+    // totals only move when the row is new, so a redelivered webhook cannot
+    // count the same transaction twice. The conflict target names the partial
+    // unique index predicate; without it Postgres rejects the statement. The
+    // amount is bound as the validated decimal string, not a float.
+    const { rows: inserted } = await sql`
+      WITH ins AS (
+        INSERT INTO tip_transactions (
+          creator_id,
+          supporter_id,
+          amount_xlm,
+          price_usd,
+          tx_hash,
+          memo,
+          created_at
+        )
+        VALUES (
+          ${creator.id},
+          ${supporterId},
+          ${payload.amount}::numeric,
+          ${priceUSD},
+          ${payload.tx_hash},
+          ${payload.memo || null},
+          NOW()
+        )
+        ON CONFLICT (tx_hash) WHERE tx_hash IS NOT NULL DO NOTHING
+        RETURNING id
       )
-      VALUES (
-        ${creator.id},
-        ${supporterId},
-        ${amountXLM},
-        ${priceUSD},
-        ${payload.tx_hash},
-        ${payload.memo || null},
-        NOW()
-      )
-      ON CONFLICT (tx_hash) DO NOTHING
-    `;
-
-    // Update creator's tip statistics
-    await sql`
       UPDATE users SET
-        total_tips_received = COALESCE(total_tips_received, 0) + ${amountXLM},
+        total_tips_received = COALESCE(total_tips_received, 0) + ${payload.amount}::numeric,
         total_tips_count = COALESCE(total_tips_count, 0) + 1,
         last_tip_at = NOW()
-      WHERE id = ${creator.id}
+      WHERE id = ${creator.id} AND EXISTS (SELECT 1 FROM ins)
+      RETURNING id
     `;
+
+    if (inserted.length === 0) {
+      console.log(`⏭️ Transaction already processed: ${payload.tx_hash}`);
+      return NextResponse.json({
+        message: "Transaction already processed",
+        tx_hash: payload.tx_hash,
+      });
+    }
 
     console.log(`✅ Tip credited: ${amountXLM} XLM ($${priceUSD.toFixed(2)}) to ${creator.username}`);
 
