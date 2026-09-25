@@ -12,6 +12,7 @@ import {
   isSameWeek,
   parseISO,
 } from "date-fns";
+import { CACHE_POLICIES } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -171,7 +172,7 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=300",
+        "Cache-Control": CACHE_POLICIES.privateAnalytics.cacheControl,
       },
     });
 

@@ -11,6 +11,7 @@ import type {
   ActiveMuxLiveStreams,
   MuxLiveStreamStatus,
 } from "@/lib/mux/server";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 /**
  * Mux ↔ DB live-state reconciliation (#1399).
@@ -142,7 +143,7 @@ async function markOffline(
   observedAt: string,
   graceSeconds: number
 ): Promise<{ applied: boolean; sessionsClosed: number }> {
-  return withTransaction(async tx => {
+  const result = await withTransaction(async tx => {
     const { rows } = await tx.sql`
       UPDATE users SET
         is_live = false,
@@ -165,6 +166,11 @@ async function markOffline(
       sessionsClosed: await closeOpenSessions(tx, row.id),
     };
   });
+  // After commit, so a concurrent read cannot re-cache the old live state.
+  if (result.applied) {
+    await invalidateUserCaches({ id: row.id });
+  }
+  return result;
 }
 
 async function markLive(
@@ -172,7 +178,7 @@ async function markLive(
   observedAt: string,
   graceSeconds: number
 ): Promise<{ applied: boolean; sessionOpened: boolean }> {
-  return withTransaction(async tx => {
+  const result = await withTransaction(async tx => {
     const { rows } = await tx.sql<LiveUserRow>`
       UPDATE users SET
         is_live = true,
@@ -196,6 +202,10 @@ async function markLive(
       sessionOpened: await openSessionIfMissing(tx, rows[0]),
     };
   });
+  if (result.applied) {
+    await invalidateUserCaches({ id: row.id });
+  }
+  return result;
 }
 
 /**

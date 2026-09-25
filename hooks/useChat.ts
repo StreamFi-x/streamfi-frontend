@@ -1,6 +1,12 @@
 import { useState, useCallback, useRef } from "react";
 import useSWR from "swr";
 import type { ChatMessage, ChatMessageAPI, UseChatReturn } from "@/types/chat";
+import {
+  reconcileWithRecentWrites,
+  recentWritesFor,
+  rememberDeleted,
+  rememberSent,
+} from "@/lib/chat-recent-writes";
 
 const MAX_MESSAGES = 200;
 const POLL_INTERVAL_MS = 1000;
@@ -81,7 +87,11 @@ export function useChat(
 
   const { data, error, isLoading, mutate } = useSWR<ChatMessage[]>(
     cacheKey,
-    chatFetcher,
+    async (url: string) =>
+      reconcileWithRecentWrites(
+        await chatFetcher(url),
+        playbackId ? recentWritesFor(playbackId) : undefined
+      ),
     {
       refreshInterval: shouldPoll ? POLL_INTERVAL_MS : 0,
       dedupingInterval: 500,
@@ -144,8 +154,19 @@ export function useChat(
           throw new Error(errorData.error || "Failed to send message");
         }
 
-        // Revalidate to get the confirmed message from the server
-        await mutate();
+        // Swap the optimistic entry for the confirmed one. Refetching here
+        // could return a shared window that predates this message.
+        const { chatMessage } = await res.json();
+        const confirmed = normalizeMessage(chatMessage);
+        rememberSent(recentWritesFor(playbackId), confirmed);
+        await mutate(
+          current =>
+            reconcileWithRecentWrites(
+              (current || []).filter(m => m.id !== optimisticId),
+              recentWritesFor(playbackId)
+            ).slice(-MAX_MESSAGES),
+          { revalidate: false }
+        );
       } catch (err) {
         // Rollback optimistic update
         await mutate(
@@ -164,7 +185,7 @@ export function useChat(
 
   const deleteMessage = useCallback(
     async (messageId: number) => {
-      if (!wallet) {
+      if (!wallet || !playbackId) {
         return;
       }
 
@@ -188,13 +209,13 @@ export function useChat(
           throw new Error(errorData.error || "Failed to delete message");
         }
 
-        await mutate();
+        rememberDeleted(recentWritesFor(playbackId), messageId);
       } catch {
         // Revalidate to restore the message if delete failed
         await mutate();
       }
     },
-    [wallet, mutate]
+    [wallet, playbackId, mutate]
   );
 
   return {

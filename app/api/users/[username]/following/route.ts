@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { CACHE_POLICIES } from "@/lib/cache";
 
 export async function GET(
   req: NextRequest,
@@ -35,7 +36,7 @@ export async function GET(
     return NextResponse.json(
       { following: followingProfiles },
       {
-        headers: { "Cache-Control": "public, s-maxage=30" },
+        headers: { "Cache-Control": CACHE_POLICIES.publicListing.cacheControl },
       }
     );
   } catch (error) {

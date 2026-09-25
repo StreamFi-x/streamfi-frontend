@@ -1,4 +1,4 @@
--- Enforce the JSONB contracts from 20260925110000 at the database layer (#1407).
+-- Enforce the JSONB contracts from 20260925200000 at the database layer (#1407).
 --
 -- Prerequisite: run the JSONB audit and resolve every row it reports as
 -- "invalid" (see docs/data-integrity.md). This migration aborts, and the
@@ -8,7 +8,7 @@
 -- (including unrelated columns such as is_live).
 --
 -- The constraints are added NOT VALID here (brief lock, no scan) and validated
--- online by 20260925120100_validate_jsonb_contract_constraints. Columns that
+-- online by 20260925210100_validate_jsonb_contract_constraints. Columns that
 -- do not exist in an environment are skipped.
 
 DO $$

@@ -1,7 +1,7 @@
 -- migrate:no-transaction
 --
 -- Validates the JSONB contract constraints added NOT VALID by
--- 20260925120000_jsonb_contract_constraints. VALIDATE CONSTRAINT takes SHARE
+-- 20260925210000_jsonb_contract_constraints. VALIDATE CONSTRAINT takes SHARE
 -- UPDATE EXCLUSIVE, so reads and writes continue during the scan.
 
 DO $$

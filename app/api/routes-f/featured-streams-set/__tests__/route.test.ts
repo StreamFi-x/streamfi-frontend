@@ -3,7 +3,12 @@
  */
 jest.mock("@vercel/postgres", () => {
   const sqlMock = jest.fn();
-  return { sql: sqlMock };
+  // withTransaction checks out a pooled client; route its statements through
+  // the same mock so the BEGIN/.../COMMIT sequence stays observable.
+  return {
+    sql: sqlMock,
+    db: { connect: async () => ({ sql: sqlMock, release: jest.fn() }) },
+  };
 });
 jest.mock("@/lib/admin-auth", () => ({
   requireAdminSession: jest.fn(),

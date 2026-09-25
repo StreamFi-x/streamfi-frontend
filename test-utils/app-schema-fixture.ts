@@ -55,6 +55,7 @@ CREATE TABLE chat_messages (
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE CASCADE,
   content TEXT,
+  is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 

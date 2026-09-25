@@ -13,6 +13,7 @@
  * purge cannot both win, and two purge workers cannot claim the same user.
  */
 import { sql } from "@vercel/postgres";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 import {
   deleteMuxAssetIfExists,
   deleteMuxLiveStreamIfExists,
@@ -92,14 +93,21 @@ export async function requestAccountDeletion(input: {
       UPDATE users
       SET deleted_at = now(), is_live = false, current_viewers = 0, updated_at = now()
       WHERE id IN (SELECT user_id FROM ins)
-      RETURNING id, mux_stream_id
+      RETURNING id, mux_stream_id, username, wallet
     )
-    SELECT ins.*, tomb.mux_stream_id
+    SELECT ins.*, tomb.mux_stream_id, tomb.username AS user_username,
+           tomb.wallet AS user_wallet
     FROM ins JOIN tomb ON tomb.id = ins.user_id
   `;
 
   if (rows.length === 1) {
-    const { mux_stream_id: muxStreamId, ...deletion } = rows[0];
+    const {
+      mux_stream_id: muxStreamId,
+      user_username: username,
+      user_wallet: wallet,
+      ...deletion
+    } = rows[0];
+    await invalidateUserCaches({ id: input.userId, username, wallet });
     // Stop the tombstoned account from broadcasting. Best effort: the purge
     // deletes the live stream later regardless.
     if (muxStreamId) {
@@ -158,12 +166,17 @@ export async function cancelAccountDeletion(input: {
     restored AS (
       UPDATE users SET deleted_at = NULL, updated_at = now()
       WHERE id IN (SELECT user_id FROM c)
-      RETURNING id, mux_stream_id
+      RETURNING id, mux_stream_id, username, wallet
     )
-    SELECT id, mux_stream_id FROM restored
+    SELECT id, mux_stream_id, username, wallet FROM restored
   `;
 
   if (rows.length === 1) {
+    await invalidateUserCaches({
+      id: input.userId,
+      username: rows[0].username,
+      wallet: rows[0].wallet,
+    });
     if (rows[0].mux_stream_id) {
       await enableMuxStream(String(rows[0].mux_stream_id)).catch(err =>
         console.error(

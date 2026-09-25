@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { sql } from "@vercel/postgres";
 import { unstable_cache } from "next/cache";
+import { CACHE_POLICIES, cacheTags } from "@/lib/cache";
 
 const BASE = "https://www.streamfi.media";
 
@@ -20,24 +21,29 @@ type UserRow = {
   stream_privacy: string | null;
 };
 
-const fetchWatchUser = unstable_cache(
-  async (slug: string): Promise<UserRow | null> => {
-    try {
-      const { rows } = await sql`
-        SELECT username, avatar, bio, is_live, creator, mux_playback_id,
-               stream_privacy
-        FROM users
-        WHERE LOWER(username) = ${slug} AND deleted_at IS NULL
-        LIMIT 1
-      `;
-      return (rows[0] as UserRow) ?? null;
-    } catch {
-      return null;
+// Tagged per user so profile writes purge it (lib/cache/invalidation.ts).
+const fetchWatchUser = (slug: string): Promise<UserRow | null> =>
+  unstable_cache(
+    async (): Promise<UserRow | null> => {
+      try {
+        const { rows } = await sql`
+          SELECT username, avatar, bio, is_live, creator, mux_playback_id,
+                 stream_privacy
+          FROM users
+          WHERE LOWER(username) = ${slug} AND deleted_at IS NULL
+          LIMIT 1
+        `;
+        return (rows[0] as UserRow) ?? null;
+      } catch {
+        return null;
+      }
+    },
+    ["watch-page-meta", slug],
+    {
+      revalidate: CACHE_POLICIES.publicProfile.appTtlSeconds,
+      tags: [cacheTags.userByName(slug)],
     }
-  },
-  ["watch-page-meta"],
-  { revalidate: 60 }
-);
+  )();
 
 /**
  * OG / Twitter metadata for /[username]/watch — overrides the parent

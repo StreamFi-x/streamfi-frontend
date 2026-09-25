@@ -16,6 +16,7 @@
  * a concurrent user update is never overwritten.
  */
 import { sql } from "@vercel/postgres";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 import {
   classifyCreator,
   classifyNotifications,
@@ -214,7 +215,7 @@ async function normalizeValue(
           UPDATE users SET creator = ${after}::jsonb
           WHERE id = ${userId} AND creator = ${before}::jsonb
         `;
-  return result.rowCount === 1;
+  return changed(userId, result.rowCount);
 }
 
 async function quarantineValue(
@@ -250,7 +251,19 @@ async function quarantineValue(
           UPDATE users SET creator = '{}'::jsonb
           WHERE id IN (SELECT row_id FROM q)
         `;
-  return result.rowCount === 1;
+  return changed(userId, result.rowCount);
+}
+
+/** sociallinks and creator are part of the cached public profile. */
+async function changed(
+  userId: string,
+  rowCount: number | null
+): Promise<boolean> {
+  if (rowCount !== 1) {
+    return false;
+  }
+  await invalidateUserCaches({ id: userId });
+  return true;
 }
 
 async function quarantineNotifications(

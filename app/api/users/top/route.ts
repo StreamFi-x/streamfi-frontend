@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { CACHE_POLICIES } from "@/lib/cache";
 
 /**
  * GET /api/users/top?limit=5
@@ -32,10 +33,7 @@ export async function GET(req: NextRequest) {
     `;
 
     const res = NextResponse.json({ users: rows });
-    res.headers.set(
-      "Cache-Control",
-      "public, s-maxage=60, stale-while-revalidate=120"
-    );
+    res.headers.set("Cache-Control", CACHE_POLICIES.publicListing.cacheControl);
     return res;
   } catch (error) {
     console.error("[users/top] DB error:", error);

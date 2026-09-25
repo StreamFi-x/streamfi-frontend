@@ -8,6 +8,7 @@ import {
   isMergeableCreator,
   prepareCreatorPatch,
 } from "@/lib/db/jsonb-contracts";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 // Stream creation calls Mux API + DB — limit per IP to prevent quota exhaustion
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 10); // 10 per hour per IP
@@ -218,6 +219,7 @@ export async function POST(req: NextRequest) {
           updated_at = CURRENT_TIMESTAMP
         WHERE wallet = ${wallet}
       `;
+      await invalidateUserCaches({ wallet });
       console.log("✅ User updated successfully with stream data");
     } catch (dbError) {
       console.error("❌ Database update failed:", dbError);

@@ -10,6 +10,7 @@ import {
   prepareCreator,
   prepareSocialLinks,
 } from "@/lib/db/jsonb-contracts";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 // Registration creates a Mux stream + DB write — strict limit to prevent abuse
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 5); // 5 per hour per IP
@@ -198,6 +199,8 @@ async function handler(req: NextRequest) {
       )
     `;
 
+    // Profile layouts cache "not found" (unstable_cache); purge it for the new handle.
+    await invalidateUserCaches({ username, wallet });
     console.log(`[register] User registered: ${username}`);
 
     await sendWelcomeRegistrationEmail(email, username);

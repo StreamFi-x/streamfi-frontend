@@ -10,7 +10,6 @@ const envSchema = z.object({
   NEXTAUTH_URL: z.string().url(),
 
   // API Keys
-  LIVEPEER_API_KEY: z.string().min(1),
   CLOUDINARY_CLOUD_NAME: z.string().min(1),
   CLOUDINARY_API_KEY: z.string().min(1),
   CLOUDINARY_API_SECRET: z.string().min(1),

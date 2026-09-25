@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth/verify-session";
 import { sql } from "@vercel/postgres";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -81,6 +82,11 @@ export async function PATCH(req: NextRequest) {
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ${session.userId}
     `;
+    await invalidateUserCaches({
+      id: session.userId,
+      username: cleanHandle,
+      previousUsername: session.username,
+    });
   } catch {
     if (session.wallet) {
       try {
@@ -90,6 +96,11 @@ export async function PATCH(req: NextRequest) {
               updated_at = CURRENT_TIMESTAMP
           WHERE wallet = ${session.wallet}
         `;
+        await invalidateUserCaches({
+      id: session.userId,
+      username: cleanHandle,
+      previousUsername: session.username,
+    });
       } catch {
         // Fallback
       }

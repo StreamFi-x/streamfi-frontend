@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 const completeSchema = z.object({
   display_name: z.string().min(1).max(50).optional(),
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
           updated_at   = NOW()
       WHERE id = ${session.userId}
     `;
+    await invalidateUserCaches({ id: session.userId });
 
     // Mark onboarding as completed
     await sql`

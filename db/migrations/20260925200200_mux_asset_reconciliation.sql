@@ -15,7 +15,7 @@ BEGIN
   IF to_regclass('stream_clips') IS NOT NULL THEN
     ALTER TABLE stream_clips ADD COLUMN IF NOT EXISTS unavailable_at TIMESTAMPTZ;
     ALTER TABLE stream_clips DROP CONSTRAINT IF EXISTS stream_clips_status_check;
-    -- Validated online by 20260925110400_data_integrity_online_steps.
+    -- Validated online by 20260925200400_data_integrity_online_steps.
     ALTER TABLE stream_clips
       ADD CONSTRAINT stream_clips_status_check
       CHECK (status IN ('processing', 'ready', 'failed', 'unavailable')) NOT VALID;

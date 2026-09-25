@@ -34,6 +34,9 @@ jest.mock("@/lib/mux/server", () => ({
   })),
   updateMuxStreamRecording: jest.fn(async () => ({ success: true })),
 }));
+jest.mock("@/lib/cache/invalidation", () => ({
+  invalidateUserCaches: jest.fn(),
+}));
 jest.mock("@/utils/upload/cloudinary", () => ({
   uploadImage: jest.fn(),
   uploadImageFromBuffer: jest.fn(),

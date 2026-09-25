@@ -5,6 +5,7 @@ import { verifySession } from "@/lib/auth/verify-session";
 import { writeNotification } from "@/lib/notifications";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
 import { syncScheduleLiveStatusForCreator } from "@/lib/routes-f/schedule";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 export async function POST(req: NextRequest) {
   // Verify the caller is logged in
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
       WHERE id = ${user.id}
       RETURNING id, username, mux_stream_id, mux_playback_id
     `;
+    await invalidateUserCaches({ id: user.id });
 
     const updatedUser = result.rows[0];
 
@@ -140,6 +142,7 @@ export async function DELETE(req: NextRequest) {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${user.id}
     `;
+    await invalidateUserCaches({ id: user.id });
 
     try {
       await sql`

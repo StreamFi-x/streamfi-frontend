@@ -1,6 +1,7 @@
 import React from "react";
 import { sql } from "@vercel/postgres";
 import { unstable_cache } from "next/cache";
+import { CACHE_POLICIES, cacheTags } from "@/lib/cache";
 import type { Metadata } from "next";
 import UsernameLayoutClient from "./UsernameLayoutClient";
 
@@ -22,24 +23,29 @@ type UserRow = {
 };
 
 // unstable_cache deduplicates the DB query so generateMetadata and the layout
-// render share one result per request. revalidate: 60 keeps live status fresh.
-const fetchUser = unstable_cache(
-  async (slug: string): Promise<UserRow | null> => {
-    try {
-      const { rows } = await sql`
-        SELECT username, avatar, bio, is_live, creator, mux_playback_id, stream_started_at
-        FROM users
-        WHERE LOWER(username) = ${slug} AND deleted_at IS NULL
-        LIMIT 1
-      `;
-      return (rows[0] as UserRow) ?? null;
-    } catch {
-      return null;
+// render share one result per request. The TTL bounds live-status staleness;
+// the per-user tag lets profile writes purge it (lib/cache/invalidation.ts).
+const fetchUser = (slug: string): Promise<UserRow | null> =>
+  unstable_cache(
+    async (): Promise<UserRow | null> => {
+      try {
+        const { rows } = await sql`
+          SELECT username, avatar, bio, is_live, creator, mux_playback_id, stream_started_at
+          FROM users
+          WHERE LOWER(username) = ${slug} AND deleted_at IS NULL
+          LIMIT 1
+        `;
+        return (rows[0] as UserRow) ?? null;
+      } catch {
+        return null;
+      }
+    },
+    ["user-profile", slug],
+    {
+      revalidate: CACHE_POLICIES.publicProfile.appTtlSeconds,
+      tags: [cacheTags.userByName(slug)],
     }
-  },
-  ["user-profile"],
-  { revalidate: 60 }
-);
+  )();
 
 export async function generateMetadata({
   params,

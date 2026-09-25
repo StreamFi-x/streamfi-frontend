@@ -21,8 +21,8 @@ const INTERNAL_FILES: Record<string, string> = {
   "app/api/auth/wallet-session/route.ts":
     "sign-in bootstrap; tombstoned users sign in to cancel their deletion",
   "app/api/debug/clear-users/route.ts": "secret-guarded dev tool",
-  "app/api/debug/fix-db/route.ts": "secret-less dev schema tool",
-  "app/api/debug/user-stream/route.ts": "dev diagnostics",
+  "lib/cache/invalidation.ts":
+    "resolves the identifiers of any row, tombstoned ones included, to purge their cache entries",
   "app/api/webhooks/mux/route.ts":
     "provider events must be recorded for every account",
   "app/api/routes-f/webhooks-mux-asset/route.ts":

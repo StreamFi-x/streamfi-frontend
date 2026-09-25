@@ -4,9 +4,9 @@
 -- outside a transaction, statement by statement, so they do not hold a
 -- write-blocking lock while scanning:
 --   * the partial index on users.deleted_at is built CONCURRENTLY;
---   * foreign keys re-created NOT VALID by 20260925110100_user_tombstones and
+--   * foreign keys re-created NOT VALID by 20260925200100_user_tombstones and
 --     the widened stream_clips status check from
---     20260925110200_mux_asset_reconciliation are validated under
+--     20260925200200_mux_asset_reconciliation are validated under
 --     SHARE UPDATE EXCLUSIVE (reads and writes continue).
 -- Every statement is idempotent.
 

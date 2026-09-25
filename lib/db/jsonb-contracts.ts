@@ -4,7 +4,7 @@
  * These Zod schemas are the source of truth for shape. Every application write
  * to users.sociallinks, users.creator or users.notifications must go through
  * the `prepare*` / `build*` helpers below. The database enforces a coarser
- * structural invariant (see db/migrations/20260925110000_jsonb_contract_functions.sql)
+ * structural invariant (see db/migrations/20260925200000_jsonb_contract_functions.sql)
  * so that direct SQL cannot store a value of the wrong JSON type.
  *
  * Evolution rules (docs/data-integrity.md):
@@ -389,7 +389,7 @@ function legacyNotificationId(index: number, title: string, text: string) {
  * nonconforming allowed by the database constraint but fails the canonical
  *               schema (e.g. a non-http URL, an unknown key); needs review
  * invalid       violates the database structural contract; must be repaired or
- *               quarantined before migration 20260925120000 can be applied
+ *               quarantined before migration 20260925210000 can be applied
  */
 export type Classification =
   | "valid"

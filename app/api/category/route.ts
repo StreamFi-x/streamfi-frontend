@@ -1,6 +1,14 @@
 import { NextResponse, NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { requireAdminSession } from "@/lib/admin-auth";
+import {
+  CACHE_POLICIES,
+  cacheHeaders,
+  cacheKey,
+  cacheTags,
+  cached,
+} from "@/lib/cache";
+import { invalidateCategoryCaches } from "@/lib/cache/invalidation";
 
 //TO CREATE A CATEGORY
 export async function POST(req: NextRequest) {
@@ -55,6 +63,7 @@ export async function POST(req: NextRequest) {
     `;
 
     const createdCategory = insertedRows[0];
+    await invalidateCategoryCaches();
 
     console.log("Category created successfully:", createdCategory);
 
@@ -88,7 +97,61 @@ export async function POST(req: NextRequest) {
   }
 }
 
+type CategoryLookup =
+  | { by: "id"; value: string }
+  | { by: "title"; value: string }
+  | { by: "tag"; value: string }
+  | { by: "all" };
+
+async function loadCategoryRows(lookup: CategoryLookup) {
+  switch (lookup.by) {
+    // Get specific category by title
+    case "id":
+      return (
+        await sql`
+          SELECT id, title, tags, imageurl
+          FROM stream_categories
+          WHERE LOWER(title) = ${lookup.value}
+          LIMIT 1
+        `
+      ).rows;
+    // Search by title (live match)
+    case "title":
+      return (
+        await sql`
+          SELECT id, title, tags, imageurl
+          FROM stream_categories
+          WHERE LOWER(title) LIKE ${"%" + lookup.value + "%"}
+          ORDER BY created_at DESC
+        `
+      ).rows;
+    // Search by tag (live match in tags array)
+    case "tag":
+      return (
+        await sql`
+          SELECT id, title, tags, imageurl
+          FROM stream_categories
+          WHERE EXISTS (
+            SELECT 1 FROM UNNEST(tags) AS t
+            WHERE LOWER(t) LIKE ${"%" + lookup.value + "%"}
+          )
+          ORDER BY created_at DESC
+        `
+      ).rows;
+    // Get all categories (default)
+    case "all":
+      return (
+        await sql`
+          SELECT id, title, tags, imageurl
+          FROM stream_categories
+          ORDER BY created_at DESC
+        `
+      ).rows;
+  }
+}
+
 // TO GET CATEGORIES (ALL, BY SEARCH AND SINGLE BY ID)
+// Reference data: cached for an hour and purged by POST/PATCH/DELETE below.
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -96,66 +159,42 @@ export async function GET(req: Request) {
     const tag = searchParams.get("tag"); // for tag search
     const id = searchParams.get("id"); // to get single category by ID/title
 
-    let result;
+    const lookup: CategoryLookup = id
+      ? { by: "id", value: id.toLowerCase() }
+      : title
+        ? { by: "title", value: title.toLowerCase() }
+        : tag
+          ? { by: "tag", value: tag.toLowerCase() }
+          : { by: "all" };
 
-    // Basic test to confirm DB works
-    const testResult = await sql`SELECT * FROM stream_categories LIMIT 1`;
-    console.log("Test result:", testResult.rows);
+    const rows = await cached(
+      {
+        key: cacheKey(
+          "categories",
+          lookup.by,
+          "value" in lookup ? lookup.value : ""
+        ),
+        tags: [cacheTags.categories()],
+        ttlSeconds: CACHE_POLICIES.referenceData.appTtlSeconds,
+      },
+      () => loadCategoryRows(lookup)
+    );
+    const headers = cacheHeaders("referenceData");
 
-    // Get specific category by title
-    if (id) {
-      result = await sql`
-        SELECT id, title, tags, imageurl
-        FROM stream_categories
-        WHERE LOWER(title) = ${id.toLowerCase()}
-        LIMIT 1
-      `;
-
-      if (result.rows.length === 0) {
+    if (lookup.by === "id") {
+      if (rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Category not found" },
           { status: 404 }
         );
       }
-
-      return NextResponse.json({ success: true, category: result.rows[0] });
+      return NextResponse.json(
+        { success: true, category: rows[0] },
+        { headers }
+      );
     }
 
-    // Search by title (live match)
-    if (title) {
-      result = await sql`
-        SELECT id, title, tags, imageurl
-        FROM stream_categories
-        WHERE LOWER(title) LIKE ${"%" + title.toLowerCase() + "%"}
-        ORDER BY created_at DESC
-      `;
-
-      return NextResponse.json({ success: true, categories: result.rows });
-    }
-
-    // Search by tag (live match in tags array)
-    if (tag) {
-      result = await sql`
-        SELECT id, title, tags, imageurl
-        FROM stream_categories
-        WHERE EXISTS (
-          SELECT 1 FROM UNNEST(tags) AS t
-          WHERE LOWER(t) LIKE ${"%" + tag.toLowerCase() + "%"}
-        )
-        ORDER BY created_at DESC
-      `;
-
-      return NextResponse.json({ success: true, categories: result.rows });
-    }
-
-    // Get all categories (default)
-    result = await sql`
-      SELECT id, title, tags, imageurl
-      FROM stream_categories
-      ORDER BY created_at DESC
-    `;
-
-    return NextResponse.json({ success: true, categories: result.rows });
+    return NextResponse.json({ success: true, categories: rows }, { headers });
   } catch (error) {
     console.error("Error fetching categories:", error);
     return NextResponse.json(
@@ -196,6 +235,7 @@ export async function PATCH(req: Request) {
         is_active = COALESCE(${is_active}, is_active)
        WHERE LOWER(title) = ${titleParams.toLowerCase()}
     `;
+    await invalidateCategoryCaches();
 
     return NextResponse.json({ success: true, message: "Category updated" });
   } catch (error) {
@@ -228,6 +268,7 @@ export async function DELETE(req: Request) {
       DELETE FROM stream_categories
       WHERE LOWER(title) = ${title.toLowerCase()}
     `;
+    await invalidateCategoryCaches();
 
     return NextResponse.json({ success: true, message: "Category deleted" });
   } catch (error) {

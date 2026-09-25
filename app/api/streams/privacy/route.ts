@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { generateShareToken, type StreamPrivacy } from "@/lib/stream-access";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 const VALID_PRIVACY: StreamPrivacy[] = [
   "public",
@@ -106,6 +107,7 @@ export async function POST(req: Request) {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${user.id}
     `;
+    await invalidateUserCaches({ id: user.id });
 
     return NextResponse.json({
       privacy: nextPrivacy,

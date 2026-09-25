@@ -4,6 +4,7 @@ import { z } from "zod";
 import { verifySession } from "@/lib/auth/verify-session";
 import { validateBody, validateQuery } from "@/app/api/routes-f/_lib/validate";
 import { insertActivityEvent } from "@/app/api/routes-f/activity/_lib/insert";
+import { invalidateFollowCaches } from "@/lib/cache/invalidation";
 
 const createFollowSchema = z.object({
   creator_id: z.string().uuid(),
@@ -153,6 +154,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         { status: 409 }
       );
     }
+    await invalidateFollowCaches(session.userId, creator_id);
 
     try {
       await insertActivityEvent({

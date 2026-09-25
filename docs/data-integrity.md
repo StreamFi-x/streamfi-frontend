@@ -67,8 +67,8 @@ New code that writes one of these columns must use the helpers above.
 Postgres has no built-in JSON Schema support, and `pg_jsonschema` is not
 available on every host, so the database enforces a coarser structural
 invariant through `IMMUTABLE` functions used in `CHECK` constraints
-(`db/migrations/20260925110000_jsonb_contract_functions.sql`,
-`20260925120000_jsonb_contract_constraints.sql` and `20260925120100_validate_jsonb_contract_constraints.sql`):
+(`db/migrations/20260925200000_jsonb_contract_functions.sql`,
+`20260925210000_jsonb_contract_constraints.sql` and `20260925210100_validate_jsonb_contract_constraints.sql`):
 
 - `sociallinks`: `NULL`, an object whose values are strings/`null`, or an array of objects;
 - `creator`: `NULL` or an object; known keys must have the documented JSON type;
@@ -78,7 +78,7 @@ These accept every current and recognised legacy shape, so direct SQL cannot
 store a value of the wrong JSON type, while the exact shape (URL format, enum
 values, lengths, unknown keys) stays in the application layer where it can
 evolve and produce useful errors. Rows that violate the invariant would make
-every `UPDATE` of that user fail, which is why `20260925120000` refuses to run
+every `UPDATE` of that user fail, which is why `20260925210000` refuses to run
 until the audit reports none.
 
 ### Audit, normalisation and quarantine
@@ -89,7 +89,7 @@ until the audit reports none.
 - `normalizable` — legacy/double-encoded, with a deterministic lossless canonical form
 - `legacy` — recognised, readable, but no lossless canonical form (e.g. two links for one platform); left in place
 - `nonconforming` — allowed by the database constraint but fails the schema (e.g. `ftp://` URL, unknown key); needs review
-- `invalid` — violates the database invariant; must be fixed before `20260925120000`
+- `invalid` — violates the database invariant; must be fixed before `20260925210000`
 
 The report lists user ids, columns and schema issue paths — never stored values.
 Page through with `nextCursor`.
@@ -233,11 +233,11 @@ skipped or silently cascade.
 Financial records are preserved: they keep pointing at the users row, which
 the purge scrubs of personal data (email, Privy id, custodial key, bio, avatar,
 banner, social links, creator metadata, notifications, stream keys and Mux ids)
-instead of deleting. `20260925110100_user_tombstones` also changed the financial foreign keys
+instead of deleting. `20260925200100_user_tombstones` also changed the financial foreign keys
 that used `ON DELETE CASCADE` (`tip_transactions`, `gift_transactions`,
 `subscriptions`, `subscription_tiers`, `payouts`) to `ON DELETE RESTRICT`, so an
 accidental `DELETE FROM users` can no longer erase financial history.
-`verification_tokens` rows for the user's email are deleted.
+`verification_tokens` rows for the user's email and the user's archived Livepeer ids (`legacy_livepeer_refs`, no foreign key) are deleted.
 
 Not covered (no foreign key to `users`): `stream_reports` / `bug_reports`
 store a free-text `reporter_id`, and `waitlist` is keyed by email and managed
@@ -292,7 +292,7 @@ Nothing is deleted automatically.
 | Drift                    | Automatic                                                                                                                                                                                                                                                                                                                                             | Admin (`POST /api/admin/reconciliation/mux {"findingId","action"}`)                                                                     |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Mux asset without DB row | none; resolved automatically if the row appears or the asset disappears (confirmed 404)                                                                                                                                                                                                                                                               | `adopt` — create the recording for the live stream's (active) owner; `delete_mux_asset` — only if still no row references it; `dismiss` |
-| DB row without Mux asset | after **two** 404 confirmations at least 24 hours apart, the recording or clip is hidden (`status = 'unavailable'`, `unavailable_at`; `20260925110200_mux_asset_reconciliation` adds `unavailable` to the `stream_clips` status check); the row and its previous status are kept. Resolved automatically if the asset reappears or the row is deleted |
+| DB row without Mux asset | after **two** 404 confirmations at least 24 hours apart, the recording or clip is hidden (`status = 'unavailable'`, `unavailable_at`; `20260925200200_mux_asset_reconciliation` adds `unavailable` to the `stream_clips` status check); the row and its previous status are kept. Resolved automatically if the asset reappears or the row is deleted |
 
 Every public read already filters `status = 'ready'`, so hidden recordings and
 clips stop appearing in the UI.
@@ -446,10 +446,10 @@ The application code reads the new tables and `users.deleted_at`, so the
 schema migrations go first; the JSONB constraints go last because they need
 the audit, which runs through the deployed application.
 
-1. `npm run db:migrate` applies `20260925110000` … `20260925110400` (JSONB
+1. `npm run db:migrate` applies `20260925200000` … `20260925200400` (JSONB
    check functions, tombstones and FK policy, Mux findings, tip corrections and
    alerts, online index and constraint validation). If any `users` row violates
-   a JSONB contract, `20260925120000_jsonb_contract_constraints` then stops the
+   a JSONB contract, `20260925210000_jsonb_contract_constraints` then stops the
    run with the count of violating rows; it is transactional, so it leaves no
    trace and is retried by the next run.
 2. Set `CRON_SECRET` (and `OPS_ALERT_WEBHOOK_URL` for alert delivery), then
@@ -457,9 +457,9 @@ the audit, which runs through the deployed application.
 3. Run the JSONB audit (`GET /api/admin/jsonb-audit`, page through `nextCursor`),
    apply `normalize`, review the `nonconforming` and `legacy` findings, and
    `quarantine` whatever is still `invalid`.
-4. `npm run db:migrate` again: `20260925120000_jsonb_contract_constraints`
+4. `npm run db:migrate` again: `20260925210000_jsonb_contract_constraints`
    adds the constraints `NOT VALID` and
-   `20260925120100_validate_jsonb_contract_constraints` validates them without
+   `20260925210100_validate_jsonb_contract_constraints` validates them without
    blocking writes.
 
 `db/tests/data-integrity.test.sql` checks the database side (constraints, the

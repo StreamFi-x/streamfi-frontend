@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { requireAdminIdentity, requireAdminSession } from "@/lib/admin-auth";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 import { requestAccountDeletion } from "@/lib/users/deletion";
 
 export async function PATCH(
@@ -42,6 +43,7 @@ export async function PATCH(
         WHERE id = ${userId}
       `;
     }
+    await invalidateUserCaches({ id: userId });
 
     return Response.json({ ok: true });
   } catch (err) {

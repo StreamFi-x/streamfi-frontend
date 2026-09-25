@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 function readString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -66,6 +67,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     WHERE LOWER(username) = LOWER(${username})
     RETURNING id, username, banner, updated_at
   `;
+  await invalidateUserCaches({ username });
 
   if (rows.length === 0) {return NextResponse.json({ error: "User not found" }, { status: 404 });}
   return NextResponse.json({ user: rows[0] });

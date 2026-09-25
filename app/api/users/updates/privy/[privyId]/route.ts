@@ -9,6 +9,7 @@ import { JsonbContractError } from "@/lib/db/jsonb-contracts";
 import { parseProfileJsonbFields } from "@/lib/users/profile-form";
 import { validateUserUpdate } from "../../../../../../utils/userValidators";
 import { UserUpdateInput } from "../../../../../../types/user";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 export async function PUT(
   req: NextRequest,
@@ -146,6 +147,11 @@ export async function PUT(
                 emailverified, emailnotifications, creator, privy_id,
                 created_at, updated_at
     `;
+    await invalidateUserCaches({
+      id: user.id,
+      username,
+      previousUsername: user.username,
+    });
 
     return NextResponse.json({
       message: "User updated successfully",

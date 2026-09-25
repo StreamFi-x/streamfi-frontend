@@ -18,7 +18,7 @@
 --                 boolean (current shape and legacy {title, text}).
 --
 -- This file only defines functions and the quarantine table; the CHECK
--- constraints are added by 20260925120000_jsonb_contract_constraints after
+-- constraints are added by 20260925210000_jsonb_contract_constraints after
 -- the audit has run. Idempotent.
 
 CREATE OR REPLACE FUNCTION streamfi_jsonb_sociallinks_ok(v jsonb)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { CACHE_POLICIES } from "@/lib/cache";
 
 // 30 searches per minute per IP — ILIKE is fast with the trgm index but still DB work
 const isRateLimited = createRateLimiter(60_000, 30);
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       { users: results.rows },
-      { headers: { "Cache-Control": "public, s-maxage=5" } }
+      { headers: { "Cache-Control": CACHE_POLICIES.typeahead.cacheControl } }
     );
   } catch (error) {
     console.error("Username search error:", error);

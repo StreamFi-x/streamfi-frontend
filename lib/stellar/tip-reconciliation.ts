@@ -18,6 +18,7 @@ import {
 import type { JobOutcome } from "@/lib/jobs/scheduled-job";
 import { fetchPaymentsReceived } from "@/lib/stellar/horizon";
 import { logger } from "@/lib/tracing/logger";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 const STROOPS_PER_XLM = BigInt(10_000_000);
 
@@ -377,6 +378,8 @@ export async function reconcileUserTipTotals(
     );
 
     if (updated.rows.length > 0) {
+      // Profile and tip-stats reads are cached (docs/caching-policy.md).
+      await invalidateUserCaches({ id: userId, wallet: publicKey });
       return {
         status: "updated",
         previousTotal: lastPrevious,

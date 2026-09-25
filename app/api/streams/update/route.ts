@@ -8,6 +8,7 @@ import {
   isMergeableCreator,
   prepareCreatorPatch,
 } from "@/lib/db/jsonb-contracts";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 export async function PATCH(req: Request) {
   try {
@@ -91,6 +92,7 @@ export async function PATCH(req: Request) {
             updated_at = CURRENT_TIMESTAMP
           WHERE wallet = ${wallet}
         `;
+        await invalidateUserCaches({ wallet });
       } else {
         if (typeof password !== "string" || password.length < 4) {
           return NextResponse.json(
@@ -105,6 +107,7 @@ export async function PATCH(req: Request) {
             updated_at = CURRENT_TIMESTAMP
           WHERE wallet = ${wallet}
         `;
+        await invalidateUserCaches({ wallet });
       }
     }
 
@@ -144,6 +147,7 @@ export async function PATCH(req: Request) {
           updated_at = CURRENT_TIMESTAMP
         WHERE wallet = ${wallet}
       `;
+      await invalidateUserCaches({ wallet });
     }
 
     let creatorPatch: ReturnType<typeof prepareCreatorPatch>;
@@ -177,6 +181,7 @@ export async function PATCH(req: Request) {
         AND (creator IS NULL OR jsonb_typeof(creator) = 'object')
       RETURNING creator
     `;
+    await invalidateUserCaches({ wallet });
 
     if (updatedRows.length === 0) {
       if (!isMergeableCreator(user.creator)) {

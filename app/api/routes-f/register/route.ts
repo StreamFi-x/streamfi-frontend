@@ -3,6 +3,7 @@ import { z } from "zod";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 3); // 3 attempts per IP per hour
 
@@ -94,6 +95,13 @@ export async function POST(request: NextRequest) {
     `;
 
     const user = userRows[0];
+    // Profile layouts cache "not found" (unstable_cache), so a new or renamed
+    // handle must be purged too.
+    await invalidateUserCaches({
+      id: user.id,
+      username: user.username,
+      previousUsername: session.username,
+    });
 
     // Initialise onboarding progress (idempotent)
     await sql`

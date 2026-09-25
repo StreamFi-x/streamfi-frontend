@@ -109,6 +109,15 @@ export async function requireAdminSession(
   return result.ok ? null : adminGuardResponse(result);
 }
 
+/**
+ * The Privy ID behind the current admin session, for keying per-admin limits.
+ * Only meaningful after requireAdminSession / authorizeAdminSession passed.
+ */
+export async function currentAdminPrivyId(): Promise<string> {
+  const cookieStore = await cookies();
+  return cookieStore.get("privy_session")?.value ?? "";
+}
+
 /** Returns true when userId is in the ADMIN_PRIVY_IDS or ADMIN_WALLET_ADDRESSES env lists. */
 export function isAdmin(userId: string): boolean {
   return (

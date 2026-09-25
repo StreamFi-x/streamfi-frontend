@@ -15,7 +15,7 @@
 --
 -- Idempotent. Runs in the migration runner's transaction; the index on
 -- users.deleted_at and the validation of the re-created foreign keys are done
--- online by 20260925110400_data_integrity_online_steps.
+-- online by 20260925200400_data_integrity_online_steps.
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
@@ -134,6 +134,17 @@ BEGIN
   END IF;
   IF u_deleted IS NULL THEN
     RAISE EXCEPTION 'user % is not tombstoned', d.user_id;
+  END IF;
+
+  -- Archived Livepeer ids (#1408) reference users and stream_sessions without a
+  -- foreign key; remove the user's rows before the sessions are deleted.
+  IF to_regclass('legacy_livepeer_refs') IS NOT NULL THEN
+    DELETE FROM legacy_livepeer_refs
+    WHERE (source_table = 'users' AND source_id = d.user_id)
+       OR (source_table = 'stream_sessions'
+           AND source_id IN (SELECT id FROM stream_sessions WHERE user_id = d.user_id));
+    GET DIAGNOSTICS affected = ROW_COUNT;
+    summary := summary || jsonb_build_object('legacy_livepeer_refs', affected);
   END IF;
 
   FOR fk IN

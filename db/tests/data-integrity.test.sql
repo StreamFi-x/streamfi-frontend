@@ -1,7 +1,7 @@
 -- Database-level tests for the data-integrity migrations (#1405, #1406, #1407, #1409).
 --
 -- Run against a DISPOSABLE database that has the schema and every migration
--- applied (`npm run db:migrate`, including the 20260925110000..120100 files):
+-- applied (`npm run db:migrate`, including the 20260925200000..210100 files):
 --
 --   psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/tests/data-integrity.test.sql
 --
@@ -76,6 +76,8 @@ INSERT INTO stream_clips (clipped_by, streamer_id, start_offset, duration, mux_a
   ('a0000000-0000-0000-0000-00000000000e', 'a0000000-0000-0000-0000-00000000000c', 0, 30, 'test-clip-asset');
 UPDATE users SET referred_by = 'a0000000-0000-0000-0000-00000000000c'
 WHERE id = 'a0000000-0000-0000-0000-00000000000e';
+INSERT INTO legacy_livepeer_refs (source_table, source_id, column_name, legacy_value, disposition) VALUES
+  ('users', 'a0000000-0000-0000-0000-00000000000c', 'livepeer_stream_id', 'test-lp', 'legacy_history');
 
 -- Financial FKs no longer cascade.
 DO $$
@@ -177,6 +179,7 @@ BEGIN
   ASSERT (SELECT count(*) FROM payouts WHERE user_id = u.id) = 1, 'payouts preserved';
   ASSERT (SELECT count(*) FROM stream_sessions WHERE user_id = u.id) = 0, 'sessions deleted';
   ASSERT (SELECT count(*) FROM stream_recordings WHERE user_id = u.id) = 0, 'recordings deleted';
+  ASSERT (SELECT count(*) FROM legacy_livepeer_refs WHERE source_id = u.id) = 0, 'archived Livepeer ids deleted';
   ASSERT (SELECT count(*) FROM user_follows WHERE followee_id = u.id) = 0, 'follows deleted';
   ASSERT (SELECT count(*) FROM stream_clips WHERE streamer_id = u.id) = 0, 'clips of the purged streamer deleted';
   ASSERT (SELECT referred_by FROM users WHERE id = 'a0000000-0000-0000-0000-00000000000e') IS NULL,

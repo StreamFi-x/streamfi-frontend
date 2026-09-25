@@ -5,6 +5,7 @@ import {
   JsonbContractError,
   prepareSocialLinks,
 } from "@/lib/db/jsonb-contracts";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 function isValidUrl(str: string): boolean {
   try {
@@ -90,6 +91,7 @@ export async function PATCH(req: NextRequest) {
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    await invalidateUserCaches({ id: session.userId });
   } catch (err) {
     console.error("[profile-update-social-links] update failed:", err);
     return NextResponse.json(
