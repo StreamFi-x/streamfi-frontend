@@ -1,12 +1,12 @@
 import { NextResponse, NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
-import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 //TO CREATE A CATEGORY
 export async function POST(req: NextRequest) {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("category");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   try {
@@ -167,9 +167,9 @@ export async function GET(req: Request) {
 
 // TO UPDATE A CATEGORY
 export async function PATCH(req: Request) {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("category");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   try {
@@ -209,9 +209,9 @@ export async function PATCH(req: Request) {
 
 // TO DELETE A CATEGORY
 export async function DELETE(req: Request) {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("category");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   try {

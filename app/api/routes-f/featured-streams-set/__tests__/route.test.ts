@@ -6,19 +6,16 @@ jest.mock("@vercel/postgres", () => {
   return { sql: sqlMock };
 });
 jest.mock("@/lib/admin-auth", () => ({
-  verifyAdminSession: jest.fn(),
-  adminUnauthorized: jest.fn(() =>
-    Response.json({ error: "Unauthorized" }, { status: 401 })
-  ),
+  requireAdminSession: jest.fn(),
 }));
 
 import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
-import { verifyAdminSession } from "@/lib/admin-auth";
+import { requireAdminSession } from "@/lib/admin-auth";
 import { PUT } from "../route";
 
 const sqlMock = sql as unknown as jest.Mock;
-const verifyAdmin = verifyAdminSession as jest.Mock;
+const requireAdmin = requireAdminSession as jest.Mock;
 
 function req(body: unknown): NextRequest {
   return new NextRequest("http://localhost/api/routes-f/featured-streams-set", {
@@ -30,13 +27,15 @@ function req(body: unknown): NextRequest {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  verifyAdmin.mockResolvedValue(true);
+  requireAdmin.mockResolvedValue(null);
   sqlMock.mockResolvedValue({ rows: [] });
 });
 
 describe("PUT /api/routes-f/featured-streams-set", () => {
   it("rejects non-admin requests", async () => {
-    verifyAdmin.mockResolvedValue(false);
+    requireAdmin.mockResolvedValue(
+      Response.json({ error: "Unauthorized" }, { status: 401 })
+    );
 
     const res = await PUT(req({ stream_ids: ["s1", "s2"] }));
     expect(res.status).toBe(401);
