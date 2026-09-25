@@ -27,7 +27,7 @@ if (!result.success) return tooManyRequests(result);
 - **Identity:** the caller passes it. Use the session `userId` or the admin's
   Privy ID when there is one. IP is only for anonymous routes (for example
   chat POST). Identities always come from `verifySession` or
-  `getAdminIdentity`, never from the request body.
+  `currentAdminPrivyId` (after `requireAdminSession`), never from the request body.
 - **429:** `tooManyRequests()` returns `{ error, retryAfter }` (the API's
   usual `{ error }` shape) with `Retry-After`, `X-RateLimit-Limit`,
   `X-RateLimit-Remaining`, `X-RateLimit-Reset` and `Cache-Control: private,
@@ -59,7 +59,7 @@ are logged with the namespace.
 
 ## Admin analytics: `GET /api/admin/analytics`
 
-- The route is admin-only (`ADMIN_PRIVY_IDS`).
+- The route is admin-only (`ADMIN_PRIVY_IDS`), behind the brute-force guard `requireAdminSession` from #1396.
 - **30 requests per minute per admin.** The dashboard polls every 30s
   (`hooks/admin/useAdminAnalytics.ts`), which is 2/min per tab. 30 allows
   several tabs plus manual refreshes, and stops a runaway refresh loop within
@@ -71,9 +71,15 @@ are logged with the namespace.
 
 ## Tip refresh: `POST /api/tips/refresh-total`
 
-A refresh walks the creator's entire Horizon payment history (200 per page)
-and writes each page. The route was unauthenticated and trusted the
-`username` in the body. It now has four guards.
+The recalculation itself is `reconcileUserTipTotals`
+(`lib/stellar/tip-reconciliation.ts`, from #1400), shared with the scheduled
+reconciliation job. It walks the creator's whole Horizon history (at most 100
+pages, otherwise `422`), records tips in batches, and writes totals behind a
+version check: a concurrent writer makes it retry, and after three retries the
+route returns `409`. That keeps concurrent refreshes _correct_. It does not
+stop repeated or overlapping refreshes from each doing the full walk. The
+route was also unauthenticated and trusted the `username` in the body. It now
+has four guards in front of the reconcile.
 
 1. **Authentication and ownership.** A session is required, and the caller
    must own the creator or be an admin. The refresh button only appears on
@@ -90,16 +96,9 @@ and writes each page. The route was unauthenticated and trusted the
    this: a long walk outlives the cooldown window. The TTL frees the lock if
    an invocation is killed mid-walk.
 
-The walk itself is cheaper as well. There is one `INSERT … SELECT FROM
-json_to_recordset(...)` per Horizon page, where there used to be a
-supporter lookup plus an insert per tip. The old per-tip
-`ON CONFLICT (tx_hash)` could not match the **partial** unique index
-`idx_tip_transactions_tx_hash_unique … WHERE tx_hash IS NOT NULL`, and
-Postgres rejects it with "there is no unique or exclusion constraint matching
-the ON CONFLICT specification" (reproduced on Postgres 16). The new statement
-names the index predicate, so reruns are idempotent. After the totals are
-updated, the creator's profile and stats caches are invalidated, and the
-dashboard counter uses the response directly instead of refetching.
+After a successful reconcile, `reconcileUserTipTotals` invalidates the
+creator's profile and stats caches (the scheduled job gets this too), and
+the dashboard counter uses the response directly instead of refetching.
 
 ## Tests
 
@@ -112,6 +111,7 @@ dashboard counter uses the response directly instead of refetching.
 - `app/api/admin/analytics/__tests__/route.test.ts`: auth, the dashboard
   pattern passing, a loop getting 429, admin isolation, recovery, the shared
   aggregate cache.
-- `app/api/tips/refresh-total/__tests__/route.test.ts`: 401/403/404,
-  owner/admin, paging and batching, cooldown reuse, overlapping refresh
-  (409), per-caller 429, caller isolation, lock released on failure.
+- `app/api/tips/refresh-total/__tests__/route.test.ts`: 401/400/403/404,
+  owner/admin, reconcile arguments and response shape, stale (409),
+  oversized history (422), cooldown reuse, overlapping refresh (409),
+  per-caller 429, caller isolation, lock released on failure.
