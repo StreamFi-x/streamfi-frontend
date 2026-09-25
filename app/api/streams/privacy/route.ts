@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     const result = await sql`
       SELECT id, stream_privacy, share_token
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE LOWER(wallet) = LOWER(${wallet}) AND deleted_at IS NULL
     `;
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
     const userResult = await sql`
       SELECT id, stream_privacy, share_token
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE LOWER(wallet) = LOWER(${wallet}) AND deleted_at IS NULL
     `;
     if (userResult.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

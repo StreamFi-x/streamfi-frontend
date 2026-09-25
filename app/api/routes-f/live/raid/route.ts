@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
         // Check if raider is live
         const { rows: raiderStatus } = await sql`
-      SELECT is_live FROM users WHERE id = ${session.userId} LIMIT 1
+      SELECT is_live FROM users WHERE id = ${session.userId} AND deleted_at IS NULL LIMIT 1
     `;
         if (!raiderStatus[0]?.is_live) {
             return NextResponse.json({ error: "Only active streamers can initiate a raid" }, { status: 400 });
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
         // Find target
         const { rows: target } = await sql`
-      SELECT id, is_live FROM users WHERE username = ${targetUsername} LIMIT 1
+      SELECT id, is_live FROM users WHERE username = ${targetUsername} AND deleted_at IS NULL LIMIT 1
     `;
 
         if (target.length === 0) {

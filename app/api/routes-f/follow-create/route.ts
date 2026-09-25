@@ -44,7 +44,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const { rows: channelRows } = await sql`
       SELECT id, username, avatar, bio
       FROM users
-      WHERE id = ${channel_id}
+      WHERE id = ${channel_id} AND deleted_at IS NULL
       LIMIT 1
     `;
 

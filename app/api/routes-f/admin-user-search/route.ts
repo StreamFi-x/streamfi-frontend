@@ -9,7 +9,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
 
   const { rows: userRows } = await sql`
-    SELECT role FROM users WHERE id = ${session.userId} LIMIT 1
+    SELECT role FROM users WHERE id = ${session.userId} AND deleted_at IS NULL LIMIT 1
   `;
   const role = userRows[0]?.role;
   if (role !== "admin") {
@@ -26,7 +26,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   const term = `%${q}%`;
   try {
     const { rows } = await sql`
-      SELECT id, username, email, wallet_address, role, is_suspended, created_at
+      -- tombstone-aware: admin view includes accounts pending deletion
+      SELECT id, username, email, wallet_address, role, is_suspended, created_at, deleted_at
       FROM users
       WHERE username ILIKE ${term}
          OR email ILIKE ${term}

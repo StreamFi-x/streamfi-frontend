@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest) {
     const { rows } = await sql`
       SELECT last_handle_change_at, username
       FROM users
-      WHERE id = ${session.userId} OR wallet = ${session.wallet}
+      WHERE (id = ${session.userId} OR wallet = ${session.wallet}) AND deleted_at IS NULL
       LIMIT 1
     `;
 
@@ -58,6 +58,7 @@ export async function PATCH(req: NextRequest) {
   // 2. Check handle availability
   try {
     const { rows: existing } = await sql`
+      -- tombstone-aware: identifiers stay reserved until the account is purged
       SELECT id FROM users
       WHERE LOWER(username) = LOWER(${cleanHandle})
       AND id != ${session.userId}

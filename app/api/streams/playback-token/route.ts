@@ -32,7 +32,7 @@ export async function GET(req: Request) {
       SELECT id, stream_privacy, share_token,
              mux_playback_id, mux_signed_playback_id
       FROM users
-      WHERE LOWER(username) = LOWER(${username})
+      WHERE LOWER(username) = LOWER(${username}) AND deleted_at IS NULL
     `;
     if (userResult.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -43,7 +43,7 @@ export async function GET(req: Request) {
     let viewerUserId: string | null = null;
     if (viewerWallet) {
       const viewer = await sql`
-        SELECT id FROM users WHERE LOWER(wallet) = LOWER(${viewerWallet})
+        SELECT id FROM users WHERE LOWER(wallet) = LOWER(${viewerWallet}) AND deleted_at IS NULL
       `;
       viewerUserId = viewer.rows[0]?.id ?? null;
     }

@@ -84,7 +84,7 @@ async function getSenderWallet(userId: string): Promise<string | null> {
     const { rows } = await sql`
       SELECT stellar_address, wallet_address 
       FROM users 
-      WHERE id = ${userId} 
+      WHERE id = ${userId} AND deleted_at IS NULL 
       LIMIT 1
     `;
 

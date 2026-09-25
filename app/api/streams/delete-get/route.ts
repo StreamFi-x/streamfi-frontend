@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     const userResult = await sql`
       SELECT id, username, mux_stream_id, is_live
       FROM users
-      WHERE wallet = ${wallet}
+      WHERE wallet = ${wallet} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {

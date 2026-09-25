@@ -25,7 +25,7 @@ export async function sendDueScheduleReminders(): Promise<number> {
     SELECT sr.schedule_id, sr.viewer_id, ss.title, ss.scheduled_at, u.username AS creator_username
     FROM stream_reminders sr
     INNER JOIN stream_schedule ss ON ss.id = sr.schedule_id
-    INNER JOIN users u ON u.id = ss.creator_id
+    INNER JOIN users u ON u.id = ss.creator_id AND u.deleted_at IS NULL
     WHERE sr.sent = false
       AND sr.remind_at <= NOW()
       AND ss.status = 'upcoming'

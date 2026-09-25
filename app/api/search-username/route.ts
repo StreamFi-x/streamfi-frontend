@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
       SELECT id, username, avatar
       FROM users
       WHERE username ILIKE ${"%" + query + "%"}
+        AND deleted_at IS NULL
       LIMIT 8
     `;
 

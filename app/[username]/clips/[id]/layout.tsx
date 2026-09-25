@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { rows } = await sql`
       SELECT r.playback_id, r.title, u.avatar, u.bio
       FROM stream_recordings r
-      JOIN users u ON u.id = r.user_id
+      JOIN users u ON u.id = r.user_id AND u.deleted_at IS NULL
       WHERE r.id = ${id} AND r.status = 'ready'
       LIMIT 1
     `;

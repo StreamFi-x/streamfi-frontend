@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const userResult = await sql`
       SELECT id, username, mux_stream_id, is_live, mux_playback_id
       FROM users
-      WHERE id = ${session.userId} AND mux_stream_id IS NOT NULL
+      WHERE id = ${session.userId} AND mux_stream_id IS NOT NULL AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -116,7 +116,7 @@ export async function DELETE(req: NextRequest) {
     const userResult = await sql`
       SELECT id, mux_stream_id, is_live
       FROM users
-      WHERE id = ${session.userId}
+      WHERE id = ${session.userId} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {

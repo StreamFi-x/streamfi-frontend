@@ -9,7 +9,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const { rows: adminRows } = await sql`
-    SELECT role FROM users WHERE id = ${session.userId} LIMIT 1
+    SELECT role FROM users WHERE id = ${session.userId} AND deleted_at IS NULL LIMIT 1
   `;
   const role = adminRows[0]?.role;
   if (role !== "admin") {

@@ -41,8 +41,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const [{ rows: receiverRows }, { rows: callerRows }] = await Promise.all([
-      sql`SELECT id FROM users WHERE LOWER(username) = ${receiverUsername.toLowerCase()}`,
-      sql`SELECT username FROM users WHERE id = ${callerId}`,
+      sql`SELECT id FROM users WHERE LOWER(username) = ${receiverUsername.toLowerCase()} AND deleted_at IS NULL`,
+      sql`SELECT username FROM users WHERE id = ${callerId} AND deleted_at IS NULL`,
     ]);
 
     if (receiverRows.length === 0) {

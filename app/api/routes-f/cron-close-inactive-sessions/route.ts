@@ -132,6 +132,7 @@ export async function POST(req: NextRequest) {
         u.mux_stream_id,
         u.is_live
       FROM stream_sessions ss
+      -- tombstone-aware: internal job: sessions of every account are closed
       INNER JOIN users u ON ss.user_id = u.id
       WHERE ss.ended_at IS NULL
         AND ss.started_at < ${cutoffTime.toISOString()}
