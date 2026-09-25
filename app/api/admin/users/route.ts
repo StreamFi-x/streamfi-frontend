@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
-import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("admin/users");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   const { searchParams } = new URL(req.url);

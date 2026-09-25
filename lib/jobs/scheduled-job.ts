@@ -1,290 +1,239 @@
 import { randomUUID } from "crypto";
-import { defaultExecutor, SqlExecutor } from "@/lib/db/executor";
+import { sql } from "@vercel/postgres";
 import { logger } from "@/lib/tracing/logger";
+import {
+  sendOperationalAlert,
+  type AlertCategory,
+} from "@/lib/security/alerts";
 
-export type JobStatus = "succeeded" | "partial" | "failed" | "skipped";
+/**
+ * Lease + health bookkeeping for cron-triggered jobs (scheduled_job_runs).
+ *
+ * - Lease: a run only starts if no other run holds an unexpired lease, so
+ *   overlapping cron invocations (slow run, manual trigger, retries) never
+ *   execute concurrently. A crashed run's lease simply expires.
+ * - Health: every run records start/finish/success/failure, the error and
+ *   consecutive failure/drift counters. Failures raise an operational alert
+ *   so the job never fails silently.
+ */
 
-export type JobMetrics = Record<string, number>;
-
-export interface JobOutcome<TDetail = unknown> {
-  status: Exclude<JobStatus, "skipped">;
-  metrics: JobMetrics;
-  /** Aggregated alert conditions detected by the job (at most one alert each). */
-  alerts?: string[];
-  detail?: TDetail;
+export interface JobOutcome {
+  summary: Record<string, unknown>;
+  /** The run found (and corrected) drift — feeds consecutive_drift_runs. */
+  drift?: boolean;
 }
 
-export interface JobResult<TDetail = unknown> {
-  job: string;
-  status: JobStatus;
-  startedAt: string;
-  durationMs: number;
-  metrics: JobMetrics;
-  alerts: string[];
-  reason?: string;
-  error?: string;
-  detail?: TDetail;
-}
+export type JobRunResult =
+  | {
+      status: "completed";
+      summary: Record<string, unknown>;
+      consecutiveDriftRuns: number;
+    }
+  | { status: "skipped"; reason: "lease_held" }
+  | { status: "failed"; error: string; consecutiveFailures: number | null };
 
-export interface ScheduledJobOptions<TDetail> {
+export interface ScheduledJobOptions {
   name: string;
-  /** Lease length; must exceed the job's worst-case runtime. */
+  alertCategory: AlertCategory;
+  /** Hard time budget for one run. */
+  timeoutSeconds: number;
+  /**
+   * Lease length. Must exceed timeoutSeconds: a timed-out run's promise may
+   * still be executing, so its lease is left to expire rather than released.
+   */
   leaseSeconds: number;
-  /** Expected schedule; a gap of 3x this since the last success raises an alert. */
-  expectedIntervalSeconds: number;
-  /** Consecutive failed runs (including this one) that raise an alert. */
-  failureAlertThreshold?: number;
-  run: () => Promise<JobOutcome<TDetail>>;
-  executor?: SqlExecutor;
-  now?: () => Date;
 }
 
-/**
- * Emits one structured alert log line. Log drains can route on
- * `alert: true`; there is no separate paging integration in this codebase.
- */
-export function emitJobAlert(
-  job: string,
-  message: string,
-  data: Record<string, unknown> = {}
-): void {
-  logger.error(`[job-alert] ${job}: ${message}`, {
-    alert: true,
-    job,
-    ...data,
-  });
-}
+class JobTimeoutError extends Error {}
 
-/**
- * Takes a lease on `name`. Exactly one caller wins while a lease is live: the
- * upsert only replaces an existing row whose lease has expired, and the
- * primary key makes concurrent inserts collide.
- */
-export async function acquireJobLease(
-  name: string,
-  leaseSeconds: number,
-  executor: SqlExecutor = defaultExecutor
-): Promise<string | null> {
-  const holder = randomUUID();
-  const { rows } = await executor(
-    `INSERT INTO job_locks (job_name, holder, acquired_at, locked_until)
-     VALUES ($1, $2, NOW(), NOW() + make_interval(secs => $3::double precision))
-     ON CONFLICT (job_name) DO UPDATE
-       SET holder = EXCLUDED.holder,
-           acquired_at = EXCLUDED.acquired_at,
-           locked_until = EXCLUDED.locked_until
-       WHERE job_locks.locked_until < NOW()
-     RETURNING holder`,
-    [name, holder, leaseSeconds]
-  );
-  return rows[0]?.holder === holder ? holder : null;
-}
-
-export async function releaseJobLease(
-  name: string,
-  holder: string,
-  executor: SqlExecutor = defaultExecutor
-): Promise<void> {
-  await executor(`DELETE FROM job_locks WHERE job_name = $1 AND holder = $2`, [
-    name,
-    holder,
-  ]);
-}
-
-async function recordRun(
-  executor: SqlExecutor,
-  result: JobResult
-): Promise<void> {
-  try {
-    await executor(
-      `INSERT INTO job_runs (job_name, status, started_at, duration_ms, metrics, error)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6)`,
-      [
-        result.job,
-        result.status,
-        result.startedAt,
-        result.durationMs,
-        JSON.stringify(result.metrics),
-        result.error ?? result.reason ?? null,
-      ]
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new JobTimeoutError(`job exceeded ${ms / 1000}s budget`)),
+      ms
     );
-  } catch (error) {
-    logger.error("Failed to record job run", {
-      job: result.job,
-      errorMessage: error instanceof Error ? error.message : String(error),
-    });
-  }
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-async function detectRunGap(
-  executor: SqlExecutor,
+async function acquireLease(
   name: string,
-  expectedIntervalSeconds: number,
-  now: Date
-): Promise<string | null> {
-  const { rows } = await executor(
-    `SELECT MAX(started_at) AS last_success FROM job_runs
-     WHERE job_name = $1 AND status IN ('succeeded', 'partial')`,
-    [name]
-  );
-  const last = rows[0]?.last_success;
-  if (!last) {
+  owner: string,
+  leaseSeconds: number
+): Promise<boolean> {
+  const { rows } = await sql`
+    INSERT INTO scheduled_job_runs
+      (job_name, lease_owner, lease_expires_at, last_started_at)
+    VALUES (${name}, ${owner}, NOW() + make_interval(secs => ${leaseSeconds}), NOW())
+    ON CONFLICT (job_name) DO UPDATE SET
+      lease_owner      = EXCLUDED.lease_owner,
+      lease_expires_at = EXCLUDED.lease_expires_at,
+      last_started_at  = NOW()
+    WHERE scheduled_job_runs.lease_expires_at IS NULL
+       OR scheduled_job_runs.lease_expires_at < NOW()
+    RETURNING job_name
+  `;
+  return rows.length > 0;
+}
+
+async function recordSuccess(
+  name: string,
+  owner: string,
+  outcome: JobOutcome
+): Promise<number> {
+  const { rows } = await sql<{ consecutive_drift_runs: number }>`
+    UPDATE scheduled_job_runs SET
+      lease_owner            = NULL,
+      lease_expires_at       = NULL,
+      last_finished_at       = NOW(),
+      last_succeeded_at      = NOW(),
+      last_error             = NULL,
+      consecutive_failures   = 0,
+      consecutive_drift_runs = CASE WHEN ${outcome.drift === true}
+                                    THEN consecutive_drift_runs + 1
+                                    ELSE 0 END,
+      last_summary           = ${JSON.stringify(outcome.summary)}::jsonb
+    WHERE job_name = ${name} AND lease_owner = ${owner}
+    RETURNING consecutive_drift_runs
+  `;
+  return rows[0]?.consecutive_drift_runs ?? 0;
+}
+
+async function recordFailure(
+  name: string,
+  owner: string,
+  message: string,
+  releaseLease: boolean
+): Promise<number | null> {
+  try {
+    const { rows } = await sql<{ consecutive_failures: number }>`
+      UPDATE scheduled_job_runs SET
+        lease_owner          = CASE WHEN ${releaseLease} THEN NULL ELSE lease_owner END,
+        lease_expires_at     = CASE WHEN ${releaseLease} THEN NULL ELSE lease_expires_at END,
+        last_finished_at     = NOW(),
+        last_failed_at       = NOW(),
+        last_error           = ${message},
+        consecutive_failures = consecutive_failures + 1
+      WHERE job_name = ${name}
+        AND (lease_owner = ${owner} OR lease_owner IS NULL
+             OR lease_expires_at < NOW())
+      RETURNING consecutive_failures
+    `;
+    return rows[0]?.consecutive_failures ?? null;
+  } catch {
     return null;
   }
-  const gapSeconds = (now.getTime() - new Date(last).getTime()) / 1000;
-  if (gapSeconds > expectedIntervalSeconds * 3) {
-    return `no successful run for ${Math.round(gapSeconds / 60)} minutes (expected every ${Math.round(expectedIntervalSeconds / 60)})`;
-  }
-  return null;
 }
 
-async function consecutiveFailures(
-  executor: SqlExecutor,
-  name: string,
-  limit: number
-): Promise<number> {
-  const { rows } = await executor(
-    `SELECT status FROM job_runs WHERE job_name = $1 AND status <> 'skipped'
-     ORDER BY started_at DESC LIMIT $2`,
-    [name, limit]
-  );
-  let count = 0;
-  for (const row of rows) {
-    if (row.status !== "failed") {
-      break;
+export async function runScheduledJob(
+  options: ScheduledJobOptions,
+  job: () => Promise<JobOutcome>
+): Promise<JobRunResult> {
+  const owner = randomUUID();
+  const startedAt = Date.now();
+  let leased = false;
+
+  try {
+    leased = await acquireLease(options.name, owner, options.leaseSeconds);
+    if (!leased) {
+      logger.info("scheduled_job_skipped", {
+        job: options.name,
+        reason: "lease_held",
+      });
+      return { status: "skipped", reason: "lease_held" };
     }
-    count++;
+
+    const outcome = await withTimeout(job(), options.timeoutSeconds * 1000);
+    const consecutiveDriftRuns = await recordSuccess(
+      options.name,
+      owner,
+      outcome
+    );
+    logger.info("scheduled_job_completed", {
+      job: options.name,
+      duration_ms: Date.now() - startedAt,
+      ...outcome.summary,
+    });
+    return {
+      status: "completed",
+      summary: outcome.summary,
+      consecutiveDriftRuns,
+    };
+  } catch (err) {
+    const message = (err instanceof Error ? err.message : String(err)).slice(
+      0,
+      500
+    );
+    const consecutiveFailures = await recordFailure(
+      options.name,
+      owner,
+      message,
+      !(err instanceof JobTimeoutError)
+    );
+    logger.error(`${options.name}_failure`, {
+      job: options.name,
+      phase: leased ? "run" : "lease",
+      duration_ms: Date.now() - startedAt,
+      consecutive_failures: consecutiveFailures,
+      timeout: err instanceof JobTimeoutError,
+      errorMessage: message,
+    });
+    await sendOperationalAlert({
+      category: options.alertCategory,
+      event: `${options.name}_failure`,
+      severity:
+        consecutiveFailures !== null && consecutiveFailures >= 3
+          ? "critical"
+          : "warning",
+      title: `Scheduled job ${options.name} failed`,
+      dedupKey: `job_failure:${options.name}`,
+      cooldownSeconds: 30 * 60,
+      details: {
+        job: options.name,
+        consecutive_failures: consecutiveFailures,
+        timeout: err instanceof JobTimeoutError,
+        error: message,
+      },
+    });
+    return { status: "failed", error: message, consecutiveFailures };
   }
-  return count;
 }
 
 /**
- * Runs a scheduled job under a distributed lease and records the run.
- *
- * - Overlapping invocations return `skipped` instead of running twice.
- * - Every run (including skipped/failed) is written to job_runs.
- * - Alerts are aggregated per run: the job's own alert conditions, repeated
- *   failures, and a gap since the last successful run.
+ * Alerts when a job has not succeeded recently — catches a cron that stopped
+ * firing altogether, which the job itself can never report.
  */
-export async function runScheduledJob<TDetail>(
-  options: ScheduledJobOptions<TDetail>
-): Promise<JobResult<TDetail>> {
-  const executor = options.executor ?? defaultExecutor;
-  const now = options.now ?? (() => new Date());
-  const started = now();
-  const startedAt = started.toISOString();
-  const threshold = options.failureAlertThreshold ?? 3;
-
-  const holder = await acquireJobLease(
-    options.name,
-    options.leaseSeconds,
-    executor
-  );
-  if (!holder) {
-    const skipped: JobResult<TDetail> = {
-      job: options.name,
-      status: "skipped",
-      startedAt,
-      durationMs: 0,
-      metrics: {},
-      alerts: [],
-      reason: "another run holds the job lease",
-    };
-    logger.info("Scheduled job skipped", {
-      job: options.name,
-      reason: skipped.reason,
+export async function assertJobFresh(
+  name: string,
+  maxAgeSeconds: number,
+  alertCategory: AlertCategory
+): Promise<boolean> {
+  const { rows } = await sql<{ stale: boolean; last_succeeded_at: string }>`
+    SELECT
+      (last_succeeded_at IS NULL
+        OR last_succeeded_at < NOW() - make_interval(secs => ${maxAgeSeconds})) AS stale,
+      last_succeeded_at
+    FROM scheduled_job_runs
+    WHERE job_name = ${name}
+  `;
+  const stale = rows.length === 0 || rows[0].stale;
+  if (stale) {
+    await sendOperationalAlert({
+      category: alertCategory,
+      event: `${name}_stalled`,
+      severity: "critical",
+      title: `Scheduled job ${name} has not succeeded recently`,
+      dedupKey: `job_stalled:${name}`,
+      cooldownSeconds: 6 * 60 * 60,
+      details: {
+        job: name,
+        max_age_seconds: maxAgeSeconds,
+        last_succeeded_at: rows[0]?.last_succeeded_at
+          ? String(rows[0].last_succeeded_at)
+          : null,
+      },
     });
-    await recordRun(executor, skipped);
-    return skipped;
   }
-
-  logger.info("Scheduled job started", { job: options.name });
-  const alerts: string[] = [];
-  let result: JobResult<TDetail>;
-
-  try {
-    const gap = await detectRunGap(
-      executor,
-      options.name,
-      options.expectedIntervalSeconds,
-      started
-    ).catch(() => null);
-    if (gap) {
-      alerts.push(gap);
-    }
-
-    const outcome = await options.run();
-    alerts.push(...(outcome.alerts ?? []));
-    result = {
-      job: options.name,
-      status: outcome.status,
-      startedAt,
-      durationMs: now().getTime() - started.getTime(),
-      metrics: outcome.metrics,
-      alerts,
-      detail: outcome.detail,
-    };
-  } catch (error) {
-    result = {
-      job: options.name,
-      status: "failed",
-      startedAt,
-      durationMs: now().getTime() - started.getTime(),
-      metrics: {},
-      alerts,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  } finally {
-    await releaseJobLease(options.name, holder, executor).catch(error =>
-      logger.error("Failed to release job lease", {
-        job: options.name,
-        errorMessage: error instanceof Error ? error.message : String(error),
-      })
-    );
-  }
-
-  await recordRun(executor, result);
-
-  if (result.status === "failed") {
-    const failures = await consecutiveFailures(
-      executor,
-      options.name,
-      threshold
-    ).catch(() => 0);
-    if (failures >= threshold) {
-      alerts.push(
-        `${failures} consecutive failed runs (latest: ${result.error})`
-      );
-    }
-  }
-
-  const logData = {
-    job: options.name,
-    status: result.status,
-    durationMs: result.durationMs,
-    metrics: result.metrics,
-    ...(result.error ? { errorMessage: result.error } : {}),
-  };
-  if (result.status === "failed") {
-    logger.error("Scheduled job failed", logData);
-  } else {
-    logger.info("Scheduled job finished", logData);
-  }
-
-  for (const alert of alerts) {
-    emitJobAlert(options.name, alert, { metrics: result.metrics });
-  }
-
-  return result;
-}
-
-/** HTTP status for a job result: 207 when some records failed, 500 on failure. */
-export function jobHttpStatus(status: JobStatus): number {
-  if (status === "failed") {
-    return 500;
-  }
-  if (status === "partial") {
-    return 207;
-  }
-  return 200;
+  return !stale;
 }

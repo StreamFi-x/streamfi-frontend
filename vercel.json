@@ -23,6 +23,12 @@
     {
       "path": "/api/routes-f/cron-purge-idempotency-keys",
       "schedule": "30 4 * * *"
+      "path": "/api/routes-f/cron-mux-reconcile",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/routes-f/cron-purge-mux-webhook-events",
+      "schedule": "30 3 * * *"
     }
   ]
 }
