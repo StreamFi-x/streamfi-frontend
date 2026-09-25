@@ -288,8 +288,9 @@ export async function POST(req: NextRequest) {
     const amountXLM = parseFloat(payload.amount);
     const priceUSD = amountXLM * xlmPriceUSD;
 
-    // Insert tip transaction
-    await sql`
+    // Insert tip transaction. The conflict target repeats the partial unique
+    // index predicate so PostgreSQL can match idx_tip_transactions_tx_hash_unique.
+    const inserted = await sql`
       INSERT INTO tip_transactions (
         creator_id,
         supporter_id,
@@ -308,15 +309,27 @@ export async function POST(req: NextRequest) {
         ${payload.memo || null},
         NOW()
       )
-      ON CONFLICT (tx_hash) DO NOTHING
+      ON CONFLICT (tx_hash) WHERE tx_hash IS NOT NULL DO NOTHING
+      RETURNING id
     `;
 
-    // Update creator's tip statistics
+    // A concurrent delivery of the same transaction already credited it.
+    if (inserted.rows.length === 0) {
+      return NextResponse.json({
+        message: "Transaction already processed",
+        tx_hash: payload.tx_hash,
+      });
+    }
+
+    // Update creator's tip statistics. Bumping tip_totals_version makes any
+    // ledger reconciliation that started before this tip discard its result
+    // instead of overwriting the increment (#1400).
     await sql`
       UPDATE users SET
         total_tips_received = COALESCE(total_tips_received, 0) + ${amountXLM},
         total_tips_count = COALESCE(total_tips_count, 0) + 1,
-        last_tip_at = NOW()
+        last_tip_at = NOW(),
+        tip_totals_version = tip_totals_version + 1
       WHERE id = ${creator.id}
     `;
 
