@@ -323,3 +323,109 @@ export async function getMuxStreamHealth(streamId: string) {
     throw new Error("Failed to get stream health");
   }
 }
+
+// ── Result-typed helpers for reconciliation and account purge ────────────────
+// Unlike the helpers above, these do not wrap errors: callers must be able to
+// tell "the resource does not exist" (a result) apart from a timeout, rate
+// limit or outage (an error). The SDK already retries 429/5xx/timeouts with
+// backoff (maxRetries = 2).
+
+export interface MuxAssetSummary {
+  id: string;
+  status: string;
+  createdAt: Date;
+  liveStreamId: string | null;
+  isLive: boolean;
+  playbackId: string | null;
+}
+
+const MUX_RECONCILE_TIMEOUT_MS = 20_000;
+
+export function isMuxNotFound(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { status?: unknown }).status === 404
+  );
+}
+
+function toAssetSummary(asset: {
+  id: string;
+  status: string;
+  created_at: string;
+  live_stream_id?: string;
+  is_live?: boolean;
+  playback_ids?: Array<{ id: string }>;
+}): MuxAssetSummary {
+  return {
+    id: asset.id,
+    status: asset.status,
+    createdAt: new Date(Number(asset.created_at) * 1000),
+    liveStreamId: asset.live_stream_id ?? null,
+    isLive: asset.is_live ?? false,
+    playbackId: asset.playback_ids?.[0]?.id ?? null,
+  };
+}
+
+/** One page of assets (Mux returns newest first). */
+export async function listMuxAssetsPage(
+  page: number,
+  limit: number
+): Promise<MuxAssetSummary[]> {
+  const result = await mux.video.assets.list(
+    { page, limit },
+    { timeout: MUX_RECONCILE_TIMEOUT_MS }
+  );
+  return result.data.map(toAssetSummary);
+}
+
+/** The asset, or null when Mux answers 404. Any other failure throws. */
+export async function retrieveMuxAsset(
+  assetId: string
+): Promise<MuxAssetSummary | null> {
+  try {
+    const asset = await mux.video.assets.retrieve(assetId, {
+      timeout: MUX_RECONCILE_TIMEOUT_MS,
+    });
+    return toAssetSummary(asset);
+  } catch (err) {
+    if (isMuxNotFound(err)) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+/** Idempotent: an already-deleted asset is reported as "not_found". */
+export async function deleteMuxAssetIfExists(
+  assetId: string
+): Promise<"deleted" | "not_found"> {
+  try {
+    await mux.video.assets.delete(assetId, {
+      timeout: MUX_RECONCILE_TIMEOUT_MS,
+    });
+    return "deleted";
+  } catch (err) {
+    if (isMuxNotFound(err)) {
+      return "not_found";
+    }
+    throw err;
+  }
+}
+
+/** Idempotent: an already-deleted live stream is reported as "not_found". */
+export async function deleteMuxLiveStreamIfExists(
+  streamId: string
+): Promise<"deleted" | "not_found"> {
+  try {
+    await mux.video.liveStreams.delete(streamId, {
+      timeout: MUX_RECONCILE_TIMEOUT_MS,
+    });
+    return "deleted";
+  } catch (err) {
+    if (isMuxNotFound(err)) {
+      return "not_found";
+    }
+    throw err;
+  }
+}
