@@ -33,7 +33,7 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
 
   try {
     // Convert subscriptions map to array for processing
-    const subscriptionsArray: SubscriptionWithExpiry[] = Array.from(subscriptions.values());
+    const subscriptionsArray: SubscriptionWithExpiry[] = Array.from(subscriptions.values()) as unknown as SubscriptionWithExpiry[];
 
     logger.info('Processing subscriptions for expiry alerts', {
       totalSubscriptions: subscriptionsArray.length,
