@@ -3,6 +3,18 @@
     {
       "path": "/api/routes-f/schedule/reminders",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/tip-reconciliation",
+      "schedule": "15 * * * *"
+    },
+    {
+      "path": "/api/cron/mux-reconciliation",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/purge-deleted-users",
+      "schedule": "0 4 * * *"
     }
   ]
 }
