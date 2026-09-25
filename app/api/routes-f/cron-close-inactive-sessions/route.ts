@@ -27,7 +27,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { verifyAdminSession } from "@/lib/admin-auth";
+import { requireAdminSecret, verifyAdminSession } from "@/lib/admin-auth";
 import { createRateLimiter } from "@/lib/rate-limit";
 
 // Rate limiter: max 12 requests per hour (every 5 minutes)
@@ -37,24 +37,27 @@ const isRateLimited = createRateLimiter(60 * 60 * 1000, 12);
 const INACTIVITY_THRESHOLD_MINUTES = 15;
 
 /**
- * Verify the request is authorized via admin session or internal secret
+ * Verify the request is authorized via internal secret (cron services) or an
+ * admin session. Both paths run behind the admin brute-force guard; the
+ * secret is only checked when the header is present so cron traffic is never
+ * counted as a failed admin session attempt.
  */
 async function verifyAuthorization(req: NextRequest): Promise<boolean> {
-  // Check for admin session
-  const isAdmin = await verifyAdminSession();
-  if (isAdmin) {
-    return true;
+  const route = "routes-f/cron-close-inactive-sessions";
+  if (req.headers.has("x-internal-secret")) {
+    if (!process.env.INTERNAL_API_SECRET) {
+      console.warn("⚠️ INTERNAL_API_SECRET not configured - cron endpoint requires admin session");
+    }
+    const result = await requireAdminSecret(req, {
+      mechanism: "internal_secret",
+      route,
+      header: "x-internal-secret",
+      secret: process.env.INTERNAL_API_SECRET,
+    });
+    return result.ok;
   }
 
-  // Check for internal API secret (for cron services)
-  const internalSecret = process.env.INTERNAL_API_SECRET;
-  if (!internalSecret) {
-    console.warn("⚠️ INTERNAL_API_SECRET not configured - cron endpoint requires admin session");
-    return false;
-  }
-
-  const providedSecret = req.headers.get("x-internal-secret");
-  return providedSecret === internalSecret;
+  return verifyAdminSession(route);
 }
 
 /**

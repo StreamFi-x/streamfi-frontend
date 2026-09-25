@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
-import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ): Promise<Response> {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("admin/users/[userId]");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   const { userId } = await params;
@@ -53,9 +53,9 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ): Promise<Response> {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("admin/users/[userId]");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   const { userId } = await params;
