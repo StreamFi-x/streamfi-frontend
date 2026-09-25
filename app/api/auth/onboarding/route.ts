@@ -17,6 +17,7 @@ import { Keypair } from "@stellar/stellar-sdk";
 import { createCipheriv, randomBytes } from "crypto";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 // ─── Encryption helpers ────────────────────────────────────────────────────────
 
@@ -191,6 +192,12 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+  await invalidateUserCaches({
+    username,
+    wallet: walletPublicKey,
+    previousUsername: session.username,
+    previousWallet: session.wallet,
+  });
 
   return NextResponse.json({
     ok: true,

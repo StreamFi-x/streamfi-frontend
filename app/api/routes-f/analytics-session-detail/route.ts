@@ -17,6 +17,7 @@ import { sql } from "@vercel/postgres";
 import { z } from "zod";
 import { verifySession } from "@/lib/auth/verify-session";
 import { validateQuery } from "@/app/api/routes-f/_lib/validate";
+import { CACHE_POLICIES } from "@/lib/cache";
 
 const querySchema = z.object({
   session_id: z.string().uuid(),
@@ -220,7 +221,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json(response, {
       headers: {
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        "Cache-Control": CACHE_POLICIES.privateAnalytics.cacheControl,
       },
     });
   } catch (error) {

@@ -12,6 +12,11 @@ import { cookies } from "next/headers";
  * any client-supplied data.
  */
 export async function verifyAdminSession(): Promise<boolean> {
+  return (await getAdminIdentity()) !== null;
+}
+
+/** The verified admin's Privy ID, or null when the caller is not an admin. */
+export async function getAdminIdentity(): Promise<string | null> {
   const cookieStore = await cookies();
   const privySession = cookieStore.get("privy_session")?.value ?? "";
 
@@ -21,10 +26,10 @@ export async function verifyAdminSession(): Promise<boolean> {
     .filter(Boolean);
 
   if (privySession && allowedPrivyIds.includes(privySession)) {
-    return true;
+    return privySession;
   }
 
-  return false;
+  return null;
 }
 
 /** Returns true when userId is in the ADMIN_PRIVY_IDS or ADMIN_WALLET_ADDRESSES env lists. */

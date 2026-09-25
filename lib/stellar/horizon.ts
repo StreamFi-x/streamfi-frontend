@@ -9,7 +9,7 @@ interface FetchPaymentsParams {
   cursor?: string;
 }
 
-interface TipRecord {
+export interface TipRecord {
   id: string;
   sender: string;
   amount: string;

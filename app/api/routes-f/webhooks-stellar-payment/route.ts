@@ -26,6 +26,7 @@ import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
 import { writeNotification } from "@/lib/notifications";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { createHmac, timingSafeEqual } from "crypto";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 // Rate limiter: max 60 requests per minute per IP
 const isRateLimited = createRateLimiter(60 * 1000, 60);
@@ -319,6 +320,7 @@ export async function POST(req: NextRequest) {
         last_tip_at = NOW()
       WHERE id = ${creator.id}
     `;
+    await invalidateUserCaches({ id: creator.id });
 
     console.log(`✅ Tip credited: ${amountXLM} XLM ($${priceUSD.toFixed(2)}) to ${creator.username}`);
 

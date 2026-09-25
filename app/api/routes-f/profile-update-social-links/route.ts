@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth/verify-session";
 import { sql } from "@vercel/postgres";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 function isValidUrl(str: string): boolean {
   try {
@@ -70,6 +71,7 @@ export async function PATCH(req: NextRequest) {
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ${session.userId}
     `;
+    await invalidateUserCaches({ id: session.userId });
   } catch {
     // Fallback if update by wallet
     if (session.wallet) {
@@ -80,6 +82,7 @@ export async function PATCH(req: NextRequest) {
               updated_at = CURRENT_TIMESTAMP
           WHERE wallet = ${session.wallet}
         `;
+        await invalidateUserCaches({ id: session.userId });
       } catch {
         // Fallback
       }

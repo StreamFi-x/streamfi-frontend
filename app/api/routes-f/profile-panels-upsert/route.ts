@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@vercel/postgres";
 import { z } from "zod";
 import { verifySession } from "@/lib/auth/verify-session";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { ensureProfilePanelsSchema } from "./_lib/db";
+import { withTransaction } from "@/lib/db-transaction";
 
 const MAX_PANELS = 12;
 
@@ -30,21 +30,15 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
 
   const { panels } = bodyResult.data;
 
-  // @vercel/postgres's top-level `sql` tag does not guarantee successive
-  // calls share one connection, so BEGIN/COMMIT across separate `sql` calls
-  // is unsafe. Use a single checked-out client for the whole
-  // delete-then-reinsert so it runs as one real transaction.
-  const client = createClient();
-  await client.connect();
-
+  // Delete-then-reinsert must be atomic, so it runs on one pooled connection
+  // (lib/db-transaction.ts) rather than as separate `sql` requests.
   try {
     await ensureProfilePanelsSchema();
 
-    await client.sql`BEGIN`;
-    try {
+    const inserted = await withTransaction(async client => {
       await client.sql`DELETE FROM channel_panels WHERE channel_id = ${session.userId}`;
 
-      const inserted: {
+      const rowsOut: {
         id: string;
         title: string;
         body: string;
@@ -65,26 +59,20 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
           )
           RETURNING id, title, body, image_url, position
         `;
-        inserted.push(rows[0] as (typeof inserted)[number]);
+        rowsOut.push(rows[0] as (typeof rowsOut)[number]);
       }
+      return rowsOut;
+    });
 
-      await client.sql`COMMIT`;
-
-      return NextResponse.json({
-        channel: session.userId,
-        panels: inserted,
-      });
-    } catch (transactionError) {
-      await client.sql`ROLLBACK`;
-      throw transactionError;
-    }
+    return NextResponse.json({
+      channel: session.userId,
+      panels: inserted,
+    });
   } catch (error) {
     console.error("[routes-f/profile-panels-upsert] PUT error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
     );
-  } finally {
-    await client.end();
   }
 }

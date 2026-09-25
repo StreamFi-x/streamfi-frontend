@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { z } from "zod";
+import { withTransaction } from "@/lib/db-transaction";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,25 +65,20 @@ export async function POST(req: NextRequest) {
         }
 
         // Transaction to accept invite and join squad
-        await sql`BEGIN`;
-
-        await sql`
+        await withTransaction(async client => {
+            await client.sql`
       UPDATE co_stream_invites SET status = 'accepted' WHERE id = ${invite[0].id}
     `;
 
-        await sql`
+            await client.sql`
       INSERT INTO squad_members (creator_id, user_id)
       VALUES (${creatorId}, ${session.userId})
       ON CONFLICT DO NOTHING
     `;
-
-        await sql`COMMIT`;
+        });
 
         return NextResponse.json({ message: "Squad invite accepted" });
     } catch (error) {
-        if (error) {
-            await sql`ROLLBACK`;
-        }
         console.error("[Co-streamers API] Error accepting invite:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }

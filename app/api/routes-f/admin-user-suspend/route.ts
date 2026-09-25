@@ -28,6 +28,7 @@ import { z } from "zod";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
 import { writeNotification } from "@/lib/notifications";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 const suspendSchema = z.object({
   userId: z.string().uuid(),
@@ -94,6 +95,7 @@ export async function POST(req: NextRequest) {
           suspended_until = ${suspendedUntil}
         WHERE id = ${userId}
       `;
+      await invalidateUserCaches({ id: userId });
 
       // If user is currently live, end their stream
       if (user.is_live) {
@@ -104,6 +106,7 @@ export async function POST(req: NextRequest) {
             current_viewers = 0
           WHERE id = ${userId}
         `;
+        await invalidateUserCaches({ id: userId });
 
         // Close active stream sessions
         await sql`
@@ -154,6 +157,7 @@ export async function POST(req: NextRequest) {
           suspended_until = NULL
         WHERE id = ${userId}
       `;
+      await invalidateUserCaches({ id: userId });
 
       // Send notification to user
       try {
@@ -240,6 +244,7 @@ export async function GET(req: NextRequest) {
             suspended_until = NULL
           WHERE id = ${userId}
         `;
+        await invalidateUserCaches({ id: userId });
         isCurrentlySuspended = false;
       }
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { CACHE_POLICIES } from "@/lib/cache";
 
 const STREAMS_PER_PAGE = 50;
 
@@ -31,7 +32,7 @@ export async function GET(req: Request) {
         { streams: [], hasMore: false, nextOffset: null },
         {
           headers: {
-            "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30",
+            "Cache-Control": CACHE_POLICIES.liveState.cacheControl,
           },
         }
       );
@@ -86,7 +87,7 @@ export async function GET(req: Request) {
       { streams: page, hasMore, nextOffset },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30",
+          "Cache-Control": CACHE_POLICIES.liveState.cacheControl,
         },
       }
     );

@@ -37,6 +37,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createHmac, timingSafeEqual } from "crypto";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 // Rate limiter: max 120 requests per minute (Mux can send bursts)
 const isRateLimited = createRateLimiter(60 * 1000, 120);
@@ -136,14 +137,18 @@ export async function POST(req: NextRequest) {
       case "video.live_stream.active": {
         console.log(`🔴 Stream ACTIVE (broadcasting): ${streamId}`);
 
-        await sql`
+        const { rows: streamOwners } = await sql`
           UPDATE users SET
             is_live = true,
             stream_started_at = CURRENT_TIMESTAMP,
             current_viewers = 0,
             updated_at = CURRENT_TIMESTAMP
           WHERE mux_stream_id = ${streamId}
+          RETURNING username, wallet
         `;
+        for (const owner of streamOwners) {
+          await invalidateUserCaches(owner);
+        }
 
         try {
           const userResult = await sql`
@@ -208,14 +213,18 @@ export async function POST(req: NextRequest) {
       case "video.live_stream.idle": {
         console.log(`⚫ Stream OFFLINE (idle): ${streamId}`);
 
-        await sql`
+        const { rows: streamOwners } = await sql`
           UPDATE users SET
             is_live = false,
             stream_started_at = NULL,
             current_viewers = 0,
             updated_at = CURRENT_TIMESTAMP
           WHERE mux_stream_id = ${streamId}
+          RETURNING username, wallet
         `;
+        for (const owner of streamOwners) {
+          await invalidateUserCaches(owner);
+        }
 
         try {
           const userResult = await sql`

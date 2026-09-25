@@ -145,6 +145,22 @@ CREATE TABLE IF NOT EXISTS stream_recordings (
 
 
 
+-- Archive of identifiers from the retired Livepeer integration (#1408).
+-- Populated by db/migrations/20260925_retire_livepeer_columns.sql; empty on
+-- databases created after the Mux migration.
+CREATE TABLE IF NOT EXISTS legacy_livepeer_refs (
+    id BIGSERIAL PRIMARY KEY,
+    source_table TEXT NOT NULL,
+    source_id UUID NOT NULL,
+    column_name TEXT NOT NULL,
+    legacy_value TEXT NOT NULL,
+    mux_reference TEXT,
+    disposition TEXT NOT NULL
+        CHECK (disposition IN ('migrated', 'unprovisioned', 'legacy_history')),
+    archived_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (source_table, source_id, column_name)
+);
+
 CREATE TABLE IF NOT EXISTS verification_tokens (
     email VARCHAR(255),
     token VARCHAR(6),                            
@@ -166,24 +182,24 @@ CREATE TABLE IF NOT EXISTS stream_categories (
 CREATE TABLE IF NOT EXISTS tags (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(100) UNIQUE NOT NULL,
-    visibility BOOLEAN DEFAULT true
+    visibility BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_wallet ON users(wallet);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_livepeer_stream_id ON users(livepeer_stream_id);
-CREATE INDEX IF NOT EXISTS idx_users_playback_id ON users(playback_id);
 CREATE INDEX IF NOT EXISTS idx_users_is_live ON users(is_live);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
 CREATE INDEX IF NOT EXISTS idx_stream_sessions_user_id ON stream_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_stream_sessions_started_at ON stream_sessions(started_at);
-CREATE INDEX IF NOT EXISTS idx_stream_sessions_livepeer_session ON stream_sessions(livepeer_session_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_stream_session ON chat_messages(stream_session_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_not_deleted ON chat_messages(stream_session_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session_window ON chat_messages(stream_session_id, created_at DESC) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_users_mux_playback_id ON users(mux_playback_id);
+CREATE INDEX IF NOT EXISTS idx_stream_sessions_open_by_user ON stream_sessions(user_id, started_at DESC) WHERE ended_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_stream_viewers_session ON stream_viewers(stream_session_id);
 CREATE INDEX IF NOT EXISTS idx_stream_viewers_user_id ON stream_viewers(user_id);
 CREATE INDEX IF NOT EXISTS idx_stream_viewers_session_id ON stream_viewers(session_id);
@@ -282,7 +298,7 @@ SELECT
 FROM information_schema.columns 
 WHERE table_name = 'users' 
 AND column_name IN (
-    'livepeer_stream_id', 'playback_id', 'is_live', 
+    'mux_stream_id', 'mux_playback_id', 'is_live', 
     'current_viewers', 'total_views', 'stream_started_at',
     'emailVerified', 'emailNotifications', 'creator'
 )

@@ -7,6 +7,7 @@ import {
   type MuxStreamData,
 } from "@/lib/mux/server";
 import { isSigningConfigured } from "@/lib/mux/playback-token";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 /**
  * POST /api/streams/reprovision
@@ -91,6 +92,7 @@ export async function POST(req: Request) {
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ${user.id}
       `;
+      await invalidateUserCaches({ id: user.id });
     } catch (dbErr) {
       console.error("[reprovision] DB update failed:", dbErr);
       // Try to clean up the orphan Mux stream we just created

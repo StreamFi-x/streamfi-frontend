@@ -29,6 +29,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifyAdminSession } from "@/lib/admin-auth";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 // Rate limiter: max 12 requests per hour (every 5 minutes)
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 12);
@@ -195,6 +196,7 @@ export async function POST(req: NextRequest) {
               current_viewers = 0
             WHERE id = ${session.user_id}
           `;
+          await invalidateUserCaches({ id: session.user_id });
         }
 
         const duration = Math.floor(

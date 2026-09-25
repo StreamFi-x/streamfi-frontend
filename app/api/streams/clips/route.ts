@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { CACHE_POLICIES } from "@/lib/cache";
 
 const isRateLimited = createRateLimiter(60_000, 10); // 10 clips/min per IP
 
@@ -69,7 +70,7 @@ export async function GET(req: NextRequest) {
     const total = parseInt(countRows[0].total, 10);
     return NextResponse.json(
       { clips: rows, total, hasMore: offset + limit < total },
-      { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" } }
+      { headers: { "Cache-Control": CACHE_POLICIES.publicListing.cacheControl } }
     );
   } catch (err) {
     console.error("[clips] GET error:", err);

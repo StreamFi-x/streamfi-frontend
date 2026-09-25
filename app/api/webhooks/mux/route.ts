@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 /**
  * Mux Webhook Handler
@@ -104,14 +105,18 @@ export async function POST(req: Request) {
       case "video.live_stream.active": {
         console.log(`🔴 Stream ACTIVE (broadcasting): ${streamId}`);
 
-        await sql`
+        const { rows: streamOwners } = await sql`
           UPDATE users SET
             is_live = true,
             stream_started_at = CURRENT_TIMESTAMP,
             current_viewers = 0,
             updated_at = CURRENT_TIMESTAMP
           WHERE mux_stream_id = ${streamId}
+          RETURNING username, wallet
         `;
+        for (const owner of streamOwners) {
+          await invalidateUserCaches(owner);
+        }
 
         // Create stream session record — only one per broadcast
         try {
@@ -183,14 +188,18 @@ export async function POST(req: Request) {
       case "video.live_stream.idle": {
         console.log(`⚫ Stream OFFLINE (idle): ${streamId}`);
 
-        await sql`
+        const { rows: streamOwners } = await sql`
           UPDATE users SET
             is_live = false,
             stream_started_at = NULL,
             current_viewers = 0,
             updated_at = CURRENT_TIMESTAMP
           WHERE mux_stream_id = ${streamId}
+          RETURNING username, wallet
         `;
+        for (const owner of streamOwners) {
+          await invalidateUserCaches(owner);
+        }
 
         // End open stream session
         try {
