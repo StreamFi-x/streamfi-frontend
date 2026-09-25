@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { generateShareToken, type StreamPrivacy } from "@/lib/stream-access";
+import { verifySession } from "@/lib/auth/verify-session";
 
 const VALID_PRIVACY: StreamPrivacy[] = [
   "public",
@@ -9,27 +10,30 @@ const VALID_PRIVACY: StreamPrivacy[] = [
 ];
 
 /**
- * GET /api/streams/privacy?wallet=...
- * Returns current privacy settings for a creator.
- * The share token is only returned to the creator themselves (server-side check
- * to be added once we wire this in via verifySession; for now caller is trusted
- * because the route is called from owner-only UI).
+ * GET /api/streams/privacy
+ * Returns current privacy settings for the authenticated creator.
+ * Authenticated via verifySession.
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
+    const session = await verifySession(req);
+    if (!session.ok) {
+      return session.response;
+    }
+
     const { searchParams } = new URL(req.url);
     const wallet = searchParams.get("wallet");
-    if (!wallet) {
+    if (wallet && session.wallet && session.wallet.toLowerCase() !== wallet.toLowerCase()) {
       return NextResponse.json(
-        { error: "Wallet parameter required" },
-        { status: 400 }
+        { error: "Forbidden: cannot view privacy for another user" },
+        { status: 403 }
       );
     }
 
     const result = await sql`
       SELECT id, stream_privacy, share_token
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE id = ${session.userId}
     `;
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -50,22 +54,27 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/streams/privacy
- * Body: { wallet, privacy?, rotate_token? }
+ * Body: { wallet?, privacy?, rotate_token? }
  *   - privacy: one of "public" | "unlisted" | "subscribers_only"
  *   - rotate_token: when true, generate a new share token (invalidates old links)
  *
- * Generates a share token automatically the first time the creator switches to a
- * non-public privacy mode if none exists yet.
+ * Authenticated via verifySession. Identity is derived directly from the verified
+ * session, not untrusted request body parameters.
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const session = await verifySession(req);
+    if (!session.ok) {
+      return session.response;
+    }
+
+    const body = await req.json().catch(() => ({}));
     const { wallet, privacy, rotate_token } = body ?? {};
 
-    if (!wallet) {
+    if (wallet && session.wallet && session.wallet.toLowerCase() !== wallet.toLowerCase()) {
       return NextResponse.json(
-        { error: "wallet is required" },
-        { status: 400 }
+        { error: "Forbidden: cannot modify privacy for another user" },
+        { status: 403 }
       );
     }
 
@@ -79,7 +88,7 @@ export async function POST(req: Request) {
     const userResult = await sql`
       SELECT id, stream_privacy, share_token
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE id = ${session.userId}
     `;
     if (userResult.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

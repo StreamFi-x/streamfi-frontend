@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { verifySession } from "@/lib/auth/verify-session";
 
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
@@ -17,18 +18,33 @@ export async function POST(req: NextRequest) {
       { status: 429, headers: { "Retry-After": "60" } }
     );
   }
+
+  const session = await verifySession(req);
+  if (!session.ok) {
+    return session.response;
+  }
+
   try {
+    const body = await req.json().catch(() => ({}));
     const {
       wallet,
       playbackId,
       content,
       messageType = "message",
-    } = await req.json();
+    } = body;
 
-    if (!wallet || !playbackId || !content) {
+    if (!playbackId || !content) {
       return NextResponse.json(
-        { error: "Wallet, playback ID, and content are required" },
+        { error: "Playback ID and content are required" },
         { status: 400 }
+      );
+    }
+
+    // Prevent wallet spoofing: verify body wallet matches authenticated session
+    if (wallet && session.wallet && session.wallet.toLowerCase() !== wallet.toLowerCase()) {
+      return NextResponse.json(
+        { error: "Forbidden: wallet does not match authenticated session" },
+        { status: 403 }
       );
     }
 
@@ -47,10 +63,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Combined query: look up sender + stream + active session in one round-trip
+    // Acting sender identity is derived from verified session (session.userId)
     const result = await sql`
       SELECT
         sender.id AS sender_id,
         sender.username AS sender_username,
+        sender.wallet AS sender_wallet,
         streamer.id AS streamer_id,
         streamer.is_live,
         (
@@ -60,7 +78,7 @@ export async function POST(req: NextRequest) {
         ) AS session_id
       FROM users sender
       CROSS JOIN users streamer
-      WHERE sender.wallet = ${wallet}
+      WHERE sender.id = ${session.userId}
         AND streamer.mux_playback_id = ${playbackId}
     `;
 
@@ -71,7 +89,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { sender_id, sender_username, is_live, session_id } = result.rows[0];
+    const { sender_id, sender_username, sender_wallet, is_live, session_id } = result.rows[0];
 
     if (!is_live) {
       return NextResponse.json(
@@ -108,6 +126,8 @@ export async function POST(req: NextRequest) {
       WHERE id = ${session_id}
     `;
 
+    const userWallet = sender_wallet || session.wallet || wallet;
+
     return NextResponse.json(
       {
         message: "Message sent successfully",
@@ -117,7 +137,7 @@ export async function POST(req: NextRequest) {
           messageType,
           user: {
             username: sender_username,
-            wallet: wallet,
+            wallet: userWallet,
           },
           createdAt: newMessage.created_at,
         },
@@ -204,29 +224,29 @@ export async function GET(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
-  try {
-    const { messageId, moderatorWallet } = await req.json();
+export async function DELETE(req: NextRequest) {
+  const session = await verifySession(req);
+  if (!session.ok) {
+    return session.response;
+  }
 
-    if (!messageId || !moderatorWallet) {
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { messageId, moderatorWallet } = body;
+
+    if (!messageId) {
       return NextResponse.json(
-        { error: "Message ID and moderator wallet are required" },
+        { error: "Message ID is required" },
         { status: 400 }
       );
     }
 
-    const moderatorResult = await sql`
-      SELECT id FROM users WHERE wallet = ${moderatorWallet}
-    `;
-
-    if (moderatorResult.rows.length === 0) {
+    if (moderatorWallet && session.wallet && session.wallet.toLowerCase() !== moderatorWallet.toLowerCase()) {
       return NextResponse.json(
-        { error: "Moderator not found" },
-        { status: 404 }
+        { error: "Forbidden: moderator wallet does not match authenticated session" },
+        { status: 403 }
       );
     }
-
-    const moderatorId = moderatorResult.rows[0].id;
 
     const messageResult = await sql`
       SELECT 
@@ -244,10 +264,25 @@ export async function DELETE(req: Request) {
 
     const message = messageResult.rows[0];
 
-    if (
-      moderatorId !== message.stream_owner_id &&
-      moderatorId !== message.message_user_id
-    ) {
+    // Check if acting user is stream owner or message author
+    let isAllowed =
+      String(session.userId) === String(message.stream_owner_id) ||
+      String(session.userId) === String(message.message_user_id);
+
+    // If neither, verify moderator status in DB
+    if (!isAllowed) {
+      const userCheck = await sql`
+        SELECT role, is_moderator FROM users WHERE id = ${session.userId}
+      `;
+      if (userCheck.rows.length > 0) {
+        const u = userCheck.rows[0];
+        if (u.is_moderator || u.role === "admin" || u.role === "moderator") {
+          isAllowed = true;
+        }
+      }
+    }
+
+    if (!isAllowed) {
       return NextResponse.json(
         { error: "Insufficient permissions to delete this message" },
         { status: 403 }
@@ -258,7 +293,7 @@ export async function DELETE(req: Request) {
       UPDATE chat_messages SET
         is_deleted = true,
         is_moderated = true,
-        moderated_by = ${moderatorId}
+        moderated_by = ${session.userId}
       WHERE id = ${messageId}
     `;
 
