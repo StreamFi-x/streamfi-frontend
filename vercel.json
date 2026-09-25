@@ -11,6 +11,14 @@
     {
       "path": "/api/routes-f/cron-cleanup-expired-clips",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/routes-f/cron-mux-reconcile",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/routes-f/cron-purge-mux-webhook-events",
+      "schedule": "30 3 * * *"
     }
   ]
 }
