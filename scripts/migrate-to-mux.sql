@@ -13,7 +13,7 @@ ADD COLUMN IF NOT EXISTS mux_session_id VARCHAR(255);
 
 -- Do not copy Livepeer IDs into the mux_* columns: they are different
 -- providers' identifiers and Mux rejects them. Legacy columns are archived and
--- dropped by db/migrations/20260925_retire_livepeer_columns.sql (#1408).
+-- dropped by db/migrations/20260925190100_retire_livepeer_columns.sql (#1408).
 
 -- Verify the changes
 SELECT column_name, data_type

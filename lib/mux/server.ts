@@ -323,3 +323,103 @@ export async function getMuxStreamHealth(streamId: string) {
     throw new Error("Failed to get stream health");
   }
 }
+
+export type MuxLiveState =
+  | { state: "active" | "idle" | "disabled" }
+  | { state: "not_found" }
+  | { state: "unknown"; httpStatus?: number; error: string };
+
+/**
+ * Ground truth for "is this stream live right now" used by reconciliation.
+ * Unlike the helpers above it keeps the failure mode: 404 means the stream no
+ * longer exists, while rate limits, 5xx and network errors mean the state is
+ * unknown and callers must not act on it.
+ */
+export async function getMuxLiveStreamState(
+  streamId: string
+): Promise<MuxLiveState> {
+  try {
+    const liveStream = await mux.video.liveStreams.retrieve(streamId);
+    const status = liveStream.status;
+    if (status === "active" || status === "idle" || status === "disabled") {
+      return { state: status };
+    }
+    return { state: "unknown", error: `unexpected status "${status}"` };
+  } catch (error) {
+    const httpStatus =
+      typeof (error as { status?: unknown })?.status === "number"
+        ? (error as { status: number }).status
+        : undefined;
+    if (httpStatus === 404) {
+      return { state: "not_found" };
+    }
+    return {
+      state: "unknown",
+      httpStatus,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+// ── Live-state reconciliation (#1399) ────────────────────────────────────────
+// Unlike the helpers above these throw instead of swallowing errors: the
+// reconciliation job must be able to tell "Mux says idle" apart from "we
+// could not reach Mux", and never treats a failure as an observation.
+
+export type MuxLiveStreamStatus = "active" | "idle" | "disabled" | "not_found";
+
+const MUX_LIST_PAGE_SIZE = 100;
+const MUX_LIST_MAX_PAGES = 50;
+const MUX_READ_TIMEOUT_MS = 10_000;
+
+export interface ActiveMuxLiveStreams {
+  ids: Set<string>;
+  /** false when the page cap was hit before Mux ran out of results. */
+  complete: boolean;
+  pages: number;
+}
+
+/** Every live stream Mux currently reports as `active` (paginated). */
+export async function listActiveMuxLiveStreamIds(): Promise<ActiveMuxLiveStreams> {
+  const ids = new Set<string>();
+  for (let page = 1; page <= MUX_LIST_MAX_PAGES; page++) {
+    const result = await mux.video.liveStreams.list(
+      { status: "active", limit: MUX_LIST_PAGE_SIZE, page },
+      { timeout: MUX_READ_TIMEOUT_MS, maxRetries: 2 }
+    );
+    const items: unknown = result?.data;
+    if (!Array.isArray(items)) {
+      throw new Error("Unexpected Mux live stream list response shape");
+    }
+    for (const item of items as Array<{ id?: unknown; status?: unknown }>) {
+      if (typeof item?.id !== "string" || typeof item.status !== "string") {
+        throw new Error("Unexpected Mux live stream entry shape");
+      }
+      if (item.status === "active") {
+        ids.add(item.id);
+      }
+    }
+    if (items.length < MUX_LIST_PAGE_SIZE) {
+      return { ids, complete: true, pages: page };
+    }
+  }
+  return { ids, complete: false, pages: MUX_LIST_MAX_PAGES };
+}
+
+/** Current status of a single live stream, straight from Mux. */
+export async function getMuxLiveStreamStatus(
+  streamId: string
+): Promise<MuxLiveStreamStatus> {
+  try {
+    const liveStream = await mux.video.liveStreams.retrieve(streamId, {
+      timeout: MUX_READ_TIMEOUT_MS,
+      maxRetries: 2,
+    });
+    return liveStream.status;
+  } catch (error) {
+    if (error instanceof Mux.NotFoundError) {
+      return "not_found";
+    }
+    throw error;
+  }
+}

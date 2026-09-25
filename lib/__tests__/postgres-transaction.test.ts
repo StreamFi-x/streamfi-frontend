@@ -6,7 +6,7 @@ jest.mock("@vercel/postgres", () => ({
   db: { connect: () => mockConnect() },
 }));
 
-import { withTransaction } from "@/lib/db-transaction";
+import { withTransaction } from "@/lib/postgres-transaction";
 
 function fakeClient(failOn?: string) {
   const log: string[] = [];
@@ -36,7 +36,7 @@ describe("withTransaction", () => {
     });
     expect(result).toBe("done");
     expect(log).toEqual(["BEGIN", "DELETE FROM featured_streams", "COMMIT"]);
-    expect(client.release).toHaveBeenCalledWith(undefined);
+    expect(client.release).toHaveBeenCalledWith(false);
   });
 
   it("rolls back, rethrows and releases when the work fails", async () => {
@@ -53,7 +53,7 @@ describe("withTransaction", () => {
       "INSERT INTO featured_streams VALUES (1)",
       "ROLLBACK",
     ]);
-    expect(client.release).toHaveBeenCalledWith(undefined);
+    expect(client.release).toHaveBeenCalledWith(false);
   });
 
   it("discards the connection when ROLLBACK itself fails", async () => {
@@ -63,6 +63,6 @@ describe("withTransaction", () => {
         throw new Error("work failed");
       })
     ).rejects.toThrow("work failed");
-    expect(client.release).toHaveBeenCalledWith(expect.any(Error));
+    expect(client.release).toHaveBeenCalledWith(true);
   });
 });

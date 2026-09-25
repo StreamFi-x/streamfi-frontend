@@ -26,7 +26,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { z } from "zod";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
-import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
+import { requireAdminSession } from "@/lib/admin-auth";
 import { writeNotification } from "@/lib/notifications";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
@@ -42,9 +42,9 @@ type SuspendPayload = z.infer<typeof suspendSchema>;
 export async function POST(req: NextRequest) {
   try {
     // Verify admin authentication
-    const isAdmin = await verifyAdminSession();
-    if (!isAdmin) {
-      return adminUnauthorized();
+    const adminDenied = await requireAdminSession("routes-f/admin-user-suspend");
+    if (adminDenied) {
+      return adminDenied;
     }
 
     // Validate request body
@@ -192,9 +192,9 @@ export async function POST(req: NextRequest) {
 // Get suspension status for a user (admin only)
 export async function GET(req: NextRequest) {
   try {
-    const isAdmin = await verifyAdminSession();
-    if (!isAdmin) {
-      return adminUnauthorized();
+    const adminDenied = await requireAdminSession("routes-f/admin-user-suspend");
+    if (adminDenied) {
+      return adminDenied;
     }
 
     const { searchParams } = new URL(req.url);

@@ -1,11 +1,14 @@
+-- migrate:no-transaction
 -- Indexes for the chat poll path (GET /api/streams/chat), issue #1410.
 -- Measured in docs/postgres-pooling-and-chat-load.md: sustainable poll rate on
 -- the benchmark box rose from ~2,400/s to ~3,600/s, and p95 at 2,000 polls/s
 -- fell from 23 ms to 4 ms.
 --
--- CONCURRENTLY avoids blocking chat writes while building, so run this file
--- outside a transaction block (psql -f does that by default). Rerunnable.
--- If a build is interrupted, drop the INVALID index and rerun.
+-- CONCURRENTLY avoids blocking chat writes while building, so the runner
+-- applies this file statement by statement (directive below). Rerunnable.
+-- If a build is interrupted, drop the INVALID index, then
+-- `npm run db:migrate -- resolve 20260925190000_chat_poll_indexes --rolled-back`
+-- and rerun `up`.
 
 -- Session lookup: WHERE u.mux_playback_id = $1 (also in scripts/optimize-database.sql)
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_mux_playback_id

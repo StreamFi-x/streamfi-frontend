@@ -60,6 +60,9 @@ const RULES = [
       "app/api/auth/session/route.ts":
         "creates a row with no username or wallet yet",
       "app/api/debug/clear-users/route.ts": "dev-only wipe of every table",
+      "lib/mux/live-state.ts":
+        "runs inside callers' transactions; callers invalidate after commit (lib/mux/webhook-handlers.ts)",
+      "lib/custodial-keys/migration.ts": "encrypted key columns are not part of any cached read",
     } as Record<string, string>,
   },
   {

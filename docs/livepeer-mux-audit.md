@@ -82,8 +82,9 @@ that they agree.
    the deploy log.
 2. **Deploy this PR's code.** Nothing in it touches the legacy columns, and
    the route that recreated them is gone.
-3. **Migrate:** `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/20260925_retire_livepeer_columns.sql`.
-   In one transaction it copies every non-empty legacy value into
+3. **Migrate:** `npm run db:migrate -- up` applies
+   `db/migrations/20260925190100_retire_livepeer_columns.sql` (see
+   `docs/database-migrations.md`). In one transaction it copies every non-empty legacy value into
    `legacy_livepeer_refs` (source row, column, value, the Mux reference at
    the time, disposition). It aborts before any `DROP` if a value is missing
    from the archive, then drops the indexes and columns. It is idempotent,

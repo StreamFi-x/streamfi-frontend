@@ -3,7 +3,7 @@ import { z } from "zod";
 import { verifySession } from "@/lib/auth/verify-session";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { ensureProfilePanelsSchema } from "./_lib/db";
-import { withTransaction } from "@/lib/db-transaction";
+import { withTransaction } from "@/lib/postgres-transaction";
 
 const MAX_PANELS = 12;
 
@@ -31,7 +31,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
   const { panels } = bodyResult.data;
 
   // Delete-then-reinsert must be atomic, so it runs on one pooled connection
-  // (lib/db-transaction.ts) rather than as separate `sql` requests.
+  // (lib/postgres-transaction.ts) rather than as separate `sql` requests.
   try {
     await ensureProfilePanelsSchema();
 

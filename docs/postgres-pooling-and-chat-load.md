@@ -10,7 +10,7 @@ production capacity figure.
 | Path                                      | Where                                        | Transport                                                          | Connection behaviour                                                                                        |
 | ----------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | `` sql`…` `` from `@vercel/postgres` 0.10 | ~226 call sites                              | Neon HTTP driver (`neon()`), one HTTPS request per statement       | Holds no connection between statements. The pooler lends a server connection only while the statement runs. |
-| `sql.query()`, `db.connect()`             | 4 `sql.query` sites, `lib/db-transaction.ts` | Neon WebSocket `Pool`, one per serverless instance, created lazily | Client connections to the pooler; a server connection only for the duration of a transaction                |
+| `sql.query()`, `db.connect()`             | 4 `sql.query` sites, `lib/postgres-transaction.ts` | Neon WebSocket `Pool`, one per serverless instance, created lazily | Client connections to the pooler; a server connection only for the duration of a transaction                |
 | `createClient()`                          | was `routes-f/profile-panels-upsert`         | Direct connection to `POSTGRES_URL_NON_POOLING`                    | One real Postgres backend per request, counted against `max_connections`. **Removed.**                      |
 | Scripts (`scripts/*.js`, `*.mjs`)         | ops only                                     | Neon `Pool` on `DATABASE_URL`                                      | Not on the request path                                                                                     |
 
@@ -83,7 +83,7 @@ Tooling, all in `scripts/load-test/`:
   through a fixed pool and reports achieved rate, latency (including queueing)
   and failures.
 - `chat-poll-indexes.sql`: the candidate indexes. They shipped as
-  `db/migrations/20260925_chat_poll_indexes.sql`.
+  `db/migrations/20260925190000_chat_poll_indexes.sql`.
 - `chat-poll-http.mjs`: end-to-end viewers against a preview or staging URL.
   It refuses the production domain.
 
@@ -117,7 +117,7 @@ Without the new indexes (the schema as it is today):
 | 2,000           | 1,992     | 8.6   | 23.4  | 53.7  |
 | 4,000           | **2,391** | 3,065 | 5,705 | 6,021 |
 
-With `20260925_chat_poll_indexes.sql`:
+With `20260925190000_chat_poll_indexes.sql`:
 
 | offered polls/s | achieved  | avg   | p95   | p99   |
 | --------------- | --------- | ----- | ----- | ----- |
@@ -191,9 +191,10 @@ Revisit the decision when any of these holds:
 
 ## Deploying
 
-1. Run `db/migrations/20260925_chat_poll_indexes.sql`. It uses
-   `CREATE INDEX CONCURRENTLY`, so run it outside a transaction; `psql -f`
-   does that by default.
+1. `npm run db:migrate -- up` applies
+   `db/migrations/20260925190000_chat_poll_indexes.sql`. It is marked
+   `-- migrate:no-transaction` because `CREATE INDEX CONCURRENTLY` cannot run
+   inside a transaction.
 2. Deploy the application.
 
 Order does not affect correctness. The code works without the indexes, just

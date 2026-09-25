@@ -4,7 +4,7 @@
  * Livepeer identifiers cannot be translated into Mux identifiers, so no row
  * can be "repaired" by copying one column into another. Every legacy value is
  * classified, archived to `legacy_livepeer_refs` and only then dropped by
- * db/migrations/20260925_retire_livepeer_columns.sql, which applies the same
+ * db/migrations/20260925190100_retire_livepeer_columns.sql, which applies the same
  * rules as `classifyLegacyValue` below. docs/livepeer-mux-audit.md records the
  * dispositions.
  */

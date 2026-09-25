@@ -1,21 +1,24 @@
-// app/api/tips/refresh-total/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { fetchPaymentsReceived, type TipRecord } from "@/lib/stellar/horizon";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
 import { getXlmUsdPrice } from "@/lib/routes-f/price";
+import {
+  LedgerHistoryTooLargeError,
+  reconcileUserTipTotals,
+} from "@/lib/stellar/tip-reconciliation";
 import { verifySession } from "@/lib/auth/verify-session";
 import { isAdmin } from "@/lib/admin-auth";
 import { cacheHeaders } from "@/lib/cache";
-import { invalidateUserCaches } from "@/lib/cache/invalidation";
 import { acquireLock } from "@/lib/single-flight-lock";
 import { createRateLimit, tooManyRequests } from "@/lib/rate-limit";
 
-// A refresh walks the creator's entire Horizon payment history and writes
-// every page, so it is guarded three ways (see docs/rate-limiting.md):
+// A refresh walks the creator's whole Horizon payment history, so on top of
+// reconcileUserTipTotals' version guard (which keeps concurrent writers
+// correct) it is guarded against repeated and overlapping work
+// (docs/rate-limiting.md):
 //  1. per caller: caps how many refreshes one account can start;
 //  2. per creator cooldown: a refresh within the last minute is reused, not rerun;
-//  3. per creator lock: overlapping refreshes of the same creator are refused.
+//  3. per creator lock: overlapping walks of the same creator are refused.
 const callerLimit = createRateLimit({
   namespace: "tips-refresh:caller",
   limit: 10,
@@ -26,33 +29,25 @@ const creatorCooldown = createRateLimit({
   limit: 1,
   windowMs: 60_000,
 });
-// Long enough for a large history walk; a crashed invocation frees it on expiry.
+// Long enough for a maximal (maxPages) history walk with retries; a crashed
+// invocation frees it on expiry.
 const REFRESH_LOCK_TTL_MS = 5 * 60_000;
 const IN_PROGRESS_RETRY_SECONDS = 10;
-const HORIZON_PAGE_SIZE = 200;
 
-async function recordTips(
-  creatorId: string,
-  tips: TipRecord[],
-  xlmUsdPrice: number
-): Promise<void> {
-  if (tips.length === 0) {
-    return;
-  }
-  // One statement per Horizon page instead of a lookup + insert per tip. The
-  // partial unique index on tx_hash makes reruns idempotent.
-  await sql`
-    INSERT INTO tip_transactions (
-      creator_id, supporter_id, amount_xlm, price_usd, tx_hash, memo, created_at
-    )
-    SELECT
-      ${creatorId}::uuid, supporter.id, t.amount::numeric, ${xlmUsdPrice}::numeric,
-      t."txHash", 'StreamFi Tip', t."timestamp"::timestamptz
-    FROM json_to_recordset(${JSON.stringify(tips)}::json)
-      AS t(amount text, "txHash" text, sender text, "timestamp" text)
-    LEFT JOIN users supporter ON supporter.wallet = t.sender
-    ON CONFLICT (tx_hash) WHERE tx_hash IS NOT NULL DO NOTHING
-  `;
+function inProgress(): NextResponse {
+  return NextResponse.json(
+    {
+      error: "Tip totals are being updated; try again shortly",
+      retryAfter: IN_PROGRESS_RETRY_SECONDS,
+    },
+    {
+      status: 409,
+      headers: {
+        "Retry-After": String(IN_PROGRESS_RETRY_SECONDS),
+        ...cacheHeaders("privateNoStore"),
+      },
+    }
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -107,7 +102,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const cooldown = await creatorCooldown.check(user.id);
+    const cooldown = await creatorCooldown.check(String(user.id));
     if (!cooldown.success) {
       return NextResponse.json(
         {
@@ -126,70 +121,34 @@ export async function POST(request: NextRequest) {
       ttlMs: REFRESH_LOCK_TTL_MS,
     });
     if (!lock) {
-      return NextResponse.json(
-        {
-          error: "A refresh for this creator is already in progress",
-          retryAfter: IN_PROGRESS_RETRY_SECONDS,
-        },
-        {
-          status: 409,
-          headers: {
-            "Retry-After": String(IN_PROGRESS_RETRY_SECONDS),
-            ...cacheHeaders("privateNoStore"),
-          },
-        }
-      );
+      return inProgress();
     }
 
     try {
-      const xlmUsdPrice = await getXlmUsdPrice();
-      let total = 0;
-      let totalCount = 0;
-      let lastTipAt: string | null = null;
-      let cursor: string | undefined;
+      // Recalculate from the full ledger history (shared with the scheduled
+      // reconciliation job). A concurrent writer bumps tip_totals_version, in
+      // which case the recalculation is retried against the newer state.
+      const result = await reconcileUserTipTotals(
+        String(user.id),
+        String(user.stellar_public_key),
+        { getXlmUsdPrice, maxAttempts: 3 }
+      );
 
-      do {
-        const { tips, nextCursor } = await fetchPaymentsReceived({
-          publicKey: user.stellar_public_key,
-          limit: HORIZON_PAGE_SIZE,
-          cursor,
-        });
-        if (lastTipAt === null && tips.length > 0) {
-          lastTipAt = tips[0].timestamp;
-        }
-        for (const tip of tips) {
-          total += parseFloat(tip.amount);
-        }
-        totalCount += tips.length;
-        await recordTips(user.id, tips, xlmUsdPrice);
-        cursor = nextCursor || undefined;
-      } while (cursor);
-
-      const totalReceived = total.toFixed(7);
-
-      await sql`
-        UPDATE users
-        SET
-          total_tips_received = ${totalReceived},
-          total_tips_count = ${totalCount},
-          last_tip_at = ${lastTipAt},
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${user.id}
-      `;
-      await invalidateUserCaches({
-        id: user.id,
-        username: user.username,
-        wallet: user.stellar_public_key,
-      });
+      if (result.status === "not_found") {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+      if (result.status === "stale" || !result.totals) {
+        return inProgress();
+      }
 
       await evaluateAndAwardBadges(String(user.id));
 
       return NextResponse.json(
         {
           username: user.username,
-          totalReceived,
-          totalCount,
-          lastTipAt,
+          totalReceived: result.totals.totalReceived,
+          totalCount: result.totals.totalCount,
+          lastTipAt: result.totals.lastTipAt,
           refreshed: true,
           refreshedAt: new Date().toISOString(),
         },
@@ -199,6 +158,9 @@ export async function POST(request: NextRequest) {
       await lock.release();
     }
   } catch (error) {
+    if (error instanceof LedgerHistoryTooLargeError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
     console.error("Refresh total error:", error);
     return NextResponse.json(
       { error: "Failed to refresh tip totals" },

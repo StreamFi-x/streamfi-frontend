@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { z } from "zod";
-import { withTransaction } from "@/lib/db-transaction";
+import { withTransaction } from "@/lib/postgres-transaction";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

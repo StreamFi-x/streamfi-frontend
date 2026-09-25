@@ -5,7 +5,8 @@
  *  1. Verifies their privy_session cookie (server-side DB cross-check)
  *  2. Validates the chosen username
  *  3. Generates a fresh Stellar keypair (custodial)
- *  4. Encrypts the private key with AES-256-GCM using STELLAR_ENCRYPTION_KEY
+ *  4. Envelope-encrypts the private key under a per-wallet data key wrapped
+ *     by AWS KMS (lib/custodial-keys)
  *  5. Updates the user's DB row with username, wallet (public key), encrypted secret
  *
  * The encrypted private key never leaves the server unencrypted.
@@ -14,48 +15,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { Keypair } from "@stellar/stellar-sdk";
-import { createCipheriv, randomBytes } from "crypto";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
+import {
+  CustodialKeyError,
+  encryptCustodialSecret,
+} from "@/lib/custodial-keys";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
-
-// ─── Encryption helpers ────────────────────────────────────────────────────────
-
-/**
- * Derives a 32-byte key from the env variable.
- * STELLAR_ENCRYPTION_KEY must be a 64-char hex string (32 bytes).
- */
-function getEncryptionKey(): Buffer {
-  const hex = process.env.STELLAR_ENCRYPTION_KEY;
-  if (!hex || hex.length !== 64) {
-    throw new Error(
-      "STELLAR_ENCRYPTION_KEY must be a 64-character hex string (32 bytes)"
-    );
-  }
-  return Buffer.from(hex, "hex");
-}
-
-/**
- * Encrypts a plaintext string with AES-256-GCM.
- * Returns a single string: `<iv_hex>:<authTag_hex>:<ciphertext_hex>`
- */
-function encryptSecret(plaintext: string): string {
-  const key = getEncryptionKey();
-  const iv = randomBytes(12); // 96-bit IV — recommended for GCM
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
-  const authTag = cipher.getAuthTag(); // 16-byte GCM auth tag
-
-  return [
-    iv.toString("hex"),
-    authTag.toString("hex"),
-    encrypted.toString("hex"),
-  ].join(":");
-}
 
 // ─── Username validation ───────────────────────────────────────────────────────
 
@@ -136,12 +102,23 @@ export async function POST(req: NextRequest) {
     walletPublicKey = keypair.publicKey();
 
     try {
-      encryptedSecret = encryptSecret(keypair.secret());
+      encryptedSecret = await encryptCustodialSecret(
+        session.userId,
+        keypair.secret()
+      );
     } catch (err) {
-      console.error("[onboarding] Encryption failed:", err);
+      console.error(
+        "[onboarding] Encryption failed:",
+        err instanceof CustodialKeyError ? err.code : "unexpected_error"
+      );
+      const transient = err instanceof CustodialKeyError && err.transient;
       return NextResponse.json(
-        { error: "Failed to secure wallet — check STELLAR_ENCRYPTION_KEY" },
-        { status: 500 }
+        {
+          error: transient
+            ? "Wallet security service is temporarily unavailable — please try again"
+            : "Failed to secure wallet",
+        },
+        { status: transient ? 503 : 500 }
       );
     }
   }

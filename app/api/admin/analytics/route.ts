@@ -1,5 +1,5 @@
 import { sql } from "@vercel/postgres";
-import { getAdminIdentity, adminUnauthorized } from "@/lib/admin-auth";
+import { currentAdminPrivyId, requireAdminSession } from "@/lib/admin-auth";
 import { CACHE_POLICIES, cacheHeaders, cached } from "@/lib/cache";
 import {
   createRateLimit,
@@ -51,12 +51,14 @@ async function loadStats(): Promise<AdminAnalyticsStats> {
 }
 
 export async function GET(): Promise<Response> {
-  const adminId = await getAdminIdentity();
-  if (!adminId) {
-    return adminUnauthorized();
+  // Brute-force guard first (401/429/503); the per-admin limit below caps
+  // what an authenticated admin can do.
+  const adminDenied = await requireAdminSession("admin/analytics");
+  if (adminDenied) {
+    return adminDenied;
   }
 
-  const limit = await adminAnalyticsLimit.check(adminId);
+  const limit = await adminAnalyticsLimit.check(await currentAdminPrivyId());
   if (!limit.success) {
     return tooManyRequests(limit);
   }

@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS stream_recordings (
 
 
 -- Archive of identifiers from the retired Livepeer integration (#1408).
--- Populated by db/migrations/20260925_retire_livepeer_columns.sql; empty on
+-- Populated by db/migrations/20260925190100_retire_livepeer_columns.sql; empty on
 -- databases created after the Mux migration.
 CREATE TABLE IF NOT EXISTS legacy_livepeer_refs (
     id BIGSERIAL PRIMARY KEY,

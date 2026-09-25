@@ -6,7 +6,7 @@
  * Usage:
  *   POSTGRES_URL=... npx tsx scripts/audit-livepeer-legacy.ts
  *
- * Run it before and after db/migrations/20260925_retire_livepeer_columns.sql.
+ * Run it before and after db/migrations/20260925190100_retire_livepeer_columns.sql.
  */
 
 import { sql } from "@vercel/postgres";

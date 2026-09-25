@@ -45,6 +45,8 @@ export type SessionDetailResponse = {
     started_at: string;
     ended_at: string | null;
     duration_seconds: number | null;
+    /** True when ended_at was estimated by session reconciliation (#1402). */
+    ended_at_estimated: boolean;
     peak_viewers: number;
     total_unique_viewers: number;
     avg_concurrent_viewers: number;
@@ -87,11 +89,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       started_at: string;
       ended_at: string | null;
       duration_seconds: number | null;
+      ended_at_estimated: boolean;
       peak_viewers: number;
       total_unique_viewers: number;
       total_messages: number;
     }>`
       SELECT id, title, started_at, ended_at, duration_seconds,
+             (end_source = 'reconciliation') IS TRUE AS ended_at_estimated,
              peak_viewers, total_unique_viewers, total_messages
       FROM stream_sessions
       WHERE id = ${session_id} AND user_id = ${creator_id}
@@ -203,6 +207,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         started_at: sessionData.started_at,
         ended_at: sessionData.ended_at,
         duration_seconds: sessionData.duration_seconds,
+        ended_at_estimated: sessionData.ended_at_estimated,
         peak_viewers: sessionData.peak_viewers,
         total_unique_viewers: sessionData.total_unique_viewers,
         avg_concurrent_viewers: avgConcurrentViewers,

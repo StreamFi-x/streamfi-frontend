@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
-import { isAdmin } from "@/lib/admin-auth";
+import { isAdmin, requireAdminPrincipal } from "@/lib/admin-auth";
 
 /**
  * Admin-only CRUD for feature flags.
@@ -15,11 +15,14 @@ import { isAdmin } from "@/lib/admin-auth";
 async function guardAdmin(req: NextRequest) {
   const session = await verifySession(req);
   if (!session.ok) {return { ok: false as const, response: session.response };}
-  if (!isAdmin(session.userId)) {
-    return {
-      ok: false as const,
-      response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
-    };
+  const denied = await requireAdminPrincipal(req, {
+    mechanism: "session_allowlist",
+    route: "admin/feature-flags",
+    userId: session.userId,
+    check: () => isAdmin(session.userId),
+  });
+  if (denied) {
+    return { ok: false as const, response: denied };
   }
   return { ok: true as const };
 }

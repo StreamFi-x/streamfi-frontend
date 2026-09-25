@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
-import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
+import { requireAdminSession } from "@/lib/admin-auth";
 import { uploadImageFromBuffer } from "@/utils/upload/cloudinary";
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("admin/categories/image");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   const formData = await req.formData();

@@ -1,12 +1,13 @@
 -- Retire the columns and indexes left behind by the Livepeer -> Mux migration.
 -- Issue #1408; audit and dispositions in docs/livepeer-mux-audit.md.
 --
--- Before running against production:
+-- Before `npm run db:migrate -- up` applies this in production:
 --   1. Run `npx tsx scripts/audit-livepeer-legacy.ts` and keep its output.
 --   2. Deploy the application code from the same PR first. Nothing in it reads
 --      or writes these columns; older deployments' /api/debug/fix-db did.
 --
--- What this does, in one transaction:
+-- The runner wraps the file in one transaction (applying it by hand needs
+-- `psql --single-transaction`), so it either completes or changes nothing:
 --   * Copies every non-empty legacy value into legacy_livepeer_refs with the
 --     Mux reference present at the time and a disposition (same rules as
 --     classifyLegacyValue in lib/maintenance/livepeer-legacy.ts).
@@ -18,7 +19,6 @@
 -- Safe to rerun: archiving is ON CONFLICT DO NOTHING and every DROP is
 -- IF EXISTS. Safe on databases that never had these columns.
 
-BEGIN;
 
 CREATE TABLE IF NOT EXISTS legacy_livepeer_refs (
   id            BIGSERIAL   PRIMARY KEY,
@@ -114,4 +114,3 @@ ALTER TABLE stream_sessions
   DROP COLUMN IF EXISTS livepeer_session_id,
   DROP COLUMN IF EXISTS livepeer_stream_id;
 
-COMMIT;

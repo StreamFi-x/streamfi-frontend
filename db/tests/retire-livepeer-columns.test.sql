@@ -1,4 +1,5 @@
--- Database test for db/migrations/20260925_retire_livepeer_columns.sql (#1408).
+-- Database test for db/migrations/20260925190100_retire_livepeer_columns.sql (#1408).
+-- Each include is wrapped in a transaction, as the migration runner does.
 --
 -- Runs entirely inside a throwaway schema, so it is safe on any disposable
 -- database (never production):
@@ -63,7 +64,9 @@ CREATE TEMP TABLE before_mux AS
   SELECT 'stream_sessions', id, mux_session_id, playback_id FROM stream_sessions;
 
 -- ── Run 1 ────────────────────────────────────────────────────────────────────
-\ir ../migrations/20260925_retire_livepeer_columns.sql
+BEGIN;
+\ir ../migrations/20260925190100_retire_livepeer_columns.sql
+COMMIT;
 
 DO $$
 DECLARE n INT;
@@ -133,7 +136,9 @@ BEGIN
 END $$;
 
 -- ── Run 2: idempotent ────────────────────────────────────────────────────────
-\ir ../migrations/20260925_retire_livepeer_columns.sql
+BEGIN;
+\ir ../migrations/20260925190100_retire_livepeer_columns.sql
+COMMIT;
 
 DO $$
 DECLARE n INT;
@@ -157,8 +162,9 @@ INSERT INTO legacy_livepeer_refs (source_table, source_id, column_name, legacy_v
 SELECT 'users', id, 'livepeer_stream_id', 'lp-stale', 'unprovisioned'
   FROM users WHERE username = 'unprovisioned';
 
+BEGIN;
 \set ON_ERROR_STOP 0
-\ir ../migrations/20260925_retire_livepeer_columns.sql
+\ir ../migrations/20260925190100_retire_livepeer_columns.sql
 \set ON_ERROR_STOP 1
 ROLLBACK;
 
@@ -176,7 +182,9 @@ CREATE SCHEMA livepeer_migration_test;
 SET search_path = livepeer_migration_test, public;
 CREATE TABLE users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), mux_stream_id TEXT);
 CREATE TABLE stream_sessions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), mux_session_id TEXT);
-\ir ../migrations/20260925_retire_livepeer_columns.sql
+BEGIN;
+\ir ../migrations/20260925190100_retire_livepeer_columns.sql
+COMMIT;
 DO $$
 DECLARE n INT;
 BEGIN
