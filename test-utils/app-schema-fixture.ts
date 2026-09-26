@@ -67,6 +67,30 @@ CREATE TABLE stream_viewers (
   left_at TIMESTAMPTZ
 );
 
+-- From the legacy (pre-runner) add-admin-panel.sql migration, which this
+-- fixture does not otherwise apply (only versioned db/migrations/ files are
+-- applied below); included here for the same reason stream_viewers is.
+CREATE TABLE stream_reports (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  reporter_id TEXT        NOT NULL,
+  stream_id   TEXT        NOT NULL,
+  streamer    TEXT        NOT NULL,
+  reason      TEXT        NOT NULL,
+  details     TEXT,
+  status      TEXT        NOT NULL DEFAULT 'pending',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Also from 20260327_routes_f_creator_finance_and_badges.sql (legacy, not
+-- applied by this fixture); tip_transactions/payouts below were already
+-- copied in from the same file, this one was missed until #1447 needed it.
+CREATE TABLE user_follows (
+  follower_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  followee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (follower_id, followee_id)
+);
+
 CREATE TABLE tip_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   creator_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

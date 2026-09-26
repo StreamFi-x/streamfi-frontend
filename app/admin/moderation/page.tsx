@@ -63,6 +63,24 @@ function StreamReportDetail({
               <dd className="text-foreground">{report.details}</dd>
             </div>
           )}
+          {report.priority === "expedited" && (
+            <div>
+              <dt className="text-muted-foreground">Priority</dt>
+              <dd className="flex items-center gap-2 text-red-500 font-medium">
+                <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+                Expedited: flagged by abuse-resistance signals (unusual volume
+                and/or coordinated reporting accounts). This is a
+                priority-for-review signal only; it does not mean the streamer
+                did anything wrong.
+              </dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-muted-foreground">Reporter</dt>
+            <dd className="text-foreground">
+              {report.is_anonymous ? "Anonymous" : report.reporter_id}
+            </dd>
+          </div>
           <div>
             <dt className="text-muted-foreground">Status</dt>
             <dd>
@@ -344,6 +362,7 @@ export default function AdminModerationPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-muted-foreground text-left">
+                  <th className="px-4 py-3 font-medium"></th>
                   <th className="px-4 py-3 font-medium">Streamer</th>
                   <th className="px-4 py-3 font-medium">Reason</th>
                   <th className="px-4 py-3 font-medium hidden sm:table-cell">
@@ -378,6 +397,14 @@ export default function AdminModerationPage() {
                         className="border-b border-border hover:bg-surface-hover cursor-pointer transition-colors"
                         onClick={() => setSelectedStream(r)}
                       >
+                        <td className="px-4 py-3">
+                          {r.priority === "expedited" && (
+                            <span
+                              title="Expedited: flagged by automated abuse-resistance signals for prompt review"
+                              className="inline-block h-2 w-2 rounded-full bg-red-500"
+                            />
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-foreground font-medium">
                           @{r.streamer}
                         </td>

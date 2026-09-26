@@ -17,6 +17,10 @@
       "schedule": "*/10 * * * *"
     },
     {
+      "path": "/api/routes-f/cron-reconcile-viewer-counts",
+      "schedule": "*/2 * * * *"
+    },
+    {
       "path": "/api/routes-f/cron-reconcile-tip-totals",
       "schedule": "*/15 * * * *"
     },

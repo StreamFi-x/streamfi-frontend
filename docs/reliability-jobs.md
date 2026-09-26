@@ -54,6 +54,40 @@ whenever Mux errored and was never scheduled.
   duplicates_closed, race_skipped, unverifiable_skipped, mux_calls,
   mux_unavailable, mux_rate_limited, users_marked_offline, db_errors.
 
+## Viewer count reconciliation (#1403)
+
+`GET /api/routes-f/cron-reconcile-viewer-counts`, every 2 minutes. Logic is in
+`lib/stream/viewer-count-reconciliation.ts`.
+
+- **Problem:** `users.current_viewers` is an independently maintained counter,
+  incremented on join and decremented on leave
+  (`app/api/streams/viewers/route.ts`). A viewer whose leave call never fires
+  (closed tab, lost connection, crashed browser) leaves the counter
+  permanently too high, with no other job correcting it while the stream
+  stays live (the existing reconciliation jobs only zero it on a full
+  offline transition).
+- **Heartbeat:** the watch page touches `stream_viewers.heartbeat_at` every
+  30 seconds while a viewer is actually on the page
+  (`db/migrations/20260926121650_add_stream_viewer_heartbeat.sql`). A row
+  whose heartbeat (falling back to `joined_at` for rows from before this
+  column existed) is older than `staleWindowSeconds` (default 90) is treated
+  as abandoned: its `left_at` is set, closing it.
+- **Source of truth:** after the sweep above, `current_viewers` for each live
+  stream is set to the exact count of that stream's still-open
+  `stream_viewers` rows (`left_at IS NULL`, on a not-yet-ended session). The
+  write is a conditional `UPDATE ... WHERE current_viewers IS DISTINCT FROM`
+  the true count, so a stream whose counter is already correct is never
+  touched.
+- **Race safety:** the true count is read after the abandonment sweep in the
+  same pass, and the correcting `UPDATE` only overwrites the value if it is
+  actually wrong at the moment it runs; a join or leave racing with this job
+  either already matches (no-op) or is corrected on the next run, so this job
+  never overwrites a legitimate concurrent change with a stale count.
+- **Alert:** abnormal correction rate (at least 10 corrections making up at
+  least 30% of inspected live streams).
+- **Metrics:** live_streams_inspected, abandoned_viewers_closed,
+  counters_corrected, counters_already_accurate, db_errors.
+
 ## Stellar tip total reconciliation (#1400)
 
 `GET /api/routes-f/cron-reconcile-tip-totals`, every 15 minutes. Logic is in
