@@ -12,6 +12,7 @@
 
 import { createHash } from "crypto";
 import { sql } from "@vercel/postgres";
+import { publishInvalidationEvent } from "./session-invalidation";
 
 // ─── Token hashing ────────────────────────────────────────────────────────────
 
@@ -219,7 +220,8 @@ export async function touchSession(sessionId: string): Promise<void> {
  */
 export async function revokeSession(
   sessionId: string,
-  userId: string
+  userId: string,
+  rawToken?: string
 ): Promise<boolean> {
   const { rowCount } = await sql`
     UPDATE user_sessions
@@ -228,6 +230,20 @@ export async function revokeSession(
       AND  user_id = ${userId}
       AND  revoked = false
   `;
+  
+  // Publish invalidation event (#1385)
+  if ((rowCount ?? 0) > 0) {
+    await publishInvalidationEvent({
+      userId,
+      sessionId,
+      rawToken,
+      invalidatedAt: new Date(),
+      reason: "logout",
+    }).catch(err => 
+      console.error("[revokeSession] Failed to publish invalidation event:", err)
+    );
+  }
+  
   return (rowCount ?? 0) > 0;
 }
 
@@ -248,6 +264,19 @@ export async function revokeAllOtherSessions(
       AND  token_hash != ${currentHash}
       AND  revoked    = false
   `;
+  
+  // Publish invalidation event for bulk revocation (#1385)
+  if ((rowCount ?? 0) > 0) {
+    await publishInvalidationEvent({
+      userId,
+      rawToken: currentRawToken, // Current token stays valid, others revoked
+      invalidatedAt: new Date(),
+      reason: "security",
+    }).catch(err => 
+      console.error("[revokeAllOtherSessions] Failed to publish invalidation event:", err)
+    );
+  }
+  
   return rowCount ?? 0;
 }
 

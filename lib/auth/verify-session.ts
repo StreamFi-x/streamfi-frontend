@@ -231,6 +231,7 @@ export async function verifySession(
   // ── Legacy raw wallet cookie (fallback — remove after migration) ──────────
   // Accepted while existing Freighter sessions (set before the wallet_session
   // upgrade) are still live. They expire within 24h of the deployment.
+  // SECURITY (#1385): Now checks user_sessions for revocation like other paths
   if (legacyWalletCookie) {
     if (!/^G[A-Z2-7]{55}$/.test(legacyWalletCookie)) {
       return {
@@ -243,6 +244,26 @@ export async function verifySession(
     }
 
     try {
+      // Check user_sessions table for revocation (#1385)
+      let sessionRow: { id: string; last_seen_at: Date } | null = null;
+      try {
+        sessionRow = await findActiveSession(legacyWalletCookie);
+        if (!sessionRow) {
+          return {
+            ok: false,
+            response: NextResponse.json(
+              { error: "Session revoked or expired" },
+              { status: 401 }
+            ),
+          };
+        }
+      } catch (sessionErr) {
+        console.warn(
+          "[verifySession] user_sessions check failed for legacy wallet (table may not exist yet):",
+          sessionErr
+        );
+      }
+
       const { rows } = await sql`
         SELECT id, wallet, username, email, privy_id
         FROM users
@@ -258,6 +279,13 @@ export async function verifySession(
             { status: 401 }
           ),
         };
+      }
+
+      // Touch last_seen_at (debounced)
+      if (sessionRow) {
+        touchSession(sessionRow.id).catch(() => {
+          // Non-critical — ignore errors
+        });
       }
 
       const u = rows[0];
