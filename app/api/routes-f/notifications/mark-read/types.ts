@@ -24,4 +24,5 @@ export interface MarkReadRequest {
 
 export interface MarkReadResponse {
   updated_count: number;
+  unread_count: number;
 }
