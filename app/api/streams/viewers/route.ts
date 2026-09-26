@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { ipToCountry } from "@/lib/geolocation/ip-to-country";
 
 // 60 viewer join/leave events per minute per IP prevents count inflation attacks
 const isRateLimited = createRateLimiter(60_000, 60);
@@ -87,9 +88,13 @@ export async function POST(req: NextRequest) {
     // These fail silently if the tables don't exist or session record is missing.
     if (stream.session_id && !alreadyCounted) {
       try {
+        // Resolve country from IP (#1383)
+        const geoResult = await ipToCountry(ip);
+        const countryCode = geoResult.country || null;
+
         await sql`
-          INSERT INTO stream_viewers (stream_session_id, user_id, session_id, joined_at)
-          VALUES (${stream.session_id}, ${userId ?? null}, ${sessionId}, CURRENT_TIMESTAMP)
+          INSERT INTO stream_viewers (stream_session_id, user_id, session_id, joined_at, ip_address, country)
+          VALUES (${stream.session_id}, ${userId ?? null}, ${sessionId}, CURRENT_TIMESTAMP, ${ip}::INET, ${countryCode})
         `;
         await sql`
           UPDATE stream_sessions SET
