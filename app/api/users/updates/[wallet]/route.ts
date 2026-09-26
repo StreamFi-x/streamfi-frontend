@@ -12,6 +12,8 @@ import { validateEmail } from "@/utils/validators";
 import { validateUserUpdate } from "../../../../../utils/userValidators";
 import { UserUpdateInput } from "../../../../../types/user";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { verifySession } from "@/lib/auth/verify-session";
+import { shouldBypassAuth } from "@/lib/dev-mode";
 
 export async function PUT(
   req: NextRequest,
@@ -20,6 +22,22 @@ export async function PUT(
   try {
     const { wallet } = await params;
     const normalizedWallet = wallet.toLowerCase();
+
+    // Rewrites profile fields (username, email, avatar, banner, bio,
+    // streamkey) — never let a caller mutate a wallet's record without
+    // proving they ARE that wallet's authenticated user. Compared
+    // case-insensitively (not via assertOwnership's strict ===) since every
+    // query in this route already treats wallet casing as unreliable
+    // (LOWER(wallet) = LOWER(...) below).
+    if (!shouldBypassAuth()) {
+      const session = await verifySession(req);
+      if (!session.ok) {
+        return session.response;
+      }
+      if (session.wallet?.toLowerCase() !== normalizedWallet) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
 
     // Fetching current user data
     const existingResult = await sql`

@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
+import { verifySession } from "@/lib/auth/verify-session";
 
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ wallet: string }> }
 ) {
   try {
@@ -49,6 +50,12 @@ export async function GET(
 
     const streamData = result.rows[0];
 
+    // This route is intentionally public (stream viewing pages render it for
+    // any visitor), but the RTMP stream key is a broadcast credential and
+    // must only ever go back to the stream's own owner.
+    const session = await verifySession(req);
+    const isOwner = session.ok && session.wallet === wallet;
+
     // Only fetch Mux health if explicitly requested (skip for fast dashboard loads)
     const url = new URL(req.url);
     const includeHealth = url.searchParams.get("includeHealth") === "true";
@@ -75,7 +82,8 @@ export async function GET(
       stream: {
         streamId: streamData.mux_stream_id,
         playbackId: streamData.mux_playback_id,
-        streamKey: streamData.streamkey,
+        // Broadcast credential — only ever returned to the stream's owner.
+        streamKey: isOwner ? streamData.streamkey : null,
 
         isLive: streamData.is_live,
         isConfigured: !!streamData.mux_stream_id,
