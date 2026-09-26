@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import useSWR from "swr";
 import type { ChatMessage, ChatMessageAPI, UseChatReturn } from "@/types/chat";
 import {
@@ -7,6 +7,7 @@ import {
   rememberDeleted,
   rememberSent,
 } from "@/lib/chat-recent-writes";
+import { useRealtimeChannel } from "./useRealtime";
 
 const MAX_MESSAGES = 200;
 const POLL_INTERVAL_MS = 1000;
@@ -62,28 +63,29 @@ const chatFetcher = async (url: string): Promise<ChatMessage[]> => {
 };
 
 /**
- * SWR-based chat hook used by all chat components.
+ * Chat hook supporting instantaneous push-based delivery (#1450) with SWR polling fallback.
  *
  * @param playbackId  - Mux playback ID for the stream (null disables fetching)
  * @param wallet      - Connected wallet address (required to send messages)
- * @param isLive      - Whether the stream is currently live (stops polling when false)
+ * @param isLive      - Whether the stream is currently live
+ * @param enablePush  - Whether push-based delivery is enabled (feature-flagged)
  */
 export function useChat(
   playbackId: string | null | undefined,
   wallet: string | null | undefined,
-  isLive: boolean = true
+  isLive: boolean = true,
+  enablePush: boolean = true
 ): UseChatReturn {
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const optimisticIdCounter = useRef(-1);
 
-  // Always fetch history when we have a playbackId — isLive only controls polling.
-  // This ensures the fullscreen overlay (and any late-mounting consumer) sees
-  // existing messages from the SWR cache immediately, even before detecting live state.
   const cacheKey = playbackId
     ? `/api/streams/chat?playbackId=${playbackId}&limit=${MAX_MESSAGES}`
     : null;
-  const shouldPoll = !!playbackId && isLive;
+
+  // When push delivery is active, disable continuous 1s polling (or keep 30s background sync)
+  const shouldPoll = !!playbackId && isLive && !enablePush;
 
   const { data, error, isLoading, mutate } = useSWR<ChatMessage[]>(
     cacheKey,
@@ -93,13 +95,57 @@ export function useChat(
         playbackId ? recentWritesFor(playbackId) : undefined
       ),
     {
-      refreshInterval: shouldPoll ? POLL_INTERVAL_MS : 0,
+      refreshInterval: shouldPoll ? POLL_INTERVAL_MS : (enablePush && isLive ? 30_000 : 0),
       dedupingInterval: 500,
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
       shouldRetryOnError: false,
     }
   );
+
+  // Realtime push channel subscription (#1450)
+  const realtimeChannel = playbackId && enablePush ? `stream:${playbackId}:chat` : null;
+
+  useRealtimeChannel(
+    realtimeChannel,
+    useCallback(
+      (realtimeMsg) => {
+        if (realtimeMsg.event === "chat:message" && realtimeMsg.data) {
+          const raw = realtimeMsg.data;
+          const incoming = normalizeMessage(raw);
+
+          mutate((current) => {
+            const list = current || [];
+            // Reconcile: check if already present by ID or matches pending optimistic message
+            if (list.some((m) => m.id === incoming.id)) {
+              return list;
+            }
+
+            // If we have a pending message matching this sender and content, reconcile it
+            const pendingIndex = list.findIndex(
+              (m) =>
+                m.isPending &&
+                m.message === incoming.message &&
+                (m.wallet === incoming.wallet || m.username === incoming.username || m.username === "You")
+            );
+
+            if (pendingIndex !== -1) {
+              const updated = [...list];
+              updated[pendingIndex] = incoming;
+              return updated.slice(-MAX_MESSAGES);
+            }
+
+            return [...list, incoming].slice(-MAX_MESSAGES);
+          }, false);
+        } else if (realtimeMsg.event === "chat:delete" && realtimeMsg.data?.id) {
+          const deleteId = realtimeMsg.data.id;
+          mutate((current) => (current || []).filter((m) => m.id !== deleteId), false);
+        }
+      },
+      [mutate]
+    )
+  );
+
 
   const messages = data ? data.slice(-MAX_MESSAGES) : [];
 
