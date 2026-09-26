@@ -223,7 +223,11 @@ export async function runScheduledJob<TDetail>(
   const threshold = options.failureAlertThreshold ?? 3;
 
   const leaseKey = options.leaseKey ?? options.name;
-  const holder = await acquireJobLease(leaseKey, options.leaseSeconds, executor);
+  const holder = await acquireJobLease(
+    leaseKey,
+    options.leaseSeconds,
+    executor
+  );
   if (!holder) {
     const skipped: JobResult<TDetail> = {
       job: options.name,

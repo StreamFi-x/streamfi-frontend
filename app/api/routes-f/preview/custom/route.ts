@@ -80,7 +80,8 @@ export async function POST(req: NextRequest) {
   try {
     const { rows } = await sql`
       WITH previous AS (
-        SELECT creator->>'customThumbnailUrl' AS url FROM users WHERE id = ${session.userId}
+        SELECT creator->>'customThumbnailUrl' AS url FROM users
+         WHERE id = ${session.userId} AND deleted_at IS NULL
       )
       UPDATE users
       SET creator = jsonb_set(
@@ -120,7 +121,8 @@ export async function DELETE(req: NextRequest) {
   try {
     const { rows } = await sql`
       WITH previous AS (
-        SELECT creator->>'customThumbnailUrl' AS url FROM users WHERE id = ${session.userId}
+        SELECT creator->>'customThumbnailUrl' AS url FROM users
+         WHERE id = ${session.userId} AND deleted_at IS NULL
       )
       UPDATE users
       SET creator = (COALESCE(creator, '{}'::jsonb) - 'customThumbnailUrl' - 'customThumbnailUpdatedAt'),

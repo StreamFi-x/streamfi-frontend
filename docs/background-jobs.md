@@ -10,15 +10,13 @@ retried again is recorded in `job_dead_letters` and alerted.
 
 What was there before:
 
-- `vercel.json` listed several crons but was **invalid JSON** after a merge
-  (two objects were fused together), so no cron in it could deploy. One entry
-  (`/api/routes-f/schedule/reminders`) pointed at a route deleted in `7fbe825`;
-  it has been removed. The JSON is fixed.
-- Two incompatible lease/health helpers had been merged over each other
-  (`scheduled_job_runs` from #1399 and `job_locks`/`job_runs` from #1400), so
-  three cron routes did not type-check. The `job_runs` version is restored as
-  `lib/jobs/scheduled-job.ts`, and the Mux cron jobs' version lives on as
-  `lib/jobs/leased-job.ts` (see "Known gaps").
+- `vercel.json` Vercel Cron entries. A merge had briefly left the file
+  invalid JSON and fused two scheduled-job helpers; #1641 repaired both
+  (`lib/jobs/scheduled-job.ts` with `job_locks`/`job_runs`, and
+  `lib/jobs/leased-job.ts` with `scheduled_job_runs` for the Mux jobs). This
+  change builds on `scheduled-job.ts` and removes the dead
+  `/api/routes-f/schedule/reminders` entry (its route was deleted in
+  `7fbe825`).
 - There was no retry, backoff or dead-letter handling anywhere: a failed run
   was logged and forgotten until the next tick.
 - Commit `d34daba` cut the only cron to daily "for hobby plan". Vercel Hobby
@@ -129,7 +127,10 @@ To replay one, retry the message from the QStash DLQ (console or
 
 - **`tip-total-reconciliation`** (every 15 minutes). The #1400 scheduled
   reconciliation, moved off Vercel Cron: `/api/routes-f/cron-reconcile-tip-totals`
-  and its `vercel.json` entry are gone. 3 attempts.
+  and its `vercel.json` entry are gone. 3 attempts. Runs record their
+  corrections under the run's `runId`, and `afterRun` evaluates pending runs
+  for the #1405 anomaly alerts after every delivery, including skipped and
+  failed ones.
 - **`tip-refresh-creator`** (dispatched). Finishes one creator's tip
   reconciliation when a manual refresh runs out of its request budget. 4
   attempts; a Horizon failure fails the delivery so QStash retries it later,

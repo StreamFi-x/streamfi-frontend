@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 
   const { rows } = await sql`
     SELECT wallet, encrypted_stellar_key IS NOT NULL AS custodial
-      FROM users WHERE id = ${session.userId}
+      FROM users WHERE id = ${session.userId} AND deleted_at IS NULL
   `;
   const user = rows[0];
   const address =
