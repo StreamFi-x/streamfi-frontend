@@ -269,16 +269,22 @@ describe("PATCH /api/users/update-creator (full replace)", () => {
 });
 
 describe("notifications writes", () => {
-  it("writeNotification appends a validated element", async () => {
-    mockDb.on(/UPDATE users/, { rowCount: 1 });
+  it("writeNotification stores a validated notification", async () => {
+    // Notifications live in their own table (#1414); the element is still
+    // built and validated by the contract before it is written.
+    mockDb.on(/INSERT INTO notifications/, { rowCount: 1 });
     await writeNotification("u1", "follow", "New follower", "b followed you");
     const [call] = mockDb.calls;
-    const element = JSON.parse(String(call.values[0]));
-    expect(element).toMatchObject({
+    const [id, type, title, text, read, createdAt, recipient] = call.values;
+    expect({ type, title, text, read, recipient }).toEqual({
       type: "follow",
       title: "New follower",
+      text: "b followed you",
       read: false,
+      recipient: "u1",
     });
+    expect(String(id)).toMatch(/^[0-9a-f-]{36}$/);
+    expect(Number.isNaN(Date.parse(String(createdAt)))).toBe(false);
     expect(call.text).toMatch(/deleted_at IS NULL/);
   });
 

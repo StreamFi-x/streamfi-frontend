@@ -9,6 +9,7 @@ import {
 import { verifySession } from "@/lib/auth/verify-session";
 import { isAdmin } from "@/lib/admin-auth";
 import { cacheHeaders } from "@/lib/cache";
+import { markRecentWrite } from "@/lib/db/replica";
 import { acquireLock } from "@/lib/single-flight-lock";
 import { createRateLimit, tooManyRequests } from "@/lib/rate-limit";
 
@@ -143,16 +144,20 @@ export async function POST(request: NextRequest) {
 
       await evaluateAndAwardBadges(String(user.id));
 
-      return NextResponse.json(
-        {
-          username: user.username,
-          totalReceived: result.totals.totalReceived,
-          totalCount: result.totals.totalCount,
-          lastTipAt: result.totals.lastTipAt,
-          refreshed: true,
-          refreshedAt: new Date().toISOString(),
-        },
-        { headers: cacheHeaders("privateNoStore") }
+      // tip_transactions feed replica-routed analytics (top tippers, tip
+      // recap); the caller's next reads go to the primary.
+      return markRecentWrite(
+        NextResponse.json(
+          {
+            username: user.username,
+            totalReceived: result.totals.totalReceived,
+            totalCount: result.totals.totalCount,
+            lastTipAt: result.totals.lastTipAt,
+            refreshed: true,
+            refreshedAt: new Date().toISOString(),
+          },
+          { headers: cacheHeaders("privateNoStore") }
+        )
       );
     } finally {
       await lock.release();

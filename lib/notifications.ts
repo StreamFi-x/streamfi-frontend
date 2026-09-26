@@ -14,8 +14,11 @@ export type { NotificationType };
  * inside Next.js Route Handlers are unreliable and can deadlock.
  * Pass `executor` to write inside an open transaction (see withTransaction).
  *
- * The element is validated against the notifications contract
- * (lib/db/jsonb-contracts.ts) before it is appended.
+ * The notification is validated against the notifications contract
+ * (lib/db/jsonb-contracts.ts; throws JsonbContractError) and stored as a row
+ * of the notifications table. The INSERT selects the recipient row, so an
+ * unknown or deleted recipient inserts nothing rather than raising a
+ * foreign-key error, which would abort the caller's transaction.
  */
 export async function writeNotification(
   recipientId: string,
@@ -27,8 +30,10 @@ export async function writeNotification(
   const notification = buildNotification(type, title, text);
 
   const result = await executor.sql`
-    UPDATE users
-    SET notifications = COALESCE(notifications, ARRAY[]::jsonb[]) || ${JSON.stringify(notification)}::jsonb
+    INSERT INTO notifications (id, user_id, type, title, body, is_read, created_at)
+    SELECT ${notification.id}::uuid, id, ${notification.type}, ${notification.title},
+           ${notification.text}, ${notification.read}, ${notification.created_at}::timestamptz
+    FROM users
     WHERE id = ${recipientId}::uuid AND deleted_at IS NULL
   `;
 

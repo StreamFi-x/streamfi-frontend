@@ -121,6 +121,32 @@ describe("POST /api/tips/refresh-total", () => {
     expect((await POST(request())).status).toBe(200);
   });
 
+  it("marks the caller for read-your-own-writes on a successful refresh", async () => {
+    // tip_transactions feed replica-routed analytics (lib/db/replica.ts).
+    process.env.SESSION_SECRET = "SENTINEL-session-secret-for-tests";
+    try {
+      const res = await POST(request());
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get("set-cookie") ?? "").toContain("sf_recent_write=");
+    } finally {
+      delete process.env.SESSION_SECRET;
+    }
+  });
+
+  it("does not mark the caller when the refresh is refused", async () => {
+    process.env.SESSION_SECRET = "SENTINEL-session-secret-for-tests";
+    try {
+      asUser("someone-else");
+      const res = await POST(request());
+
+      expect(res.status).toBe(403);
+      expect(res.headers.get("set-cookie")).toBeNull();
+    } finally {
+      delete process.env.SESSION_SECRET;
+    }
+  });
+
   it("recalculates through the shared ledger logic and keeps the response shape", async () => {
     const res = await POST(request({ username: "Alice" }));
 

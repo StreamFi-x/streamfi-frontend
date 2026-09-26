@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
 import { verifySession } from "@/lib/auth/verify-session";
+import { markRecentWrite } from "@/lib/db/replica";
 import { writeNotification } from "@/lib/notifications";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
 import { syncScheduleLiveStatusForCreator } from "@/lib/routes-f/schedule";
@@ -86,18 +87,20 @@ export async function POST(req: NextRequest) {
       })
       .catch(() => {});
 
-    return NextResponse.json(
-      {
-        message: "Stream started successfully",
-        streamData: {
-          isLive: true,
-          streamId: updatedUser.mux_stream_id,
-          playbackId: updatedUser.mux_playback_id,
-          username: updatedUser.username,
-          startedAt: new Date().toISOString(),
+    return markRecentWrite(
+      NextResponse.json(
+        {
+          message: "Stream started successfully",
+          streamData: {
+            isLive: true,
+            streamId: updatedUser.mux_stream_id,
+            playbackId: updatedUser.mux_playback_id,
+            username: updatedUser.username,
+            startedAt: new Date().toISOString(),
+          },
         },
-      },
-      { status: 200 }
+        { status: 200 }
+      )
     );
   } catch (error) {
     console.error("Stream start error:", error);
@@ -155,9 +158,11 @@ export async function DELETE(req: NextRequest) {
       console.error("Failed to end stream session:", sessionError);
     }
 
-    return NextResponse.json(
-      { message: "Stream stopped successfully" },
-      { status: 200 }
+    return markRecentWrite(
+      NextResponse.json(
+        { message: "Stream stopped successfully" },
+        { status: 200 }
+      )
     );
   } catch (error) {
     console.error("Stream stop error:", error);

@@ -6,6 +6,10 @@ import { Play, Clock, Calendar, Trash2, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import {
+  PageFetchError,
+  useCursorPagination,
+} from "@/hooks/useCursorPagination";
 
 interface PageProps {
   params: Promise<{ username: string }>;
@@ -235,9 +239,19 @@ function RecordingCard({
 const ClipsPage = ({ params }: PageProps) => {
   const { username } = use(params);
   const router = useRouter();
-  const [recordings, setRecordings] = useState<Recording[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [notFound404, setNotFound404] = useState(false);
+  const {
+    items: recordings,
+    isLoading: loading,
+    hasMore,
+    loadMore,
+    isLoadingMore,
+    error,
+    mutate,
+  } = useCursorPagination<Recording>(
+    `/api/streams/recordings?username=${encodeURIComponent(username)}`,
+    { limit: 24, revalidateOnFocus: false, getId: r => r.id }
+  );
+  const notFound404 = error instanceof PageFetchError && error.status === 404;
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
     null
   );
@@ -250,35 +264,13 @@ const ClipsPage = ({ params }: PageProps) => {
     !!currentUser?.username &&
     currentUser.username.toLowerCase() === username.toLowerCase();
 
-  useEffect(() => {
-    const fetchRecordings = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(
-          `/api/streams/recordings?username=${encodeURIComponent(username)}&limit=50`
-        );
-        if (res.status === 404) {
-          setNotFound404(true);
-          return;
-        }
-        if (!res.ok) {
-          throw new Error("Failed to fetch");
-        }
-        const data = await res.json();
-        setRecordings(data.recordings ?? []);
-      } catch {
-        setRecordings([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRecordings();
-  }, [username]);
-
   const handleDelete = async (id: string) => {
-    // Optimistic remove
-    setRecordings(prev => prev.filter(r => r.id !== id));
+    // Optimistic remove from every loaded page
+    await mutate(
+      pages =>
+        pages?.map(p => ({ ...p, items: p.items.filter(r => r.id !== id) })),
+      { revalidate: false }
+    );
     setConfirmingDeleteId(null);
 
     try {
@@ -289,16 +281,11 @@ const ClipsPage = ({ params }: PageProps) => {
         const data = await res.json().catch(() => ({}));
         console.error("Failed to delete recording:", data.error);
         // Re-fetch to restore the list on failure
-        const refetch = await fetch(
-          `/api/streams/recordings?username=${encodeURIComponent(username)}&limit=50`
-        );
-        if (refetch.ok) {
-          const data = await refetch.json();
-          setRecordings(data.recordings ?? []);
-        }
+        await mutate();
       }
     } catch (err) {
       console.error("Delete request failed:", err);
+      await mutate();
     }
   };
 
@@ -353,6 +340,19 @@ const ClipsPage = ({ params }: PageProps) => {
               }}
             />
           ))}
+        </div>
+      )}
+
+      {!loading && hasMore && (
+        <div className="flex justify-center mt-6">
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={isLoadingMore}
+            className="px-4 py-2 rounded-md bg-muted text-foreground text-sm hover:bg-muted/80 disabled:opacity-50"
+          >
+            {isLoadingMore ? "Loading…" : "Load more"}
+          </button>
         </div>
       )}
     </div>

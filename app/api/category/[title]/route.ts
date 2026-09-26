@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
-import {
-  CACHE_POLICIES,
-  cacheHeaders,
-  cacheKey,
-  cacheTags,
-  cached,
-} from "@/lib/cache";
+import { cacheHeaders, cacheTags } from "@/lib/cache";
+import { findCategoryByTitle } from "@/lib/reference-data/categories";
 
 export async function GET(
   req: NextRequest,
@@ -15,25 +9,9 @@ export async function GET(
   const { title } = await params;
 
   try {
-    const normalizedTitle = title.toLowerCase();
-    const rows = await cached(
-      {
-        key: cacheKey("category-detail", normalizedTitle),
-        tags: [cacheTags.categories()],
-        ttlSeconds: CACHE_POLICIES.referenceData.appTtlSeconds,
-      },
-      async () =>
-        (
-          await sql`
-            SELECT id, title, description, tags, imageurl
-            FROM stream_categories
-            WHERE LOWER(title) = ${normalizedTitle}
-            LIMIT 1
-          `
-        ).rows
-    );
+    const category = await findCategoryByTitle(title);
 
-    if (rows.length === 0) {
+    if (!category) {
       return NextResponse.json(
         { success: false, error: "Category not found" },
         { status: 404 }
@@ -41,8 +19,12 @@ export async function GET(
     }
 
     return NextResponse.json(
-      { success: true, category: rows[0] },
-      { headers: cacheHeaders("referenceData") }
+      { success: true, category },
+      {
+        headers: cacheHeaders("referenceData", {
+          tags: [cacheTags.categories()],
+        }),
+      }
     );
   } catch (error) {
     console.error("Error fetching category by title:", error);

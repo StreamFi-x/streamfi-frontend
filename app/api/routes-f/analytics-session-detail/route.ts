@@ -13,8 +13,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
 import { z } from "zod";
+import {
+  readFromReplica,
+  ReplicaUnavailableError,
+  replicaUnavailableResponse,
+} from "@/lib/db/replica";
 import { verifySession } from "@/lib/auth/verify-session";
 import { validateQuery } from "@/app/api/routes-f/_lib/validate";
 import { CACHE_POLICIES } from "@/lib/cache";
@@ -82,46 +86,86 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    // Fetch session metadata
-    const { rows: sessionRows } = await sql<{
-      id: string;
-      title: string | null;
-      started_at: string;
-      ended_at: string | null;
-      duration_seconds: number | null;
-      ended_at_estimated: boolean;
-      peak_viewers: number;
-      total_unique_viewers: number;
-      total_messages: number;
-    }>`
-      SELECT id, title, started_at, ended_at, duration_seconds,
-             (end_source = 'reconciliation') IS TRUE AS ended_at_estimated,
-             peak_viewers, total_unique_viewers, total_messages
-      FROM stream_sessions
-      WHERE id = ${session_id} AND user_id = ${creator_id}
-      LIMIT 1
-    `;
+    const detail = await readFromReplica(
+      "routes-f.analytics-session-detail",
+      async db => {
+        // Fetch session metadata
+        const { rows: sessionRows } = await db<{
+          id: string;
+          title: string | null;
+          started_at: string;
+          ended_at: string | null;
+          duration_seconds: number | null;
+          ended_at_estimated: boolean;
+          peak_viewers: number;
+          total_unique_viewers: number;
+          total_messages: number;
+        }>`
+          SELECT id, title, started_at, ended_at, duration_seconds,
+                 (end_source = 'reconciliation') IS TRUE AS ended_at_estimated,
+                 peak_viewers, total_unique_viewers, total_messages
+          FROM stream_sessions
+          WHERE id = ${session_id} AND user_id = ${creator_id}
+          LIMIT 1
+        `;
 
-    if (sessionRows.length === 0) {
+        if (sessionRows.length === 0) {
+          return null;
+        }
+
+        // Fetch retention curve
+        const { rows: retentionRows } = await db<{
+          bucket_seconds: number;
+          viewers_remaining: number;
+          cumulative_viewers: number;
+        }>`
+          SELECT bucket_seconds, viewers_remaining, cumulative_viewers
+          FROM route_f_session_retention
+          WHERE session_id = ${session_id}
+          ORDER BY bucket_seconds ASC
+        `;
+
+        // Fetch chat engagement
+        const { rows: chatRows } = await db<{
+          bucket_seconds: number;
+          message_count: number;
+          unique_chatters: number;
+          messages_per_viewer: number;
+        }>`
+          SELECT bucket_seconds, message_count, unique_chatters, messages_per_viewer
+          FROM route_f_session_chat_engagement
+          WHERE session_id = ${session_id}
+          ORDER BY bucket_seconds ASC
+        `;
+
+        // Compute average concurrent viewers
+        const { rows: avgViewerRows } = await db<{ avg_viewers: number }>`
+          SELECT COALESCE(
+            AVG(viewers_remaining)::INTEGER,
+            0
+          ) as avg_viewers
+          FROM route_f_session_retention
+          WHERE session_id = ${session_id}
+        `;
+
+        return {
+          sessionData: sessionRows[0],
+          retentionRows,
+          chatRows,
+          avgViewerRows,
+        };
+      },
+      { request: req }
+    );
+
+    if (!detail) {
       return NextResponse.json(
         { error: "Session not found" },
         { status: 404 }
       );
     }
 
-    const sessionData = sessionRows[0];
-
-    // Fetch retention curve
-    const { rows: retentionRows } = await sql<{
-      bucket_seconds: number;
-      viewers_remaining: number;
-      cumulative_viewers: number;
-    }>`
-      SELECT bucket_seconds, viewers_remaining, cumulative_viewers
-      FROM route_f_session_retention
-      WHERE session_id = ${session_id}
-      ORDER BY bucket_seconds ASC
-    `;
+    const { sessionData, retentionRows, chatRows, avgViewerRows } = detail;
 
     // Compute retention percentages and aggregate
     const retentionCurve: SessionRetentionPoint[] = retentionRows.map((row) => ({
@@ -153,19 +197,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         ? Math.min(...retentionCurve.map((p) => p.percentage_retained))
         : 0;
 
-    // Fetch chat engagement
-    const { rows: chatRows } = await sql<{
-      bucket_seconds: number;
-      message_count: number;
-      unique_chatters: number;
-      messages_per_viewer: number;
-    }>`
-      SELECT bucket_seconds, message_count, unique_chatters, messages_per_viewer
-      FROM route_f_session_chat_engagement
-      WHERE session_id = ${session_id}
-      ORDER BY bucket_seconds ASC
-    `;
-
     const chatEngagement: ChatEngagementPoint[] = chatRows.map((row) => ({
       bucket_seconds: row.bucket_seconds,
       message_count: row.message_count,
@@ -187,16 +218,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
             ) / chatEngagement.length
           ).toFixed(2)
         : "0.00";
-
-    // Compute average concurrent viewers
-    const { rows: avgViewerRows } = await sql<{ avg_viewers: number }>`
-      SELECT COALESCE(
-        AVG(viewers_remaining)::INTEGER,
-        0
-      ) as avg_viewers
-      FROM route_f_session_retention
-      WHERE session_id = ${session_id}
-    `;
 
     const avgConcurrentViewers = avgViewerRows[0]?.avg_viewers || 0;
 
@@ -230,6 +251,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
+    if (error instanceof ReplicaUnavailableError) {
+      return replicaUnavailableResponse();
+    }
     console.error("[analytics-session-detail] GET error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

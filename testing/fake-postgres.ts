@@ -527,14 +527,29 @@ export class FakePostgres {
       const had = this.state.stream_recordings.delete(String(p[0]));
       return { rows: [], rowCount: had ? 1 : 0 };
     });
-    rule(/^UPDATE users SET notifications = /, p => {
-      const u = this.state.users.get(String(p[1]));
-      if (!u) {
-        return { rows: [], rowCount: 0 };
+    // lib/notifications.ts: INSERT ... SELECT ... FROM users WHERE id = $7.
+    // Rows are kept on the fake user so tests can count them per recipient.
+    rule(
+      /^INSERT INTO notifications \(id, user_id, type, title, body, is_read, created_at\) SELECT/,
+      p => {
+        const u = this.state.users.get(String(p[6]));
+        if (!u || u.deleted_at) {
+          return { rows: [], rowCount: 0 };
+        }
+        u.notifications = [
+          ...(u.notifications ?? []),
+          {
+            id: p[0],
+            type: p[1],
+            title: p[2],
+            text: p[3],
+            read: p[4],
+            created_at: p[5],
+          },
+        ];
+        return { rows: [], rowCount: 1 };
       }
-      u.notifications = [...(u.notifications ?? []), JSON.parse(String(p[0]))];
-      return { rows: [], rowCount: 1 };
-    });
+    );
 
     // ── scheduled_job_runs ──────────────────────────────────────────────
     rule(/^INSERT INTO scheduled_job_runs/, (p, now) => {
