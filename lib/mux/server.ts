@@ -1,6 +1,6 @@
 import Mux from "@mux/mux-node";
+import { getMuxBreaker } from "@/lib/resilience/breakers";
 import { logger } from "@/lib/tracing/logger";
-import { getTraceHeaders } from "@/lib/tracing/trace-context";
 
 // Check if Mux credentials are configured
 if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
@@ -11,11 +11,32 @@ if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
   });
 }
 
-// Initialize Mux client
+// Every call goes through the Mux circuit breaker (#1418): bounded by its
+// timeout, cancelled through its abort signal, and failing fast while Mux is
+// unavailable. The SDK's own retries are off: they would multiply the wait
+// inside one call, and a retried create could make a second live stream.
 const mux = new Mux({
   tokenId: process.env.MUX_TOKEN_ID!,
   tokenSecret: process.env.MUX_TOKEN_SECRET!,
+  maxRetries: 0,
 });
+
+interface MuxRequestOptions {
+  signal: AbortSignal;
+  timeout: number;
+  maxRetries: 0;
+}
+
+function muxCall<T>(
+  fn: (options: MuxRequestOptions) => Promise<T>,
+  timeoutMs?: number
+): Promise<T> {
+  const breaker = getMuxBreaker();
+  const timeout = timeoutMs ?? breaker.config.timeoutMs;
+  return breaker.execute(signal => fn({ signal, timeout, maxRetries: 0 }), {
+    timeoutMs: timeout,
+  });
+}
 
 export interface MuxStreamData {
   id: string;
@@ -27,8 +48,6 @@ export interface MuxStreamData {
   isActive?: boolean;
 }
 
-const MUX_CREATE_TIMEOUT_MS = 8_000;
-
 export async function createMuxStream(streamData?: {
   name: string;
   record?: boolean;
@@ -36,7 +55,6 @@ export async function createMuxStream(streamData?: {
   withSignedPlayback?: boolean;
 }) {
   const startTime = Date.now();
-  const traceHeaders = getTraceHeaders();
 
   try {
     logger.info("Creating Mux stream", {
@@ -48,25 +66,22 @@ export async function createMuxStream(streamData?: {
     const record = streamData?.record === true;
     const latencyMode = streamData?.latencyMode ?? "low";
 
-    const liveStream = await Promise.race([
-      mux.video.liveStreams.create({
-        playback_policy: ["public"],
-        ...(record && {
-          new_asset_settings: {
-            playback_policy: ["public"],
-          },
-        }),
-        reconnect_window: 60,
-        latency_mode: latencyMode,
-        max_continuous_duration: 43200,
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error("Mux API timed out after 8 s")),
-          MUX_CREATE_TIMEOUT_MS
-        )
-      ),
-    ]);
+    const liveStream = await muxCall(options =>
+      mux.video.liveStreams.create(
+        {
+          playback_policy: ["public"],
+          ...(record && {
+            new_asset_settings: {
+              playback_policy: ["public"],
+            },
+          }),
+          reconnect_window: 60,
+          latency_mode: latencyMode,
+          max_continuous_duration: 43200,
+        },
+        options
+      )
+    );
 
     // Get the playback ID from the created stream
     const playbackId = liveStream.playback_ids?.[0]?.id || "";
@@ -108,7 +123,9 @@ export async function getMuxStream(streamId: string) {
       streamId,
     });
 
-    const liveStream = await mux.video.liveStreams.retrieve(streamId);
+    const liveStream = await muxCall(options =>
+      mux.video.liveStreams.retrieve(streamId, options)
+    );
 
     const durationMs = Date.now() - startTime;
     logger.debug("Mux stream retrieved", {
@@ -147,7 +164,7 @@ export async function deleteMuxStream(streamId: string) {
       streamId,
     });
 
-    await mux.video.liveStreams.delete(streamId);
+    await muxCall(options => mux.video.liveStreams.delete(streamId, options));
 
     const durationMs = Date.now() - startTime;
     logger.info("Mux stream deleted", {
@@ -178,7 +195,9 @@ export async function getMuxStreamMetrics(streamId: string) {
       streamId,
     });
 
-    const liveStream = await mux.video.liveStreams.retrieve(streamId);
+    const liveStream = await muxCall(options =>
+      mux.video.liveStreams.retrieve(streamId, options)
+    );
 
     const durationMs = Date.now() - startTime;
     logger.debug("Mux stream metrics fetched", {
@@ -241,7 +260,9 @@ export async function enableMuxStreamRecording(streamId: string) {
   try {
     // Mux automatically creates assets when new_asset_settings is configured
     // during stream creation, so recording is handled automatically
-    const liveStream = await mux.video.liveStreams.retrieve(streamId);
+    const liveStream = await muxCall(options =>
+      mux.video.liveStreams.retrieve(streamId, options)
+    );
     return {
       recordingEnabled: !!liveStream.new_asset_settings,
       streamId: liveStream.id,
@@ -271,7 +292,10 @@ export async function createMuxSignedUrl(
 
 export async function getMuxAsset(assetId: string) {
   try {
-    const asset = await mux.video.assets.retrieve(assetId);
+    const asset = await muxCall(
+      options => mux.video.assets.retrieve(assetId, options),
+      MUX_RECONCILE_TIMEOUT_MS
+    );
     return {
       id: asset.id,
       status: asset.status,
@@ -287,7 +311,7 @@ export async function getMuxAsset(assetId: string) {
 
 export async function disableMuxStream(streamId: string) {
   try {
-    await mux.video.liveStreams.disable(streamId);
+    await muxCall(options => mux.video.liveStreams.disable(streamId, options));
     return { success: true, streamId };
   } catch (error) {
     console.error("Mux stream disable error:", error);
@@ -297,7 +321,7 @@ export async function disableMuxStream(streamId: string) {
 
 export async function enableMuxStream(streamId: string) {
   try {
-    await mux.video.liveStreams.enable(streamId);
+    await muxCall(options => mux.video.liveStreams.enable(streamId, options));
     return { success: true, streamId };
   } catch (error) {
     console.error("Mux stream enable error:", error);
@@ -308,7 +332,9 @@ export async function enableMuxStream(streamId: string) {
 // Helper to check Mux stream health
 export async function getMuxStreamHealth(streamId: string) {
   try {
-    const liveStream = await mux.video.liveStreams.retrieve(streamId);
+    const liveStream = await muxCall(options =>
+      mux.video.liveStreams.retrieve(streamId, options)
+    );
 
     return {
       streamId: liveStream.id,
@@ -339,7 +365,9 @@ export async function getMuxLiveStreamState(
   streamId: string
 ): Promise<MuxLiveState> {
   try {
-    const liveStream = await mux.video.liveStreams.retrieve(streamId);
+    const liveStream = await muxCall(options =>
+      mux.video.liveStreams.retrieve(streamId, options)
+    );
     const status = liveStream.status;
     if (status === "active" || status === "idle" || status === "disabled") {
       return { state: status };
@@ -370,7 +398,6 @@ export type MuxLiveStreamStatus = "active" | "idle" | "disabled" | "not_found";
 
 const MUX_LIST_PAGE_SIZE = 100;
 const MUX_LIST_MAX_PAGES = 50;
-const MUX_READ_TIMEOUT_MS = 10_000;
 
 export interface ActiveMuxLiveStreams {
   ids: Set<string>;
@@ -383,9 +410,11 @@ export interface ActiveMuxLiveStreams {
 export async function listActiveMuxLiveStreamIds(): Promise<ActiveMuxLiveStreams> {
   const ids = new Set<string>();
   for (let page = 1; page <= MUX_LIST_MAX_PAGES; page++) {
-    const result = await mux.video.liveStreams.list(
-      { status: "active", limit: MUX_LIST_PAGE_SIZE, page },
-      { timeout: MUX_READ_TIMEOUT_MS, maxRetries: 2 }
+    const result = await muxCall(options =>
+      mux.video.liveStreams.list(
+        { status: "active", limit: MUX_LIST_PAGE_SIZE, page },
+        options
+      )
     );
     const items: unknown = result?.data;
     if (!Array.isArray(items)) {
@@ -411,10 +440,9 @@ export async function getMuxLiveStreamStatus(
   streamId: string
 ): Promise<MuxLiveStreamStatus> {
   try {
-    const liveStream = await mux.video.liveStreams.retrieve(streamId, {
-      timeout: MUX_READ_TIMEOUT_MS,
-      maxRetries: 2,
-    });
+    const liveStream = await muxCall(options =>
+      mux.video.liveStreams.retrieve(streamId, options)
+    );
     return liveStream.status;
   } catch (error) {
     if (error instanceof Mux.NotFoundError) {
@@ -472,9 +500,9 @@ export async function listMuxAssetsPage(
   page: number,
   limit: number
 ): Promise<MuxAssetSummary[]> {
-  const result = await mux.video.assets.list(
-    { page, limit },
-    { timeout: MUX_RECONCILE_TIMEOUT_MS }
+  const result = await muxCall(
+    options => mux.video.assets.list({ page, limit }, options),
+    MUX_RECONCILE_TIMEOUT_MS
   );
   return result.data.map(toAssetSummary);
 }
@@ -484,9 +512,9 @@ export async function retrieveMuxAsset(
   assetId: string
 ): Promise<MuxAssetSummary | null> {
   try {
-    const asset = await mux.video.assets.retrieve(assetId, {
-      timeout: MUX_RECONCILE_TIMEOUT_MS,
-    });
+    const asset = await muxCall(options =>
+      mux.video.assets.retrieve(assetId, options)
+    );
     return toAssetSummary(asset);
   } catch (err) {
     if (isMuxNotFound(err)) {
@@ -501,9 +529,10 @@ export async function deleteMuxAssetIfExists(
   assetId: string
 ): Promise<"deleted" | "not_found"> {
   try {
-    await mux.video.assets.delete(assetId, {
-      timeout: MUX_RECONCILE_TIMEOUT_MS,
-    });
+    await muxCall(
+      options => mux.video.assets.delete(assetId, options),
+      MUX_RECONCILE_TIMEOUT_MS
+    );
     return "deleted";
   } catch (err) {
     if (isMuxNotFound(err)) {
@@ -518,9 +547,10 @@ export async function deleteMuxLiveStreamIfExists(
   streamId: string
 ): Promise<"deleted" | "not_found"> {
   try {
-    await mux.video.liveStreams.delete(streamId, {
-      timeout: MUX_RECONCILE_TIMEOUT_MS,
-    });
+    await muxCall(
+      options => mux.video.liveStreams.delete(streamId, options),
+      MUX_RECONCILE_TIMEOUT_MS
+    );
     return "deleted";
   } catch (err) {
     if (isMuxNotFound(err)) {

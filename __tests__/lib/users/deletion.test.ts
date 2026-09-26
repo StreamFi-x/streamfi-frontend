@@ -29,6 +29,9 @@ import {
   enableMuxStream,
 } from "@/lib/mux/server";
 import { deleteImage } from "@/utils/upload/cloudinary";
+
+// extractPublicIdFromUrl only accepts images in the configured cloud.
+process.env.CLOUDINARY_CLOUD_NAME = "demo";
 import { getAccountBalances } from "@/lib/stellar/horizon";
 import {
   cancelAccountDeletion,

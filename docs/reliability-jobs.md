@@ -1,7 +1,9 @@
 # Reliability jobs
 
-Scheduled consistency jobs, run by Vercel Cron (`vercel.json`). They
-authenticate with `Authorization: Bearer $CRON_SECRET`.
+Scheduled consistency jobs. The session reconciliation runs on Vercel Cron
+(`vercel.json`, `Authorization: Bearer $CRON_SECRET`). The tip reconciliation
+runs on the QStash job infrastructure, with retries and dead letters; see
+[background-jobs.md](background-jobs.md).
 
 ## Shared behaviour (`lib/jobs/scheduled-job.ts`)
 
@@ -56,30 +58,40 @@ whenever Mux errored and was never scheduled.
 
 ## Stellar tip total reconciliation (#1400)
 
-`GET /api/routes-f/cron-reconcile-tip-totals`, every 15 minutes. Logic is in
-`lib/stellar/tip-reconciliation.ts`, and `POST /api/tips/refresh-total` uses the
-same code.
+Background job `tip-total-reconciliation` (QStash, every 15 minutes; it
+replaced the Vercel Cron route `/api/routes-f/cron-reconcile-tip-totals`).
+Logic is in `lib/stellar/tip-reconciliation.ts`, and
+`POST /api/tips/refresh-total` uses the same code. Since #1418 the walk is
+resumable and bounded per call; the details are in
+[circuit-breakers.md](circuit-breakers.md#tip-refresh).
 
-- **Source of truth:** a full recalculation over the account's complete Horizon
-  payment history. It uses the existing tip definition (incoming native XLM
-  `payment` / `path_payment_strict_receive`, see `lib/stellar/horizon.ts`).
-  Amounts are summed in stroops (BigInt), not floats. Histories longer than
-  100 pages fail instead of writing a partial total.
+- **Source of truth:** the account's complete Horizon payment history, walked
+  oldest first and checkpointed per page (`tip_reconciliation_checkpoints`).
+  The first reconciliation covers the whole history (over as many runs as it
+  takes); later ones read only newer payments. It uses the existing tip
+  definition (incoming native XLM `payment` / `path_payment_strict_receive`,
+  see `lib/stellar/horizon.ts`). Amounts are summed in stroops (BigInt), not
+  floats. Totals are written only once the walk reaches the end, never
+  partially.
 - **Selection:** each run claims up to `TIP_RECONCILE_BATCH_SIZE` users (default 25) that have a Stellar `G…` wallet and a stale total (older than
   `TIP_RECONCILE_STALE_MINUTES`, default 360). Users never reconciled come
   first, then the oldest. The claim uses `FOR UPDATE SKIP LOCKED`, so
   overlapping runs never pick the same user. A user whose reconciliation
   failed waits 30 minutes before it is tried again.
 - **Horizon:** `TIP_RECONCILE_CONCURRENCY` users are processed at a time
-  (default 2). Responses of 429, 5xx and network errors are retried up to 4
-  times with capped exponential backoff and jitter. A user that is still rate
-  limited after that stops the run, and the remaining users go back into the
-  queue. New users are not started after 45 seconds.
+  (default 2), at most 20 pages each per run; a longer history continues next
+  run. Horizon calls go through the Horizon circuit breaker (8s timeout).
+  Once the circuit opens, no new users are started and the remaining ones go
+  back into the queue. New pages and users are not started after 45 seconds.
+  A failed run is retried by QStash (3 attempts), then dead-lettered.
 - **Concurrency:** every writer of the totals bumps
   `users.tip_totals_version`: manual refresh, the scheduled job and the
   Stellar payment webhook. A reconciliation writes only if the version is
-  unchanged since it started, so a slow run never overwrites a newer manual
-  refresh or a webhook credit. The manual endpoint retries up to 3 times.
+  unchanged since just before the final page was read; otherwise it reads the
+  newer payments and tries again (up to 3 times), so a slow run never
+  overwrites a newer manual refresh or a webhook credit. Pages are
+  checkpointed with a compare-and-set on the cursor, so concurrent runs never
+  count a page twice.
 - **Fixes made along the way:** `ON CONFLICT (tx_hash)` did not match the
   partial unique index on `tip_transactions`. It now repeats the index
   predicate. Before this, `refresh-total` returned 500 for any user with at
@@ -87,7 +99,7 @@ same code.
   insert actually happened, so a transaction delivered twice at once is
   credited once.
 - **Alert:** totals corrected by at least 100 XLM (one alert per run), and a run
-  stopped early by Horizon rate limiting.
-- **Metrics:** selected, reconciled, corrected, unchanged, stale_skipped,
-  failed, deferred, ledger_requests, retries, rate_limited,
+  stopped early because Horizon's circuit opened.
+- **Metrics:** selected, reconciled, corrected, unchanged, in_progress,
+  stale_skipped, failed, deferred, ledger_requests, ledger_pages,
   large_discrepancies.
