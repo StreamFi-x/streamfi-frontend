@@ -7,8 +7,8 @@ import {
 
 /**
  * Operational/security alerting shared by admin auth throttling, Mux
- * reconciliation, custodial-key operations and tip reconciliation anomaly
- * alerts (#1405).
+ * reconciliation, custodial-key operations, tip reconciliation anomaly
+ * alerts (#1405) and background job dead letters (#1416).
  *
  * Delivery: every alert is written as a structured log line
  * (`operational_alert`). When OPS_ALERT_WEBHOOK_URL is set, it is also POSTed
@@ -30,7 +30,8 @@ export type AlertCategory =
   | "mux_reconciliation"
   | "mux_webhooks"
   | "custodial_keys"
-  | "tip_reconciliation";
+  | "tip_reconciliation"
+  | "background_jobs";
 
 export type AlertSeverity = "warning" | "critical";
 

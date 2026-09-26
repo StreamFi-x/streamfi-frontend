@@ -12,41 +12,58 @@ jest.mock("@/lib/tracing/logger", () => ({
 }));
 
 const mockCall = jest.fn();
+const mockBuilder = {
+  forAccount: jest.fn(() => mockBuilder),
+  limit: jest.fn(() => mockBuilder),
+  cursor: jest.fn(() => mockBuilder),
+  order: jest.fn(() => mockBuilder),
+  call: (...args: unknown[]) => mockCall(...args),
+};
+const mockServers: { httpClient: { defaults: { timeout?: number } } }[] = [];
 jest.mock("@stellar/stellar-sdk", () => {
   const actual = jest.requireActual("@stellar/stellar-sdk");
-  const builder = {
-    forAccount: jest.fn(() => builder),
-    limit: jest.fn(() => builder),
-    cursor: jest.fn(() => builder),
-    order: jest.fn(() => builder),
-    call: (...args: unknown[]) => mockCall(...args),
-  };
   return {
     ...actual,
-    Horizon: { Server: jest.fn(() => ({ payments: () => builder })) },
+    Horizon: {
+      Server: jest.fn(() => {
+        const server = {
+          httpClient: { defaults: {} },
+          payments: () => mockBuilder,
+        };
+        mockServers.push(server);
+        return server;
+      }),
+    },
   };
 });
 
 import {
-  fetchLedgerTipTotals,
-  fromStroops,
-  HorizonRateLimitedError,
-  LedgerHistoryTooLargeError,
-  LedgerTip,
-  toStroops,
-} from "@/lib/stellar/tip-reconciliation";
+  CircuitOpenError,
+  resetBreakerStoreForTests,
+} from "@/lib/resilience/circuit-breaker";
+import { resetBreakersForTests } from "@/lib/resilience/breakers";
+import { fetchPaymentsReceived } from "@/lib/stellar/horizon";
+import { resetHorizonServersForTests } from "@/lib/stellar/horizon-client";
+import { fromStroops, toStroops } from "@/lib/stellar/tip-reconciliation";
 
 const ACCOUNT = "GCREATORXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
-
-function tip(amount: string, hash: string, timestamp: string): LedgerTip {
-  return { sender: "GSENDER", amount, txHash: hash, timestamp };
-}
 
 function horizonError(status: number) {
   return Object.assign(new Error(`status ${status}`), {
     response: { status },
   });
 }
+
+beforeEach(() => {
+  delete process.env.UPSTASH_REDIS_REST_URL;
+  delete process.env.UPSTASH_REDIS_REST_TOKEN;
+  resetBreakerStoreForTests();
+  resetBreakersForTests();
+  resetHorizonServersForTests();
+  mockServers.length = 0;
+  mockCall.mockReset();
+  jest.clearAllMocks();
+});
 
 describe("stroop arithmetic", () => {
   it("sums amounts exactly, unlike floating point", () => {
@@ -68,219 +85,118 @@ describe("stroop arithmetic", () => {
   });
 });
 
-describe("fetchLedgerTipTotals", () => {
-  const sleep = jest.fn(async () => undefined);
-
-  beforeEach(() => {
-    sleep.mockClear();
-    mockCall.mockReset();
-  });
-
-  it("pages through the complete history and aggregates it", async () => {
-    const fetchPayments = jest
-      .fn()
-      .mockResolvedValueOnce({
-        tips: [
-          tip("10", "h3", "2026-09-03T00:00:00Z"),
-          tip("0.1", "h2", "2026-09-02T00:00:00Z"),
-        ],
-        nextCursor: "c1",
-      })
-      .mockResolvedValueOnce({
-        tips: [tip("0.2", "h1", "2026-09-01T00:00:00Z")],
-        nextCursor: "c2",
-      })
-      .mockResolvedValueOnce({ tips: [], nextCursor: undefined });
-
-    const totals = await fetchLedgerTipTotals(ACCOUNT, {
-      fetchPayments,
-      sleep,
+describe("fetchPaymentsReceived", () => {
+  it("keeps the Horizon tip definition (native incoming payments only)", async () => {
+    mockCall.mockResolvedValueOnce({
+      records: [
+        {
+          type: "payment",
+          to: ACCOUNT,
+          from: "GA",
+          asset_type: "native",
+          amount: "5",
+          transaction_hash: "t1",
+          created_at: "2026-02-01T00:00:00Z",
+          paging_token: "p1",
+        },
+        {
+          type: "payment",
+          to: ACCOUNT,
+          from: "GB",
+          asset_type: "credit_alphanum4",
+          amount: "7",
+          transaction_hash: "t2",
+          created_at: "2026-02-01T00:00:00Z",
+          paging_token: "p2",
+        },
+        {
+          type: "payment",
+          to: "GOTHER",
+          from: ACCOUNT,
+          asset_type: "native",
+          amount: "9",
+          transaction_hash: "t3",
+          created_at: "2026-02-01T00:00:00Z",
+          paging_token: "p3",
+        },
+        {
+          type: "path_payment_strict_receive",
+          to: ACCOUNT,
+          from: "GC",
+          asset_type: "native",
+          amount: "1.5",
+          transaction_hash: "t4",
+          created_at: "2026-03-01T00:00:00Z",
+          paging_token: "p4",
+        },
+      ],
     });
 
-    expect(fetchPayments.mock.calls.map(c => c[0].cursor)).toEqual([
-      undefined,
-      "c1",
-      "c2",
-    ]);
-    expect(totals).toEqual(
-      expect.objectContaining({
-        totalReceived: "10.3000000",
-        totalCount: 3,
-        lastTipAt: "2026-09-03T00:00:00Z",
-        requests: 3,
-        retries: 0,
-      })
-    );
+    const page = await fetchPaymentsReceived({ publicKey: ACCOUNT });
+
+    expect(page.tips.map(t => t.txHash)).toEqual(["t1", "t4"]);
+    // The cursor follows every record, not just the tips.
+    expect(page.nextCursor).toBe("p4");
   });
 
-  it("keeps paging past pages that contain no tips", async () => {
-    const fetchPayments = jest
-      .fn()
-      .mockResolvedValueOnce({ tips: [], nextCursor: "outgoing-only" })
-      .mockResolvedValueOnce({
-        tips: [tip("1", "h", "2026-01-01T00:00:00Z")],
-        nextCursor: "x",
-      })
-      .mockResolvedValueOnce({ tips: [], nextCursor: undefined });
+  it("marks the end of the history with an empty page", async () => {
+    mockCall.mockResolvedValueOnce({ records: [] });
+    const page = await fetchPaymentsReceived({ publicKey: ACCOUNT });
+    expect(page).toEqual({ tips: [], nextCursor: undefined });
+  });
 
-    const totals = await fetchLedgerTipTotals(ACCOUNT, {
-      fetchPayments,
-      sleep,
+  it("walks oldest first from the start, or from a cursor, in asc order", async () => {
+    mockCall.mockResolvedValue({ records: [] });
+
+    await fetchPaymentsReceived({ publicKey: ACCOUNT, order: "asc" });
+    expect(mockBuilder.order).toHaveBeenLastCalledWith("asc");
+    expect(mockBuilder.cursor).not.toHaveBeenCalled();
+
+    await fetchPaymentsReceived({
+      publicKey: ACCOUNT,
+      order: "asc",
+      cursor: "p9",
     });
-
-    expect(totals.totalCount).toBe(1);
+    expect(mockBuilder.cursor).toHaveBeenLastCalledWith("p9");
   });
 
-  it("treats an account Horizon does not know as having no tips", async () => {
-    const fetchPayments = jest.fn().mockRejectedValue(horizonError(404));
-
-    const totals = await fetchLedgerTipTotals(ACCOUNT, {
-      fetchPayments,
-      sleep,
-    });
-
-    expect(totals).toEqual(
-      expect.objectContaining({
-        totalReceived: "0.0000000",
-        totalCount: 0,
-        lastTipAt: null,
-      })
-    );
+  it("starts from the newest payment by default", async () => {
+    mockCall.mockResolvedValue({ records: [] });
+    await fetchPaymentsReceived({ publicKey: ACCOUNT });
+    expect(mockBuilder.order).toHaveBeenLastCalledWith("desc");
+    expect(mockBuilder.cursor).toHaveBeenLastCalledWith("now");
   });
 
-  it("retries rate limits and server errors with exponential backoff", async () => {
-    const fetchPayments = jest
-      .fn()
-      .mockRejectedValueOnce(horizonError(429))
-      .mockRejectedValueOnce(horizonError(503))
-      .mockRejectedValueOnce(new Error("socket hang up"))
-      .mockResolvedValueOnce({
-        tips: [tip("2", "h", "2026-01-01T00:00:00Z")],
-        nextCursor: undefined,
-      });
-
-    const totals = await fetchLedgerTipTotals(ACCOUNT, {
-      fetchPayments,
-      sleep,
-      policy: { baseDelayMs: 100, maxDelayMs: 1000 },
-    });
-
-    expect(totals.totalReceived).toBe("2.0000000");
-    expect(totals).toEqual(
-      expect.objectContaining({ requests: 4, retries: 3, rateLimited: 1 })
-    );
-    const delays = (sleep.mock.calls as unknown as number[][]).map(c => c[0]);
-    expect(delays[0]).toBeGreaterThanOrEqual(50);
-    expect(delays[0]).toBeLessThanOrEqual(100);
-    expect(delays[2]).toBeGreaterThanOrEqual(200);
-    expect(delays[2]).toBeLessThanOrEqual(400);
+  it("gives the Horizon HTTP client the breaker's timeout and reuses it", async () => {
+    mockCall.mockResolvedValue({ records: [] });
+    await fetchPaymentsReceived({ publicKey: ACCOUNT });
+    await fetchPaymentsReceived({ publicKey: ACCOUNT });
+    expect(mockServers).toHaveLength(1);
+    expect(mockServers[0].httpClient.defaults.timeout).toBe(8_000);
   });
 
-  it("gives up with a rate-limit error after the retry budget", async () => {
-    const fetchPayments = jest.fn().mockRejectedValue(horizonError(429));
+  it("fails fast once Horizon keeps failing, without calling it again", async () => {
+    mockCall.mockRejectedValue(horizonError(503));
+    for (let i = 0; i < 5; i++) {
+      await expect(
+        fetchPaymentsReceived({ publicKey: ACCOUNT })
+      ).rejects.toMatchObject({ response: { status: 503 } });
+    }
+    mockCall.mockClear();
 
     await expect(
-      fetchLedgerTipTotals(ACCOUNT, {
-        fetchPayments,
-        sleep,
-        policy: { maxRetries: 2 },
-      })
-    ).rejects.toBeInstanceOf(HorizonRateLimitedError);
-    expect(fetchPayments).toHaveBeenCalledTimes(3);
+      fetchPaymentsReceived({ publicKey: ACCOUNT })
+    ).rejects.toBeInstanceOf(CircuitOpenError);
+    expect(mockCall).not.toHaveBeenCalled();
   });
 
-  it("does not retry client errors", async () => {
-    const fetchPayments = jest.fn().mockRejectedValue(horizonError(400));
-
-    await expect(
-      fetchLedgerTipTotals(ACCOUNT, { fetchPayments, sleep })
-    ).rejects.toThrow("status 400");
-    expect(fetchPayments).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not treat a 404 after the first page as an empty account", async () => {
-    const fetchPayments = jest
-      .fn()
-      .mockResolvedValueOnce({
-        tips: [tip("1", "h", "2026-01-01T00:00:00Z")],
-        nextCursor: "c",
-      })
-      .mockRejectedValue(horizonError(404));
-
-    await expect(
-      fetchLedgerTipTotals(ACCOUNT, { fetchPayments, sleep })
-    ).rejects.toThrow("status 404");
-  });
-
-  it("refuses to produce a partial total for an oversized history", async () => {
-    const fetchPayments = jest
-      .fn()
-      .mockResolvedValue({
-        tips: [tip("1", "h", "2026-01-01T00:00:00Z")],
-        nextCursor: "more",
-      });
-
-    await expect(
-      fetchLedgerTipTotals(ACCOUNT, {
-        fetchPayments,
-        sleep,
-        policy: { maxPages: 3 },
-      })
-    ).rejects.toBeInstanceOf(LedgerHistoryTooLargeError);
-    expect(fetchPayments).toHaveBeenCalledTimes(3);
-  });
-
-  it("uses the existing Horizon tip definition by default (native incoming payments only)", async () => {
-    mockCall
-      .mockResolvedValueOnce({
-        records: [
-          {
-            type: "payment",
-            to: ACCOUNT,
-            from: "GA",
-            asset_type: "native",
-            amount: "5",
-            transaction_hash: "t1",
-            created_at: "2026-02-01T00:00:00Z",
-            paging_token: "p1",
-          },
-          {
-            type: "payment",
-            to: ACCOUNT,
-            from: "GB",
-            asset_type: "credit_alphanum4",
-            amount: "7",
-            transaction_hash: "t2",
-            created_at: "2026-02-01T00:00:00Z",
-            paging_token: "p2",
-          },
-          {
-            type: "payment",
-            to: "GOTHER",
-            from: ACCOUNT,
-            asset_type: "native",
-            amount: "9",
-            transaction_hash: "t3",
-            created_at: "2026-02-01T00:00:00Z",
-            paging_token: "p3",
-          },
-          {
-            type: "path_payment_strict_receive",
-            to: ACCOUNT,
-            from: "GC",
-            asset_type: "native",
-            amount: "1.5",
-            transaction_hash: "t4",
-            created_at: "2026-03-01T00:00:00Z",
-            paging_token: "p4",
-          },
-        ],
-      })
-      .mockResolvedValueOnce({ records: [] });
-
-    const totals = await fetchLedgerTipTotals(ACCOUNT, { sleep });
-
-    expect(totals.totalReceived).toBe("6.5000000");
-    expect(totals.tips.map(t => t.txHash)).toEqual(["t1", "t4"]);
+  it("does not count an unknown account (404) against Horizon's health", async () => {
+    mockCall.mockRejectedValue(horizonError(404));
+    for (let i = 0; i < 10; i++) {
+      await expect(
+        fetchPaymentsReceived({ publicKey: ACCOUNT })
+      ).rejects.toMatchObject({ response: { status: 404 } });
+    }
+    expect(mockCall).toHaveBeenCalledTimes(10);
   });
 });

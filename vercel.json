@@ -1,10 +1,6 @@
 {
   "crons": [
     {
-      "path": "/api/routes-f/schedule/reminders",
-      "schedule": "0 0 * * *"
-    },
-    {
       "path": "/api/routes-f/cron-refresh-materialized-views",
       "schedule": "0 * * * *"
     },
@@ -15,10 +11,6 @@
     {
       "path": "/api/routes-f/cron-close-inactive-sessions",
       "schedule": "*/10 * * * *"
-    },
-    {
-      "path": "/api/routes-f/cron-reconcile-tip-totals",
-      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/routes-f/cron-purge-idempotency-keys",
