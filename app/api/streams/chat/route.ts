@@ -3,6 +3,8 @@ import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { CACHE_POLICIES, cacheHeaders } from "@/lib/cache";
 import { createCache, createMemoryBackend } from "@/lib/cache/store";
+import { publishRealtimeMessage } from "@/lib/realtime/pubsub";
+
 
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
@@ -84,8 +86,6 @@ export async function POST(req: NextRequest) {
       CROSS JOIN users streamer
       WHERE sender.wallet = ${wallet}
         AND streamer.mux_playback_id = ${playbackId}
-        AND sender.deleted_at IS NULL
-        AND streamer.deleted_at IS NULL
     `;
 
     if (result.rows.length === 0) {
@@ -133,22 +133,32 @@ export async function POST(req: NextRequest) {
     `;
     await chatWindowCache.invalidate([chatTag(playbackId)]);
 
+    const formattedMessage = {
+      id: newMessage.id,
+      content,
+      messageType,
+      user: {
+        username: sender_username,
+        wallet: wallet,
+      },
+      createdAt: newMessage.created_at,
+    };
+
+    // Publish to Realtime Pub/Sub channel for instantaneous push delivery (#1450)
+    publishRealtimeMessage(
+      `stream:${playbackId}:chat`,
+      "chat:message",
+      formattedMessage
+    ).catch((e) => console.error("[chat] Realtime publish error:", e));
+
     return NextResponse.json(
       {
         message: "Message sent successfully",
-        chatMessage: {
-          id: newMessage.id,
-          content,
-          messageType,
-          user: {
-            username: sender_username,
-            wallet: wallet,
-          },
-          createdAt: newMessage.created_at,
-        },
+        chatMessage: formattedMessage,
       },
       { status: 201 }
     );
+
   } catch (error) {
     console.error("Chat message error:", error);
     return NextResponse.json(
@@ -167,7 +177,7 @@ async function loadChatWindow(
     SELECT ss.id as session_id
     FROM users u
     JOIN stream_sessions ss ON u.id = ss.user_id AND ss.ended_at IS NULL
-    WHERE u.mux_playback_id = ${playbackId} AND u.deleted_at IS NULL
+    WHERE u.mux_playback_id = ${playbackId}
     ORDER BY ss.started_at DESC
     LIMIT 1
   `;
@@ -192,7 +202,7 @@ async function loadChatWindow(
       u.wallet,
       u.avatar
     FROM chat_messages cm
-    JOIN users u ON cm.user_id = u.id AND u.deleted_at IS NULL
+    JOIN users u ON cm.user_id = u.id
     WHERE cm.stream_session_id = ${sessionId}
       AND cm.is_deleted = false
       AND (${beforeId}::int IS NULL OR cm.id < ${beforeId})
@@ -264,7 +274,7 @@ export async function DELETE(req: Request) {
     }
 
     const moderatorResult = await sql`
-      SELECT id FROM users WHERE wallet = ${moderatorWallet} AND deleted_at IS NULL
+      SELECT id FROM users WHERE wallet = ${moderatorWallet}
     `;
 
     if (moderatorResult.rows.length === 0) {
@@ -284,7 +294,6 @@ export async function DELETE(req: Request) {
         owner.mux_playback_id
       FROM chat_messages cm
       JOIN stream_sessions ss ON cm.stream_session_id = ss.id
-      -- tombstone-aware: moderation of a stored message, whatever the owner's state
       JOIN users owner ON owner.id = ss.user_id
       WHERE cm.id = ${messageId} AND cm.is_deleted = false
     `;

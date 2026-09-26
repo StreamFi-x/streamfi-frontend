@@ -1,4 +1,6 @@
+import { useCallback } from "react";
 import useSWR from "swr";
+import { useRealtimeChannel } from "./useRealtime";
 
 export interface StreamData {
   streamKey: string;
@@ -36,16 +38,57 @@ const fetcher = async (url: string): Promise<StreamData | null> => {
   };
 };
 
-export function useStreamData(wallet: string | undefined) {
+export function useStreamData(
+  wallet: string | undefined,
+  enablePush: boolean = true
+) {
   const { data, error, isLoading, mutate } = useSWR<StreamData | null>(
     wallet ? `/api/streams/${encodeURIComponent(wallet)}` : null,
     fetcher,
     {
-      refreshInterval: 5_000, // poll every 5s for live viewer count
+      // With push delivery enabled, relax polling from 5s to 60s background reconciliation
+      refreshInterval: enablePush ? 60_000 : 5_000,
       dedupingInterval: 4_000,
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
     }
+  );
+
+  const playbackId = data?.playbackId;
+  const realtimeChannel =
+    playbackId && enablePush ? `stream:${playbackId}:presence` : null;
+
+  useRealtimeChannel(
+    realtimeChannel,
+    useCallback(
+      (msg) => {
+        if (msg.event === "presence:update" && typeof msg.data?.currentViewers === "number") {
+          mutate(
+            (curr) =>
+              curr
+                ? {
+                    ...curr,
+                    currentViewers: msg.data.currentViewers,
+                    peakViewers: Math.max(curr.peakViewers, msg.data.currentViewers),
+                  }
+                : curr,
+            false
+          );
+        } else if (msg.event === "stream:status" && typeof msg.data?.isLive === "boolean") {
+          mutate(
+            (curr) =>
+              curr
+                ? {
+                    ...curr,
+                    isLive: msg.data.isLive,
+                  }
+                : curr,
+            false
+          );
+        }
+      },
+      [mutate]
+    )
   );
 
   return {
@@ -55,3 +98,4 @@ export function useStreamData(wallet: string | undefined) {
     mutate,
   };
 }
+
