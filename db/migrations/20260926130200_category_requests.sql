@@ -5,6 +5,11 @@
 -- point at an existing category and add the proposed name to its tags, which
 -- /api/category?tag= already searches.
 
+-- Needed for similarity() (near-duplicate suggestions in the admin review
+-- queue). add-routes-f-platform-features.sql already enables this in
+-- deployed environments; IF NOT EXISTS makes this migration safe there too.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 CREATE TABLE IF NOT EXISTS stream_categories (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title       VARCHAR(255) UNIQUE NOT NULL,
