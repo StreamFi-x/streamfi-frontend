@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
         // Both must be live
         const { rows: statuses } = await sql`
-      SELECT id, is_live FROM users WHERE id IN (${creatorId}, ${session.userId})
+      SELECT id, is_live FROM users WHERE id IN (${creatorId}, ${session.userId}) AND deleted_at IS NULL
     `;
 
         const creatorStatus = statuses.find(s => s.id === creatorId);

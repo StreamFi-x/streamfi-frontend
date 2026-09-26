@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
   try {
     // Check uniqueness
     const { rows: existing } = await sql`
-      SELECT id FROM users WHERE lower(username) = lower(${username}) AND id != ${session.userId} LIMIT 1
+      /* tombstone-aware: identifiers stay reserved until the account is purged */ SELECT id FROM users WHERE lower(username) = lower(${username}) AND id != ${session.userId} LIMIT 1
     `;
     if (existing.length > 0) {
       return NextResponse.json({ error: "Username is already taken" }, { status: 409 });
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     let referredBy: string | null = null;
     if (ref_code) {
       const { rows: refRows } = await sql`
-        SELECT id FROM users WHERE referral_code = ${ref_code} LIMIT 1
+        SELECT id FROM users WHERE referral_code = ${ref_code} AND deleted_at IS NULL LIMIT 1
       `;
       if (refRows.length > 0) {
         referredBy = refRows[0].id;

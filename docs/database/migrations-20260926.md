@@ -1,25 +1,28 @@
 # Deploy runbook: notifications table, hot-path indexes, read replicas
 
-This change ships three migrations for the tracked runner
+This change ships four migrations for the tracked runner
 (`docs/database-migrations.md`) plus application code. Steps are in order.
 Each one is safe to re-run.
 
-| #   | Step                                                                                        | When                           | Locks / risk                                       |
-| --- | ------------------------------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------- |
-| 1   | `MIGRATION_DATABASE_URL=<direct url> npm run db:migrate -- verify`                          | Before anything                | Read-only                                          |
-| 2   | `MIGRATION_DATABASE_URL=<direct url> npm run db:migrate -- up`                              | Before deploying, off-peak     | Applies three migrations, in order (details below) |
-| 3   | Check for invalid indexes (query below)                                                     | After step 2                   | Read-only                                          |
-| 4   | Deploy the application                                                                      | —                              | —                                                  |
-| 5   | `psql "$MIGRATION_DATABASE_URL" -f db/migrations/20260926100100_backfill_notifications.sql` | Right after the deploy is live | Inserts into `notifications` only. Idempotent.     |
-| 6   | Verify (below)                                                                              | After step 5                   | Read-only                                          |
-| 7   | Optional: provision the read replica and set `POSTGRES_REPLICA_URL`                         | Any time after step 4          | `docs/database/read-replicas.md`                   |
+| #   | Step                                                                                        | When                           | Locks / risk                                      |
+| --- | ------------------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------- |
+| 1   | `MIGRATION_DATABASE_URL=<direct url> npm run db:migrate -- verify`                          | Before anything                | Read-only                                         |
+| 2   | `MIGRATION_DATABASE_URL=<direct url> npm run db:migrate -- up`                              | Before deploying, off-peak     | Applies four migrations, in order (details below) |
+| 3   | Check for invalid indexes (query below)                                                     | After step 2                   | Read-only                                         |
+| 4   | Deploy the application                                                                      | —                              | —                                                 |
+| 5   | `psql "$MIGRATION_DATABASE_URL" -f db/migrations/20260926100100_backfill_notifications.sql` | Right after the deploy is live | Inserts into `notifications` only. Idempotent.    |
+| 6   | Verify (below)                                                                              | After step 5                   | Read-only                                         |
+| 7   | Optional: provision the read replica and set `POSTGRES_REPLICA_URL`                         | Any time after step 4          | `docs/database/read-replicas.md`                  |
 
-The three migrations applied in step 2:
+The four migrations applied in step 2:
 
 - **`20260926100000_create_notifications_table`** creates a new, empty table
   in a transaction.
 - **`20260926100100_backfill_notifications`** runs in a transaction.
-  - What it does: copies every item of `users.notifications` into the table.
+  - What it does: copies every readable item of `users.notifications` into
+    the table. Shapes follow `lib/db/jsonb-contracts.ts`: legacy
+    `{title, text}` items import as type `legacy` and read (as
+    `readNotifications` shows them), and malformed items are skipped.
   - Locks: it only inserts into the new table, so it takes no lock that
     blocks the application.
   - Id mapping: each row keeps the item's own uuid, or gets a stable hash if
@@ -29,6 +32,14 @@ The three migrations applied in step 2:
     lock, but each build scans its table.
   - It then runs `ANALYZE users`.
   - Sizes are in `docs/database/query-performance.md`.
+- **`20260926100300_purge_policies_notifications_recovery`** runs in a
+  transaction.
+  - It re-creates `streamfi_purge_user` (#1406), adding `delete` policies for
+    `notifications.user_id` and for the account-recovery tables from #1446.
+  - Without it, every user purge aborts on a foreign key with no policy. The
+    recovery tables already break purges on `dev` today. Reproduced against a
+    database with all migrations applied; with this migration the purge
+    deletes the user's notification rows and completes.
 
 Why this order:
 
@@ -54,11 +65,15 @@ and indexes. Confirm its primary key is a `uuid` named `id` before step 2.
 --    If any: drop it, `npm run db:migrate -- resolve 20260926100200_hot_path_indexes --rolled-back`, re-run `up`.
 SELECT c.relname FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE NOT i.indisvalid;
 
--- 6a. Every legacy array item has a row (expect 0). Uses the backfill's id mapping.
+-- 6a. Every readable legacy array item has a row (expect 0). Uses the backfill's
+--     id mapping and filter; elements without string title/text are skipped,
+--     as lib/db/jsonb-contracts.ts readNotifications skips them.
 SELECT count(*) AS missing
 FROM users u
 CROSS JOIN LATERAL unnest(u.notifications) WITH ORDINALITY AS item(n, ord)
-WHERE NOT EXISTS (
+WHERE jsonb_typeof(item.n->'title') = 'string'
+  AND jsonb_typeof(item.n->'text') = 'string'
+  AND NOT EXISTS (
   SELECT 1 FROM notifications x
   WHERE x.id = CASE
     WHEN item.n->>'id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'

@@ -51,7 +51,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       "routes-f.analytics-top-tippers",
       async db => {
         const channelResult = await db`
-          SELECT id FROM users WHERE id = ${channel} LIMIT 1
+          SELECT id FROM users WHERE id = ${channel} AND deleted_at IS NULL LIMIT 1
         `;
 
         if (channelResult.rows.length === 0) {

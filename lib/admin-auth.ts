@@ -75,6 +75,24 @@ export async function authorizeAdminSession(
   );
 }
 
+/**
+ * Route guard that also returns the admin's Privy user ID, so admin actions
+ * (deletion cancellation, remediation, audits) can be attributed in audit
+ * records. Same checks and responses as requireAdminSession.
+ */
+export async function requireAdminIdentity(
+  route: string
+): Promise<
+  { admin: string; response: null } | { admin: null; response: Response }
+> {
+  const result = await authorizeAdminSession(route);
+  if (!result.ok) {
+    return { admin: null, response: adminGuardResponse(result) };
+  }
+  const privySession = (await cookies()).get("privy_session")?.value ?? "";
+  return { admin: privySession, response: null };
+}
+
 /** Boolean form of authorizeAdminSession, kept for existing callers. */
 export async function verifyAdminSession(route = "unknown"): Promise<boolean> {
   return (await authorizeAdminSession(route)).ok;

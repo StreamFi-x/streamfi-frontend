@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const { rows } = await sql`
-      SELECT id, email FROM users WHERE lower(email) = ${email} LIMIT 1
+      SELECT id, email FROM users WHERE lower(email) = ${email} AND deleted_at IS NULL LIMIT 1
     `;
 
     // Do not reveal whether the account exists — always return the same

@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
             u.avatar,
             ss.started_at AS stream_date
           FROM stream_recordings r
-          JOIN users u ON u.id = r.user_id
+          JOIN users u ON u.id = r.user_id AND u.deleted_at IS NULL
           LEFT JOIN stream_sessions ss ON ss.id = r.stream_session_id
           WHERE r.status = 'ready'
             AND LOWER(u.username) = LOWER(${username})
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
             u.avatar,
             ss.started_at AS stream_date
           FROM stream_recordings r
-          JOIN users u ON u.id = r.user_id
+          JOIN users u ON u.id = r.user_id AND u.deleted_at IS NULL
           LEFT JOIN stream_sessions ss ON ss.id = r.stream_session_id
           WHERE r.status = 'ready'
             AND (r.created_at, r.id) < (${bound.ts}::timestamptz, ${bound.id}::uuid)

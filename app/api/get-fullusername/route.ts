@@ -15,7 +15,7 @@ async function handler(req: Request) {
       }
 
       const result =
-        await sql`SELECT username FROM users WHERE username = ${username}`;
+        await sql`SELECT username FROM users WHERE username = ${username} AND deleted_at IS NULL`;
 
       if (result.rows.length === 0) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });

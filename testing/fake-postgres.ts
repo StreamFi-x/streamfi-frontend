@@ -35,6 +35,7 @@ export interface FakeUser {
   stream_started_at?: Date | null;
   current_viewers?: number;
   live_state_changed_at?: Date | null;
+  deleted_at?: Date | null;
   updated_at?: Date | null;
   notifications?: unknown[];
   encrypted_stellar_key?: string | null;
@@ -338,11 +339,13 @@ export class FakePostgres {
 
     // ── users live state (webhooks) ─────────────────────────────────────
     rule(
-      /^UPDATE users SET is_live = (true|false), stream_started_at = (CURRENT_TIMESTAMP|NULL), current_viewers = 0, updated_at = CURRENT_TIMESTAMP WHERE mux_stream_id = \$1 RETURNING/,
+      /^UPDATE users SET is_live = (true|false), stream_started_at = (CURRENT_TIMESTAMP|NULL), current_viewers = 0, updated_at = CURRENT_TIMESTAMP WHERE mux_stream_id = \$1( AND deleted_at IS NULL)? RETURNING/,
       (p, now) => {
-        const live = /is_live = true/.test(this.statements.at(-1) ?? "");
+        const statement = this.statements.at(-1) ?? "";
+        const live = /is_live = true/.test(statement);
+        const activeOnly = /AND deleted_at IS NULL/.test(statement);
         const hits = [...this.state.users.values()].filter(
-          u => u.mux_stream_id === p[0]
+          u => u.mux_stream_id === p[0] && !(activeOnly && u.deleted_at)
         );
         for (const u of hits) {
           this.setLive(u, live, now);
@@ -524,19 +527,29 @@ export class FakePostgres {
       const had = this.state.stream_recordings.delete(String(p[0]));
       return { rows: [], rowCount: had ? 1 : 0 };
     });
-    // lib/notifications.ts: INSERT ... SELECT ... FROM users WHERE id = $4.
+    // lib/notifications.ts: INSERT ... SELECT ... FROM users WHERE id = $7.
     // Rows are kept on the fake user so tests can count them per recipient.
-    rule(/^INSERT INTO notifications \(user_id, type, title, body\) SELECT/, p => {
-      const u = this.state.users.get(String(p[3]));
-      if (!u) {
-        return { rows: [], rowCount: 0 };
+    rule(
+      /^INSERT INTO notifications \(id, user_id, type, title, body, is_read, created_at\) SELECT/,
+      p => {
+        const u = this.state.users.get(String(p[6]));
+        if (!u || u.deleted_at) {
+          return { rows: [], rowCount: 0 };
+        }
+        u.notifications = [
+          ...(u.notifications ?? []),
+          {
+            id: p[0],
+            type: p[1],
+            title: p[2],
+            text: p[3],
+            read: p[4],
+            created_at: p[5],
+          },
+        ];
+        return { rows: [], rowCount: 1 };
       }
-      u.notifications = [
-        ...(u.notifications ?? []),
-        { type: p[0], title: p[1], text: p[2], read: false },
-      ];
-      return { rows: [], rowCount: 1 };
-    });
+    );
 
     // ── scheduled_job_runs ──────────────────────────────────────────────
     rule(/^INSERT INTO scheduled_job_runs/, (p, now) => {

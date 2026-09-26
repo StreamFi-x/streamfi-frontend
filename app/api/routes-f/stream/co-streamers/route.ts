@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
         const { rows } = await sql`
       SELECT u.id, u.username, u.avatar, sm.joined_at as "joinedAt"
       FROM squad_members sm
-      JOIN users u ON sm.user_id = u.id
+      JOIN users u ON sm.user_id = u.id AND u.deleted_at IS NULL
       WHERE sm.creator_id = ${session.userId}
       ORDER BY sm.joined_at ASC
     `;
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
         // Check if creator is live
         const { rows: creatorStatus } = await sql`
-      SELECT is_live FROM users WHERE id = ${session.userId} LIMIT 1
+      SELECT is_live FROM users WHERE id = ${session.userId} AND deleted_at IS NULL LIMIT 1
     `;
         if (!creatorStatus[0]?.is_live) {
             return NextResponse.json({ error: "You must be live to invite co-streamers" }, { status: 400 });
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
         // Find invitee
         const { rows: invitee } = await sql`
-      SELECT id, is_live FROM users WHERE username = ${username} LIMIT 1
+      SELECT id, is_live FROM users WHERE username = ${username} AND deleted_at IS NULL LIMIT 1
     `;
 
         if (invitee.length === 0) {

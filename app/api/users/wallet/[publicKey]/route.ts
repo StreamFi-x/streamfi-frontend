@@ -20,7 +20,7 @@ export async function GET(
 
     // Stellar public keys are uppercase; use exact match
     const result = await sql`
-      SELECT * FROM users WHERE wallet = ${wallet}
+      SELECT * FROM users WHERE wallet = ${wallet} AND deleted_at IS NULL
     `;
 
     const user = result.rows[0];

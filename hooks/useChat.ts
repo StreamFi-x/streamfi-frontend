@@ -13,10 +13,13 @@ import {
   rememberSent,
 } from "@/lib/chat-recent-writes";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
+import { useRealtimeChannel } from "@/hooks/useRealtime";
+import type { RealtimeMessage } from "@/lib/realtime/pubsub";
 
 const MAX_MESSAGES = 200;
 const HISTORY_PAGE_SIZE = 50;
 const POLL_INTERVAL_MS = 1000;
+const PUSH_SYNC_INTERVAL_MS = 30_000;
 
 /** Deterministic color for a username — same user always gets the same color */
 const USER_COLORS = [
@@ -91,9 +94,11 @@ function dedupeById(messages: ChatMessage[]): ChatMessage[] {
 }
 
 /**
- * SWR-based chat hook used by all chat components.
+ * Chat hook used by all chat components: push delivery (#1450) with SWR
+ * polling as the fallback and background sync.
  *
- * The newest MAX_MESSAGES are polled as the "live window". Older history is
+ * The newest MAX_MESSAGES are fetched as the "live window"; pushed messages
+ * are appended to it until the next sync. Older history is
  * loaded on demand through the cursor API, starting at the cursor of the live
  * window's oldest message when the reader first asks for it (the anchor), so
  * polling never refetches history pages.
@@ -107,11 +112,13 @@ function dedupeById(messages: ChatMessage[]): ChatMessage[] {
  * @param playbackId  - Mux playback ID for the stream (null disables fetching)
  * @param wallet      - Connected wallet address (required to send messages)
  * @param isLive      - Whether the stream is currently live (stops polling when false)
+ * @param enablePush  - Whether push-based delivery is enabled (feature-flagged)
  */
 export function useChat(
   playbackId: string | null | undefined,
   wallet: string | null | undefined,
-  isLive: boolean = true
+  isLive: boolean = true,
+  enablePush: boolean = true
 ): UseChatReturn {
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -126,7 +133,8 @@ export function useChat(
   const cacheKey = playbackId
     ? `/api/streams/chat?playbackId=${playbackId}&limit=${MAX_MESSAGES}`
     : null;
-  const shouldPoll = !!playbackId && isLive;
+  // With push delivery active, the 1s poll becomes a 30s background sync.
+  const shouldPoll = !!playbackId && isLive && !enablePush;
 
   const { data, error, isLoading, mutate } = useSWR<LiveWindow>(
     cacheKey,
@@ -141,7 +149,11 @@ export function useChat(
       };
     },
     {
-      refreshInterval: shouldPoll ? POLL_INTERVAL_MS : 0,
+      refreshInterval: shouldPoll
+        ? POLL_INTERVAL_MS
+        : enablePush && isLive
+          ? PUSH_SYNC_INTERVAL_MS
+          : 0,
       dedupingInterval: 500,
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
@@ -161,6 +173,66 @@ export function useChat(
     }
   );
 
+  // Realtime push channel subscription (#1450)
+  const realtimeChannel =
+    playbackId && enablePush ? `stream:${playbackId}:chat` : null;
+
+  useRealtimeChannel(
+    realtimeChannel,
+    useCallback(
+      (realtimeMsg: RealtimeMessage) => {
+        if (realtimeMsg.event === "chat:message" && realtimeMsg.data) {
+          const incoming = normalizeMessage(realtimeMsg.data as ChatMessageAPI);
+          mutate(
+            current => {
+              const list = current?.messages ?? [];
+              if (list.some(m => m.id === incoming.id)) {
+                return current;
+              }
+              // A pushed copy of this client's own pending message replaces it.
+              const pendingIndex = list.findIndex(
+                m =>
+                  m.isPending &&
+                  m.message === incoming.message &&
+                  (m.wallet === incoming.wallet ||
+                    m.username === incoming.username ||
+                    m.username === "You")
+              );
+              const messages =
+                pendingIndex === -1
+                  ? [...list, incoming]
+                  : list.map((m, i) => (i === pendingIndex ? incoming : m));
+              return {
+                nextCursor: current?.nextCursor ?? null,
+                hasMore: current?.hasMore ?? false,
+                messages,
+              };
+            },
+            { revalidate: false }
+          );
+        } else if (
+          realtimeMsg.event === "chat:delete" &&
+          realtimeMsg.data?.id
+        ) {
+          const deleteId = String(realtimeMsg.data.id);
+          mutate(
+            current =>
+              current && {
+                ...current,
+                messages: current.messages.filter(m => m.id !== deleteId),
+              },
+            { revalidate: false }
+          );
+          setBridge(current => current.filter(m => m.id !== deleteId));
+        }
+      },
+      [mutate]
+    )
+  );
+
+  // The window may grow past MAX_MESSAGES between syncs (pushes, own sends).
+  // Only the unanchored display is trimmed: trimming the data would drop the
+  // message that `nextCursor` points at, and "load older" would then skip it.
   const liveMessages = useMemo(() => data?.messages ?? [], [data]);
 
   // A new stream or new playback ID starts from a clean history.
@@ -252,9 +324,7 @@ export function useChat(
         current => ({
           nextCursor: current?.nextCursor ?? null,
           hasMore: current?.hasMore ?? false,
-          messages: [...(current?.messages ?? []), optimisticMessage].slice(
-            -MAX_MESSAGES
-          ),
+          messages: [...(current?.messages ?? []), optimisticMessage],
         }),
         { revalidate: false }
       );
@@ -288,7 +358,7 @@ export function useChat(
               messages: reconcileWithRecentWrites(
                 current.messages.filter(m => m.id !== optimisticId),
                 recentWritesFor(playbackId)
-              ).slice(-MAX_MESSAGES),
+              ),
             },
           { revalidate: false }
         );

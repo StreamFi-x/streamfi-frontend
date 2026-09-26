@@ -83,8 +83,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
            s.username AS sender_username,
            r.username AS recipient_username
     FROM tips t
-    LEFT JOIN users s ON s.id = t.sender_id
-    LEFT JOIN users r ON r.id = t.recipient_id
+    LEFT JOIN users s ON s.id = t.sender_id AND s.deleted_at IS NULL
+    LEFT JOIN users r ON r.id = t.recipient_id AND r.deleted_at IS NULL
     WHERE ${conditions.join(" AND ")}
     ORDER BY t.created_at DESC
     LIMIT $${i}`;

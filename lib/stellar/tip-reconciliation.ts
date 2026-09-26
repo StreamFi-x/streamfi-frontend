@@ -222,23 +222,38 @@ const TIP_INSERT_CHUNK = 500;
  * Records ledger tips in tip_transactions in batches. The ON CONFLICT target
  * repeats the partial unique index predicate; without it PostgreSQL cannot
  * match idx_tip_transactions_tx_hash_unique and rejects the statement.
+ *
+ * When `runId` is set (the scheduled job), every tip that was actually
+ * missing is recorded as a TIP_INSERTED correction in the same statement, so
+ * the alerting layer (#1405) sees exactly what the job changed.
  */
 async function recordTipTransactions(
   executor: SqlExecutor,
   creatorId: string,
   tips: LedgerTip[],
-  xlmUsdPrice: number | null
+  xlmUsdPrice: number | null,
+  runId: string | null
 ): Promise<void> {
   for (let i = 0; i < tips.length; i += TIP_INSERT_CHUNK) {
     const chunk = tips.slice(i, i + TIP_INSERT_CHUNK);
     await executor(
-      `INSERT INTO tip_transactions
-         (creator_id, supporter_id, amount_xlm, price_usd, tx_hash, memo, created_at)
-       SELECT $1, supporter.id, t.amount, $2, t.tx_hash, 'StreamFi Tip', t.created_at
-         FROM unnest($3::text[], $4::numeric[], $5::text[], $6::timestamptz[])
-              AS t(sender, amount, tx_hash, created_at)
-         LEFT JOIN users supporter ON supporter.wallet = t.sender
-       ON CONFLICT (tx_hash) WHERE tx_hash IS NOT NULL DO NOTHING`,
+      `WITH ins AS (
+         INSERT INTO tip_transactions
+           (creator_id, supporter_id, amount_xlm, price_usd, tx_hash, memo, created_at)
+         SELECT $1, supporter.id, t.amount, $2, t.tx_hash, 'StreamFi Tip', t.created_at
+           FROM unnest($3::text[], $4::numeric[], $5::text[], $6::timestamptz[])
+                AS t(sender, amount, tx_hash, created_at)
+           -- tombstone-aware: financial records keep their supporter link
+           LEFT JOIN users supporter ON supporter.wallet = t.sender
+         ON CONFLICT (tx_hash) WHERE tx_hash IS NOT NULL DO NOTHING
+         RETURNING creator_id, tx_hash, amount_xlm
+       )
+       INSERT INTO tip_reconciliation_corrections
+         (run_id, kind, user_id, tx_hash, amount_after, delta)
+       SELECT $7::uuid, 'TIP_INSERTED', creator_id, tx_hash, amount_xlm, amount_xlm
+         FROM ins
+        WHERE $7::uuid IS NOT NULL
+       ON CONFLICT DO NOTHING`,
       [
         creatorId,
         xlmUsdPrice,
@@ -246,6 +261,7 @@ async function recordTipTransactions(
         chunk.map(t => t.amount),
         chunk.map(t => t.txHash),
         chunk.map(t => t.timestamp),
+        runId,
       ]
     );
   }
@@ -257,6 +273,11 @@ export interface ReconcileUserOptions {
   getXlmUsdPrice?: () => Promise<number>;
   /** Re-run when a concurrent writer changed the totals (manual refresh). */
   maxAttempts?: number;
+  /**
+   * Scheduled-job run id (job_runs.run_id). When set, every change is also
+   * recorded in tip_reconciliation_corrections for anomaly alerting (#1405).
+   */
+  runId?: string;
 }
 
 export interface ReconcileUserResult {
@@ -310,25 +331,49 @@ export async function reconcileUserTipTotals(
       const price = options.getXlmUsdPrice
         ? await options.getXlmUsdPrice()
         : null;
-      await recordTipTransactions(executor, userId, totals.tips, price);
+      await recordTipTransactions(
+        executor,
+        userId,
+        totals.tips,
+        price,
+        options.runId ?? null
+      );
     }
 
+    // The correction row (#1405) is written by the same statement as the
+    // totals, and only when the versioned update actually applied.
     const updated = await executor(
-      `UPDATE users
-          SET total_tips_received = $2,
-              total_tips_count = $3,
-              last_tip_at = $4,
-              tip_totals_version = tip_totals_version + 1,
-              tips_reconciled_at = NOW(),
-              updated_at = NOW()
-        WHERE id = $1 AND tip_totals_version = $5
-      RETURNING id`,
+      `WITH upd AS (
+         UPDATE users
+            SET total_tips_received = $2,
+                total_tips_count = $3,
+                last_tip_at = $4,
+                tip_totals_version = tip_totals_version + 1,
+                tips_reconciled_at = NOW(),
+                updated_at = NOW()
+          WHERE id = $1 AND tip_totals_version = $5
+        RETURNING id
+       ),
+       correction AS (
+         INSERT INTO tip_reconciliation_corrections
+           (run_id, kind, user_id, amount_before, amount_after, delta, count_before, count_after)
+         SELECT $6::uuid, 'TOTALS_CORRECTED', id, $7::numeric, $2::numeric,
+                $2::numeric - $7::numeric, $8::int, $3::int
+           FROM upd
+          WHERE $6::uuid IS NOT NULL
+            AND ($2::numeric <> $7::numeric OR $3::int <> $8::int)
+         ON CONFLICT DO NOTHING
+       )
+       SELECT id FROM upd`,
       [
         userId,
         totals.totalReceived,
         totals.totalCount,
         totals.lastTipAt,
         version,
+        options.runId ?? null,
+        lastPrevious,
+        previousCount,
       ]
     );
 
@@ -369,6 +414,8 @@ export interface TipReconciliationJobOptions {
   timeBudgetMs?: number;
   /** Absolute change (XLM) reported as a large discrepancy. */
   discrepancyAlertXlm?: number;
+  /** job_runs.run_id of this run; enables correction recording (#1405). */
+  runId?: string;
   now?: () => number;
 }
 
@@ -472,6 +519,7 @@ export async function reconcileStaleTipTotals(
         executor,
         ledger: options.ledger,
         getXlmUsdPrice: options.getXlmUsdPrice,
+        runId: options.runId,
       });
       if (result.totals) {
         metrics.ledger_requests += result.totals.requests;

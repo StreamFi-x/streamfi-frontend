@@ -3,6 +3,11 @@ import { sql } from "@vercel/postgres";
 import { createMuxStream } from "@/lib/mux/server";
 import { checkExistingTableDetail } from "@/utils/validators";
 import { createRateLimiter } from "@/lib/rate-limit";
+import {
+  JsonbContractError,
+  isMergeableCreator,
+  prepareCreatorPatch,
+} from "@/lib/db/jsonb-contracts";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 // Stream creation calls Mux API + DB — limit per IP to prevent quota exhaustion
@@ -70,7 +75,7 @@ export async function POST(req: NextRequest) {
 
     console.log("🔍 Fetching user data...");
     const userResult = await sql`
-      SELECT id, username, creator, mux_stream_id, enable_recording, latency_mode FROM users WHERE LOWER(wallet) = LOWER(${wallet})
+      SELECT id, username, creator, mux_stream_id, enable_recording, latency_mode FROM users WHERE LOWER(wallet) = LOWER(${wallet}) AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -94,7 +99,7 @@ export async function POST(req: NextRequest) {
       const streamDataResult = await sql`
         SELECT mux_stream_id, mux_playback_id, streamkey, is_live
         FROM users
-        WHERE id = ${user.id}
+        WHERE id = ${user.id} AND deleted_at IS NULL
       `;
 
       const streamData = streamDataResult.rows[0];
@@ -113,6 +118,35 @@ export async function POST(req: NextRequest) {
           },
         },
         { status: 200 }
+      );
+    }
+
+    // Validate the creator patch before creating anything in Mux.
+    let creatorPatch: ReturnType<typeof prepareCreatorPatch>;
+    try {
+      creatorPatch = prepareCreatorPatch({
+        streamTitle: title,
+        description: description || "",
+        category: category || "",
+        tags: tags || [],
+        lastUpdated: new Date().toISOString(),
+      });
+    } catch (error) {
+      if (error instanceof JsonbContractError) {
+        return NextResponse.json(
+          { error: "Invalid stream details", issues: error.issues },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
+    if (!isMergeableCreator(user.creator)) {
+      console.error(
+        `[streams/create] stored creator for user ${user.id} is malformed; run the JSONB audit`
+      );
+      return NextResponse.json(
+        { error: "Stored stream details are malformed" },
+        { status: 409 }
       );
     }
 
@@ -175,22 +209,13 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("🔍 Updating user with Mux data...");
-    const updatedCreator = {
-      ...user.creator,
-      streamTitle: title,
-      description: description || "",
-      category: category || "",
-      tags: tags || [],
-      lastUpdated: new Date().toISOString(),
-    };
-
     try {
       await sql`
         UPDATE users SET
           mux_stream_id = ${muxStream.id},
           mux_playback_id = ${muxStream.playbackId},
           streamkey = ${muxStream.streamKey},
-          creator = ${JSON.stringify(updatedCreator)},
+          creator = COALESCE(creator, '{}'::jsonb) || ${JSON.stringify(creatorPatch)}::jsonb,
           updated_at = CURRENT_TIMESTAMP
         WHERE wallet = ${wallet}
       `;

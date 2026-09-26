@@ -258,6 +258,7 @@ export async function POST(req: NextRequest) {
 
     // Find creator by wallet address
     const creatorResult = await sql`
+      -- tombstone-aware: a payment to a pending-deletion account is still recorded
       SELECT id, username, wallet FROM users WHERE wallet = ${payload.to}
     `;
 
@@ -276,6 +277,7 @@ export async function POST(req: NextRequest) {
     let supporterUsername = "Anonymous";
     
     const supporterResult = await sql`
+      -- tombstone-aware: financial records keep their supporter link
       SELECT id, username FROM users WHERE wallet = ${payload.from}
     `;
 

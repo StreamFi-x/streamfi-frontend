@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
       // Fetch creator's Stellar public key (stored in 'wallet' column)
       const userRows = await readFromReplica(
         "creator.analytics.wallet",
-        db => db`SELECT wallet FROM users WHERE id = ${userId}`.then(r => r.rows),
+        db => db`SELECT wallet FROM users WHERE id = ${userId} AND deleted_at IS NULL`.then(r => r.rows),
         { request: req }
       );
       const publicKey = userRows[0]?.wallet;
@@ -170,7 +170,7 @@ export async function GET(req: NextRequest) {
         db => db`
         SELECT array_length(followers, 1) as follower_count
         FROM users
-        WHERE id = ${userId}
+        WHERE id = ${userId} AND deleted_at IS NULL
       `.then(r => r.rows),
         { request: req }
       );

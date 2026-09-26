@@ -15,8 +15,8 @@ export async function GET(req: Request) {
 
   try {
     const result = wallet
-      ? await sql`SELECT username FROM users WHERE wallet = ${wallet}`
-      : await sql`SELECT username FROM users WHERE email = ${email}`;
+      ? await sql`SELECT username FROM users WHERE wallet = ${wallet} AND deleted_at IS NULL`
+      : await sql`SELECT username FROM users WHERE email = ${email} AND deleted_at IS NULL`;
 
     if (result.rows.length === 0) {
       return withCorsResponse({ error: "User not found" }, 404);

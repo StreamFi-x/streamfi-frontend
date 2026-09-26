@@ -90,13 +90,13 @@ filter state, sign it or bump `v`.
 
 ## Endpoints
 
-| Endpoint                                | Default | Max | Filters (from)                        | Notes                                                                                                                                                  |
-| --------------------------------------- | ------- | --- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET /api/streams/chat?playbackId=`     | 50      | 200 | current live session of `playbackId`  | Live view polls the first page every 1s (edge- and instance-cached for 1s, `chatWindow` policy); older history via `nextCursor`. `before` is rejected. |
-| `GET /api/streams/clips?username=`      | 20      | 50  | `status = 'ready'`, optional streamer | Was OFFSET + COUNT(\*). No client used it.                                                                                                             |
-| `GET /api/streams/recordings?username=` | 20      | 50  | `status = 'ready'`, optional user     | Was OFFSET + COUNT(\*). Used by the clips page, profile, stream page, explore and home.                                                                |
-| `GET /api/streams/whitelist`            | 50      | 100 | streamer = session user               | Was unbounded. `?streamer=` access check is unchanged.                                                                                                 |
-| `GET /api/users/notifications`          | 20      | 50  | user = session user                   | Was the whole `users.notifications` array, sliced in JS. Now a table. Adds `unreadCount`.                                                              |
+| Endpoint                                | Default | Max | Filters (from)                        | Notes                                                                                                                                                                                                        |
+| --------------------------------------- | ------- | --- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/streams/chat?playbackId=`     | 50      | 200 | current live session of `playbackId`  | Live view receives pushes (#1450) and re-syncs the first page every 30s (1s polling when push is off; edge- and instance-cached for 1s, `chatWindow`); older history via `nextCursor`. `before` is rejected. |
+| `GET /api/streams/clips?username=`      | 20      | 50  | `status = 'ready'`, optional streamer | Was OFFSET + COUNT(\*). No client used it.                                                                                                                                                                   |
+| `GET /api/streams/recordings?username=` | 20      | 50  | `status = 'ready'`, optional user     | Was OFFSET + COUNT(\*). Used by the clips page, profile, stream page, explore and home.                                                                                                                      |
+| `GET /api/streams/whitelist`            | 50      | 100 | streamer = session user               | Was unbounded. `?streamer=` access check is unchanged.                                                                                                                                                       |
+| `GET /api/users/notifications`          | 20      | 50  | user = session user                   | Was the whole `users.notifications` array, sliced in JS. Now a table. Adds `unreadCount`.                                                                                                                    |
 
 ### Migration notes for API consumers
 

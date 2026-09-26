@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { rows } = await sql`
-      SELECT 1 FROM users WHERE lower(username) = lower(${username}) LIMIT 1
+      /* tombstone-aware: identifiers stay reserved until the account is purged */ SELECT 1 FROM users WHERE lower(username) = lower(${username}) LIMIT 1
     `;
 
     const available = rows.length === 0;

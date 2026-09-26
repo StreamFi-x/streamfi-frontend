@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       SELECT id, username, wallet AS stellar_public_key,
              total_tips_received, total_tips_count, last_tip_at
       FROM users
-      WHERE LOWER(username) = ${username.toLowerCase()}
+      WHERE LOWER(username) = ${username.toLowerCase()} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {

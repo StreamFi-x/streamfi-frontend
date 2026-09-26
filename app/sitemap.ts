@@ -20,6 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { rows } = await sql`
       SELECT username, updated_at
       FROM users
+      WHERE deleted_at IS NULL
       ORDER BY total_views DESC
       LIMIT 500
     `;

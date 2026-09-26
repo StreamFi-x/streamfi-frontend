@@ -10,6 +10,7 @@ import {
   type KeysetRow,
   type PageParams,
 } from "@/lib/pagination/cursor";
+import { publishRealtimeMessage } from "@/lib/realtime/pubsub";
 
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
@@ -131,22 +132,32 @@ export async function POST(req: NextRequest) {
     `;
     await chatWindowCache.invalidate([chatTag(playbackId)]);
 
+    const formattedMessage = {
+      id: newMessage.id,
+      content,
+      messageType,
+      user: {
+        username: sender_username,
+        wallet: wallet,
+      },
+      createdAt: newMessage.created_at,
+    };
+
+    // Publish to Realtime Pub/Sub channel for instantaneous push delivery (#1450)
+    publishRealtimeMessage(
+      `stream:${playbackId}:chat`,
+      "chat:message",
+      formattedMessage
+    ).catch((e) => console.error("[chat] Realtime publish error:", e));
+
     return NextResponse.json(
       {
         message: "Message sent successfully",
-        chatMessage: {
-          id: newMessage.id,
-          content,
-          messageType,
-          user: {
-            username: sender_username,
-            wallet: wallet,
-          },
-          createdAt: newMessage.created_at,
-        },
+        chatMessage: formattedMessage,
       },
       { status: 201 }
     );
+
   } catch (error) {
     console.error("Chat message error:", error);
     return NextResponse.json(

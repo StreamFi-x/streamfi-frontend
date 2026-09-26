@@ -26,8 +26,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const channelResult = channelId
-    ? await sql`SELECT id FROM users WHERE id::text = ${channelId}`
-    : await sql`SELECT id FROM users WHERE LOWER(username) = LOWER(${username})`;
+    ? await sql`SELECT id FROM users WHERE id::text = ${channelId} AND deleted_at IS NULL`
+    : await sql`SELECT id FROM users WHERE LOWER(username) = LOWER(${username}) AND deleted_at IS NULL`;
   const channel = channelResult.rows[0];
 
   if (!channel) {return NextResponse.json({ error: "Channel not found" }, { status: 404 });}
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     sql`
       SELECT u.id, u.username, u.avatar, u.bio
       FROM user_follows uf
-      JOIN users u ON u.id = uf.follower_id
+      JOIN users u ON u.id = uf.follower_id AND u.deleted_at IS NULL
       WHERE uf.followee_id = ${channel.id}
       ORDER BY uf.created_at DESC
       LIMIT ${limit}

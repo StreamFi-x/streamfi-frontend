@@ -6,6 +6,19 @@ jest.mock("swr", () => ({
   __esModule: true,
   default: jest.fn(),
 }));
+// Captures the realtime handler so tests can push messages.
+let pushHandler: ((msg: unknown) => void) | undefined;
+let pushChannel: string | null | undefined;
+jest.mock("@/hooks/useRealtime", () => ({
+  useRealtimeChannel: (
+    channel: string | null,
+    onMessage?: (m: unknown) => void
+  ) => {
+    pushChannel = channel;
+    pushHandler = onMessage;
+    return { connectionState: "connected", reconnect: jest.fn() };
+  },
+}));
 jest.mock("swr/infinite", () => ({
   __esModule: true,
   default: jest.fn(),
@@ -116,14 +129,26 @@ describe("useChat", () => {
       );
     });
 
-    it("polls at 1000ms when stream is live", () => {
-      renderHook(() => useChat("playback-abc", "0xWALLET", true));
+    it("polls at 1000ms when stream is live and push is off", () => {
+      renderHook(() => useChat("playback-abc", "0xWALLET", true, false));
 
       expect(useSWR).toHaveBeenCalledWith(
         expect.any(String),
         expect.any(Function),
         expect.objectContaining({ refreshInterval: 1000 })
       );
+      expect(pushChannel).toBeNull();
+    });
+
+    it("subscribes to push and syncs every 30s when push is on (default)", () => {
+      renderHook(() => useChat("playback-abc", "0xWALLET", true));
+
+      expect(useSWR).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Function),
+        expect.objectContaining({ refreshInterval: 30_000 })
+      );
+      expect(pushChannel).toBe("stream:playback-abc:chat");
     });
 
     it("does not fetch older history until asked", () => {
@@ -184,6 +209,67 @@ describe("useChat", () => {
         nextCursor: "c1",
         hasMore: true,
       });
+    });
+  });
+
+  describe("push delivery", () => {
+    const pushed = (n: number) => ({ event: "chat:message", data: apiMsg(n) });
+    const lastUpdate = () => {
+      const calls = mockMutate.mock.calls;
+      return calls[calls.length - 1];
+    };
+
+    it("appends a pushed message without refetching or trimming the window", () => {
+      renderHook(() => useChat("playback-abc", "0xWALLET", true));
+
+      act(() => pushHandler!(pushed(3)));
+
+      const [update, options] = lastUpdate();
+      expect(options).toEqual({ revalidate: false });
+      // A full 200-message window grows to 201: trimming it would drop the
+      // message nextCursor points at, and "load older" would skip it.
+      const full = liveWindow(
+        Array.from({ length: 200 }, (_, i) => i + 10),
+        { nextCursor: "c", hasMore: true }
+      );
+      const next = update(full);
+      expect(next.messages).toHaveLength(201);
+      expect(next.messages[200].id).toBe(msg(3).id);
+      expect(next.nextCursor).toBe("c");
+    });
+
+    it("ignores a pushed message it already has", () => {
+      renderHook(() => useChat("playback-abc", "0xWALLET", true));
+      act(() => pushHandler!(pushed(1)));
+
+      const current = liveWindow([1]);
+      expect(lastUpdate()[0](current)).toBe(current);
+    });
+
+    it("replaces this client's pending copy with the pushed message", () => {
+      renderHook(() => useChat("playback-abc", "0xWALLET", true));
+      act(() => pushHandler!(pushed(5)));
+
+      const next = lastUpdate()[0]({
+        ...liveWindow([1]),
+        messages: [msg(1), { ...msg(5), id: "pending-1", isPending: true }],
+      });
+      expect(next.messages.map((m: { id: string }) => m.id)).toEqual([
+        msg(1).id,
+        msg(5).id,
+      ]);
+    });
+
+    it("removes a message on a pushed delete", () => {
+      renderHook(() => useChat("playback-abc", "0xWALLET", true));
+      act(() =>
+        pushHandler!({ event: "chat:delete", data: { id: msg(2).id } })
+      );
+
+      const next = lastUpdate()[0](liveWindow([1, 2]));
+      expect(next.messages.map((m: { id: string }) => m.id)).toEqual([
+        msg(1).id,
+      ]);
     });
   });
 

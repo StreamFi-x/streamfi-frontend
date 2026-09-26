@@ -166,3 +166,33 @@ export async function getAccountTipStats(publicKey: string) {
     throw error;
   }
 }
+
+export function isHorizonNotFound(err: unknown): boolean {
+  const e = err as { response?: { status?: number }; name?: string } | null;
+  return e?.response?.status === 404 || e?.name === "NotFoundError";
+}
+
+/**
+ * Balances of an account, or null when the account does not exist on the
+ * network (never funded or merged). Any other Horizon failure throws, so a
+ * timeout is never mistaken for "no account".
+ */
+export async function getAccountBalances(
+  publicKey: string
+): Promise<Array<{ assetType: string; balance: string }> | null> {
+  const server = new StellarSdk.Horizon.Server(
+    getHorizonUrl(getStellarNetwork())
+  );
+  try {
+    const account = await server.accounts().accountId(publicKey).call();
+    return account.balances.map(b => ({
+      assetType: b.asset_type,
+      balance: b.balance,
+    }));
+  } catch (err) {
+    if (isHorizonNotFound(err)) {
+      return null;
+    }
+    throw err;
+  }
+}

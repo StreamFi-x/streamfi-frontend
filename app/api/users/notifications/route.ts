@@ -8,6 +8,11 @@ import {
   readPageParams,
   type KeysetRow,
 } from "@/lib/pagination/cursor";
+import {
+  JsonbContractError,
+  NOTIFICATION_TYPES,
+  type NotificationType,
+} from "@/lib/db/jsonb-contracts";
 
 interface NotificationRow extends KeysetRow {
   type: string;
@@ -101,10 +106,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (!NOTIFICATION_TYPES.includes(type)) {
+    return NextResponse.json(
+      { error: `type must be one of: ${NOTIFICATION_TYPES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
   try {
-    await writeNotification(recipientId, type, title, text);
+    await writeNotification(
+      recipientId,
+      type as NotificationType,
+      String(title),
+      String(text)
+    );
     return NextResponse.json({ message: "Notification added" });
   } catch (error) {
+    if (error instanceof JsonbContractError) {
+      return NextResponse.json(
+        { error: "Invalid notification", issues: error.issues },
+        { status: 400 }
+      );
+    }
     console.error("POST notification error:", error);
     return NextResponse.json(
       { error: "Failed to add notification" },

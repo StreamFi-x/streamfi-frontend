@@ -7,7 +7,11 @@
 import { readdirSync, readFileSync } from "fs";
 import path from "path";
 import type { Pool } from "pg";
-import { VERSIONED_FILENAME } from "@/lib/migrations/discovery";
+import {
+  VERSIONED_FILENAME,
+  isTransactional,
+} from "@/lib/migrations/discovery";
+import { splitSqlStatements } from "@/lib/migrations/sql-splitter";
 
 const BASE_SCHEMA = `
 CREATE TABLE users (
@@ -51,6 +55,7 @@ CREATE TABLE chat_messages (
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE CASCADE,
   content TEXT,
+  is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -74,6 +79,50 @@ CREATE TABLE tip_transactions (
 );
 CREATE UNIQUE INDEX idx_tip_transactions_tx_hash_unique
   ON tip_transactions(tx_hash) WHERE tx_hash IS NOT NULL;
+
+-- Clips, recordings and whitelist, for the keyset indexes in
+-- 20260926100200_hot_path_indexes (add-feature-flags-clips-whitelist-preferences,
+-- db/schema.sql, add-needs-review).
+CREATE TABLE stream_clips (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE SET NULL,
+  clipped_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  streamer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(255),
+  playback_id VARCHAR(255),
+  mux_asset_id VARCHAR(255),
+  start_offset INTEGER NOT NULL,
+  duration INTEGER NOT NULL CHECK (duration BETWEEN 1 AND 60),
+  status VARCHAR(20) DEFAULT 'processing'
+    CHECK (status IN ('processing', 'ready', 'failed')),
+  view_count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stream_recordings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE SET NULL,
+  mux_asset_id VARCHAR(255) NOT NULL UNIQUE,
+  playback_id VARCHAR(255) NOT NULL,
+  title VARCHAR(255),
+  duration INTEGER,
+  status VARCHAR(50) DEFAULT 'processing',
+  needs_review BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_stream_recordings_user_id ON stream_recordings(user_id);
+
+CREATE TABLE stream_whitelist (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  streamer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  identifier VARCHAR(255),
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (streamer_id, user_id),
+  UNIQUE (streamer_id, identifier)
+);
+CREATE INDEX idx_stream_whitelist_streamer ON stream_whitelist(streamer_id);
 
 CREATE TYPE payout_status AS ENUM ('pending', 'processing', 'completed', 'failed');
 CREATE TYPE payout_method AS ENUM ('bank_transfer', 'stellar_wallet', 'mobile_money');
@@ -101,6 +150,15 @@ export async function applyAppSchema(pool: Pool): Promise<void> {
     .filter(file => VERSIONED_FILENAME.test(file))
     .sort();
   for (const file of versioned) {
-    await pool.query(readFileSync(path.join(dir, file), "utf8"));
+    const sql = readFileSync(path.join(dir, file), "utf8");
+    if (isTransactional(sql)) {
+      await pool.query(sql);
+      continue;
+    }
+    // Like the runner: `-- migrate:no-transaction` files (e.g. CREATE INDEX
+    // CONCURRENTLY) run one statement at a time, outside a transaction block.
+    for (const statement of splitSqlStatements(sql)) {
+      await pool.query(statement);
+    }
   }
 }
