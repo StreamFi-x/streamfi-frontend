@@ -55,6 +55,17 @@ export const IDEMPOTENT_OPERATIONS = {
     ttlSeconds: 7 * DAY,
     leaseSeconds: 60,
   },
+  subscriptionCancel: {
+    scope: "subscription.cancel",
+    ttlSeconds: DAY,
+    leaseSeconds: 60,
+  },
+  // Refund requests stay under review for days; keep keys for the window.
+  subscriptionRefundRequest: {
+    scope: "subscription.refund_request",
+    ttlSeconds: 7 * DAY,
+    leaseSeconds: 60,
+  },
 } satisfies Record<string, IdempotentOperation>;
 
 export interface ExecuteOptions extends IdempotentOperation {

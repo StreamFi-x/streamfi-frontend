@@ -29,6 +29,7 @@ ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS payment_tx_hash VARCHAR(255);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS amount_usdc NUMERIC(20, 7);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 -- Set when the subscriber turns renewal off. Access is unaffected.
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS renewal_cancelled_at TIMESTAMPTZ;
 -- Set when a refund for this period is completed; access ends at that moment.
