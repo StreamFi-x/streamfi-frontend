@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { deleteMuxAssetIfExists } from "@/lib/mux/server";
 import { CACHE_POLICIES } from "@/lib/cache";
 
 const isRateLimited = createRateLimiter(60_000, 10); // 10 clips/min per IP
@@ -37,8 +38,8 @@ export async function GET(req: NextRequest) {
             clipper.avatar   AS clipped_by_avatar,
             streamer.username AS streamer_username
           FROM stream_clips c
-          JOIN users clipper  ON clipper.id  = c.clipped_by
-          JOIN users streamer ON streamer.id = c.streamer_id
+          JOIN users clipper  ON clipper.id  = c.clipped_by AND clipper.deleted_at IS NULL
+          JOIN users streamer ON streamer.id = c.streamer_id AND streamer.deleted_at IS NULL
           WHERE c.status = 'ready'
             AND LOWER(streamer.username) = LOWER(${username})
           ORDER BY c.created_at DESC
@@ -52,8 +53,8 @@ export async function GET(req: NextRequest) {
             clipper.avatar   AS clipped_by_avatar,
             streamer.username AS streamer_username
           FROM stream_clips c
-          JOIN users clipper  ON clipper.id  = c.clipped_by
-          JOIN users streamer ON streamer.id = c.streamer_id
+          JOIN users clipper  ON clipper.id  = c.clipped_by AND clipper.deleted_at IS NULL
+          JOIN users streamer ON streamer.id = c.streamer_id AND streamer.deleted_at IS NULL
           WHERE c.status = 'ready'
           ORDER BY c.created_at DESC
           LIMIT ${limit} OFFSET ${offset}
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest) {
     const { rows: countRows } = username
       ? await sql`
           SELECT COUNT(*) AS total FROM stream_clips c
-          JOIN users streamer ON streamer.id = c.streamer_id
+          JOIN users streamer ON streamer.id = c.streamer_id AND streamer.deleted_at IS NULL
           WHERE c.status = 'ready' AND LOWER(streamer.username) = LOWER(${username})
         `
       : await sql`SELECT COUNT(*) AS total FROM stream_clips WHERE status = 'ready'`;
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest) {
   // Resolve streamer
   const { rows: streamerRows } = await sql`
     SELECT id, mux_playback_id, is_live FROM users
-    WHERE LOWER(username) = LOWER(${streamer_username})
+    WHERE LOWER(username) = LOWER(${streamer_username}) AND deleted_at IS NULL
     LIMIT 1
   `;
   if (!streamerRows.length) {
@@ -152,7 +153,7 @@ export async function DELETE(req: NextRequest) {
   }
 
   const { rows } = await sql`
-    SELECT id, clipped_by, streamer_id FROM stream_clips WHERE id = ${clipId} LIMIT 1
+    SELECT id, clipped_by, streamer_id, mux_asset_id FROM stream_clips WHERE id = ${clipId} LIMIT 1
   `;
   if (!rows.length) {
     return NextResponse.json({ error: "Clip not found" }, { status: 404 });
@@ -164,5 +165,18 @@ export async function DELETE(req: NextRequest) {
   }
 
   await sql`DELETE FROM stream_clips WHERE id = ${clipId}`;
+
+  // Best effort: a failure leaves an orphaned asset that the Mux
+  // reconciliation sweep (#1409) reports for cleanup.
+  if (clip.mux_asset_id) {
+    try {
+      await deleteMuxAssetIfExists(String(clip.mux_asset_id));
+    } catch (muxErr) {
+      console.error(
+        `[clips] DELETE: Mux asset ${clip.mux_asset_id} not deleted:`,
+        muxErr instanceof Error ? muxErr.message : muxErr
+      );
+    }
+  }
   return NextResponse.json({ ok: true });
 }

@@ -82,7 +82,7 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
 
     let senderPublicKey: string;
     try {
-      const { rows } = await sql`SELECT stellar_public_key FROM users WHERE id = ${session.userId}`;
+      const { rows } = await sql`SELECT stellar_public_key FROM users WHERE id = ${session.userId} AND deleted_at IS NULL`;
       logDbQuery('SELECT user wallet', query);
 
       if (rows.length === 0 || !rows[0].stellar_public_key) {

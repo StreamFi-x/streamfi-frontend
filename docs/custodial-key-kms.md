@@ -109,7 +109,7 @@ only) and `custodial_key_legacy_decrypt` while legacy rows remain.
 
 ## Rollout, migration and retirement
 
-1. **Apply** `db/migrations/20260925_custodial_key_kms.sql`, create the KMS
+1. **Apply** `db/migrations/20260925100000_custodial_key_kms.sql`, create the KMS
    key and IAM role, set `CUSTODIAL_KEY_KMS_KEY_ID`. Deploy. From now on
    every new or regenerated wallet is enveloped; legacy rows remain readable.
 2. **Dry run** (writes nothing, exercises KMS round trips):

@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   try {
     // Verify user has completed /register first
     const { rows: userRows } = await sql`
-      SELECT id, username FROM users WHERE id = ${session.userId} AND username IS NOT NULL LIMIT 1
+      SELECT id, username FROM users WHERE id = ${session.userId} AND username IS NOT NULL AND deleted_at IS NULL LIMIT 1
     `;
     if (userRows.length === 0) {
       return NextResponse.json(

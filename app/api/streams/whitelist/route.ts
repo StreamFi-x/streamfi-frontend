@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     const { rows } = await sql`
       SELECT sw.id
       FROM stream_whitelist sw
-      JOIN users streamer ON streamer.id = sw.streamer_id
+      JOIN users streamer ON streamer.id = sw.streamer_id AND streamer.deleted_at IS NULL
       WHERE LOWER(streamer.username) = LOWER(${streamerUsername})
         AND (
           sw.user_id = ${session.userId}
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
       u.username,
       u.avatar
     FROM stream_whitelist sw
-    LEFT JOIN users u ON u.id = sw.user_id
+    LEFT JOIN users u ON u.id = sw.user_id AND u.deleted_at IS NULL
     WHERE sw.streamer_id = ${session.userId}
     ORDER BY sw.created_at DESC
   `;
@@ -95,8 +95,8 @@ export async function POST(req: NextRequest) {
   // Try to resolve to a user_id
   const isWallet = /^G[A-Z2-7]{55}$/.test(clean);
   const { rows: found } = isWallet
-    ? await sql`SELECT id FROM users WHERE wallet = ${clean} LIMIT 1`
-    : await sql`SELECT id FROM users WHERE LOWER(username) = LOWER(${clean}) LIMIT 1`;
+    ? await sql`SELECT id FROM users WHERE wallet = ${clean} AND deleted_at IS NULL LIMIT 1`
+    : await sql`SELECT id FROM users WHERE LOWER(username) = LOWER(${clean}) AND deleted_at IS NULL LIMIT 1`;
 
   const resolvedUserId: string | null = found[0]?.id ?? null;
 
@@ -143,6 +143,7 @@ export async function DELETE(req: NextRequest) {
 
   const clean = identifier.trim();
   await sql`
+    -- tombstone-aware: removing an entry must work for any account
     DELETE FROM stream_whitelist
     WHERE streamer_id = ${session.userId}
       AND (LOWER(identifier) = LOWER(${clean}) OR user_id = (

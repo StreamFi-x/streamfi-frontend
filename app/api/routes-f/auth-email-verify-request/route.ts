@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
     // Prevent verifying an email address another account already owns and
     // has verified — otherwise two users could both claim the same inbox.
     const { rows: conflictRows } = await sql`
+      -- tombstone-aware: identifiers stay reserved until the account is purged
       SELECT id FROM users
       WHERE lower(email) = ${email} AND id != ${session.userId} AND "emailVerified" = true
       LIMIT 1

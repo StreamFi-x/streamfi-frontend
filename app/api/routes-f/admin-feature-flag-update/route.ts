@@ -15,7 +15,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     userId: session.userId,
     check: async () => {
       const { rows: adminRows } = await sql`
-        SELECT role FROM users WHERE id = ${session.userId} LIMIT 1
+        SELECT role FROM users WHERE id = ${session.userId} AND deleted_at IS NULL LIMIT 1
       `;
       return adminRows[0]?.role === "admin";
     },

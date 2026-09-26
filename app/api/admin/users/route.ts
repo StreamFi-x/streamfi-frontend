@@ -21,7 +21,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     if (filter === "banned") {
       if (q) {
         result = await sql`
-          SELECT id, username, avatar, email, is_live, is_banned, ban_reason, created_at, total_views
+          SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
           WHERE is_banned = true
             AND username ILIKE ${"%" + q + "%"}
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         `;
       } else {
         result = await sql`
-          SELECT id, username, avatar, email, is_live, is_banned, ban_reason, created_at, total_views
+          SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
           WHERE is_banned = true
           ORDER BY created_at DESC
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     } else if (filter === "live") {
       if (q) {
         result = await sql`
-          SELECT id, username, avatar, email, is_live, is_banned, ban_reason, created_at, total_views
+          SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
           WHERE is_live = true
             AND username ILIKE ${"%" + q + "%"}
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         `;
       } else {
         result = await sql`
-          SELECT id, username, avatar, email, is_live, is_banned, ban_reason, created_at, total_views
+          SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
           WHERE is_live = true
           ORDER BY created_at DESC
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       // all
       if (q) {
         result = await sql`
-          SELECT id, username, avatar, email, is_live, is_banned, ban_reason, created_at, total_views
+          SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
           WHERE username ILIKE ${"%" + q + "%"}
           ORDER BY created_at DESC
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         `;
       } else {
         result = await sql`
-          SELECT id, username, avatar, email, is_live, is_banned, ban_reason, created_at, total_views
+          SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
           ORDER BY created_at DESC
           LIMIT ${limit} OFFSET ${offset}

@@ -122,7 +122,7 @@ export async function GET(req: NextRequest) {
 
     } else if (metric === "revenue" || metric === "tips") {
       // Fetch creator's Stellar public key (stored in 'wallet' column)
-      const userRes = await sql`SELECT wallet FROM users WHERE id = ${userId}`;
+      const userRes = await sql`SELECT wallet FROM users WHERE id = ${userId} AND deleted_at IS NULL`;
       const publicKey = userRes.rows[0]?.wallet;
 
       if (!publicKey || !publicKey.startsWith("G")) {
@@ -156,7 +156,7 @@ export async function GET(req: NextRequest) {
       const { rows } = await sql`
         SELECT array_length(followers, 1) as follower_count 
         FROM users 
-        WHERE id = ${userId}
+        WHERE id = ${userId} AND deleted_at IS NULL
       `;
       const currentCount = Number(rows[0]?.follower_count || 0);
 

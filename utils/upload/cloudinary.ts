@@ -185,3 +185,21 @@ export async function deleteImage(publicId: string) {
     throw new Error("Failed to delete image from Cloudinary");
   }
 }
+
+/** Cloudinary public ID from a delivery URL (…/upload/<version>/<public_id>.<ext>). */
+export function extractPublicIdFromUrl(url: string): string | null {
+  try {
+    const urlObj = new URL(url);
+    const parts = urlObj.pathname.split("/");
+    const uploadIndex = parts.indexOf("upload");
+    if (uploadIndex < 0 || uploadIndex + 2 >= parts.length) {
+      return null;
+    }
+    return parts
+      .slice(uploadIndex + 2)
+      .join("/")
+      .replace(/\.[^/.]+$/, "");
+  } catch {
+    return null;
+  }
+}

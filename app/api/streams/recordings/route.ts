@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
             u.avatar,
             ss.started_at AS stream_date
           FROM stream_recordings r
-          JOIN users u ON u.id = r.user_id
+          JOIN users u ON u.id = r.user_id AND u.deleted_at IS NULL
           LEFT JOIN stream_sessions ss ON ss.id = r.stream_session_id
           WHERE r.status = 'ready'
             AND LOWER(u.username) = LOWER(${username})
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
             u.avatar,
             ss.started_at AS stream_date
           FROM stream_recordings r
-          JOIN users u ON u.id = r.user_id
+          JOIN users u ON u.id = r.user_id AND u.deleted_at IS NULL
           LEFT JOIN stream_sessions ss ON ss.id = r.stream_session_id
           WHERE r.status = 'ready'
           ORDER BY r.created_at DESC
@@ -62,11 +62,14 @@ export async function GET(req: NextRequest) {
       ? await sql`
           SELECT COUNT(*) AS total
           FROM stream_recordings r
-          JOIN users u ON u.id = r.user_id
+          JOIN users u ON u.id = r.user_id AND u.deleted_at IS NULL
           WHERE r.status = 'ready' AND LOWER(u.username) = LOWER(${username})
         `
       : await sql`
-          SELECT COUNT(*) AS total FROM stream_recordings WHERE status = 'ready'
+          SELECT COUNT(*) AS total
+          FROM stream_recordings r
+          JOIN users u ON u.id = r.user_id AND u.deleted_at IS NULL
+          WHERE r.status = 'ready'
         `;
     const total = parseInt(countRows[0].total, 10);
 

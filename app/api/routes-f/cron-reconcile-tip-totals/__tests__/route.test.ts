@@ -64,7 +64,7 @@ describe("GET /api/routes-f/cron-reconcile-tip-totals", () => {
     const options = runJob.mock.calls[0][0];
     expect(options.name).toBe("tip-total-reconciliation");
 
-    await options.run();
+    await options.run({ runId: "run-1" });
     const jobOptions = (reconcileStaleTipTotals as jest.Mock).mock.calls[0][0];
     expect(jobOptions).toEqual(
       expect.objectContaining({
@@ -80,7 +80,7 @@ describe("GET /api/routes-f/cron-reconcile-tip-totals", () => {
   it("ignores invalid batch settings", async () => {
     process.env.TIP_RECONCILE_BATCH_SIZE = "-3";
     await GET(request("Bearer test-cron-secret"));
-    await runJob.mock.calls[0][0].run();
+    await runJob.mock.calls[0][0].run({ runId: "run-1" });
     expect(
       (reconcileStaleTipTotals as jest.Mock).mock.calls[0][0].batchSize
     ).toBe(25);

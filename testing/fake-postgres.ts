@@ -35,6 +35,7 @@ export interface FakeUser {
   stream_started_at?: Date | null;
   current_viewers?: number;
   live_state_changed_at?: Date | null;
+  deleted_at?: Date | null;
   updated_at?: Date | null;
   notifications?: unknown[];
   encrypted_stellar_key?: string | null;
@@ -338,11 +339,13 @@ export class FakePostgres {
 
     // ── users live state (webhooks) ─────────────────────────────────────
     rule(
-      /^UPDATE users SET is_live = (true|false), stream_started_at = (CURRENT_TIMESTAMP|NULL), current_viewers = 0, updated_at = CURRENT_TIMESTAMP WHERE mux_stream_id = \$1 RETURNING/,
+      /^UPDATE users SET is_live = (true|false), stream_started_at = (CURRENT_TIMESTAMP|NULL), current_viewers = 0, updated_at = CURRENT_TIMESTAMP WHERE mux_stream_id = \$1( AND deleted_at IS NULL)? RETURNING/,
       (p, now) => {
-        const live = /is_live = true/.test(this.statements.at(-1) ?? "");
+        const statement = this.statements.at(-1) ?? "";
+        const live = /is_live = true/.test(statement);
+        const activeOnly = /AND deleted_at IS NULL/.test(statement);
         const hits = [...this.state.users.values()].filter(
-          u => u.mux_stream_id === p[0]
+          u => u.mux_stream_id === p[0] && !(activeOnly && u.deleted_at)
         );
         for (const u of hits) {
           this.setLive(u, live, now);

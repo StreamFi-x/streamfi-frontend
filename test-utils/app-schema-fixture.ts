@@ -7,7 +7,11 @@
 import { readdirSync, readFileSync } from "fs";
 import path from "path";
 import type { Pool } from "pg";
-import { VERSIONED_FILENAME } from "@/lib/migrations/discovery";
+import {
+  VERSIONED_FILENAME,
+  isTransactional,
+} from "@/lib/migrations/discovery";
+import { splitSqlStatements } from "@/lib/migrations/sql-splitter";
 
 const BASE_SCHEMA = `
 CREATE TABLE users (
@@ -51,6 +55,7 @@ CREATE TABLE chat_messages (
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE CASCADE,
   content TEXT,
+  is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -101,6 +106,15 @@ export async function applyAppSchema(pool: Pool): Promise<void> {
     .filter(file => VERSIONED_FILENAME.test(file))
     .sort();
   for (const file of versioned) {
-    await pool.query(readFileSync(path.join(dir, file), "utf8"));
+    const sql = readFileSync(path.join(dir, file), "utf8");
+    if (isTransactional(sql)) {
+      await pool.query(sql);
+      continue;
+    }
+    // Like the runner: `-- migrate:no-transaction` files (e.g. CREATE INDEX
+    // CONCURRENTLY) run one statement at a time, outside a transaction block.
+    for (const statement of splitSqlStatements(sql)) {
+      await pool.query(statement);
+    }
   }
 }

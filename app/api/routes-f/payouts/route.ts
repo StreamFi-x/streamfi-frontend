@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
         const userResult = await sql`
           SELECT id, username, email, wallet
           FROM users
-          WHERE id = ${session.userId}
+          WHERE id = ${session.userId} AND deleted_at IS NULL
           LIMIT 1
         `;
         const user = userResult.rows[0];

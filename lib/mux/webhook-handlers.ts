@@ -1,5 +1,6 @@
 import { writeNotification } from "@/lib/notifications";
 import { markMuxStreamLive, markMuxStreamOffline } from "@/lib/mux/live-state";
+import { upsertRecordingFromAsset } from "@/lib/mux/recordings";
 import type {
   MuxEventHandler,
   MuxLogOnlyEvents,
@@ -119,22 +120,17 @@ export function assetHandlers({
         return;
       }
 
-      // needs_review=true prompts the owner. ON CONFLICT only refreshes
-      // status/duration/playback so a dismissed prompt stays dismissed.
-      await tx.sql`
-        INSERT INTO stream_recordings (
-          user_id, stream_session_id, mux_asset_id, playback_id,
-          title, duration, status, needs_review
-        )
-        VALUES (
-          ${userId}, ${streamSessionId}, ${assetId}, ${playbackId},
-          ${title}, ${duration ?? 0}, 'ready', true
-        )
-        ON CONFLICT (mux_asset_id) DO UPDATE SET
-          status = 'ready',
-          duration = COALESCE(EXCLUDED.duration, stream_recordings.duration),
-          playback_id = EXCLUDED.playback_id
-      `;
+      await upsertRecordingFromAsset(
+        {
+          userId,
+          streamSessionId,
+          assetId,
+          playbackId,
+          title,
+          duration,
+        },
+        tx
+      );
       console.log(`✅ Stream recording saved: ${assetId}`);
 
       if (notifyOwner) {

@@ -16,7 +16,7 @@ export async function DELETE(req: NextRequest) {
     const userResult = await sql`
       SELECT id, username, mux_stream_id, is_live
       FROM users
-      WHERE id = ${session.userId}
+      WHERE id = ${session.userId} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {

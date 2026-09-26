@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
       const { rows } = await sql`
         SELECT username, avatar
         FROM users
-        WHERE LOWER(username) = ${usernameQuery}
+        WHERE LOWER(username) = ${usernameQuery} AND deleted_at IS NULL
         LIMIT 1
       `;
       if (rows[0]) {
