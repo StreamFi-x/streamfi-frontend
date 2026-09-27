@@ -80,6 +80,50 @@ CREATE TABLE tip_transactions (
 CREATE UNIQUE INDEX idx_tip_transactions_tx_hash_unique
   ON tip_transactions(tx_hash) WHERE tx_hash IS NOT NULL;
 
+-- Clips, recordings and whitelist, for the keyset indexes in
+-- 20260926100200_hot_path_indexes (add-feature-flags-clips-whitelist-preferences,
+-- db/schema.sql, add-needs-review).
+CREATE TABLE stream_clips (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE SET NULL,
+  clipped_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  streamer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(255),
+  playback_id VARCHAR(255),
+  mux_asset_id VARCHAR(255),
+  start_offset INTEGER NOT NULL,
+  duration INTEGER NOT NULL CHECK (duration BETWEEN 1 AND 60),
+  status VARCHAR(20) DEFAULT 'processing'
+    CHECK (status IN ('processing', 'ready', 'failed')),
+  view_count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stream_recordings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE SET NULL,
+  mux_asset_id VARCHAR(255) NOT NULL UNIQUE,
+  playback_id VARCHAR(255) NOT NULL,
+  title VARCHAR(255),
+  duration INTEGER,
+  status VARCHAR(50) DEFAULT 'processing',
+  needs_review BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_stream_recordings_user_id ON stream_recordings(user_id);
+
+CREATE TABLE stream_whitelist (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  streamer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  identifier VARCHAR(255),
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (streamer_id, user_id),
+  UNIQUE (streamer_id, identifier)
+);
+CREATE INDEX idx_stream_whitelist_streamer ON stream_whitelist(streamer_id);
+
 CREATE TYPE payout_status AS ENUM ('pending', 'processing', 'completed', 'failed');
 CREATE TYPE payout_method AS ENUM ('bank_transfer', 'stellar_wallet', 'mobile_money');
 CREATE TABLE payouts (

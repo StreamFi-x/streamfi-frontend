@@ -38,7 +38,9 @@ production capacity figure.
   which checks out one pooled client and releases it, discarding it if
   `ROLLBACK` fails.
 - Chat poll `limit` was unbounded (`?limit=1000000` was honoured). It is now
-  clamped to 1..200 (default 50).
+  capped at 200 (default 50). Since the shared cursor contract
+  (docs/api/pagination.md), a malformed `limit` returns 400 instead of
+  falling back to the default.
 
 ## Chat polling, as implemented
 
@@ -46,8 +48,10 @@ production capacity figure.
 live, `dedupingInterval: 500`, and the key
 `/api/streams/chat?playbackId=…&limit=200`. SWR does not start a poll while
 the previous one is in flight, so a slow response lowers the rate instead of
-stacking requests. Every poll returns the full newest-200 window. There is
-no cursor for "messages since X".
+stacking requests. Every poll returns the full newest-200 window (the first
+page of the cursor contract). Older history is fetched on demand through
+`nextCursor` and is never re-polled. There is no cursor for "messages
+since X".
 
 Before this change, each poll ran two queries on the origin: the open-session
 lookup, then the message window joined to `users`. Nothing was shared

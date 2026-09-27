@@ -8,8 +8,12 @@
  * dropped, so the total isn't silently understated.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
 import { z } from "zod";
+import {
+  readFromReplica,
+  ReplicaUnavailableError,
+  replicaUnavailableResponse,
+} from "@/lib/db/replica";
 import { verifySession } from "@/lib/auth/verify-session";
 import { validateQuery } from "@/app/api/routes-f/_lib/validate";
 
@@ -43,43 +47,57 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const { channel, days, limit } = queryResult.data;
 
   try {
-    const channelResult = await sql`
-      SELECT id FROM users WHERE id = ${channel} AND deleted_at IS NULL LIMIT 1
-    `;
+    const result = await readFromReplica(
+      "routes-f.analytics-top-tippers",
+      async db => {
+        const channelResult = await db`
+          SELECT id FROM users WHERE id = ${channel} AND deleted_at IS NULL LIMIT 1
+        `;
 
-    if (channelResult.rows.length === 0) {
+        if (channelResult.rows.length === 0) {
+          return { status: 404 as const };
+        }
+
+        // Only the channel owner may view their own top-tippers breakdown.
+        if (channel !== session.userId) {
+          return { status: 403 as const };
+        }
+
+        const tippersResult = await db<{
+          supporter_id: string | null;
+          username: string | null;
+          total_amount_xlm: string;
+          tip_count: number;
+        }>`
+          SELECT
+            t.supporter_id AS supporter_id,
+            u.username AS username,
+            SUM(t.amount_xlm)::text AS total_amount_xlm,
+            COUNT(*)::int AS tip_count
+          FROM tip_transactions t
+          LEFT JOIN users u ON u.id = t.supporter_id
+          WHERE t.creator_id = ${channel}
+            AND t.created_at >= NOW() - (${days}::text || ' days')::interval
+          GROUP BY t.supporter_id, u.username
+          ORDER BY SUM(t.amount_xlm) DESC
+          LIMIT ${limit}
+        `;
+        return { status: 200 as const, rows: tippersResult.rows };
+      },
+      { request: req }
+    );
+
+    if (result.status === 404) {
       return NextResponse.json({ error: "Channel not found" }, { status: 404 });
     }
-
-    // Only the channel owner may view their own top-tippers breakdown.
-    if (channel !== session.userId) {
+    if (result.status === 403) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-
-    const tippersResult = await sql<{
-      supporter_id: string | null;
-      username: string | null;
-      total_amount_xlm: string;
-      tip_count: number;
-    }>`
-      SELECT
-        t.supporter_id AS supporter_id,
-        u.username AS username,
-        SUM(t.amount_xlm)::text AS total_amount_xlm,
-        COUNT(*)::int AS tip_count
-      FROM tip_transactions t
-      LEFT JOIN users u ON u.id = t.supporter_id
-      WHERE t.creator_id = ${channel}
-        AND t.created_at >= NOW() - (${days}::text || ' days')::interval
-      GROUP BY t.supporter_id, u.username
-      ORDER BY SUM(t.amount_xlm) DESC
-      LIMIT ${limit}
-    `;
 
     return NextResponse.json({
       channel,
       range_days: days,
-      top_tippers: tippersResult.rows.map((row, index) => ({
+      top_tippers: result.rows.map((row, index) => ({
         rank: index + 1,
         supporter_id: row.supporter_id,
         username:
@@ -90,6 +108,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       })),
     });
   } catch (error) {
+    if (error instanceof ReplicaUnavailableError) {
+      return replicaUnavailableResponse();
+    }
     console.error("[routes-f/analytics-top-tippers] GET error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

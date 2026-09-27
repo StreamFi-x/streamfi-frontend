@@ -1,5 +1,6 @@
 import useSWR from "swr";
 import { useCallback, useState } from "react";
+import { useCursorPagination } from "@/hooks/useCursorPagination";
 
 export interface WhitelistEntry {
   id: string;
@@ -11,13 +12,20 @@ export interface WhitelistEntry {
 
 const fetcher = (url: string) => fetch(url, { credentials: "include" }).then(r => r.json());
 
-/** Streamer-side: manage their whitelist */
+/** Streamer-side: manage their whitelist (paginated, newest first) */
 export function useStreamWhitelist() {
-  const { data, error, isLoading, mutate } = useSWR<{ whitelist: WhitelistEntry[] }>(
-    "/api/streams/whitelist",
-    fetcher,
-    { revalidateOnFocus: false }
-  );
+  const {
+    items,
+    error,
+    isLoading,
+    mutate,
+    hasMore,
+    loadMore,
+    isLoadingMore,
+  } = useCursorPagination<WhitelistEntry>("/api/streams/whitelist", {
+    revalidateOnFocus: false,
+    getId: e => e.id,
+  });
 
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
@@ -58,10 +66,12 @@ export function useStreamWhitelist() {
           throw new Error("Failed to remove");
         }
         mutate(
-          prev => prev
-            ? { whitelist: prev.whitelist.filter(e => e.identifier !== identifier) }
-            : prev,
-          false
+          pages =>
+            pages?.map(p => ({
+              ...p,
+              items: p.items.filter(e => e.identifier !== identifier),
+            })),
+          { revalidate: false }
         );
       } finally {
         setRemoving(null);
@@ -71,13 +81,16 @@ export function useStreamWhitelist() {
   );
 
   return {
-    whitelist: data?.whitelist ?? [],
+    whitelist: items,
     isLoading,
     error,
     add,
     remove,
     adding,
     removing,
+    hasMore,
+    loadMore,
+    isLoadingMore,
   };
 }
 

@@ -46,9 +46,6 @@ const RULES = [
     allow: {
       "app/api/streams/viewers/route.ts":
         "current_viewers/total_views change on every join/leave; TTL-bounded by publicProfile",
-      "app/api/users/notifications/route.ts":
-        "notifications are not part of any cached read",
-      "lib/notifications.ts": "notifications are not part of any cached read",
       "app/api/routes-f/auth-password-reset-confirm/route.ts":
         "password_hash is never cached",
       "app/api/routes-f/referrals/route.ts":
