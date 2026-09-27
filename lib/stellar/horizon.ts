@@ -49,7 +49,7 @@ export async function fetchPaymentsReceived(
         .forAccount(params.publicKey)
         .limit(params.limit || 200)
         .order(order);
-      const cursor = params.cursor || (order === "desc" ? "now" : undefined);
+      const cursor = params.cursor;
       return (cursor ? builder.cursor(cursor) : builder).call();
     });
 
