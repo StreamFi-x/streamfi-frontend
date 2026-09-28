@@ -119,6 +119,62 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/**
+ * Heartbeat (#1403): touched periodically by the watch page while a viewer
+ * is still actually on the page, so the reconciliation job can tell a
+ * still-watching viewer apart from one whose leave call never fired (tab
+ * closed, connection lost, browser crashed). No-ops (200, not an error) if
+ * the row was already closed by that job or an explicit leave, since the
+ * heartbeat losing a benign race against either is expected, not a failure
+ * the client needs to react to.
+ */
+export async function PATCH(req: NextRequest) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+
+  if (await isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": "60" } }
+    );
+  }
+
+  try {
+    const { sessionId } = await req.json();
+
+    if (!sessionId) {
+      return NextResponse.json(
+        { error: "Session ID is required" },
+        { status: 400 }
+      );
+    }
+
+    try {
+      await sql`
+        UPDATE stream_viewers SET heartbeat_at = CURRENT_TIMESTAMP
+        WHERE session_id = ${sessionId} AND left_at IS NULL
+      `;
+    } catch {
+      // stream_viewers table or heartbeat_at column may not exist yet in
+      // this environment — never fail the client over a missing analytics
+      // table, matching this route's own POST/DELETE fallback behavior.
+    }
+
+    return NextResponse.json(
+      { message: "Heartbeat recorded" },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Viewer heartbeat error:", error);
+    return NextResponse.json(
+      { error: "Failed to record heartbeat" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(req: Request) {
   try {
     const { sessionId, playbackId } = await req.json();
