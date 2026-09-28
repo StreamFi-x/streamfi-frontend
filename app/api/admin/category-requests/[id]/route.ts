@@ -20,6 +20,7 @@ import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { withTransaction } from "@/lib/postgres-transaction";
 import { invalidateCategoryCaches } from "@/lib/cache/invalidation";
 import { recordWorkflowEvent } from "@/lib/audit/workflow-events";
+import { recordAdminEvent } from "@/lib/audit/admin-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,6 +71,7 @@ export async function PATCH(
 
   try {
     const result = await withTransaction(async tx => {
+      let resultRow: Record<string, unknown>;
       if (decision.decision === "approve") {
         const { rows: category } = await tx.sql`
           INSERT INTO stream_categories (title)
@@ -90,10 +92,8 @@ export async function PATCH(
         if (rows.length === 0) {
           throw new AlreadyDecidedError();
         }
-        return rows[0];
-      }
-
-      if (decision.decision === "reject") {
+        resultRow = rows[0];
+      } else if (decision.decision === "reject") {
         const { rows } = await tx.sql`
           UPDATE category_requests
           SET status = 'rejected', reviewed_by = ${admin}, reviewed_at = now(),
@@ -101,38 +101,40 @@ export async function PATCH(
           WHERE id = ${id} AND status = 'pending'
           RETURNING id, status
         `;
-        if (rows.length === 0) {
-          throw new AlreadyDecidedError();
-        }
-        return rows[0];
-      }
-
-      // merge
-      const { rows: targetCategory } = await tx.sql`
-        SELECT id, tags FROM stream_categories WHERE id = ${decision.categoryId}
-      `;
-      if (!targetCategory[0]) {
-        throw new TargetNotFoundError();
-      }
-      const existingTags: string[] = targetCategory[0].tags ?? [];
-      if (!existingTags.some(t => t.toLowerCase() === proposedTitle.toLowerCase())) {
-        await tx.sql`
-          UPDATE stream_categories
-          SET tags = array_append(COALESCE(tags, ARRAY[]::text[]), ${proposedTitle})
-          WHERE id = ${decision.categoryId}
+        if (rows.length === 0) {throw new AlreadyDecidedError();}
+        resultRow = rows[0];
+      } else {
+        const { rows: targetCategory } = await tx.sql`
+          SELECT id, tags FROM stream_categories WHERE id = ${decision.categoryId}
         `;
+        if (!targetCategory[0]) {throw new TargetNotFoundError();}
+        const existingTags: string[] = targetCategory[0].tags ?? [];
+        if (!existingTags.some(t => t.toLowerCase() === proposedTitle.toLowerCase())) {
+          await tx.sql`
+            UPDATE stream_categories
+            SET tags = array_append(COALESCE(tags, ARRAY[]::text[]), ${proposedTitle})
+            WHERE id = ${decision.categoryId}
+          `;
+        }
+        const { rows } = await tx.sql`
+          UPDATE category_requests
+          SET status = 'merged', reviewed_by = ${admin}, reviewed_at = now(),
+              category_id = ${decision.categoryId}, updated_at = now()
+          WHERE id = ${id} AND status = 'pending'
+          RETURNING id, status, category_id
+        `;
+        if (rows.length === 0) {throw new AlreadyDecidedError();}
+        resultRow = rows[0];
       }
-      const { rows } = await tx.sql`
-        UPDATE category_requests
-        SET status = 'merged', reviewed_by = ${admin}, reviewed_at = now(),
-            category_id = ${decision.categoryId}, updated_at = now()
-        WHERE id = ${id} AND status = 'pending'
-        RETURNING id, status, category_id
-      `;
-      if (rows.length === 0) {
-        throw new AlreadyDecidedError();
-      }
-      return rows[0];
+      await recordAdminEvent(tx, {
+        actorId: admin,
+        action: `category_request_${decision.decision}`,
+        targetType: "category_request",
+        targetId: id,
+        beforeState: { status: "pending" },
+        afterState: { status: resultRow.status, category_id: resultRow.category_id ?? null },
+      });
+      return resultRow;
     });
 
     await invalidateCategoryCaches();

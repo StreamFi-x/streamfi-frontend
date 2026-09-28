@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { sql } from "@vercel/postgres";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { currentAdminPrivyId, requireAdminSession } from "@/lib/admin-auth";
+import { withAdminAudit } from "@/lib/audit/admin-events";
 
 export async function PATCH(
   req: NextRequest,
@@ -26,11 +26,14 @@ export async function PATCH(
   }
 
   try {
-    await sql`
-      UPDATE stream_reports
-      SET status = ${status}
-      WHERE id = ${reportId}
-    `;
+    await withAdminAudit(
+      { actorId: await currentAdminPrivyId(), action: "stream_report_status_changed", targetType: "stream_report", targetId: reportId },
+      async tx => {
+        const { rows: beforeRows } = await tx.sql`SELECT status FROM stream_reports WHERE id = ${reportId} FOR UPDATE`;
+        const { rows } = await tx.sql`UPDATE stream_reports SET status = ${status} WHERE id = ${reportId} RETURNING status`;
+        return { result: undefined, beforeState: beforeRows[0] ?? null, afterState: rows[0] ?? null };
+      }
+    );
     return Response.json({ ok: true });
   } catch (err) {
     console.error("[admin/reports/stream/[reportId]] PATCH error:", err);

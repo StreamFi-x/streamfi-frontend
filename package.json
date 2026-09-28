@@ -72,6 +72,7 @@
     "framer-motion": "^12.34.3",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.475.0",
+    "maxmind": "^5.0.1",
     "next": "^16.1.6",
     "nodemailer": "^8.0.1",
     "nprogress": "^0.2.0",

@@ -309,7 +309,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // Only admins can trigger backfills
   const { rows: adminRows } = await sql`
-    SELECT id FROM users WHERE id = ${session.userId} AND role = 'admin' LIMIT 1
+    SELECT id FROM users WHERE id = ${session.userId} AND role = 'super_admin' LIMIT 1
   `;
 
   if (adminRows.length === 0) {

@@ -121,9 +121,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = userResult.rows[0];
-    const callerIsAdmin =
-      (!!session.privyId && isAdmin(session.privyId)) ||
-      (!!session.wallet && isAdmin(session.wallet));
+    const callerIsAdmin = await isAdmin(session.userId);
     if (user.id !== session.userId && !callerIsAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

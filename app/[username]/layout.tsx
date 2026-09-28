@@ -3,6 +3,8 @@ import { sql } from "@vercel/postgres";
 import { unstable_cache } from "next/cache";
 import { CACHE_POLICIES, cacheTags } from "@/lib/cache";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { serializeJsonLd } from "@/lib/security/json-ld";
 import UsernameLayoutClient from "./UsernameLayoutClient";
 
 const BASE = "https://www.streamfi.media";
@@ -100,6 +102,7 @@ export default async function UsernameLayout({
   children,
   params,
 }: UsernameLayoutProps) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   const { username } = await params;
   const user = await fetchUser(username.toLowerCase());
 
@@ -132,14 +135,16 @@ export default async function UsernameLayout({
     <>
       {personSchema && (
         <script
+          nonce={nonce}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(personSchema) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(personSchema) }}
         />
       )}
       {videoSchema && (
         <script
+          nonce={nonce}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(videoSchema) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(videoSchema) }}
         />
       )}
       <UsernameLayoutClient username={username}>

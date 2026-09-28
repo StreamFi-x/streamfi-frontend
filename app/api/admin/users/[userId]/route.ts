@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { sql } from "@vercel/postgres";
-import { requireAdminIdentity, requireAdminSession } from "@/lib/admin-auth";
+import { currentAdminPrivyId, requireAdminIdentity, requireAdminSession } from "@/lib/admin-auth";
+import { withAdminAudit } from "@/lib/audit/admin-events";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
 import { requestAccountDeletion } from "@/lib/users/deletion";
 
@@ -26,27 +26,24 @@ export async function PATCH(
   }
 
   try {
-    if (action === "ban") {
-      await sql`
-        UPDATE users
-        SET is_banned  = true,
-            banned_at  = now(),
-            ban_reason = ${reason ?? null}
-        WHERE id = ${userId}
-      `;
-    } else {
-      await sql`
-        UPDATE users
-        SET is_banned  = false,
-            banned_at  = null,
-            ban_reason = null
-        WHERE id = ${userId}
-      `;
-    }
+    await withAdminAudit(
+      { actorId: await currentAdminPrivyId(), action: `user_${action}`, targetType: "user", targetId: userId },
+      async tx => {
+        const { rows: beforeRows } = await tx.sql`SELECT is_banned, banned_at, ban_reason FROM users WHERE id = ${userId} FOR UPDATE`;
+        if (!beforeRows.length) {throw new Error("ADMIN_USER_NOT_FOUND");}
+        const { rows } = action === "ban"
+          ? await tx.sql`UPDATE users SET is_banned = true, banned_at = now(), ban_reason = ${reason ?? null} WHERE id = ${userId} RETURNING is_banned, banned_at, ban_reason`
+          : await tx.sql`UPDATE users SET is_banned = false, banned_at = null, ban_reason = null WHERE id = ${userId} RETURNING is_banned, banned_at, ban_reason`;
+        return { result: rows[0], beforeState: beforeRows[0], afterState: rows[0] };
+      }
+    );
     await invalidateUserCaches({ id: userId });
 
     return Response.json({ ok: true });
   } catch (err) {
+    if (err instanceof Error && err.message === "ADMIN_USER_NOT_FOUND") {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
     console.error("[admin/users/[userId]] PATCH error:", err);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }

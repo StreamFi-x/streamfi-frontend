@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { currentAdminPrivyId, requireAdminSession } from "@/lib/admin-auth";
+import { withAdminAudit } from "@/lib/audit/admin-events";
 import { cacheHeaders, cacheTags } from "@/lib/cache";
 import { invalidateCategoryCaches } from "@/lib/cache/invalidation";
 import {
@@ -51,19 +52,17 @@ export async function POST(req: NextRequest) {
 
     // Insert into stream_categories
     console.log("📝 Inserting new category...");
-    const { rows: insertedRows } = await sql`
-      INSERT INTO stream_categories (title, description, tags, "imageurl", created_at)
-      VALUES (
-        ${title},
-        ${description || null},
-        ${tags || null},
-        ${imageurl || null},
-        CURRENT_TIMESTAMP
-      )
-      RETURNING id, title, description, tags, "imageurl"
-    `;
-
-    const createdCategory = insertedRows[0];
+    const createdCategory = await withAdminAudit(
+      { actorId: await currentAdminPrivyId(), action: "category_created", targetType: "category", targetId: String(title) },
+      async tx => {
+        const { rows } = await tx.sql`
+          INSERT INTO stream_categories (title, description, tags, "imageurl", created_at)
+          VALUES (${title}, ${description || null}, ${tags || null}, ${imageurl || null}, CURRENT_TIMESTAMP)
+          RETURNING id, title, description, tags, "imageurl"
+        `;
+        return { result: rows[0], beforeState: null, afterState: { title: rows[0].title, description: rows[0].description, tags: rows[0].tags, imageurl: rows[0].imageurl } };
+      }
+    );
     await invalidateCategoryCaches();
 
     console.log("Category created successfully:", createdCategory);
@@ -174,16 +173,21 @@ export async function PATCH(req: Request) {
     // Omitted tags keep the current ones (COALESCE); `tags: []` clears them.
     const tags = Array.isArray(body.tags) ? body.tags : null;
 
-    await sql`
-      UPDATE stream_categories
-      SET
-        title = COALESCE(${title}, title),
-        description = COALESCE(${description}, description),
-        tags = COALESCE(${tags}, tags),
-        imageurl = COALESCE(${imageurl}, imageurl),
-        is_active = COALESCE(${is_active}, is_active)
-       WHERE LOWER(title) = ${titleParams.toLowerCase()}
-    `;
+    await withAdminAudit(
+      { actorId: await currentAdminPrivyId(), action: "category_updated", targetType: "category", targetId: titleParams },
+      async tx => {
+        const { rows: beforeRows } = await tx.sql`SELECT title, description, tags, imageurl, is_active FROM stream_categories WHERE LOWER(title) = ${titleParams.toLowerCase()} FOR UPDATE`;
+        const { rows } = await tx.sql`
+          UPDATE stream_categories
+          SET title = COALESCE(${title}, title), description = COALESCE(${description}, description),
+              tags = COALESCE(${tags}, tags), imageurl = COALESCE(${imageurl}, imageurl),
+              is_active = COALESCE(${is_active}, is_active)
+          WHERE LOWER(title) = ${titleParams.toLowerCase()}
+          RETURNING title, description, tags, imageurl, is_active
+        `;
+        return { result: rows[0], beforeState: beforeRows[0] ?? null, afterState: rows[0] ?? null };
+      }
+    );
     await invalidateCategoryCaches();
 
     return NextResponse.json({ success: true, message: "Category updated" });
@@ -213,10 +217,13 @@ export async function DELETE(req: Request) {
       );
     }
 
-    await sql`
-      DELETE FROM stream_categories
-      WHERE LOWER(title) = ${title.toLowerCase()}
-    `;
+    await withAdminAudit(
+      { actorId: await currentAdminPrivyId(), action: "category_deleted", targetType: "category", targetId: title },
+      async tx => {
+        const { rows } = await tx.sql`DELETE FROM stream_categories WHERE LOWER(title) = ${title.toLowerCase()} RETURNING title, description, tags, imageurl, is_active`;
+        return { result: undefined, beforeState: rows[0] ?? null, afterState: null };
+      }
+    );
     await invalidateCategoryCaches();
 
     return NextResponse.json({ success: true, message: "Category deleted" });
