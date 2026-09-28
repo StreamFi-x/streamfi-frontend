@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { generateShareToken, type StreamPrivacy } from "@/lib/stream-access";
+import { verifySession } from "@/lib/auth/verify-session";
 
 const VALID_PRIVACY: StreamPrivacy[] = [
   "public",
@@ -15,7 +16,9 @@ const VALID_PRIVACY: StreamPrivacy[] = [
  * to be added once we wire this in via verifySession; for now caller is trusted
  * because the route is called from owner-only UI).
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const session = await verifySession(req);
+  if (!session.ok) {return session.response;}
   try {
     const { searchParams } = new URL(req.url);
     const wallet = searchParams.get("wallet");
@@ -29,7 +32,7 @@ export async function GET(req: Request) {
     const result = await sql`
       SELECT id, stream_privacy, share_token
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE id = ${session.userId} AND LOWER(wallet) = LOWER(${wallet})
     `;
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -57,7 +60,9 @@ export async function GET(req: Request) {
  * Generates a share token automatically the first time the creator switches to a
  * non-public privacy mode if none exists yet.
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const session = await verifySession(req);
+  if (!session.ok) {return session.response;}
   try {
     const body = await req.json();
     const { wallet, privacy, rotate_token } = body ?? {};
@@ -79,7 +84,7 @@ export async function POST(req: Request) {
     const userResult = await sql`
       SELECT id, stream_privacy, share_token
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE id = ${session.userId} AND LOWER(wallet) = LOWER(${wallet})
     `;
     if (userResult.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -103,6 +108,7 @@ export async function POST(req: Request) {
       UPDATE users SET
         stream_privacy = ${nextPrivacy},
         share_token = ${nextToken},
+        stream_password_hash = CASE WHEN ${nextPrivacy} = 'public' THEN NULL ELSE stream_password_hash END,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${user.id}
     `;

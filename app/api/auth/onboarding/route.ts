@@ -14,47 +14,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { Keypair } from "@stellar/stellar-sdk";
-import { createCipheriv, randomBytes } from "crypto";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
-
-// ─── Encryption helpers ────────────────────────────────────────────────────────
-
-/**
- * Derives a 32-byte key from the env variable.
- * STELLAR_ENCRYPTION_KEY must be a 64-char hex string (32 bytes).
- */
-function getEncryptionKey(): Buffer {
-  const hex = process.env.STELLAR_ENCRYPTION_KEY;
-  if (!hex || hex.length !== 64) {
-    throw new Error(
-      "STELLAR_ENCRYPTION_KEY must be a 64-character hex string (32 bytes)"
-    );
-  }
-  return Buffer.from(hex, "hex");
-}
-
-/**
- * Encrypts a plaintext string with AES-256-GCM.
- * Returns a single string: `<iv_hex>:<authTag_hex>:<ciphertext_hex>`
- */
-function encryptSecret(plaintext: string): string {
-  const key = getEncryptionKey();
-  const iv = randomBytes(12); // 96-bit IV — recommended for GCM
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
-  const authTag = cipher.getAuthTag(); // 16-byte GCM auth tag
-
-  return [
-    iv.toString("hex"),
-    authTag.toString("hex"),
-    encrypted.toString("hex"),
-  ].join(":");
-}
+import { encryptSecret } from "@/lib/security/encrypted-secrets";
 
 // ─── Username validation ───────────────────────────────────────────────────────
 

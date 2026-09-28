@@ -280,6 +280,10 @@ const ViewStream = ({
     playbackId: string;
     token?: string;
   } | null>(null);
+  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [streamPassword, setStreamPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
 
   // Use custom hooks for Stellar wallet and tip modal state
   const { publicKey, privyWallet } = useStellarWallet();
@@ -377,8 +381,14 @@ const ViewStream = ({
     }
 
     fetch(`/api/streams/playback-token?${qs.toString()}`)
-      .then(r => (r.ok ? r.json() : null))
-      .then(data => {
+      .then(async response => ({ ok: response.ok, data: await response.json() }))
+      .then(({ ok, data }) => {
+        if (!ok && data?.reason === "password_required") {
+          setPasswordRequired(true);
+          setPlaybackOverride(null);
+          return;
+        }
+        setPasswordRequired(false);
         if (data?.playbackId) {
           setPlaybackOverride({
             playbackId: data.playbackId,
@@ -394,6 +404,34 @@ const ViewStream = ({
     userData?.shareKey,
     address,
   ]);
+
+  const handleStreamPasswordSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!streamPassword || passwordSubmitting) {return;}
+    setPasswordSubmitting(true);
+    setPasswordError("");
+    try {
+      const verification = await fetch("/api/streams/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password: streamPassword }),
+      });
+      if (!verification.ok) {throw new Error("Password not accepted. Please try again.");}
+      const params = new URLSearchParams({ username });
+      if (userData?.shareKey) {params.set("key", userData.shareKey);}
+      if (address) {params.set("viewer_wallet", address);}
+      const playback = await fetch(`/api/streams/playback-token?${params}`);
+      const data = await playback.json();
+      if (!playback.ok || !data?.playbackId) {throw new Error("Unable to open this stream.");}
+      setPlaybackOverride({ playbackId: data.playbackId, token: data.signed ? data.token : undefined });
+      setPasswordRequired(false);
+      setStreamPassword("");
+    } catch (cause) {
+      setPasswordError(cause instanceof Error ? cause.message : "Unable to verify password.");
+    } finally {
+      setPasswordSubmitting(false);
+    }
+  };
 
   // Fetch past recordings for this streamer
   useEffect(() => {
@@ -589,6 +627,16 @@ const ViewStream = ({
                     : undefined
                 }
               >
+                {passwordRequired && (
+                  <form onSubmit={handleStreamPasswordSubmit} className="absolute inset-0 z-10 flex items-center justify-center bg-background/95 p-6">
+                    <div className="w-full max-w-sm space-y-3 text-center">
+                      <h2 className="text-lg font-semibold">Password-protected stream</h2>
+                      <input type="password" autoComplete="current-password" value={streamPassword} onChange={event => setStreamPassword(event.target.value)} className="w-full rounded border border-border bg-card px-3 py-2" aria-label="Stream password" />
+                      {passwordError && <p role="alert" className="text-sm text-red-500">{passwordError}</p>}
+                      <button type="submit" disabled={passwordSubmitting || !streamPassword} className="w-full rounded bg-highlight px-4 py-2 text-sm text-white disabled:opacity-50">{passwordSubmitting ? "Checking…" : "Watch stream"}</button>
+                    </div>
+                  </form>
+                )}
                 {(() => {
                   // For private streams, use the signed playback id+token from /playback-token.
                   // For public streams, use userData.playbackId directly.

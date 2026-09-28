@@ -145,6 +145,9 @@ const StreamPreferencesPage: React.FC = () => {
 
   const [privacy, setPrivacy] = useState<StreamPrivacy>("public");
   const [shareToken, setShareToken] = useState<string | null>(null);
+  const [streamPassword, setStreamPassword] = useState("");
+  const [streamPasswordEnabled, setStreamPasswordEnabled] = useState(false);
+  const [streamPasswordSaving, setStreamPasswordSaving] = useState(false);
   const [privacySaving, setPrivacySaving] = useState(false);
   const [tokenRotating, setTokenRotating] = useState(false);
   const [outOfSync, setOutOfSync] = useState<string[]>([]);
@@ -192,6 +195,34 @@ const StreamPreferencesPage: React.FC = () => {
     fetchStreamKey();
   }, [address]);
 
+  useEffect(() => {
+    fetch("/api/streams/password", { cache: "no-store" })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => {if (data) {setStreamPasswordEnabled(data.enabled === true);}})
+      .catch(() => {});
+  }, []);
+
+  const handleStreamPasswordSave = async () => {
+    if (streamPasswordSaving) {return;}
+    setStreamPasswordSaving(true);
+    try {
+      const response = await fetch("/api/streams/password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: streamPassword || null }),
+      });
+      if (!response.ok) {throw new Error("Unable to save stream password");}
+      const data = await response.json();
+      setStreamPasswordEnabled(data.enabled === true);
+      setStreamPassword("");
+      toast.success(data.enabled ? "Stream password enabled" : "Stream password removed");
+    } catch {
+      toast.error("Select a private stream mode and enter a valid password");
+    } finally {
+      setStreamPasswordSaving(false);
+    }
+  };
+
   // Load privacy settings
   useEffect(() => {
     if (!address) {
@@ -228,6 +259,7 @@ const StreamPreferencesPage: React.FC = () => {
       const data = await res.json();
       setPrivacy(data.privacy);
       setShareToken(data.shareToken ?? null);
+      if (data.privacy === "public") {setStreamPasswordEnabled(false);}
       // Privacy change may require reprovisioning for signed playback
       try {
         const refresh = await fetch(`/api/streams/key?wallet=${address}`);
@@ -804,6 +836,27 @@ const StreamPreferencesPage: React.FC = () => {
                 </button>
               );
             })}
+          </div>
+
+          <div className="mt-4 rounded-lg border border-border p-4">
+            <h3 className="text-sm font-medium text-foreground">Stream password</h3>
+            <p className="mt-1 text-xs text-muted-foreground">Require a password in addition to this stream&apos;s privacy access. Choose an unlisted or subscribers-only mode first.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <input
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                maxLength={128}
+                value={streamPassword}
+                onChange={event => setStreamPassword(event.target.value)}
+                placeholder={streamPasswordEnabled ? "Enter a new password to replace" : "At least 8 characters"}
+                className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+              <button type="button" onClick={() => void handleStreamPasswordSave()} disabled={streamPasswordSaving || (streamPasswordEnabled && !streamPassword)} className="rounded-md bg-highlight px-3 py-2 text-sm text-white disabled:opacity-50">
+                {streamPasswordSaving ? "Saving…" : streamPasswordEnabled ? "Update password" : "Set password"}
+              </button>
+              {streamPasswordEnabled && <button type="button" onClick={() => {setStreamPassword(""); void fetch("/api/streams/password", {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:null})}).then(response => {if (!response.ok) {throw new Error();} setStreamPasswordEnabled(false); toast.success("Stream password removed");}).catch(() => toast.error("Unable to remove stream password"));}} className="rounded-md border border-border px-3 py-2 text-sm">Remove</button>}
+            </div>
           </div>
 
           {privacy !== "public" && shareToken && (

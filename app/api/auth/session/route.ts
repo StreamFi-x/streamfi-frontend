@@ -3,6 +3,7 @@ import { PrivyClient } from "@privy-io/server-auth";
 import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { getRandomProfileIcon } from "@/lib/profile-icons";
+import { recordLoginAndCheckTravel } from "@/lib/security/login-anomaly";
 
 // 10 Privy session exchanges per IP per 60 s
 const isRateLimited = createRateLimiter(60_000, 10);
@@ -126,6 +127,11 @@ export async function POST(req: NextRequest) {
 
     const dbUser = rows[0];
     const needsOnboarding = !dbUser.username;
+    try {
+      await recordLoginAndCheckTravel(dbUser.id, ip);
+    } catch (anomalyError) {
+      console.error("[session] Login anomaly processing failed:", anomalyError);
+    }
 
     // 5. Build secure session cookie — HttpOnly, Secure, SameSite=Strict
     //    We store the privy_id (opaque, server-verified) — never the raw JWT

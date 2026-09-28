@@ -15,38 +15,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { Keypair } from "@stellar/stellar-sdk";
-import { createCipheriv, randomBytes } from "crypto";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { encryptSecret } from "@/lib/security/encrypted-secrets";
+import { consumeStepUp } from "@/lib/security/step-up";
 
 // ─── Rate limiter: 2 regenerations per 10 minutes per IP ──────────────────────
 const isRateLimited = createRateLimiter(10 * 60 * 1000, 2);
-
-// ─── Encryption ────────────────────────────────────────────────────────────────
-function getEncryptionKey(): Buffer {
-  const hex = process.env.STELLAR_ENCRYPTION_KEY;
-  if (!hex || hex.length !== 64) {
-    throw new Error("STELLAR_ENCRYPTION_KEY misconfigured");
-  }
-  return Buffer.from(hex, "hex");
-}
-
-function encryptSecret(plaintext: string): string {
-  const key = getEncryptionKey();
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
-  const authTag = cipher.getAuthTag();
-  return [
-    iv.toString("hex"),
-    authTag.toString("hex"),
-    encrypted.toString("hex"),
-  ].join(":");
-}
 
 // ─── POST handler ──────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
@@ -74,6 +50,12 @@ export async function POST(req: NextRequest) {
       },
       { status: 403 }
     );
+  }
+
+  let body: { stepUpChallengeId?: unknown };
+  try {body = await req.json();} catch {return NextResponse.json({ error: "Step-up challenge required" }, { status: 403 });}
+  if (typeof body.stepUpChallengeId !== "string" || !(await consumeStepUp(session.userId, body.stepUpChallengeId, "wallet_regeneration", session.userId))) {
+    return NextResponse.json({ error: "Complete two-factor verification before regenerating the wallet" }, { status: 403 });
   }
 
   const keypair = Keypair.random();

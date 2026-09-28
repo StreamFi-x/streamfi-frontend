@@ -7,6 +7,14 @@ import { Search, X, Ban, CheckCircle, Trash2 } from "lucide-react";
 import { useSWRConfig } from "swr";
 import { useAdminUsers, type AdminUser } from "@/hooks/admin/useAdminUsers";
 import { getDefaultAvatar } from "@/lib/profile-icons";
+import StepUpDialog, { type ProtectedAction } from "@/components/settings/privacy-and-security/step-up-dialog";
+
+type PendingAdminAction = {
+  action: "admin_user_ban" | "admin_user_delete";
+  userId: string;
+  operation: "ban" | "unban" | "delete";
+  reason?: string;
+};
 
 // ── Ban confirm dialog ─────────────────────────────────────────────────────────
 function BanConfirmDialog({
@@ -129,6 +137,8 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [banTarget, setBanTarget] = useState<AdminUser | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [pendingAdminAction, setPendingAdminAction] = useState<PendingAdminAction | null>(null);
+  const [securityError, setSecurityError] = useState("");
   const { mutate } = useSWRConfig();
 
   useEffect(() => {
@@ -154,31 +164,42 @@ export default function AdminUsersPage() {
     if (!banTarget) {
       return;
     }
-    await fetch(`/api/admin/users/${banTarget.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "ban", reason }),
-    });
+    setPendingAdminAction({ action: "admin_user_ban", userId: banTarget.id, operation: "ban", reason });
     setBanTarget(null);
-    invalidate();
   };
 
   const handleUnban = async (user: AdminUser) => {
-    await fetch(`/api/admin/users/${user.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "unban" }),
-    });
-    invalidate();
+    setPendingAdminAction({ action: "admin_user_ban", userId: user.id, operation: "unban" });
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) {
       return;
     }
-    await fetch(`/api/admin/users/${deleteTarget.id}`, { method: "DELETE" });
+    setPendingAdminAction({ action: "admin_user_delete", userId: deleteTarget.id, operation: "delete" });
     setDeleteTarget(null);
-    invalidate();
+  };
+
+  const handleStepUpApproved = async (challengeId: string, action: ProtectedAction) => {
+    const pending = pendingAdminAction;
+    if (!pending || pending.action !== action) {return;}
+    setPendingAdminAction(null);
+    setSecurityError("");
+    try {
+      const deleting = pending.operation === "delete";
+      const response = await fetch(`/api/admin/users/${pending.userId}`, {
+        method: deleting ? "DELETE" : "PATCH",
+        headers: { "Content-Type": "application/json", "x-step-up-challenge": challengeId },
+        ...(deleting ? {} : { body: JSON.stringify({ action: pending.operation, reason: pending.reason }) }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? "Admin action failed");
+      }
+      invalidate();
+    } catch (cause) {
+      setSecurityError(cause instanceof Error ? cause.message : "Admin action failed");
+    }
   };
 
   const filterTabs: { label: string; value: "all" | "banned" | "live" }[] = [
@@ -196,6 +217,7 @@ export default function AdminUsersPage() {
       >
         User Management
       </motion.h1>
+      {securityError && <p role="alert" className="mb-4 text-sm text-red-600">{securityError}</p>}
 
       {/* Filter tabs + search */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -401,6 +423,12 @@ export default function AdminUsersPage() {
           />
         )}
       </AnimatePresence>
+      <StepUpDialog
+        action={pendingAdminAction?.action ?? null}
+        resourceId={pendingAdminAction?.userId ?? ""}
+        onCancel={() => setPendingAdminAction(null)}
+        onApproved={(challengeId, action) => void handleStepUpApproved(challengeId, action)}
+      />
     </div>
   );
 }

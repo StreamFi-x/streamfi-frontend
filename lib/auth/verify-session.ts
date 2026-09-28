@@ -22,6 +22,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifyToken } from "@/lib/auth/sign-token";
+import { currentKeyring } from "@/lib/security/keyring";
 
 export type VerifiedSession =
   | {
@@ -33,10 +34,6 @@ export type VerifiedSession =
       email: string | null;
     }
   | { ok: false; response: NextResponse };
-
-function getSessionSecret(): string | null {
-  return process.env.SESSION_SECRET ?? null;
-}
 
 export async function verifySession(
   req: NextRequest
@@ -97,8 +94,10 @@ export async function verifySession(
 
   // ── Signed wallet session (new — HMAC-verified) ──────────────────────────
   if (walletSessionToken) {
-    const secret = getSessionSecret();
-    if (!secret) {
+    let keyring;
+    try {
+      keyring = currentKeyring();
+    } catch {
       console.error(
         "[verifySession] SESSION_SECRET not configured — wallet_session cannot be verified"
       );
@@ -113,7 +112,7 @@ export async function verifySession(
 
     const payload = verifyToken<{ userId: string; wallet: string }>(
       walletSessionToken,
-      secret
+      keyring
     );
     if (!payload) {
       return {

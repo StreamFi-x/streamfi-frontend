@@ -1,7 +1,7 @@
 import { sql } from "@vercel/postgres";
 import { randomUUID } from "crypto";
 
-export type NotificationType = "follow" | "live";
+export type NotificationType = "follow" | "live" | "security";
 
 /**
  * Write a notification directly to the DB.

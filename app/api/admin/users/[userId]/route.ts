@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
+import { verifySession } from "@/lib/auth/verify-session";
+import { consumeStepUp } from "@/lib/security/step-up";
 
 export async function PATCH(
   req: NextRequest,
@@ -12,6 +14,11 @@ export async function PATCH(
   }
 
   const { userId } = await params;
+  const adminSession = await verifySession(req);
+  const challengeId = req.headers.get("x-step-up-challenge");
+  if (!adminSession.ok || !challengeId || !(await consumeStepUp(adminSession.userId, challengeId, "admin_user_ban", userId))) {
+    return Response.json({ error: "Complete two-factor verification before changing account status" }, { status: 403 });
+  }
   const body = await req.json();
   const action: string = body.action;
   const reason: string | undefined = body.reason;
@@ -50,7 +57,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ): Promise<Response> {
   const isAdmin = await verifyAdminSession();
@@ -59,6 +66,11 @@ export async function DELETE(
   }
 
   const { userId } = await params;
+  const adminSession = await verifySession(req);
+  const challengeId = req.headers.get("x-step-up-challenge");
+  if (!adminSession.ok || !challengeId || !(await consumeStepUp(adminSession.userId, challengeId, "admin_user_delete", userId))) {
+    return Response.json({ error: "Complete two-factor verification before deleting an account" }, { status: 403 });
+  }
 
   try {
     await sql`DELETE FROM users WHERE id = ${userId}`;
