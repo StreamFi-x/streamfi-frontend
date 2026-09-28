@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { defaultExecutor, SqlExecutor } from "@/lib/db/executor";
 import { logger } from "@/lib/tracing/logger";
+import { PermanentJobError } from "./errors";
 
 export type JobStatus = "succeeded" | "partial" | "failed" | "skipped";
 
@@ -25,20 +26,56 @@ export interface JobResult<TDetail = unknown> {
   alerts: string[];
   reason?: string;
   error?: string;
+  /** The job failed with an error that retrying cannot fix. */
+  permanent?: boolean;
   detail?: TDetail;
+}
+
+/** Which delivery a run belongs to (lib/jobs/execute.ts). */
+export interface JobDelivery {
+  /** QStash message id; retries of one message share it. */
+  messageId: string | null;
+  attempt: number;
+  trigger: "qstash" | "manual";
 }
 
 export interface ScheduledJobOptions<TDetail> {
   name: string;
+  /** Lease scope; defaults to `name` (one run of the job at a time). */
+  leaseKey?: string;
   /** Lease length; must exceed the job's worst-case runtime. */
   leaseSeconds: number;
-  /** Expected schedule; a gap of 3x this since the last success raises an alert. */
-  expectedIntervalSeconds: number;
+  /**
+   * Expected schedule; a gap of 3x this since the last success raises an
+   * alert. Omit for jobs that only run when dispatched.
+   */
+  expectedIntervalSeconds?: number;
   /** Consecutive failed runs (including this one) that raise an alert. */
   failureAlertThreshold?: number;
   run: (context: { runId: string }) => Promise<JobOutcome<TDetail>>;
+  /**
+   * Fail the run (and free the lease) if it takes longer than this, so a
+   * slow run is recorded and retried instead of being killed by the platform
+   * with its lease still held. The abandoned promise may still be running;
+   * jobs must be safe to overlap (see lib/jobs/definition.ts).
+   */
+  timeoutMs?: number;
+  delivery?: JobDelivery;
   executor?: SqlExecutor;
   now?: () => Date;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`job exceeded its ${ms / 1000}s time limit`)),
+        ms
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
 }
 
 /**
@@ -95,12 +132,15 @@ export async function releaseJobLease(
 
 async function recordRun(
   executor: SqlExecutor,
-  result: JobResult
+  result: JobResult,
+  delivery: JobDelivery | undefined
 ): Promise<void> {
   try {
     await executor(
-      `INSERT INTO job_runs (job_name, status, started_at, duration_ms, metrics, error, run_id)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)`,
+      `INSERT INTO job_runs
+         (job_name, status, started_at, duration_ms, metrics, error, run_id,
+          message_id, attempt, trigger)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10)`,
       [
         result.job,
         result.status,
@@ -109,6 +149,9 @@ async function recordRun(
         JSON.stringify(result.metrics),
         result.error ?? result.reason ?? null,
         result.runId,
+        delivery?.messageId ?? null,
+        delivery?.attempt ?? null,
+        delivery?.trigger ?? null,
       ]
     );
   } catch (error) {
@@ -179,8 +222,9 @@ export async function runScheduledJob<TDetail>(
   const runId = randomUUID();
   const threshold = options.failureAlertThreshold ?? 3;
 
+  const leaseKey = options.leaseKey ?? options.name;
   const holder = await acquireJobLease(
-    options.name,
+    leaseKey,
     options.leaseSeconds,
     executor
   );
@@ -199,7 +243,7 @@ export async function runScheduledJob<TDetail>(
       job: options.name,
       reason: skipped.reason,
     });
-    await recordRun(executor, skipped);
+    await recordRun(executor, skipped, options.delivery);
     return skipped;
   }
 
@@ -208,17 +252,22 @@ export async function runScheduledJob<TDetail>(
   let result: JobResult<TDetail>;
 
   try {
-    const gap = await detectRunGap(
-      executor,
-      options.name,
-      options.expectedIntervalSeconds,
-      started
-    ).catch(() => null);
+    const gap =
+      options.expectedIntervalSeconds === undefined
+        ? null
+        : await detectRunGap(
+            executor,
+            options.name,
+            options.expectedIntervalSeconds,
+            started
+          ).catch(() => null);
     if (gap) {
       alerts.push(gap);
     }
 
-    const outcome = await options.run({ runId });
+    const outcome = await (options.timeoutMs
+      ? withTimeout(options.run({ runId }), options.timeoutMs)
+      : options.run({ runId }));
     alerts.push(...(outcome.alerts ?? []));
     result = {
       job: options.name,
@@ -240,9 +289,10 @@ export async function runScheduledJob<TDetail>(
       metrics: {},
       alerts,
       error: error instanceof Error ? error.message : String(error),
+      permanent: error instanceof PermanentJobError,
     };
   } finally {
-    await releaseJobLease(options.name, holder, executor).catch(error =>
+    await releaseJobLease(leaseKey, holder, executor).catch(error =>
       logger.error("Failed to release job lease", {
         job: options.name,
         errorMessage: error instanceof Error ? error.message : String(error),
@@ -250,7 +300,7 @@ export async function runScheduledJob<TDetail>(
     );
   }
 
-  await recordRun(executor, result);
+  await recordRun(executor, result, options.delivery);
 
   if (result.status === "failed") {
     const failures = await consecutiveFailures(

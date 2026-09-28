@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
 import { z } from "zod";
+import {
+  readFromReplica,
+  ReplicaUnavailableError,
+  replicaUnavailableResponse,
+} from "@/lib/db/replica";
 import { verifySession } from "@/lib/auth/verify-session";
 import { validateQuery } from "@/app/api/routes-f/_lib/validate";
 import { ensureDailyStreamMinutesDependencies } from "./_lib/db";
@@ -29,41 +33,58 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureDailyStreamMinutesDependencies();
 
-    const channelResult = await sql`
-      SELECT id FROM users WHERE id = ${channel} AND deleted_at IS NULL LIMIT 1
-    `;
+    const result = await readFromReplica(
+      "routes-f.analytics-daily-stream-minutes",
+      async db => {
+        const channelResult = await db`
+          SELECT id FROM users WHERE id = ${channel} AND deleted_at IS NULL LIMIT 1
+        `;
 
-    if (channelResult.rows.length === 0) {
+        if (channelResult.rows.length === 0) {
+          return { status: 404 as const };
+        }
+
+        // Only the channel owner may view their own stream-minutes breakdown.
+        if (channel !== session.userId) {
+          return { status: 403 as const };
+        }
+
+        const dailyResult = await db<{
+          bucket: string;
+          minutes_streamed: number;
+          sessions: number;
+        }>`
+          SELECT
+            TO_CHAR(date_trunc('day', started_at), 'YYYY-MM-DD') AS bucket,
+            ROUND(COALESCE(SUM(duration_seconds), 0) / 60.0)::int AS minutes_streamed,
+            COUNT(*)::int AS sessions
+          FROM route_f_broadcast_sessions
+          WHERE creator_id = ${channel}
+            AND started_at >= NOW() - (${days}::text || ' days')::interval
+          GROUP BY date_trunc('day', started_at)
+          ORDER BY date_trunc('day', started_at) ASC
+        `;
+        return { status: 200 as const, rows: dailyResult.rows };
+      },
+      { request: req }
+    );
+
+    if (result.status === 404) {
       return NextResponse.json({ error: "Channel not found" }, { status: 404 });
     }
-
-    // Only the channel owner may view their own stream-minutes breakdown.
-    if (channel !== session.userId) {
+    if (result.status === 403) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-
-    const dailyResult = await sql<{
-      bucket: string;
-      minutes_streamed: number;
-      sessions: number;
-    }>`
-      SELECT
-        TO_CHAR(date_trunc('day', started_at), 'YYYY-MM-DD') AS bucket,
-        ROUND(COALESCE(SUM(duration_seconds), 0) / 60.0)::int AS minutes_streamed,
-        COUNT(*)::int AS sessions
-      FROM route_f_broadcast_sessions
-      WHERE creator_id = ${channel}
-        AND started_at >= NOW() - (${days}::text || ' days')::interval
-      GROUP BY date_trunc('day', started_at)
-      ORDER BY date_trunc('day', started_at) ASC
-    `;
 
     return NextResponse.json({
       channel,
       range_days: days,
-      daily_stream_minutes: dailyResult.rows,
+      daily_stream_minutes: result.rows,
     });
   } catch (error) {
+    if (error instanceof ReplicaUnavailableError) {
+      return replicaUnavailableResponse();
+    }
     console.error("[routes-f/analytics-daily-stream-minutes] GET error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

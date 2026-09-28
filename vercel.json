@@ -1,10 +1,6 @@
 {
   "crons": [
     {
-      "path": "/api/routes-f/schedule/reminders",
-      "schedule": "0 0 * * *"
-    },
-    {
       "path": "/api/routes-f/cron-refresh-materialized-views",
       "schedule": "0 * * * *"
     },

@@ -3,14 +3,21 @@ import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { CACHE_POLICIES, cacheHeaders } from "@/lib/cache";
 import { createCache, createMemoryBackend } from "@/lib/cache/store";
+import {
+  buildPage,
+  keysetBounds,
+  readPageParams,
+  type KeysetRow,
+  type PageParams,
+} from "@/lib/pagination/cursor";
 import { publishRealtimeMessage } from "@/lib/realtime/pubsub";
-
 
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
 
-const MAX_LIMIT = 200;
 const DEFAULT_LIMIT = 50;
+/** The live chat view polls the newest 200 messages; keep that possible. */
+const MAX_LIMIT = 200;
 
 // Every viewer of a stream polls the same window once a second. The edge
 // (chatWindow policy) collapses those per region; this per-instance cache
@@ -20,14 +27,6 @@ const DEFAULT_LIMIT = 50;
 // docs/postgres-pooling-and-chat-load.md has the measurements.
 const chatWindowCache = createCache(createMemoryBackend());
 const chatTag = (playbackId: string) => `chat:${playbackId}`;
-
-function parseLimit(raw: string | null): number {
-  const parsed = Number.parseInt(raw ?? "", 10);
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return DEFAULT_LIMIT;
-  }
-  return Math.min(parsed, MAX_LIMIT);
-}
 
 export async function POST(req: NextRequest) {
   const ip =
@@ -168,11 +167,16 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function loadChatWindow(
-  playbackId: string,
-  limit: number,
-  beforeId: number | null
-) {
+interface ChatRow extends KeysetRow {
+  content: string;
+  message_type: string;
+  created_at: string;
+  username: string;
+  wallet: string;
+  avatar: string | null;
+}
+
+async function loadChatPage(playbackId: string, page: PageParams) {
   const streamResult = await sql`
     SELECT ss.id as session_id
     FROM users u
@@ -183,7 +187,7 @@ async function loadChatWindow(
   `;
 
   if (streamResult.rows.length === 0) {
-    return [];
+    return { items: [], nextCursor: null, hasMore: false };
   }
 
   // Kept as a second statement on purpose: with the session id bound as a
@@ -191,13 +195,18 @@ async function loadChatWindow(
   // idx_chat_messages_session_window backwards. Folded into one statement it
   // assumes an average-sized chat and sorts every message of a busy stream
   // (5x slower in scripts/load-test; see docs/postgres-pooling-and-chat-load.md).
+  // The (created_at, id) row comparison becomes an index condition on
+  // created_at, so a deep history page costs the same as the first one
+  // (docs/database/query-performance.md).
   const sessionId = streamResult.rows[0].session_id;
-  const messagesResult = await sql`
+  const bound = keysetBounds(page.after);
+  const messagesResult = await sql<ChatRow>`
     SELECT
       cm.id,
       cm.content,
       cm.message_type,
       cm.created_at,
+      to_char(cm.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts,
       u.username,
       u.wallet,
       u.avatar
@@ -205,32 +214,34 @@ async function loadChatWindow(
     JOIN users u ON cm.user_id = u.id
     WHERE cm.stream_session_id = ${sessionId}
       AND cm.is_deleted = false
-      AND (${beforeId}::int IS NULL OR cm.id < ${beforeId})
-    ORDER BY cm.created_at DESC
-    LIMIT ${limit}
+      AND (cm.created_at, cm.id) < (${bound.ts}::timestamptz, ${bound.id}::uuid)
+    ORDER BY cm.created_at DESC, cm.id DESC
+    LIMIT ${page.limit + 1}
   `;
 
-  return messagesResult.rows
-    .map(msg => ({
-      id: msg.id,
-      content: msg.content,
-      messageType: msg.message_type,
-      createdAt: msg.created_at,
-      user: {
-        username: msg.username,
-        wallet: msg.wallet,
-        avatar: msg.avatar,
-      },
-    }))
-    .reverse();
+  return buildPage(messagesResult.rows, page.limit, msg => ({
+    id: msg.id,
+    content: msg.content,
+    messageType: msg.message_type,
+    createdAt: msg.created_at,
+    user: {
+      username: msg.username,
+      wallet: msg.wallet,
+      avatar: msg.avatar,
+    },
+  }));
 }
 
+/**
+ * Chat history, newest first, on the shared cursor contract
+ * (docs/api/pagination.md): `?playbackId&limit&cursor` →
+ * `{ items, nextCursor, hasMore }`. Polling clients request the first page;
+ * `nextCursor` walks back through older history.
+ */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const playbackId = searchParams.get("playbackId");
-    const limit = parseLimit(searchParams.get("limit"));
-    const before = searchParams.get("before");
 
     if (!playbackId) {
       return NextResponse.json(
@@ -239,20 +250,35 @@ export async function GET(req: Request) {
       );
     }
 
-    const beforeId = before ? parseInt(before) : null;
-    const messages = await chatWindowCache.getOrLoad(
+    if (searchParams.has("before")) {
+      return NextResponse.json(
+        { error: "The before parameter was replaced by cursor" },
+        { status: 400 }
+      );
+    }
+
+    const params = readPageParams(searchParams, {
+      defaultLimit: DEFAULT_LIMIT,
+      maxLimit: MAX_LIMIT,
+    });
+    if (!params.ok) {
+      return params.response;
+    }
+    const { page } = params;
+
+    const result = await chatWindowCache.getOrLoad(
       {
-        key: `chat:${playbackId}:${limit}:${beforeId ?? "live"}`,
+        key: `chat:${playbackId}:${page.limit}:${searchParams.get("cursor") ?? "live"}`,
         tags: [chatTag(playbackId)],
         ttlSeconds: CACHE_POLICIES.chatWindow.appTtlSeconds,
       },
-      () => loadChatWindow(playbackId, limit, beforeId)
+      () => loadChatPage(playbackId, page)
     );
 
-    return NextResponse.json(
-      { messages },
-      { status: 200, headers: cacheHeaders("chatWindow") }
-    );
+    return NextResponse.json(result, {
+      status: 200,
+      headers: cacheHeaders("chatWindow"),
+    });
   } catch (error) {
     console.error("Get chat messages error:", error);
     return NextResponse.json(

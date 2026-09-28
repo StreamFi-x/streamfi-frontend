@@ -84,7 +84,10 @@ describe("tombstoned users are filtered from user-facing reads", () => {
     const withQueries = files.filter(
       f => usersQueries(fs.readFileSync(path.join(ROOT, f), "utf8")).length
     );
-    expect(withQueries.length).toBeGreaterThan(100);
+    // A floor that proves the scanner still finds query sites, not an exact
+    // count: files drop out when their users queries move elsewhere (for
+    // example notifications, now stored in their own table).
+    expect(withQueries.length).toBeGreaterThan(90);
   });
 
   it("every users query filters deleted_at or documents why not", () => {

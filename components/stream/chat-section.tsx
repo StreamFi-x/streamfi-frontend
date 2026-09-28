@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { ChevronRight, Send, Smile, GiftIcon, LogIn } from "lucide-react";
 import type { ChatMessage } from "@/types/chat";
 import { EMOJI_CATEGORIES, CATEGORY_LABELS } from "@/lib/emoji-categories";
@@ -18,6 +18,10 @@ interface ChatSectionProps {
   isWalletConnected?: boolean;
   isSending?: boolean;
   onLoginClick?: () => void;
+  /** Older history: shows a "Load earlier messages" control when provided */
+  onLoadOlder?: () => void;
+  hasOlder?: boolean;
+  isLoadingOlder?: boolean;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -32,6 +36,9 @@ const ChatSection = ({
   isWalletConnected = false,
   isSending = false,
   onLoginClick,
+  onLoadOlder,
+  hasOlder = false,
+  isLoadingOlder = false,
 }: ChatSectionProps) => {
   const [chatMessage, setChatMessage] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -40,13 +47,24 @@ const ChatSection = ({
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
+  // Stick to the bottom when a new message arrives. When older history is
+  // prepended instead, keep the reader's place by offsetting the added height.
+  const newestId = messages[messages.length - 1]?.id;
+  const lastNewestId = useRef<string | undefined>(undefined);
+  const lastScrollHeight = useRef(0);
+  useLayoutEffect(() => {
+    const el = chatContainerRef.current;
+    if (!el) {
+      return;
     }
-  }, [messages]);
+    if (newestId !== lastNewestId.current) {
+      el.scrollTop = el.scrollHeight;
+    } else if (el.scrollHeight > lastScrollHeight.current) {
+      el.scrollTop += el.scrollHeight - lastScrollHeight.current;
+    }
+    lastNewestId.current = newestId;
+    lastScrollHeight.current = el.scrollHeight;
+  }, [messages, newestId]);
 
   // Close emoji picker on outside click
   useEffect(() => {
@@ -122,6 +140,18 @@ const ChatSection = ({
           ref={chatContainerRef}
           className="absolute inset-0 overflow-y-auto scrollbar-hide p-3 space-y-4 pt-8 pb-4"
         >
+          {onLoadOlder && hasOlder && messages.length > 0 && (
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={onLoadOlder}
+                disabled={isLoadingOlder}
+                className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                {isLoadingOlder ? "Loading…" : "Load earlier messages"}
+              </button>
+            </div>
+          )}
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-4">
               <p className="text-sm font-semibold mb-2 text-foreground">
