@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
+import { deleteMuxAssetIfExists } from "@/lib/mux/server";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -43,7 +44,7 @@ export async function GET(
           u.bio,
           ss.started_at AS stream_date
         FROM stream_recordings r
-        JOIN users u ON u.id = r.user_id
+        JOIN users u ON u.id = r.user_id AND u.deleted_at IS NULL
         LEFT JOIN stream_sessions ss ON ss.id = r.stream_session_id
         WHERE r.id = ${wallet}
           AND r.status = 'ready'
@@ -69,7 +70,7 @@ export async function GET(
         r.needs_review,
         ss.started_at AS stream_date
       FROM stream_recordings r
-      JOIN users u ON u.id = r.user_id
+      JOIN users u ON u.id = r.user_id AND u.deleted_at IS NULL
       LEFT JOIN stream_sessions ss ON ss.id = r.stream_session_id
       WHERE LOWER(u.wallet) = LOWER(${wallet})
       ORDER BY r.created_at DESC
@@ -90,7 +91,9 @@ export async function GET(
 
 /**
  * DELETE /api/streams/recordings/[id]
- * Auth required. Owner only. Permanently removes the recording from the DB.
+ * Auth required. Owner only. Permanently removes the recording from the DB and
+ * then deletes the Mux asset. If the Mux call fails the asset is left behind
+ * and reported by the Mux reconciliation sweep (#1409) for admin cleanup.
  */
 export async function DELETE(
   req: NextRequest,
@@ -111,7 +114,7 @@ export async function DELETE(
     }
 
     const { rows } = await sql`
-      SELECT user_id FROM stream_recordings WHERE id = ${id}
+      SELECT user_id, mux_asset_id FROM stream_recordings WHERE id = ${id}
     `;
 
     if (rows.length === 0) {
@@ -123,6 +126,15 @@ export async function DELETE(
     }
 
     await sql`DELETE FROM stream_recordings WHERE id = ${id}`;
+
+    try {
+      await deleteMuxAssetIfExists(String(rows[0].mux_asset_id));
+    } catch (muxErr) {
+      console.error(
+        `[recordings] DELETE: Mux asset ${rows[0].mux_asset_id} not deleted:`,
+        muxErr instanceof Error ? muxErr.message : muxErr
+      );
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

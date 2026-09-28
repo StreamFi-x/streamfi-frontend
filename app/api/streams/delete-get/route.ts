@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { deleteMuxStream } from "@/lib/mux/server";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 export async function GET(req: Request) {
   try {
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
     const userResult = await sql`
       SELECT id, username, mux_stream_id, is_live
       FROM users
-      WHERE wallet = ${wallet}
+      WHERE wallet = ${wallet} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -45,6 +46,7 @@ export async function GET(req: Request) {
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ${user.id}
       `;
+      await invalidateUserCaches({ wallet });
 
       try {
         await sql`
@@ -76,6 +78,7 @@ export async function GET(req: Request) {
         updated_at = CURRENT_TIMESTAMP
       WHERE wallet = ${wallet}
     `;
+    await invalidateUserCaches({ wallet });
 
     console.log("✅ Force delete completed!");
 

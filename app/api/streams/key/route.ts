@@ -34,7 +34,7 @@ export async function GET(req: Request) {
         stream_access_type,
         creator
       FROM users
-      WHERE wallet = ${wallet}
+      WHERE wallet = ${wallet} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {

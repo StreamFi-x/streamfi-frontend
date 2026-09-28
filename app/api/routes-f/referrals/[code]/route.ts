@@ -15,7 +15,7 @@ export async function GET(
   const { code } = await context.params;
 
   const { rows } = await db.query(
-    `SELECT id, username FROM users WHERE referral_code = $1`,
+    `SELECT id, username FROM users WHERE referral_code = $1 AND deleted_at IS NULL`,
     [code]
   );
 
@@ -47,7 +47,7 @@ export async function POST(
 
   // Ensure the current user hasn't already been referred
   const { rows: currentUser } = await db.query(
-    `SELECT id, referred_by, created_at FROM users WHERE id = $1`,
+    `SELECT id, referred_by, created_at FROM users WHERE id = $1 AND deleted_at IS NULL`,
     [user.id]
   );
 
@@ -75,7 +75,7 @@ export async function POST(
 
   // Resolve referral code to a referrer
   const { rows: referrer } = await db.query(
-    `SELECT id FROM users WHERE referral_code = $1`,
+    `SELECT id FROM users WHERE referral_code = $1 AND deleted_at IS NULL`,
     [code]
   );
 

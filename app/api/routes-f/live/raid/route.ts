@@ -32,6 +32,27 @@ export async function POST(req: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+    try {
+        const body = await req.json();
+        const result = raidSchema.safeParse(body);
+        if (!result.success) {
+            return NextResponse.json({ error: "Invalid request body", details: result.error.format() }, { status: 400 });
+        }
+
+        const { targetUsername, viewerCount } = result.data;
+
+        // Check if raider is live
+        const { rows: raiderStatus } = await sql`
+      SELECT is_live FROM users WHERE id = ${session.userId} AND deleted_at IS NULL LIMIT 1
+    `;
+        if (!raiderStatus[0]?.is_live) {
+            return NextResponse.json({ error: "Only active streamers can initiate a raid" }, { status: 400 });
+        }
+
+        // Find target
+        const { rows: target } = await sql`
+      SELECT id, is_live FROM users WHERE username = ${targetUsername} AND deleted_at IS NULL LIMIT 1
+    `;
 
   try {
     let body: unknown;

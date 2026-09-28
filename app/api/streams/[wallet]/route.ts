@@ -40,7 +40,7 @@ export async function GET(
         ss.total_messages
       FROM users u
       LEFT JOIN stream_sessions ss ON u.id = ss.user_id AND ss.ended_at IS NULL
-      WHERE u.wallet = ${wallet}
+      WHERE u.wallet = ${wallet} AND u.deleted_at IS NULL
     `;
 
     if (result.rows.length === 0) {

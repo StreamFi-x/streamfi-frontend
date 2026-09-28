@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       FROM users u
       LEFT JOIN stream_sessions ss
         ON u.id = ss.user_id AND ss.ended_at IS NULL
-      WHERE u.mux_playback_id = ${playbackId}
+      WHERE u.mux_playback_id = ${playbackId} AND u.deleted_at IS NULL
       LIMIT 1
     `;
 

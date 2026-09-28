@@ -12,7 +12,17 @@ import { getDefaultAvatar } from "@/lib/profile-icons";
  * Lets the streamer add/remove users by username or wallet address.
  */
 export function WhitelistManager() {
-  const { whitelist, isLoading, add, remove, adding, removing } = useStreamWhitelist();
+  const {
+    whitelist,
+    isLoading,
+    add,
+    remove,
+    adding,
+    removing,
+    hasMore,
+    loadMore,
+    isLoadingMore,
+  } = useStreamWhitelist();
   const [input, setInput] = useState("");
 
   const handleAdd = async () => {
@@ -100,6 +110,16 @@ export function WhitelistManager() {
             </li>
           ))}
         </ul>
+      )}
+      {!isLoading && hasMore && (
+        <button
+          type="button"
+          onClick={loadMore}
+          disabled={isLoadingMore}
+          className="mt-3 w-full text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+        >
+          {isLoadingMore ? "Loading…" : "Load more"}
+        </button>
       )}
     </div>
   );

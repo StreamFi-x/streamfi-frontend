@@ -23,3 +23,8 @@ export function markAll(viewerId: string): number {
   }
   return count;
 }
+
+export function getUnreadCount(viewerId: string): number {
+  const store = getStore();
+  return store.filter((n) => n.viewer_id === viewerId && !n.read).length;
+}

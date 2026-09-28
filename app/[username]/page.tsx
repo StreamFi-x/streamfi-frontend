@@ -122,7 +122,7 @@ const ProfilePage = ({ params }: PageProps) => {
           return;
         }
         const data = await res.json();
-        setRecordings(data.recordings ?? []);
+        setRecordings(data.items ?? []);
       } catch {
         // silently fail — clips are supplementary on the home page
       } finally {

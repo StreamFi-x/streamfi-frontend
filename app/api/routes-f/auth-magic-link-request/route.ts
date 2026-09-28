@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
   try {
     const { rows } = await sql`
       SELECT id, email FROM users
-      WHERE lower(email) = ${email} AND "emailVerified" = true
+      WHERE lower(email) = ${email} AND "emailVerified" = true AND deleted_at IS NULL
       LIMIT 1
     `;
 

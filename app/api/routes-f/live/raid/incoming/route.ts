@@ -25,6 +25,27 @@ export async function GET(req: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+    try {
+        // Find latest unacknowledged raid
+        const { rows } = await sql`
+      SELECT 
+        r.id, 
+        u.username as "raiderUsername", 
+        r.viewer_count as "viewerCount", 
+        r.raided_at as "raidedAt"
+      FROM raids r
+      JOIN users u ON r.raider_id = u.id AND u.deleted_at IS NULL
+      WHERE r.target_id = ${session.userId} 
+      AND r.is_acknowledged = FALSE
+      ORDER BY r.raided_at DESC
+      LIMIT 1
+    `;
+
+        if (rows.length === 0) {
+            return NextResponse.json({ raid: null });
+        }
+
+        const latestRaid = rows[0];
 
   try {
     const raid = getIncomingRaid(userId);
