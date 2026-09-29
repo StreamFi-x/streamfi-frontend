@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
         is_live, creator, mux_playback_id, total_views, total_tips_count,
         followers, following
       FROM users
-      WHERE LOWER(username) = ${username}
+      WHERE LOWER(username) = ${username} AND deleted_at IS NULL
       LIMIT 1
     `;
     const user = rows[0];

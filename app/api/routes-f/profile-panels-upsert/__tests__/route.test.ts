@@ -4,15 +4,17 @@
 jest.mock("@vercel/postgres", () => {
   const clientSqlMock = jest.fn();
   const clientConnectMock = jest.fn().mockResolvedValue(undefined);
-  const clientEndMock = jest.fn().mockResolvedValue(undefined);
-  const createClientMock = jest.fn(() => ({
-    connect: clientConnectMock,
-    sql: clientSqlMock,
-    end: clientEndMock,
-  }));
+  // clientEndMock stands for returning the pooled client (release()).
+  const clientEndMock = jest.fn();
+  const db = {
+    connect: jest.fn(async () => {
+      await clientConnectMock();
+      return { sql: clientSqlMock, release: clientEndMock };
+    }),
+  };
   return {
-    createClient: createClientMock,
-    __mocks: { clientSqlMock, clientConnectMock, clientEndMock, createClientMock },
+    db,
+    __mocks: { clientSqlMock, clientConnectMock, clientEndMock },
   };
 });
 
@@ -62,7 +64,6 @@ describe("routes-f profile-panels-upsert", () => {
     jest.clearAllMocks();
     jest.spyOn(console, "error").mockImplementation(() => {});
     clientConnectMock.mockResolvedValue(undefined);
-    clientEndMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {

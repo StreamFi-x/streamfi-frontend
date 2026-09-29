@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import * as StellarSdk from "@stellar/stellar-sdk";
-import { getHorizonUrl, getStellarNetwork } from "@/lib/stellar/config";
+import {
+  CircuitOpenError,
+  DownstreamTimeoutError,
+} from "@/lib/resilience/circuit-breaker";
+import { getNativeBalance, STELLAR_ADDRESS } from "@/lib/stellar/balance";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const address = searchParams.get("address");
 
-  if (!address || !address.startsWith("G") || address.length !== 56) {
+  if (!address || !STELLAR_ADDRESS.test(address)) {
     return NextResponse.json(
       { error: "Invalid Stellar address" },
       { status: 400 }
@@ -14,24 +17,30 @@ export async function GET(req: Request) {
   }
 
   try {
-    const network = getStellarNetwork();
-    const server = new StellarSdk.Horizon.Server(getHorizonUrl(network));
-    const account = await server.accounts().accountId(address).call();
-
-    const native = (account.balances as any[]).find(
-      b => b.asset_type === "native"
-    );
-
+    const { balance, activated } = await getNativeBalance(address);
+    if (!activated) {
+      // The account has never been funded (below minimum reserve).
+      return NextResponse.json({ balance: "0", unfunded: true });
+    }
     return NextResponse.json(
-      { balance: native?.balance ?? "0" },
+      { balance },
       {
         headers: { "Cache-Control": "private, max-age=5" },
       }
     );
-  } catch (error: any) {
-    if (error?.response?.status === 404) {
-      // Account exists but has never been funded (below minimum reserve)
-      return NextResponse.json({ balance: "0", unfunded: true });
+  } catch (error) {
+    if (
+      error instanceof CircuitOpenError ||
+      error instanceof DownstreamTimeoutError
+    ) {
+      const retryAfter =
+        error instanceof CircuitOpenError
+          ? Math.max(1, Math.ceil(error.retryAfterMs / 1000))
+          : 5;
+      return NextResponse.json(
+        { error: "The Stellar network is not responding", retryAfter },
+        { status: 503, headers: { "Retry-After": String(retryAfter) } }
+      );
     }
     console.error("Balance fetch error:", error);
     return NextResponse.json(

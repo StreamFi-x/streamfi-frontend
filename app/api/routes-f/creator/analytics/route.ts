@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
+import {
+  readFromReplica,
+  ReplicaUnavailableError,
+  replicaUnavailableResponse,
+} from "@/lib/db/replica";
 import { fetchPaymentsReceived } from "@/lib/stellar/horizon";
 import {
   subDays,
@@ -12,6 +16,7 @@ import {
   isSameWeek,
   parseISO,
 } from "date-fns";
+import { CACHE_POLICIES } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -95,8 +100,10 @@ export async function GET(req: NextRequest) {
     if (metric === "viewers") {
       // Fetch viewer analytics from DB
       // We use a subquery to handle the date_trunc safely
-      const { rows } = await sql`
-        SELECT 
+      const rows = await readFromReplica(
+        "creator.analytics.viewers",
+        db => db`
+        SELECT
           date_trunc(${granularity}, sv.joined_at) as point_date,
           COUNT(DISTINCT sv.user_id) as viewer_count
         FROM stream_viewers sv
@@ -105,7 +112,9 @@ export async function GET(req: NextRequest) {
           AND sv.joined_at >= ${startDate.toISOString()}
         GROUP BY point_date
         ORDER BY point_date ASC
-      `;
+      `.then(r => r.rows),
+        { request: req }
+      );
 
       data = datePoints.map((point: Date) => {
         const match = rows.find((r: any) => 
@@ -121,8 +130,12 @@ export async function GET(req: NextRequest) {
 
     } else if (metric === "revenue" || metric === "tips") {
       // Fetch creator's Stellar public key (stored in 'wallet' column)
-      const userRes = await sql`SELECT wallet FROM users WHERE id = ${userId}`;
-      const publicKey = userRes.rows[0]?.wallet;
+      const userRows = await readFromReplica(
+        "creator.analytics.wallet",
+        db => db`SELECT wallet FROM users WHERE id = ${userId} AND deleted_at IS NULL`.then(r => r.rows),
+        { request: req }
+      );
+      const publicKey = userRows[0]?.wallet;
 
       if (!publicKey || !publicKey.startsWith("G")) {
         data = datePoints.map((point: Date) => ({ date: format(point, "yyyy-MM-dd"), value: "0.0000000" }));
@@ -152,11 +165,15 @@ export async function GET(req: NextRequest) {
 
     } else if (metric === "followers") {
       // Fetch current follower count
-      const { rows } = await sql`
-        SELECT array_length(followers, 1) as follower_count 
-        FROM users 
-        WHERE id = ${userId}
-      `;
+      const rows = await readFromReplica(
+        "creator.analytics.followers",
+        db => db`
+        SELECT array_length(followers, 1) as follower_count
+        FROM users
+        WHERE id = ${userId} AND deleted_at IS NULL
+      `.then(r => r.rows),
+        { request: req }
+      );
       const currentCount = Number(rows[0]?.follower_count || 0);
 
       // Baseline implementation for followers history (current count for all points)
@@ -171,11 +188,14 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=300",
+        "Cache-Control": CACHE_POLICIES.privateAnalytics.cacheControl,
       },
     });
 
   } catch (error) {
+    if (error instanceof ReplicaUnavailableError) {
+      return replicaUnavailableResponse();
+    }
     console.error("[creator/analytics] Error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

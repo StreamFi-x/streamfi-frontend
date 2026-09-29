@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
 import { verifySession } from "@/lib/auth/verify-session";
+import { markRecentWrite } from "@/lib/db/replica";
 import { writeNotification } from "@/lib/notifications";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
 import { syncScheduleLiveStatusForCreator } from "@/lib/routes-f/schedule";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 export async function POST(req: NextRequest) {
   // Verify the caller is logged in
@@ -17,7 +19,7 @@ export async function POST(req: NextRequest) {
     const userResult = await sql`
       SELECT id, username, mux_stream_id, is_live, mux_playback_id
       FROM users
-      WHERE id = ${session.userId} AND mux_stream_id IS NOT NULL
+      WHERE id = ${session.userId} AND mux_stream_id IS NOT NULL AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -57,6 +59,7 @@ export async function POST(req: NextRequest) {
       WHERE id = ${user.id}
       RETURNING id, username, mux_stream_id, mux_playback_id
     `;
+    await invalidateUserCaches({ id: user.id });
 
     const updatedUser = result.rows[0];
 
@@ -84,18 +87,20 @@ export async function POST(req: NextRequest) {
       })
       .catch(() => {});
 
-    return NextResponse.json(
-      {
-        message: "Stream started successfully",
-        streamData: {
-          isLive: true,
-          streamId: updatedUser.mux_stream_id,
-          playbackId: updatedUser.mux_playback_id,
-          username: updatedUser.username,
-          startedAt: new Date().toISOString(),
+    return markRecentWrite(
+      NextResponse.json(
+        {
+          message: "Stream started successfully",
+          streamData: {
+            isLive: true,
+            streamId: updatedUser.mux_stream_id,
+            playbackId: updatedUser.mux_playback_id,
+            username: updatedUser.username,
+            startedAt: new Date().toISOString(),
+          },
         },
-      },
-      { status: 200 }
+        { status: 200 }
+      )
     );
   } catch (error) {
     console.error("Stream start error:", error);
@@ -116,7 +121,7 @@ export async function DELETE(req: NextRequest) {
     const userResult = await sql`
       SELECT id, mux_stream_id, is_live
       FROM users
-      WHERE id = ${session.userId}
+      WHERE id = ${session.userId} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -140,6 +145,7 @@ export async function DELETE(req: NextRequest) {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${user.id}
     `;
+    await invalidateUserCaches({ id: user.id });
 
     try {
       await sql`
@@ -152,9 +158,11 @@ export async function DELETE(req: NextRequest) {
       console.error("Failed to end stream session:", sessionError);
     }
 
-    return NextResponse.json(
-      { message: "Stream stopped successfully" },
-      { status: 200 }
+    return markRecentWrite(
+      NextResponse.json(
+        { message: "Stream stopped successfully" },
+        { status: 200 }
+      )
     );
   } catch (error) {
     console.error("Stream stop error:", error);

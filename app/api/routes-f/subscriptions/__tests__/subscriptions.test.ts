@@ -1,13 +1,29 @@
 /**
  * @jest-environment node
  */
-import { NextRequest } from "next/server";
+jest.mock("@/lib/auth/verify-session", () => ({ verifySession: jest.fn() }));
+// Idempotency storage is exercised against PostgreSQL in
+// idempotency.db.test.ts; here the operation runs directly.
+jest.mock("@/lib/idempotency/execute", () => ({
+  ...jest.requireActual("@/lib/idempotency/execute"),
+  executeIdempotent: jest.fn(
+    (_req: unknown, _opts: unknown, op: (ctx: unknown) => unknown) =>
+      op({ idempotencyRef: `ref-${Math.random()}`, recovered: false })
+  ),
+}));
+
+import { NextRequest, NextResponse } from "next/server";
+import { verifySession } from "@/lib/auth/verify-session";
+import { executeIdempotent } from "@/lib/idempotency/execute";
 import { POST, subscriptions } from "../route";
 
 function makeReq(body: unknown) {
   return new NextRequest("http://localhost/api/routes-f/subscriptions", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "Idempotency-Key": crypto.randomUUID(),
+    },
     body: JSON.stringify(body),
   });
 }
@@ -20,6 +36,76 @@ describe("POST /api/routes-f/subscriptions", () => {
   beforeEach(() => {
     // Reset in-memory store before each test so tests are independent.
     subscriptions.clear();
+    (verifySession as jest.Mock).mockResolvedValue({
+      ok: true,
+      userId: VALID_SUBSCRIBER,
+    });
+  });
+
+  it("401 — requires an authenticated session", async () => {
+    (verifySession as jest.Mock).mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    });
+    const res = await POST(makeReq({}));
+    expect(res.status).toBe(401);
+  });
+
+  it("403 — cannot subscribe on behalf of another user", async () => {
+    const res = await POST(
+      makeReq({
+        subscriber_id: OTHER_CREATOR,
+        creator_id: VALID_CREATOR,
+        tier_id: "basic",
+        payment_tx_hash: "tx_other",
+        asset: "XLM",
+      })
+    );
+    expect(res.status).toBe(403);
+    expect(executeIdempotent).not.toHaveBeenCalled();
+  });
+
+  it("runs the purchase under the subscription.create idempotency scope", async () => {
+    const body = {
+      subscriber_id: VALID_SUBSCRIBER,
+      creator_id: VALID_CREATOR,
+      tier_id: "basic",
+      payment_tx_hash: "tx_scope",
+      asset: "XLM",
+    };
+    await POST(makeReq(body));
+    expect(executeIdempotent).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: VALID_SUBSCRIBER,
+        scope: "subscription.create",
+        request: body,
+      }),
+      expect.any(Function)
+    );
+  });
+
+  it("409 — the same payment cannot buy two subscriptions", async () => {
+    await POST(
+      makeReq({
+        subscriber_id: VALID_SUBSCRIBER,
+        creator_id: VALID_CREATOR,
+        tier_id: "basic",
+        payment_tx_hash: "tx_once",
+        asset: "XLM",
+      })
+    );
+    const res = await POST(
+      makeReq({
+        subscriber_id: VALID_SUBSCRIBER,
+        creator_id: OTHER_CREATOR,
+        tier_id: "basic",
+        payment_tx_hash: "tx_once",
+        asset: "XLM",
+      })
+    );
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("Payment already used");
   });
 
   it("201 — creates a new subscription for a valid tier", async () => {

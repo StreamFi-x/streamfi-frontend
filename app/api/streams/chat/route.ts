@@ -2,9 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { verifySession } from "@/lib/auth/verify-session";
+import { CACHE_POLICIES, cacheHeaders } from "@/lib/cache";
+import { createCache, createMemoryBackend } from "@/lib/cache/store";
+import {
+  buildPage,
+  keysetBounds,
+  readPageParams,
+  type KeysetRow,
+  type PageParams,
+} from "@/lib/pagination/cursor";
+import { publishRealtimeMessage } from "@/lib/realtime/pubsub";
 
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
+
+const DEFAULT_LIMIT = 50;
+/** The live chat view polls the newest 200 messages; keep that possible. */
+const MAX_LIMIT = 200;
+
+// Every viewer of a stream polls the same window once a second. The edge
+// (chatWindow policy) collapses those per region; this per-instance cache
+// collapses whatever reaches one instance into one query per second per
+// stream. It is deliberately not Redis: at one command per poll the Redis bill
+// would scale with viewers, which is the cost we are trying to remove.
+// docs/postgres-pooling-and-chat-load.md has the measurements.
+const chatWindowCache = createCache(createMemoryBackend());
+const chatTag = (playbackId: string) => `chat:${playbackId}`;
 
 export async function POST(req: NextRequest) {
   const ip =
@@ -129,6 +152,25 @@ export async function POST(req: NextRequest) {
         total_messages = total_messages + 1
       WHERE id = ${session_id}
     `;
+    await chatWindowCache.invalidate([chatTag(playbackId)]);
+
+    const formattedMessage = {
+      id: newMessage.id,
+      content,
+      messageType,
+      user: {
+        username: sender_username,
+        wallet: wallet,
+      },
+      createdAt: newMessage.created_at,
+    };
+
+    // Publish to Realtime Pub/Sub channel for instantaneous push delivery (#1450)
+    publishRealtimeMessage(
+      `stream:${playbackId}:chat`,
+      "chat:message",
+      formattedMessage
+    ).catch((e) => console.error("[chat] Realtime publish error:", e));
 
     return NextResponse.json(
       {
@@ -143,9 +185,11 @@ export async function POST(req: NextRequest) {
           },
           createdAt: newMessage.created_at,
         },
+        chatMessage: formattedMessage,
       },
       { status: 201 }
     );
+
   } catch (error) {
     console.error("Chat message error:", error);
     return NextResponse.json(
@@ -155,12 +199,81 @@ export async function POST(req: NextRequest) {
   }
 }
 
+interface ChatRow extends KeysetRow {
+  content: string;
+  message_type: string;
+  created_at: string;
+  username: string;
+  wallet: string;
+  avatar: string | null;
+}
+
+async function loadChatPage(playbackId: string, page: PageParams) {
+  const streamResult = await sql`
+    SELECT ss.id as session_id
+    FROM users u
+    JOIN stream_sessions ss ON u.id = ss.user_id AND ss.ended_at IS NULL
+    WHERE u.mux_playback_id = ${playbackId}
+    ORDER BY ss.started_at DESC
+    LIMIT 1
+  `;
+
+  if (streamResult.rows.length === 0) {
+    return { items: [], nextCursor: null, hasMore: false };
+  }
+
+  // Kept as a second statement on purpose: with the session id bound as a
+  // parameter the planner sees how busy this stream is and walks
+  // idx_chat_messages_session_window backwards. Folded into one statement it
+  // assumes an average-sized chat and sorts every message of a busy stream
+  // (5x slower in scripts/load-test; see docs/postgres-pooling-and-chat-load.md).
+  // The (created_at, id) row comparison becomes an index condition on
+  // created_at, so a deep history page costs the same as the first one
+  // (docs/database/query-performance.md).
+  const sessionId = streamResult.rows[0].session_id;
+  const bound = keysetBounds(page.after);
+  const messagesResult = await sql<ChatRow>`
+    SELECT
+      cm.id,
+      cm.content,
+      cm.message_type,
+      cm.created_at,
+      to_char(cm.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts,
+      u.username,
+      u.wallet,
+      u.avatar
+    FROM chat_messages cm
+    JOIN users u ON cm.user_id = u.id
+    WHERE cm.stream_session_id = ${sessionId}
+      AND cm.is_deleted = false
+      AND (cm.created_at, cm.id) < (${bound.ts}::timestamptz, ${bound.id}::uuid)
+    ORDER BY cm.created_at DESC, cm.id DESC
+    LIMIT ${page.limit + 1}
+  `;
+
+  return buildPage(messagesResult.rows, page.limit, msg => ({
+    id: msg.id,
+    content: msg.content,
+    messageType: msg.message_type,
+    createdAt: msg.created_at,
+    user: {
+      username: msg.username,
+      wallet: msg.wallet,
+      avatar: msg.avatar,
+    },
+  }));
+}
+
+/**
+ * Chat history, newest first, on the shared cursor contract
+ * (docs/api/pagination.md): `?playbackId&limit&cursor` →
+ * `{ items, nextCursor, hasMore }`. Polling clients request the first page;
+ * `nextCursor` walks back through older history.
+ */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const playbackId = searchParams.get("playbackId");
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const before = searchParams.get("before");
 
     if (!playbackId) {
       return NextResponse.json(
@@ -169,54 +282,35 @@ export async function GET(req: Request) {
       );
     }
 
-    const streamResult = await sql`
-      SELECT ss.id as session_id
-      FROM users u
-      JOIN stream_sessions ss ON u.id = ss.user_id AND ss.ended_at IS NULL
-      WHERE u.mux_playback_id = ${playbackId}
-      ORDER BY ss.started_at DESC
-      LIMIT 1
-    `;
-
-    if (streamResult.rows.length === 0) {
-      return NextResponse.json({ messages: [] }, { status: 200 });
+    if (searchParams.has("before")) {
+      return NextResponse.json(
+        { error: "The before parameter was replaced by cursor" },
+        { status: 400 }
+      );
     }
 
-    const sessionId = streamResult.rows[0].session_id;
+    const params = readPageParams(searchParams, {
+      defaultLimit: DEFAULT_LIMIT,
+      maxLimit: MAX_LIMIT,
+    });
+    if (!params.ok) {
+      return params.response;
+    }
+    const { page } = params;
 
-    // Single query handles both cursor-based and initial fetch
-    const beforeId = before ? parseInt(before) : null;
-    const messagesResult = await sql`
-      SELECT
-        cm.id,
-        cm.content,
-        cm.message_type,
-        cm.created_at,
-        u.username,
-        u.wallet,
-        u.avatar
-      FROM chat_messages cm
-      JOIN users u ON cm.user_id = u.id
-      WHERE cm.stream_session_id = ${sessionId}
-        AND cm.is_deleted = false
-        AND (${beforeId}::int IS NULL OR cm.id < ${beforeId})
-      ORDER BY cm.created_at DESC
-      LIMIT ${limit}
-    `;
-
-    const messages = messagesResult.rows.map(msg => ({
-      id: msg.id,
-      content: msg.content,
-      messageType: msg.message_type,
-      createdAt: msg.created_at,
-      user: {
-        username: msg.username,
-        wallet: msg.wallet,
-        avatar: msg.avatar,
+    const result = await chatWindowCache.getOrLoad(
+      {
+        key: `chat:${playbackId}:${page.limit}:${searchParams.get("cursor") ?? "live"}`,
+        tags: [chatTag(playbackId)],
+        ttlSeconds: CACHE_POLICIES.chatWindow.appTtlSeconds,
       },
-    }));
+      () => loadChatPage(playbackId, page)
+    );
 
-    return NextResponse.json({ messages: messages.reverse() }, { status: 200 });
+    return NextResponse.json(result, {
+      status: 200,
+      headers: cacheHeaders("chatWindow"),
+    });
   } catch (error) {
     console.error("Get chat messages error:", error);
     return NextResponse.json(
@@ -256,9 +350,11 @@ export async function DELETE(req: NextRequest) {
       SELECT 
         cm.id,
         cm.user_id as message_user_id,
-        ss.user_id as stream_owner_id
+        ss.user_id as stream_owner_id,
+        owner.mux_playback_id
       FROM chat_messages cm
       JOIN stream_sessions ss ON cm.stream_session_id = ss.id
+      JOIN users owner ON owner.id = ss.user_id
       WHERE cm.id = ${messageId} AND cm.is_deleted = false
     `;
 
@@ -286,6 +382,9 @@ export async function DELETE(req: NextRequest) {
         moderated_by = ${session.userId}
       WHERE id = ${messageId}
     `;
+    if (message.mux_playback_id) {
+      await chatWindowCache.invalidate([chatTag(message.mux_playback_id)]);
+    }
 
     return NextResponse.json(
       { message: "Message deleted successfully" },

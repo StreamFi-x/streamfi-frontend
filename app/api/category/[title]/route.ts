@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
+import { cacheHeaders, cacheTags } from "@/lib/cache";
+import { findCategoryByTitle } from "@/lib/reference-data/categories";
 
 export async function GET(
   req: NextRequest,
@@ -8,21 +9,23 @@ export async function GET(
   const { title } = await params;
 
   try {
-    const { rows } = await sql`
-      SELECT id, title, description, tags, imageurl
-      FROM stream_categories
-      WHERE LOWER(title) = ${title.toLowerCase()}
-      LIMIT 1
-    `;
+    const category = await findCategoryByTitle(title);
 
-    if (rows.length === 0) {
+    if (!category) {
       return NextResponse.json(
         { success: false, error: "Category not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ success: true, category: rows[0] });
+    return NextResponse.json(
+      { success: true, category },
+      {
+        headers: cacheHeaders("referenceData", {
+          tags: [cacheTags.categories()],
+        }),
+      }
+    );
   } catch (error) {
     console.error("Error fetching category by title:", error);
     return NextResponse.json(

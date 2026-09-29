@@ -1,12 +1,15 @@
-import * as StellarSdk from "@stellar/stellar-sdk";
-import { getStellarNetwork, getHorizonUrl } from "./config";
 import { logger } from "@/lib/tracing/logger";
-import { getTraceHeaders } from "@/lib/tracing/trace-context";
+import { callHorizon } from "./horizon-client";
 
 interface FetchPaymentsParams {
   publicKey: string;
   limit?: number;
   cursor?: string;
+  /**
+   * "desc" (default) starts from the newest payment. "asc" starts from the
+   * oldest, or after `cursor`, so a walk can resume where it stopped.
+   */
+  order?: "asc" | "desc";
 }
 
 interface TipRecord {
@@ -39,16 +42,16 @@ export async function fetchPaymentsReceived(
       limit: params.limit || 200,
     });
 
-    const network = getStellarNetwork();
-    const server = new StellarSdk.Horizon.Server(getHorizonUrl(network));
-
-    const payments = await server
-      .payments()
-      .forAccount(params.publicKey)
-      .limit(params.limit || 200)
-      .cursor(params.cursor || "now")
-      .order("desc")
-      .call();
+    const order = params.order ?? "desc";
+    const payments = await callHorizon(server => {
+      const builder = server
+        .payments()
+        .forAccount(params.publicKey)
+        .limit(params.limit || 200)
+        .order(order);
+      const cursor = params.cursor || (order === "desc" ? "now" : undefined);
+      return (cursor ? builder.cursor(cursor) : builder).call();
+    });
 
     // Filter only incoming payments with XLM
     const tips: TipRecord[] = payments.records
@@ -108,15 +111,9 @@ export async function getAccountTipStats(publicKey: string) {
       publicKey: publicKey.substring(0, 8),
     });
 
-    const network = getStellarNetwork();
-    const server = new StellarSdk.Horizon.Server(getHorizonUrl(network));
-
-    const payments = await server
-      .payments()
-      .forAccount(publicKey)
-      .order("desc")
-      .limit(200)
-      .call();
+    const payments = await callHorizon(server =>
+      server.payments().forAccount(publicKey).order("desc").limit(200).call()
+    );
 
     let totalTipsReceived = 0;
     let totalTipsCount = 0;
@@ -164,5 +161,34 @@ export async function getAccountTipStats(publicKey: string) {
       errorMessage: error instanceof Error ? error.message : String(error),
     });
     throw error;
+  }
+}
+
+export function isHorizonNotFound(err: unknown): boolean {
+  const e = err as { response?: { status?: number }; name?: string } | null;
+  return e?.response?.status === 404 || e?.name === "NotFoundError";
+}
+
+/**
+ * Balances of an account, or null when the account does not exist on the
+ * network (never funded or merged). Any other Horizon failure throws, so a
+ * timeout is never mistaken for "no account".
+ */
+export async function getAccountBalances(
+  publicKey: string
+): Promise<Array<{ assetType: string; balance: string }> | null> {
+  try {
+    const account = await callHorizon(server =>
+      server.accounts().accountId(publicKey).call()
+    );
+    return account.balances.map(b => ({
+      assetType: b.asset_type,
+      balance: b.balance,
+    }));
+  } catch (err) {
+    if (isHorizonNotFound(err)) {
+      return null;
+    }
+    throw err;
   }
 }

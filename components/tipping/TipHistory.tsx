@@ -85,6 +85,18 @@ export function TipHistory({ username }: TipHistoryProps) {
         body: JSON.stringify({ username }),
       });
 
+      if (response.status === 202) {
+        toast.info(
+          "Your full tip history is still being counted; totals will update shortly"
+        );
+        return;
+      }
+      if (response.status === 503) {
+        toast.error(
+          "The Stellar network is not responding; try again in a moment"
+        );
+        return;
+      }
       if (!response.ok) {
         throw new Error("Refresh failed");
       }

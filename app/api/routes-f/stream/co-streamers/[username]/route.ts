@@ -23,7 +23,7 @@ export async function DELETE(
     try {
         // Find user to remove
         const { rows: targetUser } = await sql`
-      SELECT id FROM users WHERE username = ${username} LIMIT 1
+      SELECT id FROM users WHERE username = ${username} AND deleted_at IS NULL LIMIT 1
     `;
 
         if (targetUser.length === 0) {

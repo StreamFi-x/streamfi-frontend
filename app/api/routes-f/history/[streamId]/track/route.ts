@@ -42,7 +42,7 @@ export async function POST(
     const streamerResult = await sql`
       SELECT id, creator->>'streamTitle' as current_title
       FROM users
-      WHERE LOWER(username) = LOWER(${streamer_username})
+      WHERE LOWER(username) = LOWER(${streamer_username}) AND deleted_at IS NULL
       LIMIT 1
     `;
 

@@ -128,8 +128,8 @@ export function SessionAnalyticsDashboard({
                         <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
-                            {session.duration_seconds
-                              ? `${Math.floor(session.duration_seconds / 60)}m`
+                            {session.ended_at
+                              ? `${session.ended_at_estimated ? "~" : ""}${Math.floor((session.duration_seconds ?? 0) / 60)}m`
                               : "Live"}
                           </span>
                           <span className="flex items-center gap-1">
@@ -264,8 +264,8 @@ function SessionDetailView({ data }: SessionDetailViewProps) {
         <MetricCard
           label="Duration"
           value={
-            session.duration_seconds
-              ? `${Math.floor(session.duration_seconds / 60)}m ${session.duration_seconds % 60}s`
+            session.duration_seconds !== null
+              ? `${session.ended_at_estimated ? "~" : ""}${Math.floor(session.duration_seconds / 60)}m ${session.duration_seconds % 60}s`
               : "N/A"
           }
           icon={Clock}

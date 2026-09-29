@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     const { rows } = await sql`
       SELECT username, is_live, mux_playback_id, creator
       FROM users
-      WHERE LOWER(username) = ${username}
+      WHERE LOWER(username) = ${username} AND deleted_at IS NULL
       LIMIT 1
     `;
 

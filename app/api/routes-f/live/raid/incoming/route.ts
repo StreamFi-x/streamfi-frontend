@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
         r.viewer_count as "viewerCount", 
         r.raided_at as "raidedAt"
       FROM raids r
-      JOIN users u ON r.raider_id = u.id
+      JOIN users u ON r.raider_id = u.id AND u.deleted_at IS NULL
       WHERE r.target_id = ${session.userId} 
       AND r.is_acknowledged = FALSE
       ORDER BY r.raided_at DESC

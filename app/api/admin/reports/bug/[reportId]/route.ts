@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
-import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ reportId: string }> }
 ): Promise<Response> {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("admin/reports/bug/[reportId]");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   const { reportId } = await params;

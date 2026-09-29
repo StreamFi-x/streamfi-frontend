@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
+import { invalidateFollowCaches } from "@/lib/cache/invalidation";
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
   const session = await verifySession(req);
@@ -37,6 +38,9 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
       WHERE follower_id = ${session.userId}
         AND followee_id = ${creator_id}
     `;
+    if ((result.rowCount ?? 0) > 0) {
+      await invalidateFollowCaches(session.userId, creator_id);
+    }
 
     if ((result.rowCount ?? 0) === 0) {
       return NextResponse.json(

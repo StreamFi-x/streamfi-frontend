@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { generateShareToken, type StreamPrivacy } from "@/lib/stream-access";
 import { verifySession } from "@/lib/auth/verify-session";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 const VALID_PRIVACY: StreamPrivacy[] = [
   "public",
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
       SELECT id, stream_privacy, share_token, wallet
       FROM users
       WHERE id = ${session.userId}
+      WHERE LOWER(wallet) = LOWER(${wallet}) AND deleted_at IS NULL
     `;
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -100,6 +102,7 @@ export async function POST(req: NextRequest) {
       SELECT id, stream_privacy, share_token
       FROM users
       WHERE id = ${session.userId}
+      WHERE LOWER(wallet) = LOWER(${wallet}) AND deleted_at IS NULL
     `;
     if (userResult.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -126,6 +129,7 @@ export async function POST(req: NextRequest) {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${user.id}
     `;
+    await invalidateUserCaches({ id: user.id });
 
     return NextResponse.json({
       privacy: nextPrivacy,
