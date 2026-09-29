@@ -73,18 +73,17 @@ export async function GET(req: Request) {
       });
     }
 
-    // Private streams: mint signed JWT for the signed playback ID
+    // Private/subscriber streams: mint signed JWT for the signed playback ID
     const signedId = creator.mux_signed_playback_id;
     if (!signedId || !isSigningConfigured()) {
-      // Mux Pro keys not configured yet — degrade gracefully to public playback
-      // (still gated by share_token at the app layer; once Mux Pro is on, the
-      // creator should re-provision their stream key to get a signed playback ID).
-      return NextResponse.json({
-        signed: false,
-        playbackId: creator.mux_playback_id,
-        warning:
-          "Signed playback not configured — viewer is gated by share token only",
-      });
+      return NextResponse.json(
+        {
+          error: "signed_playback_unavailable",
+          message:
+            "Signed playback is not configured or available for this private stream",
+        },
+        { status: 503 }
+      );
     }
 
     const token = mintPlaybackToken(signedId, { audience: "v" });
