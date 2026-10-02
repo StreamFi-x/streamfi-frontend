@@ -1,3 +1,6 @@
+- **20260928100000_admin_roles.sql** and **20260928100100_admin_audit_log.sql** – Promotes existing `admin` roles to `super_admin`, indexes user role identity lookups, and adds an append-only admin audit log. Import current environment allowlists with `npx tsx scripts/migrate-admin-allowlist.ts` before removing them. See [docs/admin-roles-and-audit.md](../../docs/admin-roles-and-audit.md).
+- **20260928100200_session_list_pagination.sql** – Adds the index used to paginate active sessions by last activity.
+- **CSP rollout** – The report-only policy is supplied by `proxy.ts`; no database migration is needed. Keep it in report-only mode until the production review in [docs/content-security-policy.md](../../docs/content-security-policy.md) is complete.
 # Database migrations
 
 Migrations are applied and tracked by `npm run db:migrate`. See

@@ -94,10 +94,21 @@ export async function requestAccountDeletion(input: {
       SET deleted_at = now(), is_live = false, current_viewers = 0, updated_at = now()
       WHERE id IN (SELECT user_id FROM ins)
       RETURNING id, mux_stream_id, username, wallet
+    ),
+    audit AS (
+      INSERT INTO admin_audit_log
+        (actor_id, action, target_type, target_id, before_state, after_state)
+      SELECT ins.requested_by, 'account_deletion_requested', 'user', ins.user_id::TEXT,
+             jsonb_build_object('deleted_at', NULL),
+             jsonb_build_object('status', ins.status, 'reason', ins.reason)
+      FROM ins
+      WHERE ins.requested_by_type = 'admin'
+      RETURNING id
     )
     SELECT ins.*, tomb.mux_stream_id, tomb.username AS user_username,
            tomb.wallet AS user_wallet
     FROM ins JOIN tomb ON tomb.id = ins.user_id
+    LEFT JOIN audit ON true
   `;
 
   if (rows.length === 1) {

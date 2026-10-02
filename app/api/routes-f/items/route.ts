@@ -36,6 +36,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { redis } from "@/lib/redis";
 import { getAuthUser } from "@/lib/auth";
+import { roleCanAccess } from "@/lib/admin-auth";
 
 const CACHE_KEY = "items_catalog";
 const CACHE_TTL = 300; // 5 minutes
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
-  if (!user || user.role !== "admin") {
+  if (!user || !roleCanAccess(user.role ?? null, "admin")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
