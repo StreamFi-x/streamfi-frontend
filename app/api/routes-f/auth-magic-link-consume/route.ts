@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
     response.cookies.set("wallet_session", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "strict",
       path: "/",
       maxAge: WALLET_SESSION_TTL_SECONDS,
     });
