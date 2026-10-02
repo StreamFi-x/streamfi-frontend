@@ -57,8 +57,9 @@ export async function GET(req: NextRequest) {
 
   // 4. Fetch active sessions
   try {
-    const sessions = await listActiveSessions(session.userId, rawToken);
-    return NextResponse.json({ sessions });
+    const cursor = req.nextUrl.searchParams.get("cursor");
+    const page = await listActiveSessions(session.userId, rawToken, "mask", cursor);
+    return NextResponse.json(page);
   } catch (err) {
     console.error("[GET /api/routes-f/session] DB error:", err);
     return NextResponse.json(
