@@ -8,6 +8,8 @@ export interface AdminUser {
   is_live: boolean;
   is_banned: boolean;
   ban_reason: string | null;
+  /** Set while the account is pending deletion (tombstoned). */
+  deleted_at: string | null;
   created_at: string;
   total_views: number;
 }

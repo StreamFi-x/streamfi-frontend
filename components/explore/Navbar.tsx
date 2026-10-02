@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { StreamfiLogoLight, StreamfiLogoShort } from "@/public/icons";
 import { Search, ChevronDown } from "lucide-react";
 import NotificationBell from "@/components/shared/NotificationBell";
+import { FundWalletEntry } from "@/components/wallet/funding/FundWalletEntry";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -359,6 +360,7 @@ export default function Navbar({}: NavbarProps) {
             <div className="w-24 h-9 animate-pulse bg-muted rounded-md" />
           ) : isAuthenticated ? (
             <>
+              {!isLoading && <FundWalletEntry />}
               {!isLoading && <NotificationBell />}
               <div className="relative avatar-container">
                 <div
@@ -447,7 +449,7 @@ export default function Navbar({}: NavbarProps) {
               </button>
               <button
                 onClick={handleConnectWallet}
-                className="hidden md:inline-flex bg-highlight hover:bg-highlight/80 text-background px-4 py-2.5 rounded-md text-sm font-medium transition-all"
+                className="bg-highlight hover:bg-highlight/80 text-background px-4 py-2.5 rounded-md text-sm font-medium transition-all"
               >
                 Connect Wallet
               </button>

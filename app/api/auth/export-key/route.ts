@@ -8,6 +8,8 @@
  *  - Requires a valid privy_session HttpOnly cookie
  *  - Only works for users with auth_type = 'privy' (custodial wallets)
  *  - Rate-limited: 3 exports per 10 minutes per IP
+ *  - Decryption is KMS-mediated (lib/custodial-keys): every export is a KMS
+ *    Decrypt call bound to this user, logged by KMS
  *  - The decrypted key is ONLY sent over HTTPS (enforced by Next.js in production)
  *  - Key is never logged
  */
@@ -18,6 +20,10 @@ import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { decryptSecret } from "@/lib/security/encrypted-secrets";
 import { consumeStepUp } from "@/lib/security/step-up";
+import {
+  CustodialKeyError,
+  decryptCustodialSecret,
+} from "@/lib/custodial-keys";
 
 // ─── Rate limiter: 3 exports per 10 minutes per IP (stricter than session) ────
 const isRateLimited = createRateLimiter(10 * 60 * 1000, 3);
@@ -39,7 +45,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Verify session
-  const session = await verifySession(req);
+  const session = await verifySession(req, { allowPendingDeletion: true });
   if (!session.ok) {
     return session.response;
   }
@@ -61,6 +67,7 @@ export async function POST(req: NextRequest) {
   let encryptedKey: string | null = null;
   try {
     const { rows } = await sql`
+      -- tombstone-aware: users can export their key during the deletion grace window
       SELECT encrypted_stellar_key
       FROM users
       WHERE id = ${session.userId}
@@ -84,10 +91,22 @@ export async function POST(req: NextRequest) {
 
   // 5. Decrypt and return — key never touches logs
   try {
-    const secretKey = decryptSecret(encryptedKey);
+    const secretKey = await decryptCustodialSecret(
+      session.userId,
+      encryptedKey
+    );
     return NextResponse.json({ secretKey });
   } catch (err) {
-    console.error("[export-key] Decryption failed:", err);
+    console.error(
+      "[export-key] Decryption failed:",
+      err instanceof CustodialKeyError ? err.code : "unexpected_error"
+    );
+    if (err instanceof CustodialKeyError && err.transient) {
+      return NextResponse.json(
+        { error: "Key service temporarily unavailable — please try again" },
+        { status: 503, headers: { "Retry-After": "30" } }
+      );
+    }
     return NextResponse.json(
       { error: "Failed to decrypt key — contact support" },
       { status: 500 }

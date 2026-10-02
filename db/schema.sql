@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS users (
     creator JSONB DEFAULT '{}',
     total_tips_received NUMERIC(20, 7) DEFAULT 0,
     total_tips_count INTEGER DEFAULT 0,
-    last_tip_at TIMESTAMP
+    last_tip_at TIMESTAMP,
+    enable_recording BOOLEAN DEFAULT false
 );
 
 ALTER TABLE users
@@ -43,10 +44,30 @@ ADD COLUMN IF NOT EXISTS followers UUID[];
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS following UUID[];
 
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS stream_password_hash VARCHAR(255);
+
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS stream_access_type TEXT DEFAULT 'public'
+CHECK (stream_access_type IN ('public', 'password', 'subscription'));
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  subscriber_id UUID REFERENCES users(id),
+  streamer_id UUID REFERENCES users(id),
+  price_usdc NUMERIC(10,2) NOT NULL,
+  status TEXT NOT NULL,
+  current_period_end TIMESTAMPTZ NOT NULL,
+  tx_hash TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS stream_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     mux_session_id VARCHAR(255),
+    title VARCHAR(255),
+    playback_id VARCHAR(255),
 
     started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP WITH TIME ZONE,
@@ -81,6 +102,20 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS watch_history (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  viewer_id       UUID REFERENCES users(id) ON DELETE CASCADE,
+  streamer_id     UUID REFERENCES users(id),
+  stream_type     TEXT NOT NULL,   -- 'live' | 'vod' | 'clip'
+  stream_id       TEXT,            -- recording ID if VOD/clip, null if live
+  stream_title    TEXT,            -- title of the stream at the time
+  started_at      TIMESTAMPTZ DEFAULT now(),
+  last_seen_at    TIMESTAMPTZ DEFAULT now(),
+  watch_seconds   INT DEFAULT 0,
+  completed       BOOLEAN DEFAULT false,
+  UNIQUE(viewer_id, streamer_id, stream_id, stream_type)
+);
+
 CREATE TABLE IF NOT EXISTS stream_viewers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE CASCADE,
@@ -93,6 +128,37 @@ CREATE TABLE IF NOT EXISTS stream_viewers (
     country VARCHAR(2),
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS stream_recordings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE SET NULL,
+    mux_asset_id VARCHAR(255) NOT NULL,
+    playback_id VARCHAR(255) NOT NULL,
+    title VARCHAR(255),
+    duration INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(50) DEFAULT 'processing',
+    UNIQUE(mux_asset_id)
+);
+
+
+
+-- Archive of identifiers from the retired Livepeer integration (#1408).
+-- Populated by db/migrations/20260925190100_retire_livepeer_columns.sql; empty on
+-- databases created after the Mux migration.
+CREATE TABLE IF NOT EXISTS legacy_livepeer_refs (
+    id BIGSERIAL PRIMARY KEY,
+    source_table TEXT NOT NULL,
+    source_id UUID NOT NULL,
+    column_name TEXT NOT NULL,
+    legacy_value TEXT NOT NULL,
+    mux_reference TEXT,
+    disposition TEXT NOT NULL
+        CHECK (disposition IN ('migrated', 'unprovisioned', 'legacy_history')),
+    archived_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (source_table, source_id, column_name)
 );
 
 CREATE TABLE IF NOT EXISTS verification_tokens (
@@ -116,24 +182,24 @@ CREATE TABLE IF NOT EXISTS stream_categories (
 CREATE TABLE IF NOT EXISTS tags (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(100) UNIQUE NOT NULL,
-    visibility BOOLEAN DEFAULT true
+    visibility BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_wallet ON users(wallet);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_livepeer_stream_id ON users(livepeer_stream_id);
-CREATE INDEX IF NOT EXISTS idx_users_playback_id ON users(playback_id);
 CREATE INDEX IF NOT EXISTS idx_users_is_live ON users(is_live);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
 CREATE INDEX IF NOT EXISTS idx_stream_sessions_user_id ON stream_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_stream_sessions_started_at ON stream_sessions(started_at);
-CREATE INDEX IF NOT EXISTS idx_stream_sessions_livepeer_session ON stream_sessions(livepeer_session_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_stream_session ON chat_messages(stream_session_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_not_deleted ON chat_messages(stream_session_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session_window ON chat_messages(stream_session_id, created_at DESC) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_users_mux_playback_id ON users(mux_playback_id);
+CREATE INDEX IF NOT EXISTS idx_stream_sessions_open_by_user ON stream_sessions(user_id, started_at DESC) WHERE ended_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_stream_viewers_session ON stream_viewers(stream_session_id);
 CREATE INDEX IF NOT EXISTS idx_stream_viewers_user_id ON stream_viewers(user_id);
 CREATE INDEX IF NOT EXISTS idx_stream_viewers_session_id ON stream_viewers(session_id);
@@ -147,6 +213,12 @@ CREATE INDEX IF NOT EXISTS idx_stream_categories_title ON stream_categories(titl
 CREATE INDEX IF NOT EXISTS idx_stream_categories_active ON stream_categories(is_active);
 CREATE INDEX IF NOT EXISTS idx_tags_title ON tags(title);
 CREATE INDEX IF NOT EXISTS idx_tags_title_lower ON tags(LOWER(title));
+CREATE INDEX IF NOT EXISTS idx_watch_history_viewer ON watch_history(viewer_id, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_watch_history_streamer ON watch_history(streamer_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_stream_recordings_user_id ON stream_recordings(user_id);
+CREATE INDEX IF NOT EXISTS idx_stream_recordings_playback_id ON stream_recordings(playback_id);
+CREATE INDEX IF NOT EXISTS idx_stream_recordings_created_at ON stream_recordings(created_at DESC);
+
 
 INSERT INTO stream_categories (title, description, tags) VALUES
 ('Gaming', 'Video game streaming and gameplay', ARRAY['gaming', 'esports', 'gameplay']),
@@ -203,7 +275,8 @@ SELECT
     CASE 
         WHEN table_name IN (
             'users', 'waitlist', 'stream_sessions', 'chat_messages', 
-            'stream_viewers', 'verification_tokens', 'stream_categories'
+            'stream_viewers', 'verification_tokens', 'stream_categories',
+            'watch_history', 'stream_recordings'
         ) THEN '✅ Created'
         ELSE '❌ Missing'
     END as status
@@ -211,7 +284,8 @@ FROM information_schema.tables
 WHERE table_schema = 'public' 
 AND table_name IN (
     'users', 'waitlist', 'stream_sessions', 'chat_messages', 
-    'stream_viewers', 'verification_tokens', 'stream_categories'
+    'stream_viewers', 'verification_tokens', 'stream_categories',
+    'watch_history', 'stream_recordings'
 )
 ORDER BY table_name;
 
@@ -224,7 +298,7 @@ SELECT
 FROM information_schema.columns 
 WHERE table_name = 'users' 
 AND column_name IN (
-    'livepeer_stream_id', 'playback_id', 'is_live', 
+    'mux_stream_id', 'mux_playback_id', 'is_live', 
     'current_viewers', 'total_views', 'stream_started_at',
     'emailVerified', 'emailNotifications', 'creator'
 )
@@ -250,4 +324,10 @@ SELECT
     'verification_tokens' as table_name, COUNT(*) as record_count FROM verification_tokens
 UNION ALL
 SELECT 
-    'stream_categories' as table_name, COUNT(*) as record_count FROM stream_categories;
+    'stream_categories' as table_name, COUNT(*) as record_count FROM stream_categories
+UNION ALL
+SELECT 
+    'watch_history' as table_name, COUNT(*) as record_count FROM watch_history
+UNION ALL
+SELECT 
+    'stream_recordings' as table_name, COUNT(*) as record_count FROM stream_recordings;

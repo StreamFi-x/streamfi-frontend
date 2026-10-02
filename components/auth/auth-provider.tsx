@@ -275,7 +275,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAllData();
     sessionStorage.removeItem("username");
     sessionStorage.removeItem("privy_user");
-    router.push("/");
   };
 
   useEffect(() => {

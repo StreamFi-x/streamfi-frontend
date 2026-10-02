@@ -15,9 +15,10 @@ import {
   allowAllModules,
   FREIGHTER_ID,
 } from "@creit.tech/stellar-wallets-kit";
+import { getStellarNetwork } from "@/lib/stellar/config";
 
 const network =
-  process.env.NEXT_PUBLIC_STELLAR_NETWORK === "pubnet"
+  getStellarNetwork() === "mainnet"
     ? WalletNetwork.PUBLIC
     : WalletNetwork.TESTNET;
 

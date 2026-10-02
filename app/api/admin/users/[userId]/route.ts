@@ -3,14 +3,17 @@ import { sql } from "@vercel/postgres";
 import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
 import { verifySession } from "@/lib/auth/verify-session";
 import { consumeStepUp } from "@/lib/security/step-up";
+import { requireAdminIdentity, requireAdminSession } from "@/lib/admin-auth";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { requestAccountDeletion } from "@/lib/users/deletion";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ): Promise<Response> {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("admin/users/[userId]");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   const { userId } = await params;
@@ -48,6 +51,7 @@ export async function PATCH(
         WHERE id = ${userId}
       `;
     }
+    await invalidateUserCaches({ id: userId });
 
     return Response.json({ ok: true });
   } catch (err) {
@@ -56,13 +60,20 @@ export async function PATCH(
   }
 }
 
+/**
+ * Admin account deletion. This no longer hard-deletes: the user is tombstoned
+ * and purged after the grace window (#1406). Cancel with
+ * DELETE /api/admin/users/[userId]/deletion.
+ */
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ): Promise<Response> {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const { admin, response } = await requireAdminIdentity(
+    "admin/users/[userId]"
+  );
+  if (response) {
+    return response;
   }
 
   const { userId } = await params;
@@ -71,10 +82,24 @@ export async function DELETE(
   if (!adminSession.ok || !challengeId || !(await consumeStepUp(adminSession.userId, challengeId, "admin_user_delete", userId))) {
     return Response.json({ error: "Complete two-factor verification before deleting an account" }, { status: 403 });
   }
+  const reason = new URL(req.url).searchParams.get("reason");
 
   try {
-    await sql`DELETE FROM users WHERE id = ${userId}`;
-    return Response.json({ ok: true });
+    const result = await requestAccountDeletion({
+      userId,
+      requestedByType: "admin",
+      requestedBy: admin,
+      reason: reason ? reason.slice(0, 500) : null,
+    });
+    if (result.outcome === "not_found") {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
+    return Response.json({
+      ok: true,
+      status: result.deletion.status,
+      purgeAfter: result.deletion.purge_after,
+      alreadyPending: result.outcome === "already_pending",
+    });
   } catch (err) {
     console.error("[admin/users/[userId]] DELETE error:", err);
     return Response.json({ error: "Internal server error" }, { status: 500 });

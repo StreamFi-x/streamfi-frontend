@@ -1,11 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { deleteMuxStream } from "@/lib/mux/server";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { verifySession } from "@/lib/auth/verify-session";
+import { shouldBypassAuth } from "@/lib/dev-mode";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const wallet = searchParams.get("wallet");
+    // Destructive (deletes the Mux stream + wipes DB fields), so this can
+    // never trust a bare query-param wallet: that would let any
+    // unauthenticated caller force-delete any user's stream, and being a
+    // GET makes it trivially CSRF-triggerable cross-site on top of that.
+    let wallet: string | null;
+    if (shouldBypassAuth()) {
+      wallet = new URL(req.url).searchParams.get("wallet");
+    } else {
+      const session = await verifySession(req);
+      if (!session.ok) {
+        return session.response;
+      }
+      wallet = session.wallet;
+    }
 
     if (!wallet) {
       return NextResponse.json(
@@ -19,7 +34,7 @@ export async function GET(req: Request) {
     const userResult = await sql`
       SELECT id, username, mux_stream_id, is_live
       FROM users
-      WHERE wallet = ${wallet}
+      WHERE wallet = ${wallet} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -45,6 +60,7 @@ export async function GET(req: Request) {
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ${user.id}
       `;
+      await invalidateUserCaches({ wallet });
 
       try {
         await sql`
@@ -76,6 +92,7 @@ export async function GET(req: Request) {
         updated_at = CURRENT_TIMESTAMP
       WHERE wallet = ${wallet}
     `;
+    await invalidateUserCaches({ wallet });
 
     console.log("✅ Force delete completed!");
 

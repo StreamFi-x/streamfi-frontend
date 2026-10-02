@@ -5,7 +5,8 @@
  *  1. Verifies their privy_session cookie (server-side DB cross-check)
  *  2. Validates the chosen username
  *  3. Generates a fresh Stellar keypair (custodial)
- *  4. Encrypts the private key with AES-256-GCM using STELLAR_ENCRYPTION_KEY
+ *  4. Envelope-encrypts the private key under a per-wallet data key wrapped
+ *     by AWS KMS (lib/custodial-keys)
  *  5. Updates the user's DB row with username, wallet (public key), encrypted secret
  *
  * The encrypted private key never leaves the server unencrypted.
@@ -17,6 +18,11 @@ import { Keypair } from "@stellar/stellar-sdk";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { encryptSecret } from "@/lib/security/encrypted-secrets";
+import {
+  CustodialKeyError,
+  encryptCustodialSecret,
+} from "@/lib/custodial-keys";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 // ─── Username validation ───────────────────────────────────────────────────────
 
@@ -70,6 +76,7 @@ export async function POST(req: NextRequest) {
   // 3. Check username isn't already taken (case-insensitive via stored lowercase)
   try {
     const { rows: existing } = await sql`
+      -- tombstone-aware: identifiers stay reserved until the account is purged
       SELECT id FROM users WHERE username = ${username} AND id != ${session.userId}
       LIMIT 1
     `;
@@ -97,12 +104,23 @@ export async function POST(req: NextRequest) {
     walletPublicKey = keypair.publicKey();
 
     try {
-      encryptedSecret = encryptSecret(keypair.secret());
+      encryptedSecret = await encryptCustodialSecret(
+        session.userId,
+        keypair.secret()
+      );
     } catch (err) {
-      console.error("[onboarding] Encryption failed:", err);
+      console.error(
+        "[onboarding] Encryption failed:",
+        err instanceof CustodialKeyError ? err.code : "unexpected_error"
+      );
+      const transient = err instanceof CustodialKeyError && err.transient;
       return NextResponse.json(
-        { error: "Failed to secure wallet — check STELLAR_ENCRYPTION_KEY" },
-        { status: 500 }
+        {
+          error: transient
+            ? "Wallet security service is temporarily unavailable — please try again"
+            : "Failed to secure wallet",
+        },
+        { status: transient ? 503 : 500 }
       );
     }
   }
@@ -153,6 +171,12 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+  await invalidateUserCaches({
+    username,
+    wallet: walletPublicKey,
+    previousUsername: session.username,
+    previousWallet: session.wallet,
+  });
 
   return NextResponse.json({
     ok: true,

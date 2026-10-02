@@ -1,7 +1,12 @@
-import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { loadSecretKeyring } from "@/lib/security/keyring";
+import { handleMuxWebhook } from "@/lib/mux/webhook";
+import {
+  assetHandlers,
+  liveStreamHandlers,
+  liveStreamLogOnly,
+} from "@/lib/mux/webhook-handlers";
 
 /**
  * Mux Webhook Handler
@@ -16,6 +21,10 @@ import { loadSecretKeyring } from "@/lib/security/keyring";
  *    - video.live_stream.idle        (stream paused / no feed)
  *    - video.live_stream.disconnected (encoder disconnected)
  *    - video.asset.ready             (recording ready)
+ *
+ * Signature verification and exactly-once processing (keyed on the Mux event
+ * id) live in lib/mux/webhook.ts; the side effects in
+ * lib/mux/webhook-handlers.ts.
  */
 
 /**
@@ -334,6 +343,19 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
+const handlers = {
+  ...liveStreamHandlers,
+  ...assetHandlers({ notifyOwner: false }),
+};
+
+export async function POST(req: Request) {
+  try {
+    return await handleMuxWebhook(req, {
+      endpoint: "webhooks/mux",
+      handlers,
+      logOnly: liveStreamLogOnly,
+      missingObjectIdError: "Invalid event",
+    });
   } catch (error) {
     console.error("❌ Webhook handler error:", error);
     return NextResponse.json(

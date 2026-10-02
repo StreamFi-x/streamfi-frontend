@@ -1,12 +1,21 @@
 import { NextResponse, NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
-import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
+import { requireAdminSession } from "@/lib/admin-auth";
+import { cacheHeaders, cacheTags } from "@/lib/cache";
+import { invalidateCategoryCaches } from "@/lib/cache/invalidation";
+import {
+  findCategoryByTitle,
+  getAllCategories,
+  searchCategoriesByTag,
+  searchCategoriesByTitle,
+  type StreamCategory,
+} from "@/lib/reference-data/categories";
 
 //TO CREATE A CATEGORY
 export async function POST(req: NextRequest) {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("category");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   try {
@@ -55,6 +64,7 @@ export async function POST(req: NextRequest) {
     `;
 
     const createdCategory = insertedRows[0];
+    await invalidateCategoryCaches();
 
     console.log("Category created successfully:", createdCategory);
 
@@ -88,7 +98,15 @@ export async function POST(req: NextRequest) {
   }
 }
 
+function summary({ id, title, tags, imageurl }: StreamCategory) {
+  return { id, title, tags, imageurl };
+}
+
 // TO GET CATEGORIES (ALL, BY SEARCH AND SINGLE BY ID)
+// Reference data (#1417): every variant is filtered from one cached copy of the
+// table (lib/reference-data/categories.ts). Responses are identical for every
+// caller and are held by the CDN for a day under the `categories` tag, which
+// POST/PATCH/DELETE below purge.
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -96,66 +114,35 @@ export async function GET(req: Request) {
     const tag = searchParams.get("tag"); // for tag search
     const id = searchParams.get("id"); // to get single category by ID/title
 
-    let result;
-
-    // Basic test to confirm DB works
-    const testResult = await sql`SELECT * FROM stream_categories LIMIT 1`;
-    console.log("Test result:", testResult.rows);
+    const headers = cacheHeaders("referenceData", {
+      tags: [cacheTags.categories()],
+    });
 
     // Get specific category by title
     if (id) {
-      result = await sql`
-        SELECT id, title, tags, imageurl
-        FROM stream_categories
-        WHERE LOWER(title) = ${id.toLowerCase()}
-        LIMIT 1
-      `;
-
-      if (result.rows.length === 0) {
+      const category = await findCategoryByTitle(id);
+      if (!category) {
         return NextResponse.json(
           { success: false, error: "Category not found" },
           { status: 404 }
         );
       }
-
-      return NextResponse.json({ success: true, category: result.rows[0] });
+      return NextResponse.json(
+        { success: true, category: summary(category) },
+        { headers }
+      );
     }
 
-    // Search by title (live match)
-    if (title) {
-      result = await sql`
-        SELECT id, title, tags, imageurl
-        FROM stream_categories
-        WHERE LOWER(title) LIKE ${"%" + title.toLowerCase() + "%"}
-        ORDER BY created_at DESC
-      `;
+    const categories = title
+      ? await searchCategoriesByTitle(title)
+      : tag
+        ? await searchCategoriesByTag(tag)
+        : await getAllCategories();
 
-      return NextResponse.json({ success: true, categories: result.rows });
-    }
-
-    // Search by tag (live match in tags array)
-    if (tag) {
-      result = await sql`
-        SELECT id, title, tags, imageurl
-        FROM stream_categories
-        WHERE EXISTS (
-          SELECT 1 FROM UNNEST(tags) AS t
-          WHERE LOWER(t) LIKE ${"%" + tag.toLowerCase() + "%"}
-        )
-        ORDER BY created_at DESC
-      `;
-
-      return NextResponse.json({ success: true, categories: result.rows });
-    }
-
-    // Get all categories (default)
-    result = await sql`
-      SELECT id, title, tags, imageurl
-      FROM stream_categories
-      ORDER BY created_at DESC
-    `;
-
-    return NextResponse.json({ success: true, categories: result.rows });
+    return NextResponse.json(
+      { success: true, categories: categories.map(summary) },
+      { headers }
+    );
   } catch (error) {
     console.error("Error fetching categories:", error);
     return NextResponse.json(
@@ -167,9 +154,9 @@ export async function GET(req: Request) {
 
 // TO UPDATE A CATEGORY
 export async function PATCH(req: Request) {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("category");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   try {
@@ -184,7 +171,8 @@ export async function PATCH(req: Request) {
 
     const body = await req.json();
     const { title, description, imageurl, is_active } = body;
-    const tags = Array.isArray(body.tags) ? body.tags : [];
+    // Omitted tags keep the current ones (COALESCE); `tags: []` clears them.
+    const tags = Array.isArray(body.tags) ? body.tags : null;
 
     await sql`
       UPDATE stream_categories
@@ -196,6 +184,7 @@ export async function PATCH(req: Request) {
         is_active = COALESCE(${is_active}, is_active)
        WHERE LOWER(title) = ${titleParams.toLowerCase()}
     `;
+    await invalidateCategoryCaches();
 
     return NextResponse.json({ success: true, message: "Category updated" });
   } catch (error) {
@@ -209,9 +198,9 @@ export async function PATCH(req: Request) {
 
 // TO DELETE A CATEGORY
 export async function DELETE(req: Request) {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("category");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   try {
@@ -228,6 +217,7 @@ export async function DELETE(req: Request) {
       DELETE FROM stream_categories
       WHERE LOWER(title) = ${title.toLowerCase()}
     `;
+    await invalidateCategoryCaches();
 
     return NextResponse.json({ success: true, message: "Category deleted" });
   } catch (error) {

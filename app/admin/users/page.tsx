@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, Ban, CheckCircle, Trash2 } from "lucide-react";
+import { Search, X, Ban, CheckCircle, Trash2, RotateCcw } from "lucide-react";
 import { useSWRConfig } from "swr";
 import { useAdminUsers, type AdminUser } from "@/hooks/admin/useAdminUsers";
 import { getDefaultAvatar } from "@/lib/profile-icons";
@@ -107,8 +107,9 @@ function DeleteConfirmDialog({
           Delete @{user.username}?
         </h2>
         <p className="text-sm text-red-400 mb-4">
-          This action is permanent and cannot be undone. All user data will be
-          deleted.
+          The account is hidden immediately and permanently purged after the
+          grace period. Until then the deletion can be cancelled from this page.
+          Financial records are kept without personal data.
         </p>
         <div className="flex justify-end gap-3 mt-4">
           <button
@@ -121,7 +122,7 @@ function DeleteConfirmDialog({
             onClick={onConfirm}
             className="px-4 py-2 rounded-md text-sm bg-red-600 hover:bg-red-700 text-white font-medium"
           >
-            Permanently Delete
+            Delete Account
           </button>
         </div>
       </motion.div>
@@ -170,6 +171,11 @@ export default function AdminUsersPage() {
 
   const handleUnban = async (user: AdminUser) => {
     setPendingAdminAction({ action: "admin_user_ban", userId: user.id, operation: "unban" });
+  };
+
+  const handleCancelDeletion = async (user: AdminUser) => {
+    await fetch(`/api/admin/users/${user.id}/deletion`, { method: "DELETE" });
+    invalidate();
   };
 
   const handleDelete = async () => {
@@ -324,7 +330,11 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell">
-                      {user.is_banned ? (
+                      {user.deleted_at ? (
+                        <span className="text-xs bg-amber-900/40 text-amber-400 border border-amber-800/40 px-2 py-0.5 rounded-full">
+                          Pending deletion
+                        </span>
+                      ) : user.is_banned ? (
                         <span className="text-xs bg-red-900/40 text-red-400 border border-red-800/40 px-2 py-0.5 rounded-full">
                           Banned
                         </span>
@@ -363,13 +373,23 @@ export default function AdminUsersPage() {
                             <Ban size={16} />
                           </button>
                         )}
-                        <button
-                          onClick={() => setDeleteTarget(user)}
-                          className="p-1.5 rounded-md hover:bg-surface-hover text-muted-foreground hover:text-red-400"
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {user.deleted_at ? (
+                          <button
+                            onClick={() => handleCancelDeletion(user)}
+                            className="p-1.5 rounded-md hover:bg-surface-hover text-amber-500 hover:text-amber-400"
+                            title="Cancel deletion"
+                          >
+                            <RotateCcw size={16} />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteTarget(user)}
+                            className="p-1.5 rounded-md hover:bg-surface-hover text-muted-foreground hover:text-red-400"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -1,13 +1,11 @@
 "use client";
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
-import { Copy, Eye, Globe, Lock, RefreshCw, Users, Zap } from "lucide-react";
+import { Eye, Zap } from "lucide-react";
 import { toast } from "sonner";
 import StreamKeyModal from "@/components/ui/streamkeyModal";
 import StreamKeyConfirmationModal from "@/components/ui/streamKeyConfirmationModal";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
-
-type StreamPrivacy = "public" | "unlisted" | "subscribers_only";
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -152,6 +150,13 @@ const StreamPreferencesPage: React.FC = () => {
   const [tokenRotating, setTokenRotating] = useState(false);
   const [outOfSync, setOutOfSync] = useState<string[]>([]);
   const [reprovisioning, setReprovisioning] = useState(false);
+  const [streamAccessType, setStreamAccessType] = useState<
+    "public" | "password" | "subscription"
+  >("public");
+  const [subscriptionPriceUsdc, setSubscriptionPriceUsdc] = useState<
+    number | null
+  >(null);
+  const [accessTypeSaving, setAccessTypeSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // State for the modals
@@ -179,7 +184,20 @@ const StreamPreferencesPage: React.FC = () => {
         );
         const mode = data.latencyMode || data.streamData?.latencyMode || "low";
         setLatencyMode(mode === "standard" ? "standard" : "low");
-        setOutOfSync(data.streamData?.outOfSync ?? []);
+        const accessType =
+          data.streamAccessType ||
+          data.streamData?.streamAccessType ||
+          "public";
+        setStreamAccessType(
+          accessType === "password" || accessType === "subscription"
+            ? accessType
+            : "public"
+        );
+        setSubscriptionPriceUsdc(
+          data.subscriptionPriceUsdc ??
+            data.streamData?.subscriptionPriceUsdc ??
+            null
+        );
         if (data.hasStream && data.streamData) {
           setStreamData(data.streamData);
         } else {
@@ -495,20 +513,10 @@ const StreamPreferencesPage: React.FC = () => {
         throw new Error("Failed to update");
       }
       setLatencyMode(newValue);
-      // Re-check out-of-sync state since latency change requires reprovisioning
-      try {
-        const refresh = await fetch(`/api/streams/key?wallet=${address}`);
-        if (refresh.ok) {
-          const data = await refresh.json();
-          setOutOfSync(data.streamData?.outOfSync ?? []);
-        }
-      } catch {
-        /* non-fatal */
-      }
       toast.success(
         newValue === "standard"
-          ? "DVR enabled. Apply the change above to make it live."
-          : "Low latency enabled. Apply the change above to make it live."
+          ? "DVR enabled — viewers can rewind your stream. Takes effect on next stream."
+          : "Low latency enabled — minimal delay. Takes effect on next stream."
       );
     } catch (e) {
       console.error("Failed to update latency mode:", e);
@@ -539,6 +547,49 @@ const StreamPreferencesPage: React.FC = () => {
       console.error("Failed to update recording preference:", e);
     } finally {
       setRecordingToggleSaving(false);
+    }
+  };
+
+  const handleAccessTypeChange = async (
+    nextValue: "public" | "password" | "subscription"
+  ) => {
+    if (!address || accessTypeSaving) {
+      return;
+    }
+    if (
+      nextValue === "subscription" &&
+      (!subscriptionPriceUsdc || subscriptionPriceUsdc <= 0)
+    ) {
+      toast.error("Set a subscription price before enabling subscriber access");
+      return;
+    }
+
+    const previous = streamAccessType;
+    setStreamAccessType(nextValue);
+    setAccessTypeSaving(true);
+    try {
+      const res = await fetch("/api/streams/update", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet: address,
+          streamAccessType: nextValue,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update stream access");
+      }
+      toast.success("Stream access updated");
+    } catch (error) {
+      setStreamAccessType(previous);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to update stream access"
+      );
+    } finally {
+      setAccessTypeSaving(false);
     }
   };
 
@@ -650,53 +701,6 @@ const StreamPreferencesPage: React.FC = () => {
               actions={streamKeyActions}
             />
 
-            {/* Out-of-sync banner — DVR or signed-playback settings need re-provisioning */}
-            {outOfSync.length > 0 && (
-              <div className="bg-blue-500/10 border border-blue-500/40 rounded-lg p-4 mt-4">
-                <p className="text-blue-600 dark:text-blue-400 font-semibold mb-2">
-                  Settings need to be applied to your stream
-                </p>
-                <p className="text-sm text-muted-foreground mb-2">
-                  These changes are saved but won&rsquo;t take effect until your
-                  Mux stream is rebuilt:
-                </p>
-                <ul className="text-sm text-muted-foreground list-disc list-inside mb-3 space-y-0.5">
-                  {outOfSync.includes("dvr") && (
-                    <li>
-                      <span className="font-medium text-foreground">
-                        DVR / Rewind
-                      </span>{" "}
-                      — viewers can&rsquo;t scrub back yet
-                    </li>
-                  )}
-                  {outOfSync.includes("signed_playback") && (
-                    <li>
-                      <span className="font-medium text-foreground">
-                        Privacy: {privacy === "unlisted" ? "Unlisted" : "Subscribers only"}
-                      </span>{" "}
-                      — using app-layer protection only, no CDN-level signed
-                      playback yet
-                    </li>
-                  )}
-                </ul>
-                <p className="text-xs text-muted-foreground italic mb-3">
-                  Applying will rotate your stream key. Update OBS with the new
-                  key afterwards. You must not be live.
-                </p>
-                <button
-                  onClick={handleReprovision}
-                  disabled={reprovisioning || streamData?.isLive}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-md text-sm font-medium"
-                >
-                  {reprovisioning
-                    ? "Applying..."
-                    : streamData?.isLive
-                      ? "End stream first to apply"
-                      : "Apply changes & rotate key"}
-                </button>
-              </div>
-            )}
-
             {/* Warning */}
             <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4 mt-4">
               <p className="text-yellow-600 dark:text-yellow-400 font-semibold mb-2">
@@ -759,7 +763,6 @@ const StreamPreferencesPage: React.FC = () => {
           </div>
         </SectionCard>
 
-        {/* Privacy */}
         <SectionCard>
           <h2 className="text-highlight text-xl font-medium mb-2">
             Stream Privacy
@@ -897,9 +900,48 @@ const StreamPreferencesPage: React.FC = () => {
               <p className="text-xs text-muted-foreground mt-2">
                 Anyone with this link can watch. Rotate to invalidate previously
                 shared links.
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex-1">
+              <h2 className="text-highlight text-xl font-medium mb-2">
+                Stream Access
+              </h2>
+              <p className="text-muted-foreground text-sm italic">
+                Choose who can watch this stream. Subscriber access uses your
+                monthly subscription price.
               </p>
             </div>
-          )}
+            <div className="flex flex-col gap-2 md:min-w-64">
+              <select
+                value={streamAccessType}
+                onChange={e =>
+                  handleAccessTypeChange(
+                    e.target.value as "public" | "password" | "subscription"
+                  )
+                }
+                disabled={accessTypeSaving || !streamData}
+                className="w-full bg-input text-foreground rounded-lg p-3 border border-border focus:outline-none focus:ring-2 focus:ring-highlight"
+                title={
+                  !subscriptionPriceUsdc || subscriptionPriceUsdc <= 0
+                    ? "Set a subscription price to enable subscriber-only streams"
+                    : undefined
+                }
+              >
+                <option value="public">Public</option>
+                <option value="password">Password protected</option>
+                <option
+                  value="subscription"
+                  disabled={
+                    !subscriptionPriceUsdc || subscriptionPriceUsdc <= 0
+                  }
+                >
+                  Subscribers only
+                </option>
+              </select>
+              {accessTypeSaving && (
+                <span className="text-sm text-muted-foreground">Saving...</span>
+              )}
+            </div>
+          </div>
         </SectionCard>
 
         {/* Latency Mode / DVR */}
@@ -915,8 +957,8 @@ const StreamPreferencesPage: React.FC = () => {
                   : "Low latency mode is active. Minimal delay (~3–5 seconds), but viewers cannot rewind the stream."}
               </p>
               <p className="text-muted-foreground text-xs mt-2">
-                Changes take effect on your next stream. Existing streams are not
-                affected.
+                Changes take effect on your next stream. Existing streams are
+                not affected.
               </p>
             </div>
             <div className="flex items-center shrink-0">

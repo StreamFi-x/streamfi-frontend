@@ -17,12 +17,21 @@
  *   have re-authenticated with the new signed cookie.
  *
  * Uses req.cookies (Next.js built-in) instead of manual header parsing.
+ *
+ * Accounts pending deletion (users.deleted_at set) are rejected with 403
+ * ACCOUNT_PENDING_DELETION unless the route opts in with
+ * { allowPendingDeletion: true } — only the endpoints a user needs during the
+ * grace window (cancel deletion, export custodial key) do.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifyToken } from "@/lib/auth/sign-token";
 import { currentKeyring } from "@/lib/security/keyring";
+import {
+  findActiveSession,
+  touchSession,
+} from "@/lib/sessions/user-sessions";
 
 export type VerifiedSession =
   | {
@@ -35,8 +44,24 @@ export type VerifiedSession =
     }
   | { ok: false; response: NextResponse };
 
+function getSessionSecret(): string | null {
+  return process.env.SESSION_SECRET ?? null;
+}
+
+export interface VerifySessionOptions {
+  allowPendingDeletion?: boolean;
+}
+
+function pendingDeletionResponse(): NextResponse {
+  return NextResponse.json(
+    { error: "Account is pending deletion", code: "ACCOUNT_PENDING_DELETION" },
+    { status: 403 }
+  );
+}
+
 export async function verifySession(
-  req: NextRequest
+  req: NextRequest,
+  options: VerifySessionOptions = {}
 ): Promise<VerifiedSession> {
   const privySessionId = req.cookies.get("privy_session")?.value;
   const walletSessionToken = req.cookies.get("wallet_session")?.value;
@@ -55,8 +80,33 @@ export async function verifySession(
     }
 
     try {
+      // Check user_sessions table first — catches revoked sessions immediately.
+      // Falls back gracefully if the table doesn't exist yet (pre-migration).
+      let sessionRow: { id: string; last_seen_at: Date } | null = null;
+      try {
+        sessionRow = await findActiveSession(privySessionId);
+        if (!sessionRow) {
+          // Session was revoked or expired — reject even if the cookie is valid
+          return {
+            ok: false,
+            response: NextResponse.json(
+              { error: "Session revoked or expired" },
+              { status: 401 }
+            ),
+          };
+        }
+      } catch (sessionErr) {
+        // user_sessions table may not exist yet (pre-migration environment).
+        // Log and continue with the legacy DB-only check so existing deployments
+        // aren't broken during the rollout window.
+        console.warn(
+          "[verifySession] user_sessions check failed (table may not exist yet):",
+          sessionErr
+        );
+      }
+
       const { rows } = await sql`
-        SELECT id, privy_id, wallet, username, email
+        SELECT id, privy_id, wallet, username, email, deleted_at
         FROM users
         WHERE privy_id = ${privySessionId}
         LIMIT 1
@@ -72,7 +122,17 @@ export async function verifySession(
         };
       }
 
+      // Touch last_seen_at (debounced — at most once per minute)
+      if (sessionRow) {
+        touchSession(sessionRow.id).catch(() => {
+          // Non-critical — ignore errors
+        });
+      }
+
       const u = rows[0];
+      if (u.deleted_at && !options.allowPendingDeletion) {
+        return { ok: false, response: pendingDeletionResponse() };
+      }
       return {
         ok: true,
         userId: u.id,
@@ -125,10 +185,30 @@ export async function verifySession(
     }
 
     try {
+      // Check user_sessions table for revocation (graceful fallback pre-migration)
+      let sessionRow: { id: string; last_seen_at: Date } | null = null;
+      try {
+        sessionRow = await findActiveSession(walletSessionToken);
+        if (!sessionRow) {
+          return {
+            ok: false,
+            response: NextResponse.json(
+              { error: "Session revoked or expired" },
+              { status: 401 }
+            ),
+          };
+        }
+      } catch (sessionErr) {
+        console.warn(
+          "[verifySession] user_sessions check failed (table may not exist yet):",
+          sessionErr
+        );
+      }
+
       // Cross-check both userId AND wallet against DB — forged tokens with
       // valid signatures but mismatched fields are rejected here.
       const { rows } = await sql`
-        SELECT id, wallet, username, email, privy_id
+        SELECT id, wallet, username, email, privy_id, deleted_at
         FROM users
         WHERE id = ${payload.userId} AND wallet = ${payload.wallet}
         LIMIT 1
@@ -144,7 +224,17 @@ export async function verifySession(
         };
       }
 
+      // Touch last_seen_at (debounced)
+      if (sessionRow) {
+        touchSession(sessionRow.id).catch(() => {
+          // Non-critical — ignore errors
+        });
+      }
+
       const u = rows[0];
+      if (u.deleted_at && !options.allowPendingDeletion) {
+        return { ok: false, response: pendingDeletionResponse() };
+      }
       return {
         ok: true,
         userId: u.id,
@@ -180,7 +270,7 @@ export async function verifySession(
 
     try {
       const { rows } = await sql`
-        SELECT id, wallet, username, email, privy_id
+        SELECT id, wallet, username, email, privy_id, deleted_at
         FROM users
         WHERE wallet = ${legacyWalletCookie}
         LIMIT 1
@@ -197,6 +287,9 @@ export async function verifySession(
       }
 
       const u = rows[0];
+      if (u.deleted_at && !options.allowPendingDeletion) {
+        return { ok: false, response: pendingDeletionResponse() };
+      }
       return {
         ok: true,
         userId: u.id,

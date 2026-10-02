@@ -3,6 +3,14 @@ import { sql } from "@vercel/postgres";
 import { createMuxStream } from "@/lib/mux/server";
 import { checkExistingTableDetail } from "@/utils/validators";
 import { createRateLimiter } from "@/lib/rate-limit";
+import {
+  JsonbContractError,
+  isMergeableCreator,
+  prepareCreatorPatch,
+} from "@/lib/db/jsonb-contracts";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { verifySession } from "@/lib/auth/verify-session";
+import { shouldBypassAuth } from "@/lib/dev-mode";
 
 // Stream creation calls Mux API + DB — limit per IP to prevent quota exhaustion
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 10); // 10 per hour per IP
@@ -20,7 +28,27 @@ export async function POST(req: NextRequest) {
     );
   }
   try {
-    const { wallet, title, description, category, tags } = await req.json();
+    const body = await req.json();
+    const { title, description, category, tags } = body;
+
+    // A stream is provisioned for the CALLER, never for an arbitrary
+    // body-supplied wallet — otherwise anyone can trigger Mux stream
+    // creation (real cost) on a victim's behalf, or read back their
+    // existing stream key.
+    let wallet: string | undefined = body.wallet;
+    if (!shouldBypassAuth()) {
+      const session = await verifySession(req);
+      if (!session.ok) {
+        return session.response;
+      }
+      if (!session.wallet) {
+        return NextResponse.json(
+          { error: "No wallet on session" },
+          { status: 400 }
+        );
+      }
+      wallet = session.wallet;
+    }
 
     console.log("🔍 Stream creation request:", {
       wallet,
@@ -69,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     console.log("🔍 Fetching user data...");
     const userResult = await sql`
-      SELECT id, username, creator, mux_stream_id, enable_recording, latency_mode, stream_privacy FROM users WHERE LOWER(wallet) = LOWER(${wallet})
+      SELECT id, username, creator, mux_stream_id, enable_recording, latency_mode FROM users WHERE LOWER(wallet) = LOWER(${wallet}) AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -93,7 +121,7 @@ export async function POST(req: NextRequest) {
       const streamDataResult = await sql`
         SELECT mux_stream_id, mux_playback_id, streamkey, is_live
         FROM users
-        WHERE id = ${user.id}
+        WHERE id = ${user.id} AND deleted_at IS NULL
       `;
 
       const streamData = streamDataResult.rows[0];
@@ -115,6 +143,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate the creator patch before creating anything in Mux.
+    let creatorPatch: ReturnType<typeof prepareCreatorPatch>;
+    try {
+      creatorPatch = prepareCreatorPatch({
+        streamTitle: title,
+        description: description || "",
+        category: category || "",
+        tags: tags || [],
+        lastUpdated: new Date().toISOString(),
+      });
+    } catch (error) {
+      if (error instanceof JsonbContractError) {
+        return NextResponse.json(
+          { error: "Invalid stream details", issues: error.issues },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
+    if (!isMergeableCreator(user.creator)) {
+      console.error(
+        `[streams/create] stored creator for user ${user.id} is malformed; run the JSONB audit`
+      );
+      return NextResponse.json(
+        { error: "Stored stream details are malformed" },
+        { status: 409 }
+      );
+    }
+
     if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
       console.log("❌ Missing Mux credentials");
       return NextResponse.json(
@@ -125,21 +182,16 @@ export async function POST(req: NextRequest) {
     console.log("✅ Mux credentials found");
 
     const enableRecording = user.enable_recording === true;
-    const latencyMode = (user.latency_mode === "standard" ? "standard" : "low") as "low" | "standard";
-    const wantsSignedPlayback =
-      (user.stream_privacy ?? "public") !== "public";
-    console.log("🎬 Creating Mux stream...", {
-      enableRecording,
-      latencyMode,
-      wantsSignedPlayback,
-    });
+    const latencyMode = (
+      user.latency_mode === "standard" ? "standard" : "low"
+    ) as "low" | "standard";
+    console.log("🎬 Creating Mux stream...", { enableRecording, latencyMode });
     let muxStream;
     try {
       muxStream = await createMuxStream({
         name: `${user.username} - ${title}`,
         record: enableRecording,
         latencyMode,
-        withSignedPlayback: wantsSignedPlayback,
       });
       console.log("✅ Mux stream created successfully:", {
         id: muxStream?.id,
@@ -181,28 +233,17 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("🔍 Updating user with Mux data...");
-    const updatedCreator = {
-      ...user.creator,
-      streamTitle: title,
-      description: description || "",
-      category: category || "",
-      tags: tags || [],
-      lastUpdated: new Date().toISOString(),
-    };
-
     try {
       await sql`
         UPDATE users SET
           mux_stream_id = ${muxStream.id},
           mux_playback_id = ${muxStream.playbackId},
-          mux_signed_playback_id = ${muxStream.signedPlaybackId ?? null},
           streamkey = ${muxStream.streamKey},
-          creator = ${JSON.stringify(updatedCreator)},
-          mux_stream_provisioned_with_dvr = ${latencyMode === "standard"},
-          mux_stream_provisioned_with_signed_playback = ${!!muxStream.signedPlaybackId},
+          creator = COALESCE(creator, '{}'::jsonb) || ${JSON.stringify(creatorPatch)}::jsonb,
           updated_at = CURRENT_TIMESTAMP
         WHERE wallet = ${wallet}
       `;
+      await invalidateUserCaches({ wallet });
       console.log("✅ User updated successfully with stream data");
     } catch (dbError) {
       console.error("❌ Database update failed:", dbError);

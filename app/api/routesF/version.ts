@@ -1,0 +1,1 @@
+export const ROUTES_F_API_VERSION = "v1";

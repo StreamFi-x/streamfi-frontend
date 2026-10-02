@@ -1,18 +1,37 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { getWalletOrDevDefault } from "@/lib/dev-mode";
+import { getWalletOrDevDefault, shouldBypassAuth } from "@/lib/dev-mode";
+import { verifySession } from "@/lib/auth/verify-session";
 
 /**
  * GET /api/streams/key
- * Get user's persistent stream key for settings page
+ * Get the caller's own persistent stream key for the settings page.
+ *
+ * The stream key is a broadcast credential (RTMP hijack risk) — identity
+ * comes from the verified session, never from a client-supplied wallet.
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    let wallet = searchParams.get("wallet");
+    let wallet: string;
 
-    // DEV MODE: Use test wallet if no wallet provided
-    wallet = getWalletOrDevDefault(wallet);
+    if (shouldBypassAuth()) {
+      // DEV MODE: Use test wallet if no wallet provided
+      wallet = getWalletOrDevDefault(
+        new URL(req.url).searchParams.get("wallet")
+      );
+    } else {
+      const session = await verifySession(req);
+      if (!session.ok) {
+        return session.response;
+      }
+      if (!session.wallet) {
+        return NextResponse.json(
+          { error: "No wallet on session" },
+          { status: 400 }
+        );
+      }
+      wallet = session.wallet;
+    }
 
     if (!wallet) {
       return NextResponse.json(
@@ -31,11 +50,10 @@ export async function GET(req: Request) {
         is_live,
         enable_recording,
         latency_mode,
-        stream_privacy,
-        mux_stream_provisioned_with_dvr,
-        mux_stream_provisioned_with_signed_playback
+        stream_access_type,
+        creator
       FROM users
-      WHERE wallet = ${wallet}
+      WHERE wallet = ${wallet} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -52,25 +70,15 @@ export async function GET(req: Request) {
           streamKey: null,
           enableRecording: user.enable_recording === true,
           latencyMode: user.latency_mode || "low",
+          streamAccessType: user.stream_access_type || "public",
+          subscriptionPriceUsdc:
+            Number(
+              user.creator?.subscriptionPrice ??
+                user.creator?.subscription_price_usdc
+            ) || null,
         },
         { status: 200 }
       );
-    }
-
-    const latencyMode = user.latency_mode || "low";
-    const privacy = user.stream_privacy || "public";
-    const provisionedDvr = user.mux_stream_provisioned_with_dvr === true;
-    const provisionedSigned =
-      user.mux_stream_provisioned_with_signed_playback === true;
-
-    // Detect mismatches between saved settings and what the live Mux stream
-    // was actually provisioned with — surfaces "Apply now" prompt in UI.
-    const outOfSync: string[] = [];
-    if (latencyMode === "standard" && !provisionedDvr) {
-      outOfSync.push("dvr");
-    }
-    if (privacy !== "public" && !provisionedSigned) {
-      outOfSync.push("signed_playback");
     }
 
     return NextResponse.json(
@@ -84,11 +92,13 @@ export async function GET(req: Request) {
           rtmpUrl: "rtmp://global-live.mux.com:5222/app",
           isLive: user.is_live || false,
           enableRecording: user.enable_recording === true,
-          latencyMode,
-          privacy,
-          provisionedWithDvr: provisionedDvr,
-          provisionedWithSignedPlayback: provisionedSigned,
-          outOfSync,
+          latencyMode: user.latency_mode || "low",
+          streamAccessType: user.stream_access_type || "public",
+          subscriptionPriceUsdc:
+            Number(
+              user.creator?.subscriptionPrice ??
+                user.creator?.subscription_price_usdc
+            ) || null,
         },
       },
       { status: 200 }

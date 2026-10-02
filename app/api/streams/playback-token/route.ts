@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
               mux_playback_id, mux_signed_playback_id,
               (SELECT id FROM stream_sessions ss WHERE ss.user_id = users.id AND ss.ended_at IS NULL ORDER BY ss.started_at DESC LIMIT 1) AS stream_session_id
       FROM users
-      WHERE LOWER(username) = LOWER(${username})
+      WHERE LOWER(username) = LOWER(${username}) AND deleted_at IS NULL
     `;
     if (userResult.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     let viewerUserId: string | null = null;
     if (viewerWallet) {
       const viewer = await sql`
-        SELECT id FROM users WHERE LOWER(wallet) = LOWER(${viewerWallet})
+        SELECT id FROM users WHERE LOWER(wallet) = LOWER(${viewerWallet}) AND deleted_at IS NULL
       `;
       viewerUserId = viewer.rows[0]?.id ?? null;
     }
@@ -84,18 +84,17 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Private streams: mint signed JWT for the signed playback ID
+    // Private/subscriber streams: mint signed JWT for the signed playback ID
     const signedId = creator.mux_signed_playback_id;
     if (!signedId || !isSigningConfigured()) {
-      // Mux Pro keys not configured yet — degrade gracefully to public playback
-      // (still gated by share_token at the app layer; once Mux Pro is on, the
-      // creator should re-provision their stream key to get a signed playback ID).
-      return NextResponse.json({
-        signed: false,
-        playbackId: creator.mux_playback_id,
-        warning:
-          "Signed playback not configured — viewer is gated by share token only",
-      });
+      return NextResponse.json(
+        {
+          error: "signed_playback_unavailable",
+          message:
+            "Signed playback is not configured or available for this private stream",
+        },
+        { status: 503 }
+      );
     }
 
     const token = mintPlaybackToken(signedId, { audience: "v" });

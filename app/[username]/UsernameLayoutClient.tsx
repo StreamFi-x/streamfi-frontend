@@ -56,7 +56,7 @@ export default function UsernameLayoutClient({
     if (isDefaultRoute && isLive === true) {
       window.location.replace(`/${username}/watch`);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isDefaultRoute, isLive, username]);
 
   // Fetch user data — viewer_username lets the API return is_following from the join table

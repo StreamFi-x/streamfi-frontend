@@ -2,13 +2,23 @@ import { Networks } from "@stellar/stellar-sdk";
 
 export type StellarNetwork = "testnet" | "mainnet";
 
+export function isMainnet(): boolean {
+  const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK;
+  return network === "mainnet" || network === "pubnet";
+}
+
 export function getStellarNetwork(): StellarNetwork {
   const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK;
-  if (network !== "testnet" && network !== "mainnet") {
-    console.warn(`Invalid STELLAR_NETWORK: ${network}. Defaulting to testnet.`);
+  if (network === "mainnet" || network === "pubnet") {
+    return "mainnet";
+  }
+  if (network === "testnet") {
     return "testnet";
   }
-  return network;
+  if (network) {
+    console.warn(`Invalid STELLAR_NETWORK: ${network}. Defaulting to testnet.`);
+  }
+  return "testnet";
 }
 
 export function getHorizonUrl(network: StellarNetwork): string {

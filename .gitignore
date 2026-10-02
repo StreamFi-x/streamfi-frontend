@@ -48,3 +48,7 @@ package-lock.json
 dev
 bun.*
 bun.lock
+fix.md
+issue.md
+pr.md
+..

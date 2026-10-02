@@ -43,6 +43,7 @@ import { useChat } from "@/hooks/useChat";
 import { TipButton, TipModalContainer } from "@/components/tipping";
 import { useTipModal } from "@/hooks/useTipModal";
 import { toast } from "sonner";
+import { ClipButton } from "@/components/stream/ClipButton";
 
 const socialIcons: Record<string, JSX.Element> = {
   twitter: <Twitter className="h-4 w-4" />,
@@ -300,6 +301,9 @@ const ViewStream = ({
     messages: chatMessages,
     sendMessage,
     isSending,
+    loadOlder,
+    hasOlder,
+    isLoadingOlder,
   } = useChat(userData?.playbackId, address, isLive);
 
   // Stable refs so the native keydown listener always reads current values
@@ -440,8 +444,8 @@ const ViewStream = ({
     )
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
-        if (data?.recordings) {
-          setRecordings(data.recordings);
+        if (data?.items) {
+          setRecordings(data.items);
         }
       })
       .catch(() => {});
@@ -687,9 +691,33 @@ const ViewStream = ({
                             : "Check back later or browse past streams below"}
                         </p>
                       </div>
+                {isLive && userData?.playbackId ? (
+                  <MuxPlayer
+                    playbackId={userData.playbackId}
+                    streamType={userData.latencyMode === "standard" ? "live:dvr" : "live"}
+                    autoPlay="muted"
+                    metadata={{
+                      video_id: userData.playbackId,
+                      video_title: streamData.title || `${username}'s Stream`,
+                      viewer_user_id: "anonymous",
+                    }}
+                    primaryColor="#ac39f2"
+                    className="w-full h-full"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-card">
+                    <div className="text-foreground text-center">
+                      <p className="text-lg mb-2">
+                        {isLive ? "Loading stream..." : "Stream is offline"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {isLive
+                          ? "Please wait while we load the stream"
+                          : "Check back later or browse past streams below"}
+                      </p>
                     </div>
-                  );
-                })()}
+                  </div>
+                )}
 
                 {/* Stream info overlay in fullscreen (visible on hover) */}
                 {isFullscreen && (
@@ -1004,6 +1032,16 @@ const ViewStream = ({
                             >
                               <Share2 className="w-4 h-4" />
                             </Button>
+                            {isLive && (
+                              <ClipButton
+                                streamerUsername={username}
+                                streamElapsedSeconds={
+                                  userData?.startedAt
+                                    ? Math.floor((Date.now() - new Date(userData.startedAt).getTime()) / 1000)
+                                    : 0
+                                }
+                              />
+                            )}
                             <button
                               className="hidden lg:flex p-2 rounded-md border border-border bg-transparent hover:bg-accent text-foreground transition-colors"
                               onClick={toggleChat}
@@ -1136,6 +1174,9 @@ const ViewStream = ({
                   isWalletConnected={!!address}
                   isSending={isSending}
                   onLoginClick={() => login()}
+                  onLoadOlder={loadOlder}
+                  hasOlder={hasOlder}
+                  isLoadingOlder={isLoadingOlder}
                 />
               </div>
             )}
@@ -1163,6 +1204,9 @@ const ViewStream = ({
                 isWalletConnected={!!address}
                 isSending={isSending}
                 onLoginClick={() => login()}
+                onLoadOlder={loadOlder}
+                hasOlder={hasOlder}
+                isLoadingOlder={isLoadingOlder}
               />
             </div>
           )}

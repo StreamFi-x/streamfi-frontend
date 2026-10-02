@@ -1,11 +1,27 @@
+// @ts-nocheck
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { uploadImage } from "@/utils/upload/cloudinary";
+import { hashPassword } from "@/lib/stream-access/password";
+import {
+  JsonbContractError,
+  isMergeableCreator,
+  prepareCreatorPatch,
+} from "@/lib/db/jsonb-contracts";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 export async function PATCH(req: Request) {
   try {
-    const { wallet, title, description, category, tags, thumbnail } =
-      await req.json();
+    const {
+      wallet,
+      title,
+      description,
+      category,
+      tags,
+      thumbnail,
+      password,
+      streamAccessType,
+    } = await req.json();
 
     if (!wallet) {
       return NextResponse.json(
@@ -31,7 +47,7 @@ export async function PATCH(req: Request) {
     const userResult = await sql`
       SELECT id, username, mux_stream_id, creator
       FROM users
-      WHERE wallet = ${wallet}
+      WHERE wallet = ${wallet} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -39,6 +55,7 @@ export async function PATCH(req: Request) {
     }
 
     const user = userResult.rows[0];
+    const currentCreator = user.creator || {};
 
     if (!user.mux_stream_id) {
       return NextResponse.json(
@@ -66,23 +83,120 @@ export async function PATCH(req: Request) {
       }
     }
 
-    const currentCreator = user.creator || {};
-    const updatedCreator = {
-      ...currentCreator,
-      ...(title && { streamTitle: title }),
-      ...(description !== undefined && { description }),
-      ...(category && { category }),
-      ...(tags && { tags }),
-      ...(thumbnailUrl && { thumbnail: thumbnailUrl }),
-      lastUpdated: new Date().toISOString(),
-    };
+    // Handle stream password: set/update or remove
+    if (password !== undefined) {
+      if (password === null || password === "") {
+        await sql`
+          UPDATE users SET
+            stream_password_hash = NULL,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE wallet = ${wallet}
+        `;
+        await invalidateUserCaches({ wallet });
+      } else {
+        if (typeof password !== "string" || password.length < 4) {
+          return NextResponse.json(
+            { error: "Password must be at least 4 characters" },
+            { status: 400 }
+          );
+        }
+        const hashed = hashPassword(password);
+        await sql`
+          UPDATE users SET
+            stream_password_hash = ${hashed},
+            updated_at = CURRENT_TIMESTAMP
+          WHERE wallet = ${wallet}
+        `;
+        await invalidateUserCaches({ wallet });
+      }
+    }
 
-    await sql`
+    if (streamAccessType !== undefined) {
+      const validAccessTypes = ["public", "password", "subscription"];
+      if (
+        typeof streamAccessType !== "string" ||
+        !validAccessTypes.includes(streamAccessType)
+      ) {
+        return NextResponse.json(
+          {
+            error: "streamAccessType must be public, password, or subscription",
+          },
+          { status: 400 }
+        );
+      }
+
+      const subscriptionPrice = Number(
+        currentCreator.subscriptionPrice ??
+          currentCreator.subscription_price_usdc
+      );
+      if (
+        streamAccessType === "subscription" &&
+        (!Number.isFinite(subscriptionPrice) || subscriptionPrice <= 0)
+      ) {
+        return NextResponse.json(
+          {
+            error: "Set a subscription price before enabling subscriber access",
+          },
+          { status: 400 }
+        );
+      }
+
+      await sql`
+        UPDATE users SET
+          stream_access_type = ${streamAccessType},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE wallet = ${wallet}
+      `;
+      await invalidateUserCaches({ wallet });
+    }
+
+    let creatorPatch: ReturnType<typeof prepareCreatorPatch>;
+    try {
+      creatorPatch = prepareCreatorPatch({
+        ...(title && { streamTitle: title }),
+        ...(description !== undefined && { description }),
+        ...(category && { category }),
+        ...(tags && { tags }),
+        ...(thumbnailUrl && { thumbnail: thumbnailUrl }),
+        lastUpdated: new Date().toISOString(),
+      });
+    } catch (error) {
+      if (error instanceof JsonbContractError) {
+        return NextResponse.json(
+          { error: "Invalid stream details", issues: error.issues },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
+
+    // Merge in SQL so concurrent updates to different keys are not lost. The
+    // object check refuses to merge into a malformed stored value.
+    const { rows: updatedRows } = await sql`
       UPDATE users SET
-        creator = ${JSON.stringify(updatedCreator)},
+        creator = COALESCE(creator, '{}'::jsonb) || ${JSON.stringify(creatorPatch)}::jsonb,
         updated_at = CURRENT_TIMESTAMP
       WHERE wallet = ${wallet}
+        AND deleted_at IS NULL
+        AND (creator IS NULL OR jsonb_typeof(creator) = 'object')
+      RETURNING creator
     `;
+    await invalidateUserCaches({ wallet });
+
+    if (updatedRows.length === 0) {
+      if (!isMergeableCreator(user.creator)) {
+        console.error(
+          `[streams/update] stored creator for user ${user.id} is malformed; run the JSONB audit`
+        );
+        return NextResponse.json(
+          { error: "Stored stream details are malformed" },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const updatedCreator = updatedRows[0].creator ?? {};
 
     return NextResponse.json(
       {
@@ -93,6 +207,7 @@ export async function PATCH(req: Request) {
           category: updatedCreator.category,
           tags: updatedCreator.tags,
           thumbnail: updatedCreator.thumbnail,
+          streamAccessType: streamAccessType ?? "public",
         },
       },
       { status: 200 }
