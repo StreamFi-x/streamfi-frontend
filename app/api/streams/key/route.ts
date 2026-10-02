@@ -1,18 +1,37 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { getWalletOrDevDefault } from "@/lib/dev-mode";
+import { getWalletOrDevDefault, shouldBypassAuth } from "@/lib/dev-mode";
+import { verifySession } from "@/lib/auth/verify-session";
 
 /**
  * GET /api/streams/key
- * Get user's persistent stream key for settings page
+ * Get the caller's own persistent stream key for the settings page.
+ *
+ * The stream key is a broadcast credential (RTMP hijack risk) — identity
+ * comes from the verified session, never from a client-supplied wallet.
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    let wallet = searchParams.get("wallet");
+    let wallet: string;
 
-    // DEV MODE: Use test wallet if no wallet provided
-    wallet = getWalletOrDevDefault(wallet);
+    if (shouldBypassAuth()) {
+      // DEV MODE: Use test wallet if no wallet provided
+      wallet = getWalletOrDevDefault(
+        new URL(req.url).searchParams.get("wallet")
+      );
+    } else {
+      const session = await verifySession(req);
+      if (!session.ok) {
+        return session.response;
+      }
+      if (!session.wallet) {
+        return NextResponse.json(
+          { error: "No wallet on session" },
+          { status: 400 }
+        );
+      }
+      wallet = session.wallet;
+    }
 
     if (!wallet) {
       return NextResponse.json(

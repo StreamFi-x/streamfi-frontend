@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createTraceContext, withTraceContextAsync } from "@/lib/tracing/trace-context";
+import { logger } from "@/lib/tracing/logger";
 
 function buildCsp(nonce: string): string {
   return [
@@ -24,8 +25,8 @@ export function proxy(request: NextRequest) {
 
   // On the admin subdomain, redirect root to /admin so the user lands on
   // the admin panel without having to type /admin in the URL.
-  if (hostname === "admin.streamfi.media" && request.nextUrl.pathname === "/") {
-    return NextResponse.redirect(new URL("/admin", request.url));
+  if (hostname === "admin.streamfi.media" && req.nextUrl.pathname === "/") {
+    return NextResponse.redirect(new URL("/admin", req.url));
   }
 
   const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));

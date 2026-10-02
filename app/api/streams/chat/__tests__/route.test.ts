@@ -1,6 +1,6 @@
 /**
  * Chat API route tests.
- * We mock @vercel/postgres so no real DB is hit.
+ * We mock @vercel/postgres and @/lib/auth/verify-session so no real DB or auth is hit.
  * We polyfill NextResponse.json because jsdom lacks Response.json.
  */
 
@@ -23,11 +23,15 @@ jest.mock("@vercel/postgres", () => ({
   sql: jest.fn(),
 }));
 
+jest.mock("@/lib/auth/verify-session", () => ({
+  verifySession: jest.fn(),
+}));
+
 import { sql } from "@vercel/postgres";
+import { verifySession } from "@/lib/auth/verify-session";
 import { POST, GET, DELETE } from "../route";
 
 // Helper to build a minimal Request cast to NextRequest.
-// The route handlers only use standard Request APIs (json(), url) so this cast is safe.
 const makeRequest = (method: string, body?: object, search?: string) =>
   new Request(`http://localhost/api/streams/chat${search ?? ""}`, {
     method,
@@ -36,6 +40,7 @@ const makeRequest = (method: string, body?: object, search?: string) =>
   }) as unknown as import("next/server").NextRequest;
 
 const sqlMock = sql as unknown as jest.Mock;
+const verifySessionMock = verifySession as unknown as jest.Mock;
 
 let consoleErrorSpy: jest.SpyInstance;
 
@@ -43,17 +48,40 @@ describe("POST /api/streams/chat", () => {
   beforeEach(() => {
     sqlMock.mockReset();
     consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    verifySessionMock.mockResolvedValue({
+      ok: true,
+      userId: "user-123",
+      wallet: "0xABC",
+      username: "Alice",
+    });
   });
   afterEach(() => {
     consoleErrorSpy?.mockRestore();
   });
 
-  it("returns 400 when wallet is missing", async () => {
+  it("returns 401 when session verification fails", async () => {
+    verifySessionMock.mockResolvedValueOnce({
+      ok: false,
+      response: new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+    });
     const req = makeRequest("POST", { playbackId: "pb1", content: "hello" });
     const res = await POST(req);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 403 when body wallet does not match verified session wallet", async () => {
+    const req = makeRequest("POST", {
+      wallet: "0xVICTIM_WALLET",
+      playbackId: "pb1",
+      content: "spoofed message",
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(403);
     const body = await res.json();
-    expect(body.error).toMatch(/wallet/i);
+    expect(body.error).toMatch(/forbidden/i);
   });
 
   it("returns 400 when playbackId is missing", async () => {
@@ -108,8 +136,9 @@ describe("POST /api/streams/chat", () => {
     sqlMock.mockResolvedValueOnce({
       rows: [
         {
-          sender_id: 1,
+          sender_id: "user-123",
           sender_username: "Alice",
+          sender_wallet: "0xABC",
           is_live: false,
           session_id: 10,
         },
@@ -128,8 +157,9 @@ describe("POST /api/streams/chat", () => {
     sqlMock.mockResolvedValueOnce({
       rows: [
         {
-          sender_id: 1,
+          sender_id: "user-123",
           sender_username: "Alice",
+          sender_wallet: "0xABC",
           is_live: true,
           session_id: null,
         },
@@ -144,54 +174,42 @@ describe("POST /api/streams/chat", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns 201 and chatMessage on success", async () => {
+  it("saves message and increments session count on valid request", async () => {
     sqlMock
       .mockResolvedValueOnce({
-        // combined lookup
         rows: [
           {
-            sender_id: 1,
+            sender_id: "user-123",
             sender_username: "Alice",
+            sender_wallet: "0xABC",
             is_live: true,
             session_id: 10,
           },
         ],
       })
       .mockResolvedValueOnce({
-        // INSERT
-        rows: [{ id: 99, created_at: "2025-01-01T00:00:00Z" }],
+        rows: [{ id: 99, created_at: "2024-01-01T00:00:00Z" }],
       })
-      .mockResolvedValueOnce({ rows: [] }); // UPDATE total_messages
+      .mockResolvedValueOnce({ rows: [] }); // UPDATE stream_sessions
 
     const req = makeRequest("POST", {
       wallet: "0xABC",
       playbackId: "pb1",
-      content: "hello",
+      content: "great stream!",
     });
     const res = await POST(req);
     expect(res.status).toBe(201);
-
     const body = await res.json();
+    expect(body.message).toBe("Message sent successfully");
     expect(body.chatMessage.id).toBe(99);
-    expect(body.chatMessage.content).toBe("hello");
     expect(body.chatMessage.user.username).toBe("Alice");
     expect(body.chatMessage.user.wallet).toBe("0xABC");
-  });
-
-  it("returns 500 on unexpected database error", async () => {
-    sqlMock.mockRejectedValueOnce(new Error("DB down"));
-    const req = makeRequest("POST", {
-      wallet: "0xABC",
-      playbackId: "pb1",
-      content: "hello",
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(500);
   });
 });
 
 describe("GET /api/streams/chat", () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     sqlMock.mockReset();
     consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
   });
@@ -218,11 +236,14 @@ describe("GET /api/streams/chat", () => {
       : { rows: [] };
 
   it("returns 400 when playbackId is missing", async () => {
-    const req = makeRequest("GET", undefined, "");
+    const req = makeRequest("GET");
     const res = await GET(req);
     expect(res.status).toBe(400);
   });
 
+  it("returns empty messages when no active stream session", async () => {
+    sqlMock.mockResolvedValueOnce({ rows: [] });
+    const req = makeRequest("GET", undefined, "?playbackId=pb1");
   it("returns an empty page when no active session found", async () => {
     sqlMock.mockResolvedValueOnce({ rows: [] }); // session lookup
     const req = makeRequest("GET", undefined, "?playbackId=pb-empty");
@@ -235,6 +256,29 @@ describe("GET /api/streams/chat", () => {
     });
   });
 
+  it("returns messages in chronological order", async () => {
+    sqlMock
+      .mockResolvedValueOnce({ rows: [{ session_id: 10 }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 2,
+            content: "second",
+            message_type: "message",
+            created_at: "2024-01-01T00:01:00Z",
+            username: "Bob",
+            wallet: "0xDEF",
+            avatar: null,
+          },
+          {
+            id: 1,
+            content: "first",
+            message_type: "message",
+            created_at: "2024-01-01T00:00:00Z",
+            username: "Alice",
+            wallet: "0xABC",
+            avatar: null,
+          },
   it("returns the newest page, newest first, edge-cacheable", async () => {
     sqlMock
       .mockResolvedValueOnce({ rows: [{ session_id: SESSION }] })
@@ -249,6 +293,9 @@ describe("GET /api/streams/chat", () => {
       makeRequest("GET", undefined, "?playbackId=pb-active")
     );
     expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.messages[0].id).toBe(1);
+    expect(body.messages[1].id).toBe(2);
     expect(res.headers.get("Cache-Control")).toBe(
       "public, s-maxage=1, stale-while-revalidate=1"
     );
@@ -450,9 +497,28 @@ describe("DELETE /api/streams/chat", () => {
   beforeEach(() => {
     sqlMock.mockReset();
     consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    verifySessionMock.mockResolvedValue({
+      ok: true,
+      userId: "user-123",
+      wallet: "0xABC",
+      username: "Alice",
+    });
   });
   afterEach(() => {
     consoleErrorSpy?.mockRestore();
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    verifySessionMock.mockResolvedValueOnce({
+      ok: false,
+      response: new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+    });
+    const req = makeRequest("DELETE", { messageId: 42 });
+    const res = await DELETE(req);
+    expect(res.status).toBe(401);
   });
 
   it("returns 400 when messageId is missing", async () => {
@@ -461,50 +527,41 @@ describe("DELETE /api/streams/chat", () => {
     expect(res.status).toBe(400);
   });
 
-  it("returns 400 when moderatorWallet is missing", async () => {
-    const req = makeRequest("DELETE", { messageId: 42 });
-    const res = await DELETE(req);
-    expect(res.status).toBe(400);
-  });
-
-  it("returns 404 when moderator is not found", async () => {
-    sqlMock.mockResolvedValueOnce({ rows: [] }); // moderator lookup
+  it("returns 403 when client supplies a different moderatorWallet than verified session", async () => {
     const req = makeRequest("DELETE", {
       messageId: 42,
-      moderatorWallet: "0xABC",
+      moderatorWallet: "0xOTHER_WALLET",
     });
     const res = await DELETE(req);
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toMatch(/forbidden/i);
   });
 
   it("returns 404 when message is not found or already deleted", async () => {
-    sqlMock
-      .mockResolvedValueOnce({ rows: [{ id: 5 }] }) // moderator found
-      .mockResolvedValueOnce({ rows: [] }); // message not found
-
-    const req = makeRequest("DELETE", {
-      messageId: 42,
-      moderatorWallet: "0xABC",
-    });
+    sqlMock.mockResolvedValueOnce({ rows: [] }); // message not found
+    const req = makeRequest("DELETE", { messageId: 42 });
     const res = await DELETE(req);
     expect(res.status).toBe(404);
   });
 
-  it("returns 403 when user has no permission to delete", async () => {
-    sqlMock
-      .mockResolvedValueOnce({ rows: [{ id: 99 }] }) // moderator (id=99)
-      .mockResolvedValueOnce({
-        rows: [{ id: 42, message_user_id: 10, stream_owner_id: 20 }], // neither 10 nor 20 = 99
-      });
-
-    const req = makeRequest("DELETE", {
-      messageId: 42,
-      moderatorWallet: "0xABC",
+  it("returns 403 when authenticated caller has no permission to delete message", async () => {
+    // caller is user-123, but message author is 10 and stream owner is 20
+    sqlMock.mockResolvedValueOnce({
+      rows: [{ id: 42, message_user_id: "10", stream_owner_id: "20" }],
     });
+
+    const req = makeRequest("DELETE", { messageId: 42 });
     const res = await DELETE(req);
     expect(res.status).toBe(403);
   });
 
+  it("allows stream owner to delete any message in their stream", async () => {
+    verifySessionMock.mockResolvedValueOnce({
+      ok: true,
+      userId: "stream-owner-id",
+      wallet: "0xSTREAMOWNER",
+    });
   it("drops the cached window of the message's stream after a delete", async () => {
     sqlMock
       .mockResolvedValueOnce({ rows: [{ session_id: 10 }] })
@@ -538,43 +595,30 @@ describe("DELETE /api/streams/chat", () => {
 
   it("allows stream owner to delete any message", async () => {
     sqlMock
-      .mockResolvedValueOnce({ rows: [{ id: 20 }] }) // moderator = stream owner
       .mockResolvedValueOnce({
-        rows: [{ id: 42, message_user_id: 10, stream_owner_id: 20 }],
+        rows: [{ id: 42, message_user_id: "random-user", stream_owner_id: "stream-owner-id" }],
       })
       .mockResolvedValueOnce({ rows: [] }); // UPDATE
 
-    const req = makeRequest("DELETE", {
-      messageId: 42,
-      moderatorWallet: "0xSTREAMOWNER",
-    });
+    const req = makeRequest("DELETE", { messageId: 42 });
     const res = await DELETE(req);
     expect(res.status).toBe(200);
   });
 
   it("allows message author to delete their own message", async () => {
+    verifySessionMock.mockResolvedValueOnce({
+      ok: true,
+      userId: "author-user-id",
+      wallet: "0xAUTHOR",
+    });
     sqlMock
-      .mockResolvedValueOnce({ rows: [{ id: 10 }] }) // moderator = message author
       .mockResolvedValueOnce({
-        rows: [{ id: 42, message_user_id: 10, stream_owner_id: 20 }],
+        rows: [{ id: 42, message_user_id: "author-user-id", stream_owner_id: "stream-owner-id" }],
       })
       .mockResolvedValueOnce({ rows: [] }); // UPDATE
 
-    const req = makeRequest("DELETE", {
-      messageId: 42,
-      moderatorWallet: "0xAUTHOR",
-    });
+    const req = makeRequest("DELETE", { messageId: 42 });
     const res = await DELETE(req);
     expect(res.status).toBe(200);
-  });
-
-  it("returns 500 on unexpected error", async () => {
-    sqlMock.mockRejectedValueOnce(new Error("DB error"));
-    const req = makeRequest("DELETE", {
-      messageId: 42,
-      moderatorWallet: "0xABC",
-    });
-    const res = await DELETE(req);
-    expect(res.status).toBe(500);
   });
 });

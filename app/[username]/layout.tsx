@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { serializeJsonLd } from "@/lib/security/json-ld";
 import UsernameLayoutClient from "./UsernameLayoutClient";
+import { safeJsonLd } from "@/lib/security/json-ld";
 
 const BASE = "https://www.streamfi.media";
 
@@ -137,14 +138,14 @@ export default async function UsernameLayout({
         <script
           nonce={nonce}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: serializeJsonLd(personSchema) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(personSchema) }}
         />
       )}
       {videoSchema && (
         <script
           nonce={nonce}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: serializeJsonLd(videoSchema) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(videoSchema) }}
         />
       )}
       <UsernameLayoutClient username={username}>

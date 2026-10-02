@@ -9,6 +9,8 @@ import {
   prepareCreatorPatch,
 } from "@/lib/db/jsonb-contracts";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { verifySession } from "@/lib/auth/verify-session";
+import { shouldBypassAuth } from "@/lib/dev-mode";
 
 // Stream creation calls Mux API + DB — limit per IP to prevent quota exhaustion
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 10); // 10 per hour per IP
@@ -26,7 +28,27 @@ export async function POST(req: NextRequest) {
     );
   }
   try {
-    const { wallet, title, description, category, tags } = await req.json();
+    const body = await req.json();
+    const { title, description, category, tags } = body;
+
+    // A stream is provisioned for the CALLER, never for an arbitrary
+    // body-supplied wallet — otherwise anyone can trigger Mux stream
+    // creation (real cost) on a victim's behalf, or read back their
+    // existing stream key.
+    let wallet: string | undefined = body.wallet;
+    if (!shouldBypassAuth()) {
+      const session = await verifySession(req);
+      if (!session.ok) {
+        return session.response;
+      }
+      if (!session.wallet) {
+        return NextResponse.json(
+          { error: "No wallet on session" },
+          { status: 400 }
+        );
+      }
+      wallet = session.wallet;
+    }
 
     console.log("🔍 Stream creation request:", {
       wallet,
@@ -160,7 +182,9 @@ export async function POST(req: NextRequest) {
     console.log("✅ Mux credentials found");
 
     const enableRecording = user.enable_recording === true;
-    const latencyMode = (user.latency_mode === "standard" ? "standard" : "low") as "low" | "standard";
+    const latencyMode = (
+      user.latency_mode === "standard" ? "standard" : "low"
+    ) as "low" | "standard";
     console.log("🎬 Creating Mux stream...", { enableRecording, latencyMode });
     let muxStream;
     try {
