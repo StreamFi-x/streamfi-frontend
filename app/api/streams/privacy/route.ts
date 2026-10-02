@@ -17,6 +17,8 @@ const VALID_PRIVACY: StreamPrivacy[] = [
  * stream privacy and share token.
  */
 export async function GET(req: NextRequest) {
+  const session = await verifySession(req);
+  if (!session.ok) {return session.response;}
   try {
     const session = await verifySession(req);
     if (!session.ok) {
@@ -69,6 +71,8 @@ export async function GET(req: NextRequest) {
  * Authenticated: updates are strictly applied to the verified session user.
  */
 export async function POST(req: NextRequest) {
+  const session = await verifySession(req);
+  if (!session.ok) {return session.response;}
   try {
     const session = await verifySession(req);
     if (!session.ok) {
@@ -126,6 +130,7 @@ export async function POST(req: NextRequest) {
       UPDATE users SET
         stream_privacy = ${nextPrivacy},
         share_token = ${nextToken},
+        stream_password_hash = CASE WHEN ${nextPrivacy} = 'public' THEN NULL ELSE stream_password_hash END,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${user.id}
     `;

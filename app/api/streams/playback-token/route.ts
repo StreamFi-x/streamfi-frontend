@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { canAccessStream } from "@/lib/stream-access";
+import { hasStreamPasswordGrant } from "@/lib/stream-password";
+import { verifySession } from "@/lib/auth/verify-session";
 import {
   isSigningConfigured,
   mintPlaybackToken,
@@ -14,7 +17,7 @@ import {
  * subscription). For public streams, returns { signed: false } and the client
  * should use the public playback ID directly.
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const username = searchParams.get("username");
@@ -29,8 +32,9 @@ export async function GET(req: Request) {
     }
 
     const userResult = await sql`
-      SELECT id, stream_privacy, share_token,
-             mux_playback_id, mux_signed_playback_id
+            SELECT id, stream_privacy, share_token, stream_password_hash,
+              mux_playback_id, mux_signed_playback_id,
+              (SELECT id FROM stream_sessions ss WHERE ss.user_id = users.id AND ss.ended_at IS NULL ORDER BY ss.started_at DESC LIMIT 1) AS stream_session_id
       FROM users
       WHERE LOWER(username) = LOWER(${username}) AND deleted_at IS NULL
     `;
@@ -38,6 +42,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
     const creator = userResult.rows[0];
+    const verifiedViewer = await verifySession(req);
+    const verifiedViewerId = verifiedViewer.ok ? verifiedViewer.userId : null;
 
     // Resolve viewer's user id (best-effort) so we can check subscriptions / owner
     let viewerUserId: string | null = null;
@@ -46,6 +52,11 @@ export async function GET(req: Request) {
         SELECT id FROM users WHERE LOWER(wallet) = LOWER(${viewerWallet}) AND deleted_at IS NULL
       `;
       viewerUserId = viewer.rows[0]?.id ?? null;
+    }
+
+    if (creator.stream_password_hash && creator.id !== verifiedViewerId &&
+        (!creator.stream_session_id || !hasStreamPasswordGrant(req, creator.id, creator.stream_session_id))) {
+      return NextResponse.json({ error: "access_denied", reason: "password_required" }, { status: 403 });
     }
 
     const access = await canAccessStream({

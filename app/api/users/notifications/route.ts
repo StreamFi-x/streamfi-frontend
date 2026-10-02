@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { writeNotification } from "@/lib/notifications";
+import { timingSafeEqual } from "node:crypto";
+import { loadSecretKeyring } from "@/lib/security/keyring";
 import {
   buildPage,
   keysetBounds,
@@ -89,11 +91,15 @@ export async function GET(req: NextRequest) {
 
 // ─── POST — internal server-to-server write only ─────────────────────────────
 export async function POST(req: NextRequest) {
-  const internalSecret = process.env.INTERNAL_API_SECRET;
-  if (
-    !internalSecret ||
-    req.headers.get("x-internal-secret") !== internalSecret
-  ) {
+  const provided = Buffer.from(req.headers.get("x-internal-secret") ?? "");
+  let valid = false;
+  try {
+    for (const secret of loadSecretKeyring("INTERNAL_API_KEYRING_JSON", "INTERNAL_API_SECRET").keys.values()) {
+      const expected = Buffer.from(secret);
+      if (provided.length === expected.length && timingSafeEqual(provided, expected)) {valid = true;}
+    }
+  } catch {valid = false;}
+  if (!valid) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

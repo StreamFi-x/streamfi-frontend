@@ -5,7 +5,7 @@ import {
   type NotificationType,
 } from "@/lib/db/jsonb-contracts";
 
-export type { NotificationType };
+export type NotificationType = "follow" | "live" | "security";
 
 /**
  * Write a notification directly to the DB.

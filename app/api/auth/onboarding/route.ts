@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Keypair } from "@stellar/stellar-sdk";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
+import { encryptSecret } from "@/lib/security/encrypted-secrets";
 import {
   CustodialKeyError,
   encryptCustodialSecret,

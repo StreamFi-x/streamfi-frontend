@@ -18,6 +18,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { decryptSecret } from "@/lib/security/encrypted-secrets";
+import { consumeStepUp } from "@/lib/security/step-up";
 import {
   CustodialKeyError,
   decryptCustodialSecret,
@@ -54,6 +56,11 @@ export async function POST(req: NextRequest) {
       { error: "Key export is only available for Google (Privy) accounts" },
       { status: 403 }
     );
+  }
+
+  const challengeId = req.headers.get("x-step-up-challenge");
+  if (!challengeId || !(await consumeStepUp(session.userId, challengeId, "wallet_export", session.userId))) {
+    return NextResponse.json({ error: "Complete two-factor verification before exporting the wallet" }, { status: 403 });
   }
 
   // 4. Fetch the encrypted key from DB
