@@ -1,9 +1,10 @@
 -- Performance Optimization: Add Database Indexes
 -- Run this SQL script to significantly improve query performance
 
--- Index on wallet for faster user lookups (most common query)
--- Stellar public keys are uppercase; use exact match, not LOWER(wallet)
-CREATE INDEX IF NOT EXISTS idx_users_wallet ON users(wallet);
+-- Wallet lookups: exact match uses the UNIQUE(wallet) index (users_wallet_key);
+-- LOWER(wallet) lookups use idx_users_wallet_lower from
+-- db/migrations/20260926100200_hot_path_indexes.sql. A separate idx_users_wallet
+-- would duplicate the unique index, so it is no longer created here.
 
 -- Index on mux_stream_id for webhook lookups
 CREATE INDEX IF NOT EXISTS idx_users_mux_stream_id ON users(mux_stream_id);
@@ -21,8 +22,11 @@ CREATE INDEX IF NOT EXISTS idx_users_wallet_live ON users(wallet, is_live);
 CREATE INDEX IF NOT EXISTS idx_stream_sessions_user_id ON stream_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_stream_sessions_mux_session_id ON stream_sessions(mux_session_id);
 
--- Index on username for search functionality
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(LOWER(username));
+-- Case-insensitive username lookups (LOWER(username) = LOWER($1)).
+-- Previously created as idx_users_username, the same name db/schema.sql uses
+-- for a plain username index; under IF NOT EXISTS whichever ran first won.
+-- Named consistently with db/migrations/20260926100200_hot_path_indexes.sql.
+CREATE INDEX IF NOT EXISTS idx_users_username_lower ON users(LOWER(username));
 
 -- Analyze tables to update statistics for query planner
 ANALYZE users;

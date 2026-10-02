@@ -13,7 +13,7 @@ export async function GET(
 
   try {
     const { rows } = await sql`
-      SELECT followers FROM users WHERE username = ${username}
+      SELECT followers FROM users WHERE username = ${username} AND deleted_at IS NULL
     `;
     if (rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -25,7 +25,8 @@ export async function GET(
     }
 
     const { rows: followerProfiles } = await sql`
-      SELECT username, avatar, bio FROM users WHERE username = ANY(${followerUsernames})
+      SELECT username, avatar, bio FROM users
+      WHERE username = ANY(${followerUsernames}) AND deleted_at IS NULL
     `;
     return NextResponse.json({ followers: followerProfiles });
   } catch (error) {

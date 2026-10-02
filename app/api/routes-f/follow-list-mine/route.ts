@@ -38,7 +38,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       ? await sql`
           SELECT u.id, u.username, u.avatar, u.bio, uf.created_at
           FROM user_follows uf
-          JOIN users u ON u.id = uf.followee_id
+          JOIN users u ON u.id = uf.followee_id AND u.deleted_at IS NULL
           WHERE uf.follower_id = ${session.userId}
             AND uf.created_at < (
               SELECT created_at
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       : await sql`
           SELECT u.id, u.username, u.avatar, u.bio, uf.created_at
           FROM user_follows uf
-          JOIN users u ON u.id = uf.followee_id
+          JOIN users u ON u.id = uf.followee_id AND u.deleted_at IS NULL
           WHERE uf.follower_id = ${session.userId}
           ORDER BY uf.created_at DESC
           LIMIT ${limit}

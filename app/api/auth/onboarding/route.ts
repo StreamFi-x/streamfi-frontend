@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
   // 3. Check username isn't already taken (case-insensitive via stored lowercase)
   try {
     const { rows: existing } = await sql`
+      -- tombstone-aware: identifiers stay reserved until the account is purged
       SELECT id FROM users WHERE username = ${username} AND id != ${session.userId}
       LIMIT 1
     `;

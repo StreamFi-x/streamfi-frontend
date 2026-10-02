@@ -4,6 +4,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Bell, UserPlus, Radio, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePrivy } from "@privy-io/react-auth";
+import {
+  useCursorPagination,
+  type CursorPage,
+} from "@/hooks/useCursorPagination";
 
 interface Notification {
   id: string;
@@ -40,39 +44,35 @@ function NotificationIcon({ type }: { type: string }) {
   return <Bell size={14} className="text-muted-foreground" />;
 }
 
+interface NotificationPage extends CursorPage<Notification> {
+  unreadCount: number;
+}
+
 export default function NotificationBell() {
   const { authenticated } = usePrivy();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const res = await fetch("/api/users/notifications", {
-        credentials: "include",
-      });
-      if (!res.ok) {
-        return;
-      }
-      const data = await res.json();
-      setNotifications(data.notifications ?? []);
-      setUnreadCount(data.unreadCount ?? 0);
-    } catch {
-      // silently ignore — bell is non-critical
+  // Only poll when authenticated — avoids noisy 401s for logged-out users.
+  // The refresh re-reads the first page (and badge count); older pages stay.
+  const {
+    items: notifications,
+    pages,
+    hasMore,
+    loadMore,
+    isLoadingMore,
+    mutate,
+  } = useCursorPagination<Notification, NotificationPage>(
+    authenticated ? "/api/users/notifications" : null,
+    {
+      refreshInterval: 30_000,
+      revalidateOnFocus: false,
+      shouldRetryOnError: false,
+      getId: n => n.id,
     }
-  }, []);
-
-  // Only poll when authenticated — avoids noisy 401s for logged-out users
-  useEffect(() => {
-    if (!authenticated) {
-      return;
-    }
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30_000);
-    return () => clearInterval(interval);
-  }, [authenticated, fetchNotifications]);
+  );
+  const unreadCount = pages[0]?.unreadCount ?? 0;
 
   // Close on outside click
   useEffect(() => {
@@ -96,12 +96,19 @@ export default function NotificationBell() {
         method: "PATCH",
         credentials: "include",
       });
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      setUnreadCount(0);
+      await mutate(
+        current =>
+          current?.map(page => ({
+            ...page,
+            unreadCount: 0,
+            items: page.items.map(n => ({ ...n, read: true })),
+          })),
+        { revalidate: false }
+      );
     } catch {
       // silent fail
     }
-  }, []);
+  }, [mutate]);
 
   const handleOpen = () => {
     setOpen(prev => {
@@ -198,6 +205,16 @@ export default function NotificationBell() {
                     )}
                   </div>
                 ))
+              )}
+              {hasMore && (
+                <button
+                  type="button"
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                  className="w-full py-2 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                >
+                  {isLoadingMore ? "Loading…" : "Load older"}
+                </button>
               )}
             </div>
           </motion.div>

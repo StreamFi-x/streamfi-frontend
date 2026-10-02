@@ -65,6 +65,8 @@ function mapFeedRow(row: FeedRow): ActivityEventResponse {
         : null,
     metadata: (row.metadata as Record<string, unknown>) ?? {},
     created_at:
+      (row.created_at as unknown) instanceof Date
+        ? (row.created_at as unknown as Date).toISOString()
       row.created_at && (row.created_at as any) instanceof Date
         ? (row.created_at as any).toISOString()
         : String(row.created_at),

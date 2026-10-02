@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import type { NextRequest } from "next/server";
 import { timingSafeEqual } from "crypto";
+import { sql } from "@vercel/postgres";
 import { findActiveSession } from "@/lib/sessions/user-sessions";
 import { getClientIp } from "@/lib/security/client-ip";
 import {
@@ -13,9 +14,7 @@ import {
 /**
  * Admin authorization.
  *
- * Admin identity is determined by two env vars (comma-separated lists):
- *   ADMIN_PRIVY_IDS          — Privy user IDs allowed admin access
- *   ADMIN_WALLET_ADDRESSES   — Stellar wallet addresses allowed admin access
+ * Admin identity and privileges are determined by the user's database role.
  *
  * The `privy_session` cookie (set by POST /api/auth/session) stores the
  * server-verified Privy user ID. Every admin check runs behind the
@@ -23,14 +22,34 @@ import {
  * which throttles failed attempts with escalating backoff and alerts staff.
  */
 
-function envList(name: string): string[] {
-  return (process.env[name] ?? "")
-    .split(",")
-    .map(s => s.trim())
-    .filter(Boolean);
+const UNDEFINED_TABLE = "42P01";
+
+export type AdminRole = "support" | "moderator" | "super_admin";
+
+function routePermission(route: string): "support" | "moderation" | "admin" {
+  if (route.includes("reports") || route === "admin/me") {return "support";}
+  if (route.includes("moderation") || route.includes("admin-user-suspend") || route.includes("admin-user-unsuspend")) {
+    return "moderation";
+  }
+  return "admin";
 }
 
-const UNDEFINED_TABLE = "42P01";
+export function roleCanAccess(role: string | null, permission: "support" | "moderation" | "admin"): boolean {
+  if (role === "super_admin") {return true;}
+  if (permission === "support") {return role === "support" || role === "moderator";}
+  if (permission === "moderation") {return role === "moderator";}
+  return false;
+}
+
+export async function getAdminRole(userId: string): Promise<AdminRole | null> {
+  const { rows } = await sql`
+    SELECT role FROM users WHERE id = ${userId} AND deleted_at IS NULL LIMIT 1
+  `;
+  const role = rows[0]?.role;
+  return role === "support" || role === "moderator" || role === "super_admin"
+    ? role
+    : null;
+}
 
 /**
  * A revoked or expired session must not keep admin rights. Mirrors
@@ -67,12 +86,31 @@ export async function authorizeAdminSession(
       credential: privySession || null,
     },
     async () => {
-      if (!privySession || !envList("ADMIN_PRIVY_IDS").includes(privySession)) {
-        return false;
-      }
-      return hasActiveSession(privySession);
+      if (!privySession || !(await hasActiveSession(privySession))) {return false;}
+      const { rows } = await sql`
+        SELECT role FROM users WHERE privy_id = ${privySession} AND deleted_at IS NULL LIMIT 1
+      `;
+      return roleCanAccess(rows[0]?.role ?? null, routePermission(route));
     }
   );
+}
+
+/**
+ * Route guard that also returns the admin's Privy user ID, so admin actions
+ * (deletion cancellation, remediation, audits) can be attributed in audit
+ * records. Same checks and responses as requireAdminSession.
+ */
+export async function requireAdminIdentity(
+  route: string
+): Promise<
+  { admin: string; response: null } | { admin: null; response: Response }
+> {
+  const result = await authorizeAdminSession(route);
+  if (!result.ok) {
+    return { admin: null, response: adminGuardResponse(result) };
+  }
+  const privySession = (await cookies()).get("privy_session")?.value ?? "";
+  return { admin: privySession, response: null };
 }
 
 /** Boolean form of authorizeAdminSession, kept for existing callers. */
@@ -100,18 +138,14 @@ export async function currentAdminPrivyId(): Promise<string> {
   return cookieStore.get("privy_session")?.value ?? "";
 }
 
-/** Returns true when userId is in the ADMIN_PRIVY_IDS or ADMIN_WALLET_ADDRESSES env lists. */
-export function isAdmin(userId: string): boolean {
-  return (
-    envList("ADMIN_PRIVY_IDS").includes(userId) ||
-    envList("ADMIN_WALLET_ADDRESSES").includes(userId)
-  );
+/** Database-backed compatibility helper for routes that need any admin tier. */
+export async function isAdmin(userId: string): Promise<boolean> {
+  return (await getAdminRole(userId)) !== null;
 }
 
 /**
- * Throttled admin check for routes that authenticate the user first
- * (verifySession) and then authorize them as admin by some other rule —
- * a users.role lookup or the isAdmin() allowlist.
+ * Throttled admin check for routes that already verified a user session.
+ * The shared database role and route capability map are authoritative.
  */
 export async function requireAdminPrincipal(
   req: NextRequest,
@@ -122,6 +156,7 @@ export async function requireAdminPrincipal(
     >;
     route: string;
     userId: string;
+    /** @deprecated Retained for caller compatibility; database role policy is authoritative. */
     check: () => Promise<boolean> | boolean;
   }
 ): Promise<Response | null> {
@@ -132,7 +167,12 @@ export async function requireAdminPrincipal(
       ip: getClientIp(req.headers),
       credential: opts.userId,
     },
-    async () => opts.check()
+    async () => {
+      const { rows } = await sql`
+        SELECT role FROM users WHERE id = ${opts.userId} AND deleted_at IS NULL LIMIT 1
+      `;
+      return roleCanAccess(rows[0]?.role ?? null, routePermission(opts.route));
+    }
   );
   return result.ok
     ? null

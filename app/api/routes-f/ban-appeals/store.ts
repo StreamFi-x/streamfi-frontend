@@ -71,10 +71,11 @@ export function listPendingAppeals(creator_id: string): PendingAppealSummary[] {
   return Array.from(appeals.values())
     .filter((a) => a.creator_id === creator_id && a.status === "pending")
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
-    .map(({ appeal_id, viewer_id, message, status, created_at }) => ({
+    .map(({ appeal_id, viewer_id, message, created_at }) => ({
       appeal_id,
       viewer_id,
       message,
+      status: "pending" as const,
       status: status as "pending",
       created_at,
     }));

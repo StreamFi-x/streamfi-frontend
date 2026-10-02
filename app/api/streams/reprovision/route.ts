@@ -37,7 +37,7 @@ export async function POST(req: Request) {
              enable_recording, latency_mode, stream_privacy,
              is_live
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE LOWER(wallet) = LOWER(${wallet}) AND deleted_at IS NULL
     `;
     if (userResult.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
