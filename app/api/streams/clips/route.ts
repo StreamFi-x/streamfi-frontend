@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { deleteMuxAssetIfExists } from "@/lib/mux/server";
+import { CACHE_POLICIES } from "@/lib/cache";
+import {
+  buildPage,
+  keysetBounds,
+  readPageParams,
+  withoutCursorTs,
+  type KeysetRow,
+} from "@/lib/pagination/cursor";
 
 const isRateLimited = createRateLimiter(60_000, 10); // 10 clips/min per IP
 
@@ -10,8 +19,9 @@ function getIp(req: NextRequest) {
 }
 
 /**
- * GET  /api/streams/clips?username=foo&limit=20&offset=0
- *   → public list of ready clips for a streamer
+ * GET  /api/streams/clips?username=foo&limit=20&cursor=<nextCursor>
+ *   → public list of ready clips, newest first, on the shared cursor contract
+ *     (docs/api/pagination.md): { items, nextCursor, hasMore }
  *
  * POST /api/streams/clips
  *   body: { streamer_username, start_offset, duration, title? }
@@ -23,53 +33,52 @@ function getIp(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const username = searchParams.get("username") ?? "";
-  const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
-  const offset = Math.max(0, parseInt(searchParams.get("offset") ?? "0", 10));
+  const params = readPageParams(searchParams, { defaultLimit: 20, maxLimit: 50 });
+  if (!params.ok) {
+    return params.response;
+  }
+  const { page } = params;
+  const bound = keysetBounds(page.after);
 
   try {
     const { rows } = username
-      ? await sql`
+      ? await sql<KeysetRow>`
           SELECT
             c.id, c.title, c.playback_id, c.mux_asset_id,
             c.start_offset, c.duration, c.view_count, c.status, c.created_at,
+            to_char(c.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts,
             clipper.username AS clipped_by_username,
             clipper.avatar   AS clipped_by_avatar,
             streamer.username AS streamer_username
           FROM stream_clips c
-          JOIN users clipper  ON clipper.id  = c.clipped_by
-          JOIN users streamer ON streamer.id = c.streamer_id
+          JOIN users clipper  ON clipper.id  = c.clipped_by AND clipper.deleted_at IS NULL
+          JOIN users streamer ON streamer.id = c.streamer_id AND streamer.deleted_at IS NULL
           WHERE c.status = 'ready'
             AND LOWER(streamer.username) = LOWER(${username})
-          ORDER BY c.created_at DESC
-          LIMIT ${limit} OFFSET ${offset}
+            AND (c.created_at, c.id) < (${bound.ts}::timestamptz, ${bound.id}::uuid)
+          ORDER BY c.created_at DESC, c.id DESC
+          LIMIT ${page.limit + 1}
         `
-      : await sql`
+      : await sql<KeysetRow>`
           SELECT
             c.id, c.title, c.playback_id, c.mux_asset_id,
             c.start_offset, c.duration, c.view_count, c.status, c.created_at,
+            to_char(c.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts,
             clipper.username AS clipped_by_username,
             clipper.avatar   AS clipped_by_avatar,
             streamer.username AS streamer_username
           FROM stream_clips c
-          JOIN users clipper  ON clipper.id  = c.clipped_by
-          JOIN users streamer ON streamer.id = c.streamer_id
+          JOIN users clipper  ON clipper.id  = c.clipped_by AND clipper.deleted_at IS NULL
+          JOIN users streamer ON streamer.id = c.streamer_id AND streamer.deleted_at IS NULL
           WHERE c.status = 'ready'
-          ORDER BY c.created_at DESC
-          LIMIT ${limit} OFFSET ${offset}
+            AND (c.created_at, c.id) < (${bound.ts}::timestamptz, ${bound.id}::uuid)
+          ORDER BY c.created_at DESC, c.id DESC
+          LIMIT ${page.limit + 1}
         `;
 
-    const { rows: countRows } = username
-      ? await sql`
-          SELECT COUNT(*) AS total FROM stream_clips c
-          JOIN users streamer ON streamer.id = c.streamer_id
-          WHERE c.status = 'ready' AND LOWER(streamer.username) = LOWER(${username})
-        `
-      : await sql`SELECT COUNT(*) AS total FROM stream_clips WHERE status = 'ready'`;
-
-    const total = parseInt(countRows[0].total, 10);
     return NextResponse.json(
-      { clips: rows, total, hasMore: offset + limit < total },
-      { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" } }
+      buildPage(rows, page.limit, withoutCursorTs),
+      { headers: { "Cache-Control": CACHE_POLICIES.publicListing.cacheControl } }
     );
   } catch (err) {
     console.error("[clips] GET error:", err);
@@ -104,7 +113,7 @@ export async function POST(req: NextRequest) {
   // Resolve streamer
   const { rows: streamerRows } = await sql`
     SELECT id, mux_playback_id, is_live FROM users
-    WHERE LOWER(username) = LOWER(${streamer_username})
+    WHERE LOWER(username) = LOWER(${streamer_username}) AND deleted_at IS NULL
     LIMIT 1
   `;
   if (!streamerRows.length) {
@@ -151,7 +160,7 @@ export async function DELETE(req: NextRequest) {
   }
 
   const { rows } = await sql`
-    SELECT id, clipped_by, streamer_id FROM stream_clips WHERE id = ${clipId} LIMIT 1
+    SELECT id, clipped_by, streamer_id, mux_asset_id FROM stream_clips WHERE id = ${clipId} LIMIT 1
   `;
   if (!rows.length) {
     return NextResponse.json({ error: "Clip not found" }, { status: 404 });
@@ -163,5 +172,18 @@ export async function DELETE(req: NextRequest) {
   }
 
   await sql`DELETE FROM stream_clips WHERE id = ${clipId}`;
+
+  // Best effort: a failure leaves an orphaned asset that the Mux
+  // reconciliation sweep (#1409) reports for cleanup.
+  if (clip.mux_asset_id) {
+    try {
+      await deleteMuxAssetIfExists(String(clip.mux_asset_id));
+    } catch (muxErr) {
+      console.error(
+        `[clips] DELETE: Mux asset ${clip.mux_asset_id} not deleted:`,
+        muxErr instanceof Error ? muxErr.message : muxErr
+      );
+    }
+  }
   return NextResponse.json({ ok: true });
 }

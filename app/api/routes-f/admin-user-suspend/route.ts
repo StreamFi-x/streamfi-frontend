@@ -26,8 +26,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { z } from "zod";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
-import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
+import { requireAdminSession } from "@/lib/admin-auth";
 import { writeNotification } from "@/lib/notifications";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 const suspendSchema = z.object({
   userId: z.string().uuid(),
@@ -41,9 +42,9 @@ type SuspendPayload = z.infer<typeof suspendSchema>;
 export async function POST(req: NextRequest) {
   try {
     // Verify admin authentication
-    const isAdmin = await verifyAdminSession();
-    if (!isAdmin) {
-      return adminUnauthorized();
+    const adminDenied = await requireAdminSession("routes-f/admin-user-suspend");
+    if (adminDenied) {
+      return adminDenied;
     }
 
     // Validate request body
@@ -64,6 +65,7 @@ export async function POST(req: NextRequest) {
 
     // Check if user exists
     const userResult = await sql`
+      -- tombstone-aware: admin view includes accounts pending deletion
       SELECT id, username, is_banned, is_live FROM users WHERE id = ${userId}
     `;
 
@@ -94,6 +96,7 @@ export async function POST(req: NextRequest) {
           suspended_until = ${suspendedUntil}
         WHERE id = ${userId}
       `;
+      await invalidateUserCaches({ id: userId });
 
       // If user is currently live, end their stream
       if (user.is_live) {
@@ -104,6 +107,7 @@ export async function POST(req: NextRequest) {
             current_viewers = 0
           WHERE id = ${userId}
         `;
+        await invalidateUserCaches({ id: userId });
 
         // Close active stream sessions
         await sql`
@@ -154,6 +158,7 @@ export async function POST(req: NextRequest) {
           suspended_until = NULL
         WHERE id = ${userId}
       `;
+      await invalidateUserCaches({ id: userId });
 
       // Send notification to user
       try {
@@ -188,9 +193,9 @@ export async function POST(req: NextRequest) {
 // Get suspension status for a user (admin only)
 export async function GET(req: NextRequest) {
   try {
-    const isAdmin = await verifyAdminSession();
-    if (!isAdmin) {
-      return adminUnauthorized();
+    const adminDenied = await requireAdminSession("routes-f/admin-user-suspend");
+    if (adminDenied) {
+      return adminDenied;
     }
 
     const { searchParams } = new URL(req.url);
@@ -204,6 +209,7 @@ export async function GET(req: NextRequest) {
     }
 
     const result = await sql`
+      -- tombstone-aware: admin view includes accounts pending deletion
       SELECT 
         id,
         username,
@@ -240,6 +246,7 @@ export async function GET(req: NextRequest) {
             suspended_until = NULL
           WHERE id = ${userId}
         `;
+        await invalidateUserCaches({ id: userId });
         isCurrentlySuspended = false;
       }
     }

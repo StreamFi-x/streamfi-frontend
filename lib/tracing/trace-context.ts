@@ -1,6 +1,3 @@
-import { AsyncLocalStorage } from 'async_hooks';
-import { randomUUID } from 'crypto';
-
 /**
  * Trace context stored in AsyncLocalStorage.
  * Provides request-scoped correlation ID and trace metadata.
@@ -12,7 +9,53 @@ export interface TraceContext {
   timestamp: number;
 }
 
-const asyncLocalStorage = new AsyncLocalStorage<TraceContext>();
+type ALS<T> = {
+  run<R>(store: T, callback: () => R): R;
+  getStore(): T | undefined;
+};
+
+class FallbackAsyncLocalStorage<T> implements ALS<T> {
+  private current: T | undefined = undefined;
+  run<R>(store: T, callback: () => R): R {
+    const prev = this.current;
+    this.current = store;
+    try {
+      return callback();
+    } finally {
+      this.current = prev;
+    }
+  }
+  getStore(): T | undefined {
+    return this.current;
+  }
+}
+
+function createALS<T>(): ALS<T> {
+  if (typeof (globalThis as unknown as { AsyncLocalStorage?: new () => ALS<T> }).AsyncLocalStorage !== 'undefined') {
+    const G = (globalThis as unknown as { AsyncLocalStorage: new () => ALS<T> });
+    return new G.AsyncLocalStorage();
+  }
+  try {
+    // Use dynamic require so bundlers do not attempt to bundle async_hooks in browser/edge
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const nodeHooks = require('async_hooks');
+    if (nodeHooks?.AsyncLocalStorage) {
+      return new nodeHooks.AsyncLocalStorage();
+    }
+  } catch {
+    // Browser / Edge fallback
+  }
+  return new FallbackAsyncLocalStorage<T>();
+}
+
+const asyncLocalStorage = createALS<TraceContext>();
+
+function safeUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
 
 /**
  * Generate a new trace context
@@ -22,8 +65,8 @@ export function createTraceContext(
   parentSpanId?: string
 ): TraceContext {
   return {
-    traceId: traceId || `trace-${randomUUID()}`,
-    spanId: `span-${randomUUID()}`,
+    traceId: traceId || `trace-${safeUUID()}`,
+    spanId: `span-${safeUUID()}`,
     parentSpanId,
     timestamp: Date.now(),
   };
@@ -61,7 +104,7 @@ export function getCurrentTraceContext(): TraceContext | undefined {
  */
 export function getTraceId(): string {
   const context = getCurrentTraceContext();
-  return context?.traceId || `trace-${randomUUID()}`;
+  return context?.traceId || `trace-${safeUUID()}`;
 }
 
 /**
@@ -71,7 +114,7 @@ export function getTraceHeaders(): Record<string, string> {
   const context = getCurrentTraceContext();
   if (!context) {
     return {
-      'x-request-id': `trace-${randomUUID()}`,
+      'x-request-id': `trace-${safeUUID()}`,
     };
   }
 

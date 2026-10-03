@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
+import { requireAdminPrincipal } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest): Promise<Response> {
   const session = await verifySession(req);
@@ -8,12 +9,14 @@ export async function GET(req: NextRequest): Promise<Response> {
     return session.response;
   }
 
-  const { rows: userRows } = await sql`
-    SELECT role FROM users WHERE id = ${session.userId} LIMIT 1
-  `;
-  const role = userRows[0]?.role;
-  if (role !== "admin") {
-    return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
+  const adminDenied = await requireAdminPrincipal(req, {
+    mechanism: "session_role",
+    route: "routes-f/admin-user-search",
+    userId: session.userId,
+    check: () => true,
+  });
+  if (adminDenied) {
+    return adminDenied;
   }
 
   const searchParams = new URL(req.url).searchParams;
@@ -26,7 +29,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   const term = `%${q}%`;
   try {
     const { rows } = await sql`
-      SELECT id, username, email, wallet_address, role, is_suspended, created_at
+      -- tombstone-aware: admin view includes accounts pending deletion
+      SELECT id, username, email, wallet_address, role, is_suspended, created_at, deleted_at
       FROM users
       WHERE username ILIKE ${term}
          OR email ILIKE ${term}

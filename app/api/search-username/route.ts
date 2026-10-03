@@ -4,6 +4,7 @@ import { createRateLimiter } from "@/lib/rate-limit";
 import { logSearchQuery, normalizeQuery } from "@/lib/analytics/search-query-logger";
 import { rankSearchResults } from "@/lib/search-ranking";
 import { logger } from "@/lib/tracing/logger";
+import { CACHE_POLICIES } from "@/lib/cache";
 
 // 30 searches per minute per IP — ILIKE is fast with the trgm index but still DB work
 const isRateLimited = createRateLimiter(60_000, 30);
@@ -84,6 +85,9 @@ export async function GET(req: NextRequest) {
         )
       ORDER BY relevance_score DESC, similarity(username, ${query}) DESC
       LIMIT ${limit * 2}  -- Fetch more, then rank/filter
+      WHERE username ILIKE ${"%" + query + "%"}
+        AND deleted_at IS NULL
+      LIMIT 8
     `;
 
     // Rank results using comprehensive algorithm
@@ -132,6 +136,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       { users: results },
       { headers: { "Cache-Control": "public, s-maxage=5" } }
+      { users: results.rows },
+      { headers: { "Cache-Control": CACHE_POLICIES.typeahead.cacheControl } }
     );
   } catch (error) {
     const queryDuration = Date.now() - startTime;

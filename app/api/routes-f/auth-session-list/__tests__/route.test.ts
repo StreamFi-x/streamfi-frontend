@@ -57,16 +57,18 @@ describe("GET /api/routes-f/auth-session-list", () => {
   });
 
   it("returns sessions with ip_hash instead of ip_address, never the raw IP", async () => {
-    listSessions.mockResolvedValue([
-      {
+    listSessions.mockResolvedValue({
+      sessions: [{
         id: "sess-1",
         device_hint: "Chrome on macOS",
-        ip_address: "3f9c2b00e1", // pre-hashed by the mocked lib layer
+        ip_address: "3f9c2b00e1",
+        location: "Paris, France",
         last_seen_at: "2026-03-26T12:00:00.000Z",
         created_at: "2026-03-25T08:00:00.000Z",
         is_current: true,
-      },
-    ]);
+      }],
+      nextCursor: "next-page",
+    });
 
     const res = await GET(req({ privy_session: "did:privy:abc123" }));
     expect(res.status).toBe(200);
@@ -77,25 +79,28 @@ describe("GET /api/routes-f/auth-session-list", () => {
       id: "sess-1",
       device_hint: "Chrome on macOS",
       ip_hash: "3f9c2b00e1",
+      location: "Paris, France",
       last_seen_at: "2026-03-26T12:00:00.000Z",
       created_at: "2026-03-25T08:00:00.000Z",
       is_current: true,
     });
+    expect(body.nextCursor).toBe("next-page");
     expect(body.sessions[0]).not.toHaveProperty("ip_address");
   });
 
   it("requests hashed (not masked) IPs from listActiveSessions", async () => {
-    listSessions.mockResolvedValue([]);
+    listSessions.mockResolvedValue({ sessions: [], nextCursor: null });
     await GET(req({ privy_session: "did:privy:abc123" }));
     expect(listSessions).toHaveBeenCalledWith(
       "user-1",
       "did:privy:abc123",
-      "hash"
+      "hash",
+      null
     );
   });
 
   it("returns an empty list when the user has no active sessions", async () => {
-    listSessions.mockResolvedValue([]);
+    listSessions.mockResolvedValue({ sessions: [], nextCursor: null });
     const res = await GET(req({ privy_session: "did:privy:abc123" }));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -103,16 +108,17 @@ describe("GET /api/routes-f/auth-session-list", () => {
   });
 
   it("returns null ip_hash for a session with no recorded IP", async () => {
-    listSessions.mockResolvedValue([
+    listSessions.mockResolvedValue({ sessions: [
       {
         id: "sess-2",
         device_hint: "Unknown device",
         ip_address: null,
+        location: "Unknown location",
         last_seen_at: "2026-03-26T12:00:00.000Z",
         created_at: "2026-03-25T08:00:00.000Z",
         is_current: false,
       },
-    ]);
+    ], nextCursor: null });
     const res = await GET(req({ privy_session: "did:privy:abc123" }));
     const body = await res.json();
     expect(body.sessions[0].ip_hash).toBeNull();

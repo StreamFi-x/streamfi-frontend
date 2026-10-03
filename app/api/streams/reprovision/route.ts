@@ -7,6 +7,7 @@ import {
   type MuxStreamData,
 } from "@/lib/mux/server";
 import { isSigningConfigured } from "@/lib/mux/playback-token";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 /**
  * POST /api/streams/reprovision
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
              enable_recording, latency_mode, stream_privacy,
              is_live
       FROM users
-      WHERE LOWER(wallet) = LOWER(${wallet})
+      WHERE LOWER(wallet) = LOWER(${wallet}) AND deleted_at IS NULL
     `;
     if (userResult.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -91,6 +92,7 @@ export async function POST(req: Request) {
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ${user.id}
       `;
+      await invalidateUserCaches({ id: user.id });
     } catch (dbErr) {
       console.error("[reprovision] DB update failed:", dbErr);
       // Try to clean up the orphan Mux stream we just created

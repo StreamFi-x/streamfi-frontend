@@ -1,0 +1,188 @@
+/**
+ * Minimal application schema for integration tests: the pre-existing tables
+ * these features touch (shapes copied from db/schema.sql and the legacy
+ * migrations), followed by this repository's versioned migrations applied
+ * from db/migrations, so the tests also exercise the real migration files.
+ */
+import { readdirSync, readFileSync } from "fs";
+import path from "path";
+import type { Pool } from "pg";
+import {
+  VERSIONED_FILENAME,
+  isTransactional,
+} from "@/lib/migrations/discovery";
+import { splitSqlStatements } from "@/lib/migrations/sql-splitter";
+
+const BASE_SCHEMA = `
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username VARCHAR(255) UNIQUE,
+  wallet VARCHAR(255) UNIQUE NOT NULL,
+  email TEXT,
+  is_live BOOLEAN DEFAULT FALSE,
+  stream_started_at TIMESTAMPTZ,
+  current_viewers INTEGER DEFAULT 0,
+  mux_stream_id VARCHAR(255),
+  mux_playback_id VARCHAR(255),
+  creator JSONB,
+  total_tips_received NUMERIC(20, 7) DEFAULT 0,
+  total_tips_count INTEGER DEFAULT 0,
+  last_tip_at TIMESTAMP,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE stream_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  mux_session_id VARCHAR(255),
+  title VARCHAR(255),
+  playback_id VARCHAR(255),
+  started_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  ended_at TIMESTAMPTZ,
+  duration_seconds INTEGER GENERATED ALWAYS AS (
+    CASE WHEN ended_at IS NOT NULL
+      THEN EXTRACT(EPOCH FROM (ended_at - started_at))::INTEGER ELSE NULL END
+  ) STORED,
+  peak_viewers INTEGER DEFAULT 0,
+  total_unique_viewers INTEGER DEFAULT 0,
+  total_messages INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE chat_messages (
+  id SERIAL PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE CASCADE,
+  content TEXT,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stream_viewers (
+  id SERIAL PRIMARY KEY,
+  stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  joined_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  left_at TIMESTAMPTZ
+);
+
+-- From the legacy (pre-runner) add-admin-panel.sql migration, which this
+-- fixture does not otherwise apply (only versioned db/migrations/ files are
+-- applied below); included here for the same reason stream_viewers is.
+CREATE TABLE stream_reports (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  reporter_id TEXT        NOT NULL,
+  stream_id   TEXT        NOT NULL,
+  streamer    TEXT        NOT NULL,
+  reason      TEXT        NOT NULL,
+  details     TEXT,
+  status      TEXT        NOT NULL DEFAULT 'pending',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Also from 20260327_routes_f_creator_finance_and_badges.sql (legacy, not
+-- applied by this fixture); tip_transactions/payouts below were already
+-- copied in from the same file, this one was missed until #1447 needed it.
+CREATE TABLE user_follows (
+  follower_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  followee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (follower_id, followee_id)
+);
+
+CREATE TABLE tip_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  supporter_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  amount_xlm NUMERIC(20,7) NOT NULL,
+  price_usd NUMERIC(20,7),
+  tx_hash TEXT,
+  memo TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX idx_tip_transactions_tx_hash_unique
+  ON tip_transactions(tx_hash) WHERE tx_hash IS NOT NULL;
+
+-- Clips, recordings and whitelist, for the keyset indexes in
+-- 20260926100200_hot_path_indexes (add-feature-flags-clips-whitelist-preferences,
+-- db/schema.sql, add-needs-review).
+CREATE TABLE stream_clips (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE SET NULL,
+  clipped_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  streamer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(255),
+  playback_id VARCHAR(255),
+  mux_asset_id VARCHAR(255),
+  start_offset INTEGER NOT NULL,
+  duration INTEGER NOT NULL CHECK (duration BETWEEN 1 AND 60),
+  status VARCHAR(20) DEFAULT 'processing'
+    CHECK (status IN ('processing', 'ready', 'failed')),
+  view_count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stream_recordings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE SET NULL,
+  mux_asset_id VARCHAR(255) NOT NULL UNIQUE,
+  playback_id VARCHAR(255) NOT NULL,
+  title VARCHAR(255),
+  duration INTEGER,
+  status VARCHAR(50) DEFAULT 'processing',
+  needs_review BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_stream_recordings_user_id ON stream_recordings(user_id);
+
+CREATE TABLE stream_whitelist (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  streamer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  identifier VARCHAR(255),
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (streamer_id, user_id),
+  UNIQUE (streamer_id, identifier)
+);
+CREATE INDEX idx_stream_whitelist_streamer ON stream_whitelist(streamer_id);
+
+CREATE TYPE payout_status AS ENUM ('pending', 'processing', 'completed', 'failed');
+CREATE TYPE payout_method AS ENUM ('bank_transfer', 'stellar_wallet', 'mobile_money');
+CREATE TABLE payouts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount_usdc NUMERIC(10,2) NOT NULL,
+  method payout_method NOT NULL,
+  destination TEXT NOT NULL,
+  status payout_status NOT NULL DEFAULT 'pending',
+  provider TEXT,
+  provider_ref TEXT,
+  fee_usdc NUMERIC(10,2) NOT NULL DEFAULT 0,
+  net_usdc NUMERIC(10,2) NOT NULL,
+  initiated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  notes TEXT
+);
+`;
+
+export async function applyAppSchema(pool: Pool): Promise<void> {
+  await pool.query(BASE_SCHEMA);
+  const dir = path.join(process.cwd(), "db", "migrations");
+  const versioned = readdirSync(dir)
+    .filter(file => VERSIONED_FILENAME.test(file))
+    .sort();
+  for (const file of versioned) {
+    const sql = readFileSync(path.join(dir, file), "utf8");
+    if (isTransactional(sql)) {
+      await pool.query(sql);
+      continue;
+    }
+    // Like the runner: `-- migrate:no-transaction` files (e.g. CREATE INDEX
+    // CONCURRENTLY) run one statement at a time, outside a transaction block.
+    for (const statement of splitSqlStatements(sql)) {
+      await pool.query(statement);
+    }
+  }
+}

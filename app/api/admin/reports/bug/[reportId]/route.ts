@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
-import { sql } from "@vercel/postgres";
-import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
+import { currentAdminPrivyId, requireAdminSession } from "@/lib/admin-auth";
+import { withAdminAudit } from "@/lib/audit/admin-events";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ reportId: string }> }
 ): Promise<Response> {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("admin/reports/bug/[reportId]");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   const { reportId } = await params;
@@ -24,11 +24,14 @@ export async function PATCH(
   }
 
   try {
-    await sql`
-      UPDATE bug_reports
-      SET status = ${status}
-      WHERE id = ${reportId}
-    `;
+    await withAdminAudit(
+      { actorId: await currentAdminPrivyId(), action: "bug_report_status_changed", targetType: "bug_report", targetId: reportId },
+      async tx => {
+        const { rows: beforeRows } = await tx.sql`SELECT status FROM bug_reports WHERE id = ${reportId} FOR UPDATE`;
+        const { rows } = await tx.sql`UPDATE bug_reports SET status = ${status} WHERE id = ${reportId} RETURNING status`;
+        return { result: undefined, beforeState: beforeRows[0] ?? null, afterState: rows[0] ?? null };
+      }
+    );
     return Response.json({ ok: true });
   } catch (err) {
     console.error("[admin/reports/bug/[reportId]] PATCH error:", err);

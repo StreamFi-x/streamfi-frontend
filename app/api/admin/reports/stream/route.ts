@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
-import { verifyAdminSession, adminUnauthorized } from "@/lib/admin-auth";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const isAdmin = await verifyAdminSession();
-  if (!isAdmin) {
-    return adminUnauthorized();
+  const adminDenied = await requireAdminSession("admin/reports/stream");
+  if (adminDenied) {
+    return adminDenied;
   }
 
   const { searchParams } = new URL(req.url);
@@ -16,19 +16,23 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   try {
     let result;
+    // Expedited reports (#1447: a volume spike or coordinated-account
+    // signal) sort first within a status, so a brigade attempt surfaces to
+    // the top of the review queue rather than waiting behind ordinary
+    // reports in strict chronological order.
     if (status === "all") {
       result = await sql`
-        SELECT id, reporter_id, stream_id, streamer, reason, details, status, created_at
+        SELECT id, reporter_id, is_anonymous, priority, stream_id, streamer, reason, details, status, created_at
         FROM stream_reports
-        ORDER BY created_at DESC
+        ORDER BY (priority = 'expedited') DESC, created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
     } else {
       result = await sql`
-        SELECT id, reporter_id, stream_id, streamer, reason, details, status, created_at
+        SELECT id, reporter_id, is_anonymous, priority, stream_id, streamer, reason, details, status, created_at
         FROM stream_reports
         WHERE status = ${status}
-        ORDER BY created_at DESC
+        ORDER BY (priority = 'expedited') DESC, created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
     }

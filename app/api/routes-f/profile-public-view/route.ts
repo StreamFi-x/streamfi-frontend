@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
         bio, 
         sociallinks as socials
       FROM users
-      WHERE LOWER(username) = ${username}
+      WHERE LOWER(username) = ${username} AND deleted_at IS NULL
       LIMIT 1
     `;
     const user = rows[0];

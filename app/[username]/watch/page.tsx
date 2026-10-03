@@ -129,6 +129,24 @@ const WatchPage = ({ params }: PageProps) => {
     }).catch(() => {});
   }, [userData?.mux_playback_id, userData?.is_live]);
 
+  // Heartbeat (#1403): lets the viewer-count reconciliation job tell a
+  // still-watching viewer apart from one whose leave call never fired (tab
+  // closed, connection lost, browser crash). Only runs once a session is
+  // actually registered, and stops on unmount alongside deregistration below.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!viewerSessionId.current) {
+        return;
+      }
+      fetch("/api/streams/viewers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: viewerSessionId.current }),
+      }).catch(() => {});
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Deregister viewer when leaving the page
   useEffect(() => {
     return () => {

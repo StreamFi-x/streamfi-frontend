@@ -1,11 +1,11 @@
 /**
  * POST /api/auth/regenerate-wallet
  *
- * Generates a fresh Stellar keypair for a Privy user and re-encrypts it with
- * the current STELLAR_ENCRYPTION_KEY. The old wallet address is overwritten.
+ * Generates a fresh Stellar keypair for a Privy user and envelope-encrypts it
+ * through KMS (lib/custodial-keys). The old wallet address is overwritten.
  *
  * ⚠️  Only safe when the user has no balance on the old address — intended for
- *     development/testnet use or when the encryption key has been rotated.
+ *     development/testnet use.
  *
  * Security controls:
  *  - Requires a valid privy_session HttpOnly cookie
@@ -15,38 +15,19 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { Keypair } from "@stellar/stellar-sdk";
-import { createCipheriv, randomBytes } from "crypto";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { encryptSecret } from "@/lib/security/encrypted-secrets";
+import { consumeStepUp } from "@/lib/security/step-up";
+import {
+  CustodialKeyError,
+  encryptCustodialSecret,
+} from "@/lib/custodial-keys";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 // ─── Rate limiter: 2 regenerations per 10 minutes per IP ──────────────────────
 const isRateLimited = createRateLimiter(10 * 60 * 1000, 2);
-
-// ─── Encryption ────────────────────────────────────────────────────────────────
-function getEncryptionKey(): Buffer {
-  const hex = process.env.STELLAR_ENCRYPTION_KEY;
-  if (!hex || hex.length !== 64) {
-    throw new Error("STELLAR_ENCRYPTION_KEY misconfigured");
-  }
-  return Buffer.from(hex, "hex");
-}
-
-function encryptSecret(plaintext: string): string {
-  const key = getEncryptionKey();
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
-  const authTag = cipher.getAuthTag();
-  return [
-    iv.toString("hex"),
-    authTag.toString("hex"),
-    encrypted.toString("hex"),
-  ].join(":");
-}
 
 // ─── POST handler ──────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
@@ -76,17 +57,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let body: { stepUpChallengeId?: unknown };
+  try {body = await req.json();} catch {return NextResponse.json({ error: "Step-up challenge required" }, { status: 403 });}
+  if (typeof body.stepUpChallengeId !== "string" || !(await consumeStepUp(session.userId, body.stepUpChallengeId, "wallet_regeneration", session.userId))) {
+    return NextResponse.json({ error: "Complete two-factor verification before regenerating the wallet" }, { status: 403 });
+  }
+
   const keypair = Keypair.random();
   const walletPublicKey = keypair.publicKey();
 
   let encryptedSecret: string;
   try {
-    encryptedSecret = encryptSecret(keypair.secret());
+    encryptedSecret = await encryptCustodialSecret(
+      session.userId,
+      keypair.secret()
+    );
   } catch (err) {
-    console.error("[regenerate-wallet] Encryption failed:", err);
+    console.error(
+      "[regenerate-wallet] Encryption failed:",
+      err instanceof CustodialKeyError ? err.code : "unexpected_error"
+    );
+    const transient = err instanceof CustodialKeyError && err.transient;
     return NextResponse.json(
-      { error: "Failed to encrypt new wallet — check STELLAR_ENCRYPTION_KEY" },
-      { status: 500 }
+      {
+        error: transient
+          ? "Wallet security service is temporarily unavailable — please try again"
+          : "Failed to encrypt new wallet",
+      },
+      { status: transient ? 503 : 500 }
     );
   }
 
@@ -94,9 +92,12 @@ export async function POST(req: NextRequest) {
     await sql`
       UPDATE users
       SET
-        wallet                = ${walletPublicKey},
-        encrypted_stellar_key = ${encryptedSecret},
-        updated_at            = NOW()
+        wallet                       = ${walletPublicKey},
+        encrypted_stellar_key        = ${encryptedSecret},
+        -- A legacy backup belongs to the abandoned key; keeping it would
+        -- leave a static-key-decryptable secret behind (see #1396).
+        encrypted_stellar_key_legacy = NULL,
+        updated_at                   = NOW()
       WHERE id = ${session.userId}
     `;
   } catch (err) {
@@ -106,6 +107,11 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+  await invalidateUserCaches({
+    id: session.userId,
+    wallet: walletPublicKey,
+    previousWallet: session.wallet,
+  });
 
   return NextResponse.json({ ok: true, wallet: walletPublicKey });
 }

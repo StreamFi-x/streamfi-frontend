@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth/verify-session";
 import { sql } from "@vercel/postgres";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -35,7 +36,7 @@ export async function PATCH(req: NextRequest) {
     const { rows } = await sql`
       SELECT last_handle_change_at, username
       FROM users
-      WHERE id = ${session.userId} OR wallet = ${session.wallet}
+      WHERE (id = ${session.userId} OR wallet = ${session.wallet}) AND deleted_at IS NULL
       LIMIT 1
     `;
 
@@ -58,6 +59,7 @@ export async function PATCH(req: NextRequest) {
   // 2. Check handle availability
   try {
     const { rows: existing } = await sql`
+      -- tombstone-aware: identifiers stay reserved until the account is purged
       SELECT id FROM users
       WHERE LOWER(username) = LOWER(${cleanHandle})
       AND id != ${session.userId}
@@ -80,6 +82,11 @@ export async function PATCH(req: NextRequest) {
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ${session.userId}
     `;
+    await invalidateUserCaches({
+      id: session.userId,
+      username: cleanHandle,
+      previousUsername: session.username,
+    });
   } catch {
     if (session.wallet) {
       try {
@@ -89,6 +96,11 @@ export async function PATCH(req: NextRequest) {
               updated_at = CURRENT_TIMESTAMP
           WHERE wallet = ${session.wallet}
         `;
+        await invalidateUserCaches({
+      id: session.userId,
+      username: cleanHandle,
+      previousUsername: session.username,
+    });
       } catch {
         // Fallback
       }

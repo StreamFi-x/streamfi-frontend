@@ -1,6 +1,12 @@
-import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { loadSecretKeyring } from "@/lib/security/keyring";
+import { handleMuxWebhook } from "@/lib/mux/webhook";
+import {
+  assetHandlers,
+  liveStreamHandlers,
+  liveStreamLogOnly,
+} from "@/lib/mux/webhook-handlers";
 
 /**
  * Mux Webhook Handler
@@ -8,24 +14,28 @@ import { sql } from "@vercel/postgres";
  * Setup Instructions:
  * 1. Go to Mux Dashboard → Settings → Webhooks
  * 2. Add webhook URL: https://yourdomain.com/api/webhooks/mux
- * 3. Copy the signing secret into MUX_WEBHOOK_SECRET env var
+ * 3. Add the signing secret to MUX_WEBHOOK_KEYRING_JSON
  * 4. Select events:
  *    - video.live_stream.active      (stream starts broadcasting)
  *    - video.live_stream.connected   (encoder connected — NOT yet live)
  *    - video.live_stream.idle        (stream paused / no feed)
  *    - video.live_stream.disconnected (encoder disconnected)
  *    - video.asset.ready             (recording ready)
+ *
+ * Signature verification and exactly-once processing (keyed on the Mux event
+ * id) live in lib/mux/webhook.ts; the side effects in
+ * lib/mux/webhook-handlers.ts.
  */
 
 /**
  * Verify the Mux-Signature header.
  * Returns true if the payload is authentic, false otherwise.
- * If MUX_WEBHOOK_SECRET is not set, verification is skipped (dev only).
+ * Verification accepts the configured current and previous keyring values.
  */
 function verifyMuxWebhookSignature(
   header: string,
   rawBody: string,
-  secret: string
+  secrets: string[]
 ): boolean {
   // Header format: "t=<unix_ts>,v1=<hex_signature>"
   const parts: Record<string, string> = {};
@@ -49,24 +59,27 @@ function verifyMuxWebhookSignature(
     return false;
   }
 
-  const expected = createHmac("sha256", secret)
-    .update(`${timestamp}.${rawBody}`)
-    .digest("hex");
-
-  try {
-    return timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
-  } catch {
-    return false;
+  const received = Buffer.from(signature, "hex");
+  let valid = false;
+  for (const secret of secrets) {
+    const expected = createHmac("sha256", secret)
+      .update(`${timestamp}.${rawBody}`)
+      .digest();
+    if (received.length === expected.length && timingSafeEqual(expected, received)) {
+      valid = true;
+    }
   }
+  return valid;
 }
 
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
-    const webhookSecret = process.env.MUX_WEBHOOK_SECRET;
+    let webhookSecrets: string[] = [];
+    try {webhookSecrets = [...loadSecretKeyring("MUX_WEBHOOK_KEYRING_JSON", "MUX_WEBHOOK_SECRET").keys.values()];} catch { /* handled as missing configuration below */ }
     const signatureHeader = req.headers.get("mux-signature");
 
-    if (webhookSecret) {
+    if (webhookSecrets.length > 0) {
       if (!signatureHeader) {
         console.error("❌ Missing Mux-Signature header");
         return NextResponse.json(
@@ -74,7 +87,7 @@ export async function POST(req: Request) {
           { status: 401 }
         );
       }
-      if (!verifyMuxWebhookSignature(signatureHeader, rawBody, webhookSecret)) {
+      if (!verifyMuxWebhookSignature(signatureHeader, rawBody, webhookSecrets)) {
         console.error("❌ Invalid Mux webhook signature");
         return NextResponse.json(
           { error: "Invalid signature" },
@@ -83,6 +96,9 @@ export async function POST(req: Request) {
       }
     } else {
       // No secret configured — log a warning but allow in dev
+      if (process.env.NODE_ENV === "production") {
+        return NextResponse.json({ error: "Webhook verification is not configured" }, { status: 503 });
+      }
       console.warn(
         "⚠️  MUX_WEBHOOK_SECRET not set — skipping signature verification (set it in production)"
       );
@@ -327,6 +343,19 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
+const handlers = {
+  ...liveStreamHandlers,
+  ...assetHandlers({ notifyOwner: false }),
+};
+
+export async function POST(req: Request) {
+  try {
+    return await handleMuxWebhook(req, {
+      endpoint: "webhooks/mux",
+      handlers,
+      logOnly: liveStreamLogOnly,
+      missingObjectIdError: "Invalid event",
+    });
   } catch (error) {
     console.error("❌ Webhook handler error:", error);
     return NextResponse.json(

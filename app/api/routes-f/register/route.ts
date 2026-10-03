@@ -3,6 +3,7 @@ import { z } from "zod";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 3); // 3 attempts per IP per hour
 
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
   try {
     // Check uniqueness
     const { rows: existing } = await sql`
-      SELECT id FROM users WHERE lower(username) = lower(${username}) AND id != ${session.userId} LIMIT 1
+      /* tombstone-aware: identifiers stay reserved until the account is purged */ SELECT id FROM users WHERE lower(username) = lower(${username}) AND id != ${session.userId} LIMIT 1
     `;
     if (existing.length > 0) {
       return NextResponse.json({ error: "Username is already taken" }, { status: 409 });
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     let referredBy: string | null = null;
     if (ref_code) {
       const { rows: refRows } = await sql`
-        SELECT id FROM users WHERE referral_code = ${ref_code} LIMIT 1
+        SELECT id FROM users WHERE referral_code = ${ref_code} AND deleted_at IS NULL LIMIT 1
       `;
       if (refRows.length > 0) {
         referredBy = refRows[0].id;
@@ -94,6 +95,13 @@ export async function POST(request: NextRequest) {
     `;
 
     const user = userRows[0];
+    // Profile layouts cache "not found" (unstable_cache), so a new or renamed
+    // handle must be purged too.
+    await invalidateUserCaches({
+      id: user.id,
+      username: user.username,
+      previousUsername: session.username,
+    });
 
     // Initialise onboarding progress (idempotent)
     await sql`
