@@ -1,61 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
-import sharp from "sharp";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import {
+  extractPublicIdFromUrl,
+  deleteImage,
+  importRemoteImage,
+} from "@/utils/upload/cloudinary";
 
-const MAX_THUMBNAIL_BYTES = 10 * 1024 * 1024;
-const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MIN_WIDTH = 1280;
-const MIN_HEIGHT = 720;
+const THUMBNAIL_RULES = {
+  folder: "stream-thumbnails",
+  allowedFormats: ["jpg", "png", "webp"],
+  maxBytes: 10 * 1024 * 1024,
+  minWidth: 1280,
+  minHeight: 720,
+};
 
-async function validateRemoteImage(publicUrl: string) {
-  const headResponse = await fetch(publicUrl, {
-    method: "HEAD",
-    cache: "no-store",
-  });
-
-  if (!headResponse.ok) {
-    return { ok: false, error: "public_url is not reachable" };
+/** Removes a previous custom thumbnail if it is one of our Cloudinary copies. */
+async function deleteStoredThumbnail(url: unknown): Promise<void> {
+  const publicId =
+    typeof url === "string" ? extractPublicIdFromUrl(url) : null;
+  if (publicId) {
+    await deleteImage(publicId).catch(error =>
+      console.error("[routes-f/preview/custom] old thumbnail cleanup:", error)
+    );
   }
-
-  const contentType = headResponse.headers.get("content-type") ?? "";
-  const mime = contentType.split(";")[0].trim().toLowerCase();
-  if (!ALLOWED_MIME_TYPES.has(mime)) {
-    return { ok: false, error: "Image type must be JPEG, PNG, or WebP" };
-  }
-
-  const contentLengthRaw = headResponse.headers.get("content-length") ?? "0";
-  const contentLength = Number.parseInt(contentLengthRaw, 10);
-  if (Number.isFinite(contentLength) && contentLength > MAX_THUMBNAIL_BYTES) {
-    return { ok: false, error: "Image exceeds 10MB limit" };
-  }
-
-  const probeResponse = await fetch(publicUrl, { cache: "no-store" });
-  if (!probeResponse.ok) {
-    return { ok: false, error: "public_url could not be fetched" };
-  }
-
-  const contentTypeFromGet = probeResponse.headers.get("content-type") ?? "";
-  const mimeFromGet = contentTypeFromGet.split(";")[0].trim().toLowerCase();
-  if (!ALLOWED_MIME_TYPES.has(mimeFromGet)) {
-    return { ok: false, error: "Image type must be JPEG, PNG, or WebP" };
-  }
-
-  const arrayBuffer = await probeResponse.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  if (buffer.byteLength > MAX_THUMBNAIL_BYTES) {
-    return { ok: false, error: "Image exceeds 10MB limit" };
-  }
-
-  const metadata = await sharp(buffer).metadata();
-  const width = metadata.width ?? 0;
-  const height = metadata.height ?? 0;
-  if (width < MIN_WIDTH || height < MIN_HEIGHT) {
-    return { ok: false, error: "Image must be at least 1280x720" };
-  }
-
-  return { ok: true };
 }
 
 export const runtime = "nodejs";
@@ -95,34 +64,48 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const validation = await validateRemoteImage(publicUrl);
-  if (!validation.ok) {
-    return NextResponse.json({ error: validation.error }, { status: 400 });
+  // Cloudinary fetches and validates the image (#1419): this server never
+  // downloads the user-supplied URL, and the stored copy does not depend on
+  // the original host staying up.
+  const imported = await importRemoteImage(publicUrl, THUMBNAIL_RULES);
+  if (!imported.ok) {
+    return NextResponse.json(
+      { error: imported.error },
+      { status: imported.status }
+    );
   }
 
   const generatedAt = new Date().toISOString();
 
   try {
-    await sql`
+    const { rows } = await sql`
+      WITH previous AS (
+        SELECT creator->>'customThumbnailUrl' AS url FROM users
+         WHERE id = ${session.userId} AND deleted_at IS NULL
+      )
       UPDATE users
       SET creator = jsonb_set(
-        jsonb_set(COALESCE(creator, '{}'::jsonb), '{customThumbnailUrl}', to_jsonb(${publicUrl}::text), true),
+        jsonb_set(COALESCE(creator, '{}'::jsonb), '{customThumbnailUrl}', to_jsonb(${imported.url}::text), true),
         '{customThumbnailUpdatedAt}',
         to_jsonb(${generatedAt}::text),
         true
       ),
       updated_at = NOW()
+      FROM previous
       WHERE id = ${session.userId}
+      RETURNING previous.url AS previous_url
     `;
     await invalidateUserCaches({ id: session.userId });
+    await deleteStoredThumbnail(rows[0]?.previous_url);
 
     return NextResponse.json({
       type: "custom",
-      url: publicUrl,
+      url: imported.url,
       generated_at: generatedAt,
       is_live: true,
     });
   } catch (error) {
+    await deleteImage(imported.publicId).catch(() => undefined);
     console.error("[routes-f/preview/custom] POST error:", error);
     return NextResponse.json(
       { error: "Failed to save custom thumbnail" },
@@ -137,13 +120,19 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const { rows } = await sql`
+      WITH previous AS (
+        SELECT creator->>'customThumbnailUrl' AS url FROM users
+         WHERE id = ${session.userId} AND deleted_at IS NULL
+      )
       UPDATE users
       SET creator = (COALESCE(creator, '{}'::jsonb) - 'customThumbnailUrl' - 'customThumbnailUpdatedAt'),
           updated_at = NOW()
+      FROM previous
       WHERE id = ${session.userId}
-      RETURNING mux_playback_id, is_live
+      RETURNING mux_playback_id, is_live, previous.url AS previous_url
     `;
     await invalidateUserCaches({ id: session.userId });
+    await deleteStoredThumbnail(rows[0]?.previous_url);
 
     const user = rows[0];
     const playbackId =

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth/verify-session";
 import { sql } from "@vercel/postgres";
+import {
+  JsonbContractError,
+  prepareSocialLinks,
+} from "@/lib/db/jsonb-contracts";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 function isValidUrl(str: string): boolean {
@@ -62,31 +66,38 @@ export async function PATCH(req: NextRequest) {
     cleanLinks.push(platform ? { platform, url } : { url });
   }
 
-  const jsonValue = JSON.stringify(cleanLinks);
+  // Stored in the canonical {platform: url} form (#1407); the response keeps
+  // the list shape this endpoint has always returned.
+  let document: ReturnType<typeof prepareSocialLinks>;
+  try {
+    document = prepareSocialLinks(cleanLinks);
+  } catch (err) {
+    if (err instanceof JsonbContractError) {
+      return NextResponse.json(
+        { error: "Invalid social links", issues: err.issues },
+        { status: 400 }
+      );
+    }
+    throw err;
+  }
 
   try {
-    await sql`
+    const result = await sql`
       UPDATE users
-      SET socialLinks = ${jsonValue}::jsonb,
+      SET socialLinks = ${JSON.stringify(document)}::jsonb,
           updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${session.userId}
+      WHERE id = ${session.userId} AND deleted_at IS NULL
     `;
-    await invalidateUserCaches({ id: session.userId });
-  } catch {
-    // Fallback if update by wallet
-    if (session.wallet) {
-      try {
-        await sql`
-          UPDATE users
-          SET socialLinks = ${jsonValue}::jsonb,
-              updated_at = CURRENT_TIMESTAMP
-          WHERE wallet = ${session.wallet}
-        `;
-        await invalidateUserCaches({ id: session.userId });
-      } catch {
-        // Fallback
-      }
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    await invalidateUserCaches({ id: session.userId });
+  } catch (err) {
+    console.error("[profile-update-social-links] update failed:", err);
+    return NextResponse.json(
+      { error: "Failed to update social links" },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json(

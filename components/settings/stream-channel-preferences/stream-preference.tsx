@@ -140,6 +140,16 @@ const StreamPreferencesPage: React.FC = () => {
   const [recordingToggleSaving, setRecordingToggleSaving] = useState(false);
   const [latencyMode, setLatencyMode] = useState<"low" | "standard">("low");
   const [latencyToggleSaving, setLatencyToggleSaving] = useState(false);
+
+  const [privacy, setPrivacy] = useState<StreamPrivacy>("public");
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [streamPassword, setStreamPassword] = useState("");
+  const [streamPasswordEnabled, setStreamPasswordEnabled] = useState(false);
+  const [streamPasswordSaving, setStreamPasswordSaving] = useState(false);
+  const [privacySaving, setPrivacySaving] = useState(false);
+  const [tokenRotating, setTokenRotating] = useState(false);
+  const [outOfSync, setOutOfSync] = useState<string[]>([]);
+  const [reprovisioning, setReprovisioning] = useState(false);
   const [streamAccessType, setStreamAccessType] = useState<
     "public" | "password" | "subscription"
   >("public");
@@ -202,6 +212,190 @@ const StreamPreferencesPage: React.FC = () => {
 
     fetchStreamKey();
   }, [address]);
+
+  useEffect(() => {
+    fetch("/api/streams/password", { cache: "no-store" })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => {if (data) {setStreamPasswordEnabled(data.enabled === true);}})
+      .catch(() => {});
+  }, []);
+
+  const handleStreamPasswordSave = async () => {
+    if (streamPasswordSaving) {return;}
+    setStreamPasswordSaving(true);
+    try {
+      const response = await fetch("/api/streams/password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: streamPassword || null }),
+      });
+      if (!response.ok) {throw new Error("Unable to save stream password");}
+      const data = await response.json();
+      setStreamPasswordEnabled(data.enabled === true);
+      setStreamPassword("");
+      toast.success(data.enabled ? "Stream password enabled" : "Stream password removed");
+    } catch {
+      toast.error("Select a private stream mode and enter a valid password");
+    } finally {
+      setStreamPasswordSaving(false);
+    }
+  };
+
+  // Load privacy settings
+  useEffect(() => {
+    if (!address) {
+      return;
+    }
+    fetch(`/api/streams/privacy?wallet=${address}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (!data) {
+          return;
+        }
+        if (data.privacy) {
+          setPrivacy(data.privacy as StreamPrivacy);
+        }
+        setShareToken(data.shareToken ?? null);
+      })
+      .catch(() => {});
+  }, [address]);
+
+  const handlePrivacyChange = async (next: StreamPrivacy) => {
+    if (!address || privacySaving || next === privacy) {
+      return;
+    }
+    setPrivacySaving(true);
+    try {
+      const res = await fetch("/api/streams/privacy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallet: address, privacy: next }),
+      });
+      if (!res.ok) {
+        throw new Error("Failed");
+      }
+      const data = await res.json();
+      setPrivacy(data.privacy);
+      setShareToken(data.shareToken ?? null);
+      if (data.privacy === "public") {setStreamPasswordEnabled(false);}
+      // Privacy change may require reprovisioning for signed playback
+      try {
+        const refresh = await fetch(`/api/streams/key?wallet=${address}`);
+        if (refresh.ok) {
+          const refreshData = await refresh.json();
+          setOutOfSync(refreshData.streamData?.outOfSync ?? []);
+        }
+      } catch {
+        /* non-fatal */
+      }
+      toast.success(
+        next === "public"
+          ? "Stream is now public — visible on Explore."
+          : next === "unlisted"
+            ? "Stream is now unlisted. Share the invite link with viewers."
+            : "Stream is now subscribers-only. Share the invite link with viewers."
+      );
+    } catch {
+      toast.error("Failed to update privacy");
+    } finally {
+      setPrivacySaving(false);
+    }
+  };
+
+  const handleRotateShareToken = async () => {
+    if (!address || tokenRotating) {
+      return;
+    }
+    setTokenRotating(true);
+    try {
+      const res = await fetch("/api/streams/privacy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallet: address, rotate_token: true }),
+      });
+      if (!res.ok) {
+        throw new Error("Failed");
+      }
+      const data = await res.json();
+      setShareToken(data.shareToken ?? null);
+      toast.success("Invite link rotated. Old links no longer work.");
+    } catch {
+      toast.error("Failed to rotate invite link");
+    } finally {
+      setTokenRotating(false);
+    }
+  };
+
+  const buildShareUrl = () => {
+    if (!username || !shareToken) {
+      return "";
+    }
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "";
+    return `${origin}/${username}/watch?key=${shareToken}`;
+  };
+
+  const handleReprovision = async () => {
+    if (!address || reprovisioning) {
+      return;
+    }
+    if (streamData?.isLive) {
+      toast.error("End your current stream before applying changes.");
+      return;
+    }
+    const confirmed = window.confirm(
+      "This will rotate your stream key. You'll need to update OBS with the new key before your next stream. Continue?"
+    );
+    if (!confirmed) {
+      return;
+    }
+    setReprovisioning(true);
+    try {
+      const res = await fetch("/api/streams/reprovision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallet: address }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.detail || data?.error || "Failed");
+      }
+      // Refresh the displayed stream data + clear out-of-sync state
+      const refreshRes = await fetch(`/api/streams/key?wallet=${address}`);
+      if (refreshRes.ok) {
+        const refresh = await refreshRes.json();
+        if (refresh.hasStream && refresh.streamData) {
+          setStreamData(refresh.streamData);
+          setOutOfSync(refresh.streamData.outOfSync ?? []);
+        }
+      } else {
+        setOutOfSync([]);
+      }
+      toast.success(
+        "Stream key rotated. Update OBS with the new key before going live."
+      );
+      if (data.warnings?.length) {
+        data.warnings.forEach((w: string) => toast.message(w));
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to reprovision stream");
+    } finally {
+      setReprovisioning(false);
+    }
+  };
+
+  const handleCopyShareLink = async () => {
+    const url = buildShareUrl();
+    if (!url) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Invite link copied to clipboard");
+    } catch {
+      toast.error("Couldn't copy link");
+    }
+  };
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -570,6 +764,142 @@ const StreamPreferencesPage: React.FC = () => {
         </SectionCard>
 
         <SectionCard>
+          <h2 className="text-highlight text-xl font-medium mb-2">
+            Stream Privacy
+          </h2>
+          <p className="text-muted-foreground text-sm italic mb-4">
+            Control who can watch your stream. Private streams won&rsquo;t appear on
+            Explore.
+          </p>
+
+          <div className="space-y-2">
+            {(
+              [
+                {
+                  value: "public" as const,
+                  icon: Globe,
+                  title: "Public",
+                  desc: "Anyone can find and watch — your stream appears on Explore.",
+                },
+                {
+                  value: "unlisted" as const,
+                  icon: Lock,
+                  title: "Unlisted",
+                  desc: "Only people with the invite link can watch. Hidden from Explore.",
+                },
+                {
+                  value: "subscribers_only" as const,
+                  icon: Users,
+                  title: "Subscribers only",
+                  desc: "Only people with the invite link can watch for now. Paid subscriptions are coming soon.",
+                },
+              ]
+            ).map(opt => {
+              const Icon = opt.icon;
+              const selected = privacy === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handlePrivacyChange(opt.value)}
+                  disabled={privacySaving}
+                  className={`w-full text-left flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+                    selected
+                      ? "border-highlight bg-highlight/5"
+                      : "border-border bg-transparent hover:bg-accent/40"
+                  }`}
+                >
+                  <div className="mt-0.5">
+                    <Icon
+                      size={18}
+                      className={
+                        selected ? "text-highlight" : "text-muted-foreground"
+                      }
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-foreground">
+                      {opt.title}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {opt.desc}
+                    </div>
+                  </div>
+                  <div
+                    className={`w-4 h-4 rounded-full border flex items-center justify-center mt-1 ${
+                      selected
+                        ? "border-highlight bg-highlight"
+                        : "border-muted-foreground"
+                    }`}
+                  >
+                    {selected && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 rounded-lg border border-border p-4">
+            <h3 className="text-sm font-medium text-foreground">Stream password</h3>
+            <p className="mt-1 text-xs text-muted-foreground">Require a password in addition to this stream&apos;s privacy access. Choose an unlisted or subscribers-only mode first.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <input
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                maxLength={128}
+                value={streamPassword}
+                onChange={event => setStreamPassword(event.target.value)}
+                placeholder={streamPasswordEnabled ? "Enter a new password to replace" : "At least 8 characters"}
+                className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+              <button type="button" onClick={() => void handleStreamPasswordSave()} disabled={streamPasswordSaving || (streamPasswordEnabled && !streamPassword)} className="rounded-md bg-highlight px-3 py-2 text-sm text-white disabled:opacity-50">
+                {streamPasswordSaving ? "Saving…" : streamPasswordEnabled ? "Update password" : "Set password"}
+              </button>
+              {streamPasswordEnabled && <button type="button" onClick={() => {setStreamPassword(""); void fetch("/api/streams/password", {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:null})}).then(response => {if (!response.ok) {throw new Error();} setStreamPasswordEnabled(false); toast.success("Stream password removed");}).catch(() => toast.error("Unable to remove stream password"));}} className="rounded-md border border-border px-3 py-2 text-sm">Remove</button>}
+            </div>
+          </div>
+
+          {privacy !== "public" && shareToken && (
+            <div className="mt-4 p-4 bg-input rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-foreground">
+                  Invite link
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleRotateShareToken}
+                  disabled={tokenRotating}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                >
+                  <RefreshCw
+                    size={12}
+                    className={tokenRotating ? "animate-spin" : ""}
+                  />
+                  {tokenRotating ? "Rotating..." : "Rotate"}
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  readOnly
+                  value={buildShareUrl()}
+                  className="flex-1 bg-background text-foreground text-xs font-mono rounded-md px-3 py-2 outline-none"
+                  onFocus={e => e.target.select()}
+                />
+                <button
+                  type="button"
+                  onClick={handleCopyShareLink}
+                  className="bg-secondary hover:bg-secondary/80 text-secondary-foreground px-3 rounded-md flex items-center gap-1.5 text-xs"
+                >
+                  <Copy size={12} />
+                  Copy
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Anyone with this link can watch. Rotate to invalidate previously
+                shared links.
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="flex-1">
               <h2 className="text-highlight text-xl font-medium mb-2">

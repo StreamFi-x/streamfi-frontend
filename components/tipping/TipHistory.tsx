@@ -13,12 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-// Inline helpers to avoid extra config files
-const STELLAR_EXPERT_URL = "https://stellar.expert/explorer/testnet";
-
-function getStellarExplorerUrl(txHash: string) {
-  return `${STELLAR_EXPERT_URL}/tx/${txHash}`;
-}
+import { getStellarExplorerUrl } from "@/lib/stellar/config";
 
 function truncateAddress(address: string) {
   if (!address) {
@@ -90,6 +85,18 @@ export function TipHistory({ username }: TipHistoryProps) {
         body: JSON.stringify({ username }),
       });
 
+      if (response.status === 202) {
+        toast.info(
+          "Your full tip history is still being counted; totals will update shortly"
+        );
+        return;
+      }
+      if (response.status === 503) {
+        toast.error(
+          "The Stellar network is not responding; try again in a moment"
+        );
+        return;
+      }
       if (!response.ok) {
         throw new Error("Refresh failed");
       }
@@ -232,7 +239,7 @@ export function TipHistory({ username }: TipHistoryProps) {
                           <Copy size={16} />
                         </button>
                         <a
-                          href={getStellarExplorerUrl(tip.txHash)}
+                          href={getStellarExplorerUrl("tx", tip.txHash)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground"

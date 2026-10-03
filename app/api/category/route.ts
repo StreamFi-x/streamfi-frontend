@@ -1,14 +1,16 @@
 import { NextResponse, NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
-import { requireAdminSession } from "@/lib/admin-auth";
-import {
-  CACHE_POLICIES,
-  cacheHeaders,
-  cacheKey,
-  cacheTags,
-  cached,
-} from "@/lib/cache";
+import { currentAdminPrivyId, requireAdminSession } from "@/lib/admin-auth";
+import { withAdminAudit } from "@/lib/audit/admin-events";
+import { cacheHeaders, cacheTags } from "@/lib/cache";
 import { invalidateCategoryCaches } from "@/lib/cache/invalidation";
+import {
+  findCategoryByTitle,
+  getAllCategories,
+  searchCategoriesByTag,
+  searchCategoriesByTitle,
+  type StreamCategory,
+} from "@/lib/reference-data/categories";
 
 //TO CREATE A CATEGORY
 export async function POST(req: NextRequest) {
@@ -50,19 +52,17 @@ export async function POST(req: NextRequest) {
 
     // Insert into stream_categories
     console.log("📝 Inserting new category...");
-    const { rows: insertedRows } = await sql`
-      INSERT INTO stream_categories (title, description, tags, "imageurl", created_at)
-      VALUES (
-        ${title},
-        ${description || null},
-        ${tags || null},
-        ${imageurl || null},
-        CURRENT_TIMESTAMP
-      )
-      RETURNING id, title, description, tags, "imageurl"
-    `;
-
-    const createdCategory = insertedRows[0];
+    const createdCategory = await withAdminAudit(
+      { actorId: await currentAdminPrivyId(), action: "category_created", targetType: "category", targetId: String(title) },
+      async tx => {
+        const { rows } = await tx.sql`
+          INSERT INTO stream_categories (title, description, tags, "imageurl", created_at)
+          VALUES (${title}, ${description || null}, ${tags || null}, ${imageurl || null}, CURRENT_TIMESTAMP)
+          RETURNING id, title, description, tags, "imageurl"
+        `;
+        return { result: rows[0], beforeState: null, afterState: { title: rows[0].title, description: rows[0].description, tags: rows[0].tags, imageurl: rows[0].imageurl } };
+      }
+    );
     await invalidateCategoryCaches();
 
     console.log("Category created successfully:", createdCategory);
@@ -97,61 +97,15 @@ export async function POST(req: NextRequest) {
   }
 }
 
-type CategoryLookup =
-  | { by: "id"; value: string }
-  | { by: "title"; value: string }
-  | { by: "tag"; value: string }
-  | { by: "all" };
-
-async function loadCategoryRows(lookup: CategoryLookup) {
-  switch (lookup.by) {
-    // Get specific category by title
-    case "id":
-      return (
-        await sql`
-          SELECT id, title, tags, imageurl
-          FROM stream_categories
-          WHERE LOWER(title) = ${lookup.value}
-          LIMIT 1
-        `
-      ).rows;
-    // Search by title (live match)
-    case "title":
-      return (
-        await sql`
-          SELECT id, title, tags, imageurl
-          FROM stream_categories
-          WHERE LOWER(title) LIKE ${"%" + lookup.value + "%"}
-          ORDER BY created_at DESC
-        `
-      ).rows;
-    // Search by tag (live match in tags array)
-    case "tag":
-      return (
-        await sql`
-          SELECT id, title, tags, imageurl
-          FROM stream_categories
-          WHERE EXISTS (
-            SELECT 1 FROM UNNEST(tags) AS t
-            WHERE LOWER(t) LIKE ${"%" + lookup.value + "%"}
-          )
-          ORDER BY created_at DESC
-        `
-      ).rows;
-    // Get all categories (default)
-    case "all":
-      return (
-        await sql`
-          SELECT id, title, tags, imageurl
-          FROM stream_categories
-          ORDER BY created_at DESC
-        `
-      ).rows;
-  }
+function summary({ id, title, tags, imageurl }: StreamCategory) {
+  return { id, title, tags, imageurl };
 }
 
 // TO GET CATEGORIES (ALL, BY SEARCH AND SINGLE BY ID)
-// Reference data: cached for an hour and purged by POST/PATCH/DELETE below.
+// Reference data (#1417): every variant is filtered from one cached copy of the
+// table (lib/reference-data/categories.ts). Responses are identical for every
+// caller and are held by the CDN for a day under the `categories` tag, which
+// POST/PATCH/DELETE below purge.
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -159,42 +113,35 @@ export async function GET(req: Request) {
     const tag = searchParams.get("tag"); // for tag search
     const id = searchParams.get("id"); // to get single category by ID/title
 
-    const lookup: CategoryLookup = id
-      ? { by: "id", value: id.toLowerCase() }
-      : title
-        ? { by: "title", value: title.toLowerCase() }
-        : tag
-          ? { by: "tag", value: tag.toLowerCase() }
-          : { by: "all" };
+    const headers = cacheHeaders("referenceData", {
+      tags: [cacheTags.categories()],
+    });
 
-    const rows = await cached(
-      {
-        key: cacheKey(
-          "categories",
-          lookup.by,
-          "value" in lookup ? lookup.value : ""
-        ),
-        tags: [cacheTags.categories()],
-        ttlSeconds: CACHE_POLICIES.referenceData.appTtlSeconds,
-      },
-      () => loadCategoryRows(lookup)
-    );
-    const headers = cacheHeaders("referenceData");
-
-    if (lookup.by === "id") {
-      if (rows.length === 0) {
+    // Get specific category by title
+    if (id) {
+      const category = await findCategoryByTitle(id);
+      if (!category) {
         return NextResponse.json(
           { success: false, error: "Category not found" },
           { status: 404 }
         );
       }
       return NextResponse.json(
-        { success: true, category: rows[0] },
+        { success: true, category: summary(category) },
         { headers }
       );
     }
 
-    return NextResponse.json({ success: true, categories: rows }, { headers });
+    const categories = title
+      ? await searchCategoriesByTitle(title)
+      : tag
+        ? await searchCategoriesByTag(tag)
+        : await getAllCategories();
+
+    return NextResponse.json(
+      { success: true, categories: categories.map(summary) },
+      { headers }
+    );
   } catch (error) {
     console.error("Error fetching categories:", error);
     return NextResponse.json(
@@ -223,18 +170,24 @@ export async function PATCH(req: Request) {
 
     const body = await req.json();
     const { title, description, imageurl, is_active } = body;
-    const tags = Array.isArray(body.tags) ? body.tags : [];
+    // Omitted tags keep the current ones (COALESCE); `tags: []` clears them.
+    const tags = Array.isArray(body.tags) ? body.tags : null;
 
-    await sql`
-      UPDATE stream_categories
-      SET
-        title = COALESCE(${title}, title),
-        description = COALESCE(${description}, description),
-        tags = COALESCE(${tags}, tags),
-        imageurl = COALESCE(${imageurl}, imageurl),
-        is_active = COALESCE(${is_active}, is_active)
-       WHERE LOWER(title) = ${titleParams.toLowerCase()}
-    `;
+    await withAdminAudit(
+      { actorId: await currentAdminPrivyId(), action: "category_updated", targetType: "category", targetId: titleParams },
+      async tx => {
+        const { rows: beforeRows } = await tx.sql`SELECT title, description, tags, imageurl, is_active FROM stream_categories WHERE LOWER(title) = ${titleParams.toLowerCase()} FOR UPDATE`;
+        const { rows } = await tx.sql`
+          UPDATE stream_categories
+          SET title = COALESCE(${title}, title), description = COALESCE(${description}, description),
+              tags = COALESCE(${tags}, tags), imageurl = COALESCE(${imageurl}, imageurl),
+              is_active = COALESCE(${is_active}, is_active)
+          WHERE LOWER(title) = ${titleParams.toLowerCase()}
+          RETURNING title, description, tags, imageurl, is_active
+        `;
+        return { result: rows[0], beforeState: beforeRows[0] ?? null, afterState: rows[0] ?? null };
+      }
+    );
     await invalidateCategoryCaches();
 
     return NextResponse.json({ success: true, message: "Category updated" });
@@ -264,10 +217,13 @@ export async function DELETE(req: Request) {
       );
     }
 
-    await sql`
-      DELETE FROM stream_categories
-      WHERE LOWER(title) = ${title.toLowerCase()}
-    `;
+    await withAdminAudit(
+      { actorId: await currentAdminPrivyId(), action: "category_deleted", targetType: "category", targetId: title },
+      async tx => {
+        const { rows } = await tx.sql`DELETE FROM stream_categories WHERE LOWER(title) = ${title.toLowerCase()} RETURNING title, description, tags, imageurl, is_active`;
+        return { result: undefined, beforeState: rows[0] ?? null, afterState: null };
+      }
+    );
     await invalidateCategoryCaches();
 
     return NextResponse.json({ success: true, message: "Category deleted" });

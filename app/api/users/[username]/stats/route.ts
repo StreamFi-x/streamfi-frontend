@@ -35,7 +35,8 @@ export async function GET(
             last_tip_at,
             wallet as stellar_public_key
           FROM users
-          WHERE LOWER(username) = ${normalizedUsername} OR wallet = ${username}
+          WHERE (LOWER(username) = ${normalizedUsername} OR wallet = ${username})
+            AND deleted_at IS NULL
         `;
         return result.rows[0] ?? null;
       }

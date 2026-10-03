@@ -15,7 +15,9 @@ export async function GET(
   try {
     // Resolve the username to an id first (uses idx_users_username_lower)
     const { rows: userRows } = await sql`
-      SELECT id FROM users WHERE LOWER(username) = LOWER(${username}) LIMIT 1
+      SELECT id FROM users
+      WHERE LOWER(username) = LOWER(${username}) AND deleted_at IS NULL
+      LIMIT 1
     `;
     if (userRows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -26,7 +28,7 @@ export async function GET(
     const { rows: followingProfiles } = await sql`
       SELECT u.username, u.avatar, u.bio, u.is_live
       FROM   user_follows uf
-      JOIN   users u ON u.id = uf.followee_id
+      JOIN   users u ON u.id = uf.followee_id AND u.deleted_at IS NULL
       WHERE  uf.follower_id = ${userId}
       ORDER  BY uf.created_at DESC
     `;

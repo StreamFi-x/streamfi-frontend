@@ -260,6 +260,13 @@ export async function handleMuxWebhook(
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
   } else {
+    if (process.env.NODE_ENV === "production") {
+      console.error("❌ MUX_WEBHOOK_SECRET is required in production");
+      return NextResponse.json(
+        { error: "Webhook signature secret is not configured" },
+        { status: 500 }
+      );
+    }
     console.warn(
       "⚠️  MUX_WEBHOOK_SECRET not set — skipping signature verification (set it in production)"
     );

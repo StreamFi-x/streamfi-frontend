@@ -18,7 +18,7 @@ export async function checkSubscriptionAccess(
     SELECT id FROM subscriptions
     WHERE streamer_id = ${streamerId}
       AND subscriber_id = (
-        SELECT id FROM users WHERE LOWER(wallet) = LOWER(${viewerPublicKey})
+        SELECT id FROM users WHERE LOWER(wallet) = LOWER(${viewerPublicKey}) AND deleted_at IS NULL
       )
       AND status = 'active'
       AND current_period_end > now()

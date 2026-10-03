@@ -30,7 +30,7 @@ const fetchWatchUser = (slug: string): Promise<UserRow | null> =>
           SELECT username, avatar, bio, is_live, creator, mux_playback_id,
                  stream_privacy
           FROM users
-          WHERE LOWER(username) = ${slug}
+          WHERE LOWER(username) = ${slug} AND deleted_at IS NULL
           LIMIT 1
         `;
         return (rows[0] as UserRow) ?? null;

@@ -22,6 +22,7 @@ export async function GET(req: Request) {
         stream_started_at, creator
       FROM users
       WHERE is_live = true
+        AND deleted_at IS NULL
         AND COALESCE(stream_privacy, 'public') = 'public'
       ORDER BY current_viewers DESC
       LIMIT ${fetchLimit} OFFSET ${offset}
@@ -44,7 +45,7 @@ export async function GET(req: Request) {
       const { rows: followRows } = await sql`
         SELECT uf.followee_id
         FROM   user_follows uf
-        JOIN   users v ON v.id = uf.follower_id
+        JOIN   users v ON v.id = uf.follower_id AND v.deleted_at IS NULL
         WHERE  LOWER(v.wallet) = LOWER(${viewerWallet})
       `;
       viewerFollowing = followRows.map(r => r.followee_id as string);

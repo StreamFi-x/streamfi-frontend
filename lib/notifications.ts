@@ -3,6 +3,12 @@ import type { Tx } from "@/lib/postgres-transaction";
 import type { RenderedNotification } from "@/lib/notifications/template-engine";
 import { createNotificationRecord, type NotificationType, type TemplateParams } from "@/lib/notifications/template-engine";
 import type { SupportedLocale } from "@/lib/i18n/translator";
+import {
+  buildNotification,
+  type NotificationType,
+} from "@/lib/db/jsonb-contracts";
+
+export type NotificationType = "follow" | "live" | "security";
 
 /**
  * Write a notification directly to the DB.
@@ -12,6 +18,12 @@ import type { SupportedLocale } from "@/lib/i18n/translator";
  * Pass `executor` to write inside an open transaction (see withTransaction).
  * 
  * DEPRECATED: Use writeTemplatedNotification instead for new code.
+ *
+ * The notification is validated against the notifications contract
+ * (lib/db/jsonb-contracts.ts; throws JsonbContractError) and stored as a row
+ * of the notifications table. The INSERT selects the recipient row, so an
+ * unknown or deleted recipient inserts nothing rather than raising a
+ * foreign-key error, which would abort the caller's transaction.
  */
 export async function writeNotification(
   recipientId: string,
@@ -28,16 +40,19 @@ export async function writeNotification(
     read: false,
     created_at: new Date().toISOString(),
   };
+  const notification = buildNotification(type, title, text);
 
   const result = await executor.sql`
-    UPDATE users
-    SET notifications = COALESCE(notifications, ARRAY[]::jsonb[]) || ${JSON.stringify(notification)}::jsonb
-    WHERE id = ${recipientId}::uuid
+    INSERT INTO notifications (id, user_id, type, title, body, is_read, created_at)
+    SELECT ${notification.id}::uuid, id, ${notification.type}, ${notification.title},
+           ${notification.text}, ${notification.read}, ${notification.created_at}::timestamptz
+    FROM users
+    WHERE id = ${recipientId}::uuid AND deleted_at IS NULL
   `;
 
   if (result.rowCount === 0) {
     console.error(
-      `[writeNotification] No user found with id=${recipientId} — notification not written`
+      `[writeNotification] No active user found with id=${recipientId} — notification not written`
     );
   }
 }

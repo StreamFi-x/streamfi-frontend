@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAuthorizedCronRequest } from "@/lib/cron-auth";
-import { runScheduledJob } from "@/lib/jobs/scheduled-job";
+import { runScheduledJob } from "@/lib/jobs/leased-job";
 import {
   MUX_RECONCILE_JOB,
   alertOnAbnormalDrift,

@@ -26,6 +26,8 @@ jest.mock("@mux/mux-node", () => {
 });
 
 import Mux from "@mux/mux-node";
+import { resetBreakersForTests } from "@/lib/resilience/breakers";
+import { resetBreakerStoreForTests } from "@/lib/resilience/circuit-breaker";
 import {
   getMuxLiveStreamStatus,
   listActiveMuxLiveStreamIds,
@@ -40,6 +42,9 @@ const page = (n: number, offset = 0, status = "active") => ({
 
 let errorSpy: jest.SpyInstance;
 beforeEach(() => {
+  // Failures in one test must not open the Mux breaker for the next.
+  resetBreakerStoreForTests();
+  resetBreakersForTests();
   mockList.mockReset();
   mockRetrieve.mockReset();
   errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});

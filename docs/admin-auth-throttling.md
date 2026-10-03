@@ -17,7 +17,7 @@ Every admin authorization mechanism in the app goes through
 | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
 | `privy_session` cookie ∈ `ADMIN_PRIVY_IDS` (+ active, unrevoked `user_sessions` row) | `/api/admin/*`, `/api/category` (writes), `routes-f/admin-user-suspend`, `routes-f/featured-streams-set`, `routes-f/cron-close-inactive-sessions` | cookie value       |
 | `verifySession` + `users.role = 'admin'`                                             | `routes-f/admin-feature-flag-list`, `-update`, `admin-user-search`, `admin-user-unsuspend`                                                        | user id            |
-| `verifySession` + `isAdmin()` allowlist                                              | `/api/admin/feature-flags`                                                                                                                        | user id            |
+| `verifySession` + database role capability check                                     | `/api/admin/feature-flags`                                                                                                                        | user id            |
 | `x-internal-secret` header (constant-time compare)                                   | `routes-f/cron-close-inactive-sessions`                                                                                                           | header value       |
 
 Credentials are only ever stored, logged or alerted as a truncated SHA-256

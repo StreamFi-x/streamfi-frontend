@@ -52,7 +52,10 @@ export async function closeOpenSessions(
   return rowCount ?? 0;
 }
 
-/** video.live_stream.active: mark the stream's owner(s) live. */
+/**
+ * video.live_stream.active: mark the stream's owner(s) live. Accounts pending
+ * deletion are never marked live (#1406).
+ */
 export async function markMuxStreamLive(
   tx: Tx,
   muxStreamId: string
@@ -63,7 +66,7 @@ export async function markMuxStreamLive(
       stream_started_at = CURRENT_TIMESTAMP,
       current_viewers = 0,
       updated_at = CURRENT_TIMESTAMP
-    WHERE mux_stream_id = ${muxStreamId}
+    WHERE mux_stream_id = ${muxStreamId} AND deleted_at IS NULL
     RETURNING id, mux_stream_id, mux_playback_id, creator
   `;
   for (const user of rows) {

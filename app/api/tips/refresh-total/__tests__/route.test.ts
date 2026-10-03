@@ -8,6 +8,7 @@ const mockVerifySession = jest.fn();
 const mockReconcile = jest.fn();
 const mockBadges = jest.fn();
 const mockGetXlmUsdPrice = jest.fn();
+const mockDispatch = jest.fn();
 jest.mock("@vercel/postgres", () => ({
   sql: (...args: unknown[]) => mockSql(...args),
 }));
@@ -20,13 +21,15 @@ jest.mock("@/lib/routes-f/badges", () => ({
 jest.mock("@/lib/routes-f/price", () => ({
   getXlmUsdPrice: mockGetXlmUsdPrice,
 }));
+jest.mock("@/lib/jobs/qstash", () => ({
+  dispatchJob: (...args: unknown[]) => mockDispatch(...args),
+}));
 jest.mock("@/lib/stellar/tip-reconciliation", () => ({
   ...jest.requireActual("@/lib/stellar/tip-reconciliation"),
   reconcileUserTipTotals: (...args: unknown[]) => mockReconcile(...args),
 }));
 
 import { NextRequest, NextResponse } from "next/server";
-import { LedgerHistoryTooLargeError } from "@/lib/stellar/tip-reconciliation";
 
 const USER = {
   id: "user-1",
@@ -38,7 +41,7 @@ const USER = {
 };
 
 const UPDATED = {
-  status: "updated",
+  status: "complete",
   totals: {
     totalReceived: "12.5000000",
     totalCount: 3,
@@ -47,6 +50,8 @@ const UPDATED = {
 };
 
 let POST: (req: NextRequest) => Promise<NextResponse>;
+// From the same module registry as the route, so instanceof holds.
+let breakerErrors: typeof import("@/lib/resilience/circuit-breaker");
 let now: number;
 
 function asUser(userId: string, extra: Record<string, unknown> = {}) {
@@ -77,10 +82,15 @@ beforeEach(() => {
   mockSql.mockReset().mockResolvedValue({ rows: [{ ...USER }] });
   mockReconcile.mockReset().mockResolvedValue(UPDATED);
   mockBadges.mockReset().mockResolvedValue(undefined);
+  mockDispatch
+    .mockReset()
+    .mockResolvedValue({ dispatched: true, messageId: "msg-1" });
   asUser(USER.id);
   jest.isolateModules(() => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     POST = require("../route").POST;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    breakerErrors = require("@/lib/resilience/circuit-breaker");
   });
 });
 afterEach(() => jest.restoreAllMocks());
@@ -121,6 +131,32 @@ describe("POST /api/tips/refresh-total", () => {
     expect((await POST(request())).status).toBe(200);
   });
 
+  it("marks the caller for read-your-own-writes on a successful refresh", async () => {
+    // tip_transactions feed replica-routed analytics (lib/db/replica.ts).
+    process.env.SESSION_SECRET = "SENTINEL-session-secret-for-tests";
+    try {
+      const res = await POST(request());
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get("set-cookie") ?? "").toContain("sf_recent_write=");
+    } finally {
+      delete process.env.SESSION_SECRET;
+    }
+  });
+
+  it("does not mark the caller when the refresh is refused", async () => {
+    process.env.SESSION_SECRET = "SENTINEL-session-secret-for-tests";
+    try {
+      asUser("someone-else");
+      const res = await POST(request());
+
+      expect(res.status).toBe(403);
+      expect(res.headers.get("set-cookie")).toBeNull();
+    } finally {
+      delete process.env.SESSION_SECRET;
+    }
+  });
+
   it("recalculates through the shared ledger logic and keeps the response shape", async () => {
     const res = await POST(request({ username: "Alice" }));
 
@@ -137,7 +173,8 @@ describe("POST /api/tips/refresh-total", () => {
     expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     expect(mockReconcile).toHaveBeenCalledWith("user-1", "GALICE", {
       getXlmUsdPrice: mockGetXlmUsdPrice,
-      maxAttempts: 3,
+      maxPages: 10,
+      timeBudgetMs: 6_000,
     });
     expect(mockBadges).toHaveBeenCalledWith("user-1");
   });
@@ -149,13 +186,70 @@ describe("POST /api/tips/refresh-total", () => {
     expect(res.headers.get("Retry-After")).toBe("10");
   });
 
-  it("returns 422 instead of a partial total for an oversized history", async () => {
-    mockReconcile.mockRejectedValue(new LedgerHistoryTooLargeError(100));
-    expect((await POST(request())).status).toBe(422);
+  it("returns 409 when another worker is advancing the same creator", async () => {
+    mockReconcile.mockResolvedValue({ status: "superseded", totals: null });
+    expect((await POST(request())).status).toBe(409);
   });
 
-  it("returns 500 when Horizon fails", async () => {
-    mockReconcile.mockRejectedValue(new Error("horizon down"));
+  it("hands a history too long for one request to the background job", async () => {
+    mockReconcile.mockResolvedValue({
+      status: "in_progress",
+      cursor: "cursor-42",
+      totals: { totalReceived: "3.0000000", totalCount: 1, lastTipAt: null },
+    });
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(202);
+    expect(await res.json()).toMatchObject({
+      refreshed: false,
+      status: "in_progress",
+      continuesInBackground: true,
+      // The stored totals, never the partial walk's.
+      totalReceived: "5.0000000",
+      totalCount: 2,
+    });
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "tip-refresh-creator" }),
+      { userId: "user-1" },
+      { deduplicationId: "tip-refresh-creator:user-1:cursor-42" }
+    );
+    expect(mockBadges).not.toHaveBeenCalled();
+  });
+
+  it("still answers 202 when background jobs are not configured", async () => {
+    mockReconcile.mockResolvedValue({ status: "in_progress", cursor: null });
+    mockDispatch.mockResolvedValue({
+      dispatched: false,
+      reason: "not_configured",
+    });
+    const res = await POST(request());
+    expect(res.status).toBe(202);
+    expect(await res.json()).toMatchObject({ continuesInBackground: false });
+  });
+
+  it("fails fast with 503 while Horizon's circuit is open", async () => {
+    mockReconcile.mockResolvedValue({
+      status: "interrupted",
+      error: new breakerErrors.CircuitOpenError("horizon", 12_300),
+    });
+    const res = await POST(request());
+    expect(res.status).toBe(503);
+    expect(res.headers.get("Retry-After")).toBe("13");
+  });
+
+  it("returns 503 when Horizon times out mid-walk", async () => {
+    mockReconcile.mockResolvedValue({
+      status: "interrupted",
+      error: new breakerErrors.DownstreamTimeoutError("horizon", 8_000),
+    });
+    const res = await POST(request());
+    expect(res.status).toBe(503);
+    expect(res.headers.get("Retry-After")).toBe("10");
+  });
+
+  it("returns 500 when the database fails", async () => {
+    mockReconcile.mockRejectedValue(new Error("db down"));
     expect((await POST(request())).status).toBe(500);
   });
 
@@ -189,15 +283,9 @@ describe("POST /api/tips/refresh-total", () => {
       await new Promise(r => setTimeout(r, 1));
     }
 
-    // Immediately: the cooldown answers with stored totals.
+    // The cooldown answers with stored totals while the first walk runs.
     const immediate = await POST(request());
     expect(await immediate.json()).toMatchObject({ refreshed: false });
-
-    // After the cooldown but while the first walk is still running: 409.
-    now += 61_000;
-    const overlapping = await POST(request());
-    expect(overlapping.status).toBe(409);
-    expect(overlapping.headers.get("Retry-After")).toBe("10");
 
     finishFirst();
     expect((await first).status).toBe(200);

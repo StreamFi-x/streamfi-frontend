@@ -9,6 +9,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
+
+// ---------------------------------------------------------------------------
+// Tier configuration (mock)
+// ---------------------------------------------------------------------------
+interface TierConfig {
+  label: string;
+  durationDays: number;
+}
+
+export const TIERS: Record<string, TierConfig> = {
+  basic: { label: "Basic", durationDays: 30 },
+  standard: { label: "Standard", durationDays: 90 },
+  premium: { label: "Premium", durationDays: 365 },
+};
 import { verifySession } from "@/lib/auth/verify-session";
 import {
   executeIdempotent,

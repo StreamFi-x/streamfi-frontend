@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Keypair } from "@stellar/stellar-sdk";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
+import { encryptSecret } from "@/lib/security/encrypted-secrets";
 import {
   CustodialKeyError,
   encryptCustodialSecret,
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
   // 3. Check username isn't already taken (case-insensitive via stored lowercase)
   try {
     const { rows: existing } = await sql`
+      -- tombstone-aware: identifiers stay reserved until the account is purged
       SELECT id FROM users WHERE username = ${username} AND id != ${session.userId}
       LIMIT 1
     `;

@@ -6,7 +6,7 @@ leave the state wrong forever. `GET /api/routes-f/cron-mux-reconcile`
 drift in both directions.
 
 Code: `lib/mux/reconciliation.ts`, `lib/mux/live-state.ts` (transitions
-shared with the webhooks), `lib/jobs/scheduled-job.ts` (lease + health).
+shared with the webhooks), `lib/jobs/leased-job.ts` (lease + health).
 
 ## Algorithm
 

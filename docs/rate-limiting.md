@@ -73,11 +73,12 @@ are logged with the namespace.
 
 The recalculation itself is `reconcileUserTipTotals`
 (`lib/stellar/tip-reconciliation.ts`, from #1400), shared with the scheduled
-reconciliation job. It walks the creator's whole Horizon history (at most 100
-pages, otherwise `422`), records tips in batches, and writes totals behind a
-version check: a concurrent writer makes it retry, and after three retries the
-route returns `409`. That keeps concurrent refreshes _correct_. It does not
-stop repeated or overlapping refreshes from each doing the full walk. The
+reconciliation job. Since #1418 one request advances a resumable,
+checkpointed walk of the creator's Horizon history for at most 10 pages or 6
+seconds; a longer history continues in a background job (202), and a Horizon
+outage answers 503 at once ([circuit-breakers.md](circuit-breakers.md#tip-refresh)).
+Checkpoints and the version check keep concurrent refreshes _correct_. They do
+not stop repeated or overlapping refreshes from each calling Horizon. The
 route was also unauthenticated and trusted the `username` in the body. It now
 has four guards in front of the reconcile.
 
@@ -90,11 +91,10 @@ has four guards in front of the reconcile.
    inside the minute returns the totals already stored, with
    `refreshed: false` and `retryAfter`, instead of walking Horizon again. That
    is the "already complete" case.
-4. **Per creator lock** (`tips-refresh:<creatorId>`, 5-minute TTL). A request
-   that gets past the cooldown while a previous walk is still running gets
-   `409` with `Retry-After: 10`. A count-based limit alone cannot prevent
-   this: a long walk outlives the cooldown window. The TTL frees the lock if
-   an invocation is killed mid-walk.
+4. **Per creator lock** (`tips-refresh:<creatorId>`, 30-second TTL, which
+   covers the bounded step). A request that overlaps a running step gets
+   `409` with `Retry-After: 10`. The TTL frees the lock if an invocation is
+   killed mid-walk.
 
 After a successful reconcile, `reconcileUserTipTotals` invalidates the
 creator's profile and stats caches (the scheduled job gets this too), and
@@ -112,6 +112,6 @@ the dashboard counter uses the response directly instead of refetching.
   pattern passing, a loop getting 429, admin isolation, recovery, the shared
   aggregate cache.
 - `app/api/tips/refresh-total/__tests__/route.test.ts`: 401/400/403/404,
-  owner/admin, reconcile arguments and response shape, stale (409),
-  oversized history (422), cooldown reuse, overlapping refresh (409),
-  per-caller 429, caller isolation, lock released on failure.
+  owner/admin, reconcile arguments and response shape, stale and superseded
+  (409), continuation in the background (202), Horizon unavailable (503),
+  cooldown reuse, per-caller 429, caller isolation, lock released on failure.

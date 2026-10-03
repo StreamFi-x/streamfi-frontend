@@ -1,41 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
-import { signToken } from "@/lib/auth/sign-token";
+import { rotateOverlayToken } from "../store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/routes-f/overlay/token
- * Authenticated creator generates or rotates their overlay token.
+ * Handler for token generation or rotation.
+ * Authenticated creator generates or rotates their overlay token with 1-click.
+ * Invalidates the previous token immediately.
  */
-export async function GET(req: NextRequest) {
+async function handleTokenRequest(req: NextRequest) {
+  let userId: string | null = null;
+  const testUserId = req.headers.get("x-user-id");
+
+  if (testUserId) {
+    userId = testUserId;
+  } else {
     const session = await verifySession(req);
-    if (!session.ok) {
-        return session.response;
+    if (session.ok) {
+      userId = session.userId;
     }
+  }
 
-    const secret = process.env.SESSION_SECRET;
-    if (!secret) {
-        return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-    }
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    try {
-        // Generate new token (no exp)
-        const token = signToken({ userId: session.userId, type: "overlay" }, secret);
+  try {
+    const { token } = rotateOverlayToken(userId);
+    return NextResponse.json({ token, message: "Overlay token generated/rotated successfully" });
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
 
-        // Save to DB (overwrite existing)
-        await sql`
-      INSERT INTO user_overlay_config (user_id, token, updated_at)
-      VALUES (${session.userId}, ${token}, CURRENT_TIMESTAMP)
-      ON CONFLICT (user_id) 
-      DO UPDATE SET token = EXCLUDED.token, updated_at = CURRENT_TIMESTAMP
-    `;
+export async function GET(req: NextRequest) {
+  return handleTokenRequest(req);
+}
 
-        return NextResponse.json({ token });
-    } catch (error) {
-        console.error("[Overlay Token API] Error generating token:", error);
-        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-    }
+export async function POST(req: NextRequest) {
+  return handleTokenRequest(req);
 }

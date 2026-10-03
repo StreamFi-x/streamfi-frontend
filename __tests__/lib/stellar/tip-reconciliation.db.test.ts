@@ -1,7 +1,9 @@
 /**
  * @jest-environment node
  *
- * #1400 tip total reconciliation against real PostgreSQL.
+ * Tip total reconciliation (#1400, #1418) against real PostgreSQL: the
+ * resumable ledger walk, its consistency under partial failure and
+ * concurrency, and the scheduled job built on it.
  */
 jest.mock("@vercel/postgres", () => ({
   sql: Object.assign(jest.fn(), { query: jest.fn() }),
@@ -25,6 +27,13 @@ jest.mock("@/lib/routes-f/badges", () => ({
 import { sql } from "@vercel/postgres";
 import { NextRequest } from "next/server";
 import {
+  CircuitBreaker,
+  CircuitOpenError,
+  DownstreamTimeoutError,
+} from "@/lib/resilience/circuit-breaker";
+import { createMemoryBreakerStore } from "@/lib/resilience/breaker-store";
+import {
+  FetchPayments,
   LedgerTip,
   reconcileStaleTipTotals,
   reconcileUserTipTotals,
@@ -61,20 +70,50 @@ function tip(amount: string, hash: string, sender = wallet("fan")): LedgerTip {
   };
 }
 
-/** Horizon stand-in: one page with the given tips, then the end marker. */
-function ledger(tips: LedgerTip[], beforeReturn?: () => Promise<void>) {
+function tips(count: number, prefix = "t"): LedgerTip[] {
+  return Array.from({ length: count }, (_, i) =>
+    tip(String(i + 1), `${prefix}${i}`)
+  );
+}
+
+interface LedgerOptions {
+  pageSize?: number;
+  /** Throws this error for the n-th call (1-based). */
+  failOn?: Record<number, Error>;
+  /** Runs before a call returns; may change `records`. */
+  before?: (cursor: string | undefined, call: number) => Promise<void>;
+}
+
+/**
+ * Horizon stand-in: pages through `records` oldest first, the cursor being
+ * the index after the page's last record, and returns an empty page at the
+ * end. `records` may grow during a walk, like the real ledger.
+ */
+function ledger(records: LedgerTip[], options: LedgerOptions = {}) {
+  const size = options.pageSize ?? 2;
+  let call = 0;
   return jest.fn(async ({ cursor }: { cursor?: string }) => {
-    if (cursor) {
-      return { tips: [], nextCursor: undefined };
+    call++;
+    if (options.failOn?.[call]) {
+      throw options.failOn[call];
     }
-    if (beforeReturn) {
-      await beforeReturn();
+    if (options.before) {
+      await options.before(cursor, call);
     }
-    return { tips, nextCursor: tips.length ? "end" : undefined };
+    const start = cursor ? Number(cursor) : 0;
+    const page = records.slice(start, start + size);
+    return {
+      tips: page,
+      nextCursor: page.length ? String(start + page.length) : undefined,
+    };
   });
 }
 
-const noSleep = { sleep: async () => undefined };
+function horizonError(status: number): Error {
+  return Object.assign(new Error(`Horizon ${status}`), {
+    response: { status },
+  });
+}
 
 describeWithDb("tip total reconciliation (PostgreSQL)", () => {
   let schema: TestSchema;
@@ -125,29 +164,43 @@ describeWithDb("tip total reconciliation (PostgreSQL)", () => {
     return rows[0];
   }
 
+  async function checkpoint(id: string) {
+    const { rows } = await q(
+      `SELECT cursor, total_stroops::text AS stroops, tip_count, pages, caught_up_at
+         FROM tip_reconciliation_checkpoints WHERE user_id = $1`,
+      [id]
+    );
+    return rows[0];
+  }
+
+  async function recordedTips(): Promise<string[]> {
+    const { rows } = await q(
+      "SELECT tx_hash FROM tip_transactions ORDER BY tx_hash"
+    );
+    return rows.map(r => r.tx_hash);
+  }
+
   describe("reconcileUserTipTotals", () => {
     it("writes the ledger-derived totals and records the tips", async () => {
       const fan = await createUser("fan");
       const creator = await createUser("creator", { total: "999" });
-      const tips = [
-        tip("10.5", "hash-a", wallet("fan")),
-        tip("0.25", "hash-bb", wallet("stranger")),
-      ];
 
       const result = await reconcileUserTipTotals(creator, wallet("creator"), {
         executor: executor(),
-        ledger: { fetchPayments: ledger(tips), ...noSleep },
+        fetchPayments: ledger([
+          tip("10.5", "hash-a", wallet("fan")),
+          tip("0.25", "hash-bb", wallet("stranger")),
+        ]),
         getXlmUsdPrice: async () => 0.1,
       });
 
-      expect(result.status).toBe("updated");
+      expect(result.status).toBe("complete");
       expect(result.discrepancy).toBe("-988.2500000");
       const row = await user(creator);
       expect(row).toEqual(
         expect.objectContaining({ total: "10.7500000", count: 2, version: 1 })
       );
       expect(row.tips_reconciled_at).not.toBeNull();
-
       const { rows } = await q(
         "SELECT tx_hash, supporter_id FROM tip_transactions ORDER BY tx_hash"
       );
@@ -155,109 +208,320 @@ describeWithDb("tip total reconciliation (PostgreSQL)", () => {
         { tx_hash: "hash-a", supporter_id: fan },
         { tx_hash: "hash-bb", supporter_id: null },
       ]);
+      expect((await checkpoint(creator)).caught_up_at).not.toBeNull();
     });
 
-    it("is idempotent: repeating it changes nothing but the bookkeeping", async () => {
-      const creator = await createUser("creator");
-      const tips = [tip("1", "h1"), tip("2", "h22")];
-      const options = {
+    it("an account Horizon does not know (never funded) has no tips", async () => {
+      const creator = await createUser("unfunded", { total: "3" });
+      const result = await reconcileUserTipTotals(creator, wallet("unfunded"), {
         executor: executor(),
-        ledger: { fetchPayments: ledger(tips), ...noSleep },
-      };
-
-      await reconcileUserTipTotals(creator, wallet("creator"), options);
-      const second = await reconcileUserTipTotals(
-        creator,
-        wallet("creator"),
-        options
-      );
-
-      expect(second.discrepancy).toBe("0.0000000");
+        fetchPayments: ledger([], { failOn: { 1: horizonError(404) } }),
+      });
+      expect(result.status).toBe("complete");
       expect(await user(creator)).toEqual(
-        expect.objectContaining({ total: "3.0000000", count: 2 })
+        expect.objectContaining({ total: "0.0000000", count: 0 })
       );
-      const { rows } = await q(
-        "SELECT COUNT(*)::int AS n FROM tip_transactions"
-      );
-      expect(rows[0].n).toBe(2);
     });
 
-    it("never overwrites a tip the webhook credited while the ledger was being read", async () => {
-      const creator = await createUser("creator", { total: "5" });
-      const fetchPayments = ledger([tip("5", "old")], async () => {
+    it("once caught up, only reads payments after the checkpoint", async () => {
+      const creator = await createUser("creator");
+      const records = tips(3);
+      await reconcileUserTipTotals(creator, wallet("creator"), {
+        executor: executor(),
+        fetchPayments: ledger(records),
+      });
+
+      records.push(tip("10", "later"));
+      const fetchPayments = ledger(records);
+      const second = await reconcileUserTipTotals(creator, wallet("creator"), {
+        executor: executor(),
+        fetchPayments,
+      });
+
+      expect(fetchPayments.mock.calls[0][0]).toEqual(
+        expect.objectContaining({ cursor: "3", order: "asc" })
+      );
+      expect(second.status).toBe("complete");
+      expect(second.discrepancy).toBe("10.0000000");
+      expect(await user(creator)).toEqual(
+        expect.objectContaining({ total: "16.0000000", count: 4 })
+      );
+      expect(await recordedTips()).toHaveLength(4);
+    });
+
+    describe("partial failure mid-walk", () => {
+      it("keeps the processed pages, writes no partial total, and resumes at the checkpoint", async () => {
+        const creator = await createUser("creator", { total: "7" });
+        const records = tips(7); // pages: [1,2] [3,4] [5,6] [7] then end
+        const timeout = new DownstreamTimeoutError("horizon", 8_000);
+
+        const first = await reconcileUserTipTotals(creator, wallet("creator"), {
+          executor: executor(),
+          fetchPayments: ledger(records, { failOn: { 4: timeout } }),
+        });
+
+        // Pages 1-3 are recorded and checkpointed; the 4th call timed out.
+        expect(first.status).toBe("interrupted");
+        expect(first.error).toBe(timeout);
+        expect(first.pages).toBe(3);
+        expect(await checkpoint(creator)).toEqual(
+          expect.objectContaining({
+            cursor: "6",
+            stroops: String(21 * 10_000_000),
+            tip_count: 6,
+            pages: 3,
+            caught_up_at: null,
+          })
+        );
+        expect(await recordedTips()).toHaveLength(6);
+        // The visible total is untouched: never a partial sum.
+        expect(await user(creator)).toEqual(
+          expect.objectContaining({ total: "7.0000000", count: 0, version: 0 })
+        );
+
+        const fetchPayments = ledger(records);
+        const resumed = await reconcileUserTipTotals(
+          creator,
+          wallet("creator"),
+          { executor: executor(), fetchPayments }
+        );
+
+        expect(fetchPayments.mock.calls[0][0].cursor).toBe("6");
+        expect(resumed.status).toBe("complete");
+        expect(await user(creator)).toEqual(
+          expect.objectContaining({ total: "28.0000000", count: 7, version: 1 })
+        );
+        expect(await recordedTips()).toHaveLength(7);
+      });
+
+      it("a crash between recording a page and checkpointing it neither loses nor double-counts it", async () => {
+        const creator = await createUser("creator");
+        const records = tips(4);
+        // The crash window: the page's tips are already recorded, as if a
+        // previous worker died right after the insert.
         await q(
-          `UPDATE users SET total_tips_received = total_tips_received + 1,
-                  total_tips_count = total_tips_count + 1,
-                  tip_totals_version = tip_totals_version + 1
-            WHERE id = $1`,
+          `INSERT INTO tip_transactions (creator_id, amount_xlm, tx_hash, memo, created_at)
+           VALUES ($1, 1, 't0', 'StreamFi Tip', NOW()), ($1, 2, 't1', 'StreamFi Tip', NOW())`,
           [creator]
         );
+
+        const result = await reconcileUserTipTotals(
+          creator,
+          wallet("creator"),
+          {
+            executor: executor(),
+            fetchPayments: ledger(records),
+          }
+        );
+
+        expect(result.status).toBe("complete");
+        expect(await user(creator)).toEqual(
+          expect.objectContaining({ total: "10.0000000", count: 4 })
+        );
+        expect(await recordedTips()).toEqual(["t0", "t1", "t2", "t3"]);
+      });
+    });
+
+    it("stops at the page budget and continues where it stopped", async () => {
+      const creator = await createUser("creator");
+      const records = tips(9);
+
+      const first = await reconcileUserTipTotals(creator, wallet("creator"), {
+        executor: executor(),
+        fetchPayments: ledger(records),
+        maxPages: 2,
+      });
+      expect(first.status).toBe("in_progress");
+      expect(first.cursor).toBe("4");
+      expect((await user(creator)).version).toBe(0);
+
+      const second = await reconcileUserTipTotals(creator, wallet("creator"), {
+        executor: executor(),
+        fetchPayments: ledger(records),
+        maxPages: 10,
+      });
+      expect(second.status).toBe("complete");
+      expect(await user(creator)).toEqual(
+        expect.objectContaining({ total: "45.0000000", count: 9 })
+      );
+    });
+
+    it("stops at the time budget", async () => {
+      const creator = await createUser("creator");
+      let clock = 0;
+      const result = await reconcileUserTipTotals(creator, wallet("creator"), {
+        executor: executor(),
+        fetchPayments: ledger(tips(9), {
+          before: async () => {
+            clock += 1_000;
+          },
+        }),
+        timeBudgetMs: 2_500,
+        now: () => clock,
+      });
+      expect(result.status).toBe("in_progress");
+      expect(result.pages).toBe(3);
+    });
+
+    it("never loses a tip the webhook credited while the walk was finishing", async () => {
+      const creator = await createUser("creator");
+      const records = [tip("5", "old")];
+      let credited = false;
+      const fetchPayments = ledger(records, {
+        // When the walk reads what it believes is the end, a new payment
+        // lands and the webhook credits it (bumping the version).
+        before: async cursor => {
+          if (cursor === "1" && !credited) {
+            credited = true;
+            records.push(tip("1", "new"));
+            await q(
+              `UPDATE users SET total_tips_received = total_tips_received + 1,
+                      total_tips_count = total_tips_count + 1,
+                      tip_totals_version = tip_totals_version + 1
+                WHERE id = $1`,
+              [creator]
+            );
+          }
+        },
       });
 
       const result = await reconcileUserTipTotals(creator, wallet("creator"), {
         executor: executor(),
-        ledger: { fetchPayments, ...noSleep },
+        fetchPayments,
       });
 
-      expect(result.status).toBe("stale");
-      expect((await user(creator)).total).toBe("6.0000000");
-    });
-
-    it("a slow scheduled run cannot overwrite a newer manual refresh", async () => {
-      const creator = await createUser("creator");
-      let releaseScheduled: () => void = () => undefined;
-      const scheduledMayFinish = new Promise<void>(resolve => {
-        releaseScheduled = resolve;
-      });
-
-      // Scheduled run reads the old ledger (1 tip) and stalls...
-      const scheduled = reconcileUserTipTotals(creator, wallet("creator"), {
-        executor: executor(),
-        ledger: {
-          fetchPayments: ledger([tip("1", "t1")], () => scheduledMayFinish),
-          ...noSleep,
-        },
-      });
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      // ...while a manual refresh sees the newer ledger (2 tips) and commits.
-      const manual = await reconcileUserTipTotals(creator, wallet("creator"), {
-        executor: executor(),
-        ledger: {
-          fetchPayments: ledger([tip("1", "t1"), tip("4", "t22")]),
-          ...noSleep,
-        },
-      });
-      releaseScheduled();
-
-      expect(manual.status).toBe("updated");
-      expect((await scheduled).status).toBe("stale");
+      expect(result.status).toBe("complete");
       expect(await user(creator)).toEqual(
-        expect.objectContaining({ total: "5.0000000", count: 2 })
+        expect.objectContaining({ total: "6.0000000", count: 2, version: 2 })
       );
     });
 
-    it("manual refresh retries against the newer state after a concurrent write", async () => {
-      const creator = await createUser("creator");
-      let first = true;
-      const fetchPayments = ledger([tip("3", "t1")], async () => {
-        if (first) {
-          first = false;
+    it("gives up (stale) instead of looping when other writers keep changing the totals", async () => {
+      const creator = await createUser("creator", { total: "4" });
+      const fetchPayments = ledger([], {
+        before: async () => {
           await q(
             "UPDATE users SET tip_totals_version = tip_totals_version + 1 WHERE id = $1",
             [creator]
           );
-        }
+        },
       });
-
       const result = await reconcileUserTipTotals(creator, wallet("creator"), {
         executor: executor(),
-        ledger: { fetchPayments, ...noSleep },
-        maxAttempts: 3,
+        fetchPayments,
+        maxWriteAttempts: 3,
+      });
+      expect(result.status).toBe("stale");
+      expect(fetchPayments).toHaveBeenCalledTimes(3);
+      expect((await user(creator)).total).toBe("4.0000000");
+    });
+
+    it("two concurrent workers never add the same page twice", async () => {
+      const creator = await createUser("creator");
+      const records = tips(6);
+      let release: () => void = () => undefined;
+      const slowFirstPage = new Promise<void>(resolve => {
+        release = resolve;
       });
 
-      expect(result.status).toBe("updated");
-      expect((await user(creator)).total).toBe("3.0000000");
+      // Worker A reads page 1 and stalls before checkpointing it...
+      const workerA = reconcileUserTipTotals(creator, wallet("creator"), {
+        executor: executor(),
+        fetchPayments: ledger(records, {
+          before: async (_cursor, call) => {
+            if (call === 1) {
+              await slowFirstPage;
+            }
+          },
+        }),
+      });
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // ...while worker B walks the whole history.
+      const workerB = await reconcileUserTipTotals(creator, wallet("creator"), {
+        executor: executor(),
+        fetchPayments: ledger(records),
+      });
+      release();
+
+      expect(workerB.status).toBe("complete");
+      expect((await workerA).status).toBe("superseded");
+      expect(await user(creator)).toEqual(
+        expect.objectContaining({ total: "21.0000000", count: 6 })
+      );
+      expect(await checkpoint(creator)).toEqual(
+        expect.objectContaining({ tip_count: 6, stroops: "210000000" })
+      );
+    });
+
+    it("starts over when the creator's wallet changes", async () => {
+      const creator = await createUser("creator");
+      await reconcileUserTipTotals(creator, wallet("creator"), {
+        executor: executor(),
+        fetchPayments: ledger(tips(3)),
+      });
+      await q("UPDATE users SET wallet = $2 WHERE id = $1", [
+        creator,
+        wallet("newwallet"),
+      ]);
+
+      const fetchPayments = ledger([tip("2", "n1")]);
+      const result = await reconcileUserTipTotals(
+        creator,
+        wallet("newwallet"),
+        { executor: executor(), fetchPayments }
+      );
+
+      expect(fetchPayments.mock.calls[0][0].cursor).toBeUndefined();
+      expect(result.status).toBe("complete");
+      expect((await user(creator)).total).toBe("2.0000000");
+    });
+
+    describe("degraded Horizon", () => {
+      function breakerFetch(
+        breaker: CircuitBreaker,
+        downstream: jest.Mock
+      ): FetchPayments {
+        return params => breaker.execute(() => downstream(params));
+      }
+
+      it("does not hang on a Horizon that never answers, and then fails fast", async () => {
+        const creator = await createUser("creator", { total: "1" });
+        const breaker = new CircuitBreaker(
+          {
+            name: "horizon-test",
+            failureThreshold: 2,
+            failureRate: 0.5,
+            windowMs: 60_000,
+            cooldownMs: 60_000,
+            timeoutMs: 100,
+          },
+          { store: createMemoryBreakerStore() }
+        );
+        const hung = jest.fn(() => new Promise(() => undefined));
+
+        for (let i = 0; i < 2; i++) {
+          const started = Date.now();
+          const result = await reconcileUserTipTotals(
+            creator,
+            wallet("creator"),
+            { executor: executor(), fetchPayments: breakerFetch(breaker, hung) }
+          );
+          expect(result.status).toBe("interrupted");
+          expect(result.error).toBeInstanceOf(DownstreamTimeoutError);
+          expect(Date.now() - started).toBeLessThan(2_000);
+        }
+
+        // The breaker is open now: the next attempt does not call Horizon.
+        const fast = await reconcileUserTipTotals(creator, wallet("creator"), {
+          executor: executor(),
+          fetchPayments: breakerFetch(breaker, hung),
+        });
+        expect(fast.status).toBe("interrupted");
+        expect(fast.error).toBeInstanceOf(CircuitOpenError);
+        expect(hung).toHaveBeenCalledTimes(2);
+        expect((await user(creator)).total).toBe("1.0000000");
+      });
     });
   });
 
@@ -272,7 +536,7 @@ describeWithDb("tip total reconciliation (PostgreSQL)", () => {
       const fetchPayments = ledger([]);
       const outcome = await reconcileStaleTipTotals({
         executor: executor(),
-        ledger: { fetchPayments, ...noSleep },
+        fetchPayments,
         batchSize: 2,
         concurrency: 1,
       });
@@ -284,7 +548,7 @@ describeWithDb("tip total reconciliation (PostgreSQL)", () => {
 
       const next = await reconcileStaleTipTotals({
         executor: executor(),
-        ledger: { fetchPayments, ...noSleep },
+        fetchPayments,
         batchSize: 10,
       });
       expect(next.detail!.map(d => d.userId)).toEqual([old]);
@@ -294,19 +558,25 @@ describeWithDb("tip total reconciliation (PostgreSQL)", () => {
       const bad = await createUser("bad");
       const good = await createUser("good");
       const fetchPayments = jest.fn(
-        async ({ publicKey }: { publicKey: string }) => {
+        async ({
+          publicKey,
+          cursor,
+        }: {
+          publicKey: string;
+          cursor?: string;
+        }) => {
           if (publicKey === wallet("bad")) {
-            throw Object.assign(new Error("bad request"), {
-              response: { status: 400 },
-            });
+            throw horizonError(400);
           }
-          return { tips: [tip("7", "g1")], nextCursor: undefined };
+          return cursor
+            ? { tips: [], nextCursor: undefined }
+            : { tips: [tip("7", "g1")], nextCursor: "1" };
         }
       );
 
       const outcome = await reconcileStaleTipTotals({
         executor: executor(),
-        ledger: { fetchPayments, ...noSleep },
+        fetchPayments,
       });
 
       expect(outcome.status).toBe("partial");
@@ -323,7 +593,7 @@ describeWithDb("tip total reconciliation (PostgreSQL)", () => {
 
       const retry = await reconcileStaleTipTotals({
         executor: executor(),
-        ledger: { fetchPayments, ...noSleep },
+        fetchPayments,
       });
       expect(retry.metrics.selected).toBe(0);
     });
@@ -336,11 +606,7 @@ describeWithDb("tip total reconciliation (PostgreSQL)", () => {
         await new Promise(resolve => setTimeout(resolve, 30));
         return { tips: [], nextCursor: undefined };
       });
-      const options = {
-        executor: executor(),
-        ledger: { fetchPayments, ...noSleep },
-        batchSize: 4,
-      };
+      const options = { executor: executor(), fetchPayments, batchSize: 4 };
 
       const [a, b] = await Promise.all([
         reconcileStaleTipTotals(options),
@@ -353,54 +619,90 @@ describeWithDb("tip total reconciliation (PostgreSQL)", () => {
       expect(fetchPayments).toHaveBeenCalledTimes(6);
     });
 
-    it("stops early on Horizon rate limiting and returns deferred users to the queue", async () => {
+    it("stops starting users once Horizon's circuit opens and gives them back their place", async () => {
       for (let i = 0; i < 4; i++) {
-        await createUser(`rl${i}`);
+        await createUser(`co${i}`);
       }
       const fetchPayments = jest.fn(async () => {
-        throw Object.assign(new Error("rate limited"), {
-          response: { status: 429 },
-        });
+        throw new CircuitOpenError("horizon", 30_000);
       });
 
       const outcome = await reconcileStaleTipTotals({
         executor: executor(),
-        ledger: { fetchPayments, policy: { maxRetries: 1 }, ...noSleep },
+        fetchPayments,
         concurrency: 1,
       });
 
+      expect(fetchPayments).toHaveBeenCalledTimes(1);
       expect(outcome.metrics).toEqual(
-        expect.objectContaining({ failed: 1, deferred: 3 })
+        expect.objectContaining({ failed: 0, deferred: 4 })
       );
       expect(outcome.alerts).toEqual([
         expect.stringMatching(
-          /Horizon rate limiting stopped the run early; 3 user\(s\) deferred/
+          /Horizon circuit open: .* 4 user\(s\) were deferred/
         ),
       ]);
       const { rows } = await q(
         "SELECT COUNT(*)::int AS n FROM users WHERE tips_reconcile_attempted_at IS NULL"
       );
-      expect(rows[0].n).toBe(3);
+      expect(rows[0].n).toBe(4);
+    });
+
+    it("a history longer than one run's budget continues on the next run", async () => {
+      const creator = await createUser("long");
+      const records = tips(10);
+
+      const first = await reconcileStaleTipTotals({
+        executor: executor(),
+        fetchPayments: ledger(records),
+        maxPagesPerUser: 2,
+      });
+      expect(first.metrics).toEqual(
+        expect.objectContaining({ in_progress: 1, reconciled: 0 })
+      );
+      // Requeued at once, not held back by the failure backoff.
+      const { rows } = await q(
+        "SELECT tips_reconcile_attempted_at FROM users WHERE id = $1",
+        [creator]
+      );
+      expect(rows[0].tips_reconcile_attempted_at).toBeNull();
+
+      const second = await reconcileStaleTipTotals({
+        executor: executor(),
+        fetchPayments: ledger(records),
+        maxPagesPerUser: 20,
+      });
+      expect(second.metrics.reconciled).toBe(1);
+      expect((await user(creator)).total).toBe("55.0000000");
     });
 
     it("reports large discrepancies once per run", async () => {
       await createUser("drifted", { total: "1000" });
       await createUser("fine", { total: "2" });
       const fetchPayments = jest.fn(
-        async ({ publicKey }: { publicKey: string }) => ({
-          tips: [
-            tip(
-              publicKey === wallet("drifted") ? "10" : "2",
-              `x${publicKey.slice(0, 6)}`
-            ),
-          ],
-          nextCursor: undefined,
-        })
+        async ({
+          publicKey,
+          cursor,
+        }: {
+          publicKey: string;
+          cursor?: string;
+        }) =>
+          cursor
+            ? { tips: [], nextCursor: undefined }
+            : {
+                tips: [
+                  tip(
+                    publicKey === wallet("drifted") ? "10" : "2",
+                    `x${publicKey.slice(0, 6)}`
+                  ),
+                ],
+                nextCursor: "1",
+              }
       );
 
       const outcome = await reconcileStaleTipTotals({
         executor: executor(),
-        ledger: { fetchPayments, ...noSleep },
+        fetchPayments,
         discrepancyAlertXlm: 100,
       });
 

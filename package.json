@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "setup-db": "node scripts/setup-db.js",
+    "rotate:stellar-key": "tsx scripts/rotate-stellar-encryption-key.ts",
     "update-schema": "node scripts/updateUserSchema.mjs",
     "db:migrate": "tsx scripts/migrate.ts",
     "format": "prettier --write .",
@@ -26,7 +27,8 @@
     "clean": "rm -rf .next out coverage",
     "prebuild": "npm run type-check",
     "backfill": "tsx scripts/backfill-analytics.ts",
-    "migrate:custodial-keys": "tsx scripts/migrate-custodial-keys-to-kms.ts"
+    "migrate:custodial-keys": "tsx scripts/migrate-custodial-keys-to-kms.ts",
+    "jobs:sync-schedules": "tsx scripts/sync-job-schedules.ts"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.1140.0",
@@ -55,6 +57,7 @@
     "@stellar/stellar-sdk": "^14.5.0",
     "@testing-library/dom": "^10.4.1",
     "@transak/transak-sdk": "^4.0.2",
+    "@upstash/qstash": "^2.11.3",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.4",
     "@vercel/postgres": "^0.10.0",
@@ -70,7 +73,9 @@
     "framer-motion": "^12.34.3",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.475.0",
+    "maxmind": "^5.0.1",
     "next": "^16.1.6",
+    "otplib": "^12.0.1",
     "nodemailer": "^8.0.1",
     "nprogress": "^0.2.0",
     "pg": "^8.23.0",
@@ -79,7 +84,6 @@
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.60.0",
     "recharts": "^2.10.3",
-    "sharp": "^0.33.5",
     "sonner": "^2.0.2",
     "stellar-wallet-kit": "^2.0.7",
     "swiper": "^12.1.2",
@@ -138,7 +142,7 @@
     "prettier": "^3.6.2",
     "tailwindcss": "^3.4.1",
     "ts-node": "^10.9.2",
-    "tsx": "^4.7.0",
+    "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "^4.1.7",
     "whatwg-fetch": "^3.6.20"

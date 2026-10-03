@@ -67,9 +67,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // 4. Fetch active sessions with hashed (not masked) IPs
   try {
-    const sessions = await listActiveSessions(session.userId, rawToken, "hash");
+    const { sessions, nextCursor } = await listActiveSessions(session.userId, rawToken, "hash");
 
     return NextResponse.json({
+      nextCursor,
       sessions: sessions.map(({ ip_address, ...rest }) => ({
         ...rest,
         ip_hash: ip_address,
