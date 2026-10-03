@@ -1,5 +1,6 @@
 import { sql } from "@vercel/postgres";
-import { writeNotification } from "@/lib/notifications";
+import { writeTemplatedNotification } from "@/lib/notifications";
+import { shouldSendInAppNotification } from "@/lib/notifications/preferences";
 
 export const BADGE_DEFINITIONS = [
   {
@@ -228,12 +229,20 @@ export async function evaluateAndAwardBadges(userId: string) {
         return;
       }
 
-      await writeNotification(
-        userId,
-        "live",
-        `Badge earned: ${definition.name}`,
-        `${username} unlocked the ${definition.name} badge`
-      );
+      try {
+        // Check if user has system notifications enabled
+        const shouldSend = await shouldSendInAppNotification(userId, "system", { sql });
+        if (shouldSend) {
+          await writeTemplatedNotification(
+            userId,
+            "system",
+            { message: `You unlocked the ${definition.name} badge: ${definition.description}` },
+            { sql }
+          );
+        }
+      } catch (err) {
+        console.error(`[badge-notification] failed for user ${userId}:`, err);
+      }
     })
   );
 

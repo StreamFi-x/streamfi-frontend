@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
-import { writeNotification } from "@/lib/notifications";
+import { writeTemplatedNotification } from "@/lib/notifications";
+import { shouldSendInAppNotification } from "@/lib/notifications/preferences";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
 import { invalidateFollowCaches } from "@/lib/cache/invalidation";
 
@@ -77,12 +78,16 @@ export async function POST(req: NextRequest) {
 
       // Write notification — awaited so it completes before response is sent
       try {
-        await writeNotification(
-          receiverId,
-          "follow",
-          "New follower",
-          `${callerUsername} started following you`
-        );
+        // Check if user has follow notifications enabled
+        const shouldSend = await shouldSendInAppNotification(receiverId, "follow", { sql });
+        if (shouldSend) {
+          await writeTemplatedNotification(
+            receiverId,
+            "follow",
+            { actor: callerUsername },
+            { sql }
+          );
+        }
       } catch (notifErr) {
         console.error("[follow] notification write failed:", notifErr);
       }
