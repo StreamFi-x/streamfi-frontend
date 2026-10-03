@@ -276,6 +276,15 @@ const ViewStream = ({
   const [showReportModal, setShowReportModal] = useState(false);
   const [isSavingStreamInfo, setIsSavingStreamInfo] = useState(false);
   const [recordings, setRecordings] = useState<PastRecording[]>([]);
+  // For private streams: signed playback id + JWT (overrides userData.playbackId)
+  const [playbackOverride, setPlaybackOverride] = useState<{
+    playbackId: string;
+    token?: string;
+  } | null>(null);
+  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [streamPassword, setStreamPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
 
   // Use custom hooks for Stellar wallet and tip modal state
   const { publicKey, privyWallet } = useStellarWallet();
@@ -292,6 +301,9 @@ const ViewStream = ({
     messages: chatMessages,
     sendMessage,
     isSending,
+    loadOlder,
+    hasOlder,
+    isLoadingOlder,
   } = useChat(userData?.playbackId, address, isLive);
 
   // Stable refs so the native keydown listener always reads current values
@@ -351,6 +363,80 @@ const ViewStream = ({
     getStreamData();
   }, [username, onStatusChange, userData, initialIsLive]);
 
+  // Private streams: fetch signed playback token after access has been verified.
+  // Skips for public streams (uses userData.playbackId directly).
+  useEffect(() => {
+    const privacy = userData?.privacy;
+    if (!privacy || privacy === "public") {
+      setPlaybackOverride(null);
+      return;
+    }
+    if (!isLive) {
+      return;
+    }
+
+    const qs = new URLSearchParams();
+    qs.set("username", username);
+    if (userData?.shareKey) {
+      qs.set("key", userData.shareKey);
+    }
+    if (address) {
+      qs.set("viewer_wallet", address);
+    }
+
+    fetch(`/api/streams/playback-token?${qs.toString()}`)
+      .then(async response => ({ ok: response.ok, data: await response.json() }))
+      .then(({ ok, data }) => {
+        if (!ok && data?.reason === "password_required") {
+          setPasswordRequired(true);
+          setPlaybackOverride(null);
+          return;
+        }
+        setPasswordRequired(false);
+        if (data?.playbackId) {
+          setPlaybackOverride({
+            playbackId: data.playbackId,
+            token: data.signed ? data.token : undefined,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [
+    username,
+    isLive,
+    userData?.privacy,
+    userData?.shareKey,
+    address,
+  ]);
+
+  const handleStreamPasswordSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!streamPassword || passwordSubmitting) {return;}
+    setPasswordSubmitting(true);
+    setPasswordError("");
+    try {
+      const verification = await fetch("/api/streams/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password: streamPassword }),
+      });
+      if (!verification.ok) {throw new Error("Password not accepted. Please try again.");}
+      const params = new URLSearchParams({ username });
+      if (userData?.shareKey) {params.set("key", userData.shareKey);}
+      if (address) {params.set("viewer_wallet", address);}
+      const playback = await fetch(`/api/streams/playback-token?${params}`);
+      const data = await playback.json();
+      if (!playback.ok || !data?.playbackId) {throw new Error("Unable to open this stream.");}
+      setPlaybackOverride({ playbackId: data.playbackId, token: data.signed ? data.token : undefined });
+      setPasswordRequired(false);
+      setStreamPassword("");
+    } catch (cause) {
+      setPasswordError(cause instanceof Error ? cause.message : "Unable to verify password.");
+    } finally {
+      setPasswordSubmitting(false);
+    }
+  };
+
   // Fetch past recordings for this streamer
   useEffect(() => {
     fetch(
@@ -358,8 +444,8 @@ const ViewStream = ({
     )
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
-        if (data?.recordings) {
-          setRecordings(data.recordings);
+        if (data?.items) {
+          setRecordings(data.items);
         }
       })
       .catch(() => {});
@@ -545,6 +631,66 @@ const ViewStream = ({
                     : undefined
                 }
               >
+                {passwordRequired && (
+                  <form onSubmit={handleStreamPasswordSubmit} className="absolute inset-0 z-10 flex items-center justify-center bg-background/95 p-6">
+                    <div className="w-full max-w-sm space-y-3 text-center">
+                      <h2 className="text-lg font-semibold">Password-protected stream</h2>
+                      <input type="password" autoComplete="current-password" value={streamPassword} onChange={event => setStreamPassword(event.target.value)} className="w-full rounded border border-border bg-card px-3 py-2" aria-label="Stream password" />
+                      {passwordError && <p role="alert" className="text-sm text-red-500">{passwordError}</p>}
+                      <button type="submit" disabled={passwordSubmitting || !streamPassword} className="w-full rounded bg-highlight px-4 py-2 text-sm text-white disabled:opacity-50">{passwordSubmitting ? "Checking…" : "Watch stream"}</button>
+                    </div>
+                  </form>
+                )}
+                {(() => {
+                  // For private streams, use the signed playback id+token from /playback-token.
+                  // For public streams, use userData.playbackId directly.
+                  const isPrivate =
+                    userData?.privacy && userData.privacy !== "public";
+                  const effectivePlaybackId = isPrivate
+                    ? playbackOverride?.playbackId
+                    : userData?.playbackId;
+                  const effectiveToken = isPrivate
+                    ? playbackOverride?.token
+                    : undefined;
+                  const playerReady =
+                    !isPrivate || !!playbackOverride?.playbackId;
+
+                  return isLive && effectivePlaybackId && playerReady ? (
+                    <MuxPlayer
+                      playbackId={effectivePlaybackId}
+                      streamType={
+                        userData.latencyMode === "standard" ? "live:dvr" : "live"
+                      }
+                      autoPlay="muted"
+                      tokens={
+                        effectiveToken
+                          ? {
+                              playback: effectiveToken,
+                              thumbnail: effectiveToken,
+                              storyboard: effectiveToken,
+                            }
+                          : undefined
+                      }
+                      metadata={{
+                        video_id: effectivePlaybackId,
+                        video_title: streamData.title || `${username}'s Stream`,
+                        viewer_user_id: "anonymous",
+                      }}
+                      primaryColor="#ac39f2"
+                      className="w-full h-full"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-card">
+                      <div className="text-foreground text-center">
+                        <p className="text-lg mb-2">
+                          {isLive ? "Loading stream..." : "Stream is offline"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {isLive
+                            ? "Please wait while we load the stream"
+                            : "Check back later or browse past streams below"}
+                        </p>
+                      </div>
                 {isLive && userData?.playbackId ? (
                   <MuxPlayer
                     playbackId={userData.playbackId}
@@ -1028,6 +1174,9 @@ const ViewStream = ({
                   isWalletConnected={!!address}
                   isSending={isSending}
                   onLoginClick={() => login()}
+                  onLoadOlder={loadOlder}
+                  hasOlder={hasOlder}
+                  isLoadingOlder={isLoadingOlder}
                 />
               </div>
             )}
@@ -1055,6 +1204,9 @@ const ViewStream = ({
                 isWalletConnected={!!address}
                 isSending={isSending}
                 onLoginClick={() => login()}
+                onLoadOlder={loadOlder}
+                hasOlder={hasOlder}
+                isLoadingOlder={isLoadingOlder}
               />
             </div>
           )}

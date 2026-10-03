@@ -11,7 +11,7 @@ export const RECENT_WRITE_TTL_MS = 5000;
 
 export interface RecentWrites {
   sent: { message: ChatMessage; expiresAt: number }[];
-  deleted: Map<number, number>;
+  deleted: Map<string, number>;
 }
 
 const byStream = new Map<string, RecentWrites>();
@@ -35,7 +35,7 @@ export function rememberSent(
 
 export function rememberDeleted(
   writes: RecentWrites,
-  id: number,
+  id: string,
   now = Date.now()
 ): void {
   writes.deleted.set(id, now + RECENT_WRITE_TTL_MS);

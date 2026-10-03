@@ -35,8 +35,9 @@ export function AddFundsButton({
     walletAddress,
     paramOverrides,
     onSuccess: order => {
+      // Transak finished its side; the XLM can take a few minutes to arrive.
       toast.success(
-        `Successfully purchased ${order.cryptoAmount} ${order.cryptoCurrency}`
+        `Purchased ${order.cryptoAmount} ${order.cryptoCurrency}. It may take a few minutes to reach your wallet.`
       );
       onSuccess?.(order);
     },

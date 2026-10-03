@@ -1,6 +1,11 @@
 import { currentAdminPrivyId, requireAdminSession } from "@/lib/admin-auth";
 import { CACHE_POLICIES, cacheHeaders, cached } from "@/lib/cache";
 import {
+  readFromReplica,
+  ReplicaUnavailableError,
+  replicaUnavailableResponse,
+} from "@/lib/db/replica";
+import {
   createRateLimit,
   rateLimitHeaders,
   tooManyRequests,
@@ -26,9 +31,23 @@ interface AdminAnalyticsStats {
   totalCategories: number;
 }
 
+// Six COUNT scans, shared by every admin through the 30s cache above. They
+// already tolerate 30s of staleness, so they run on the read replica.
 async function loadStats(): Promise<AdminAnalyticsStats> {
   // Use materialized rollup instead of live COUNT(*) queries (#1373)
   const snapshot = await getCurrentAdminAnalytics();
+  const rows = await readFromReplica("admin.analytics.counts", db =>
+    db`
+    SELECT
+      (SELECT COUNT(*) FROM users WHERE is_banned = false)            AS total_users,
+      (SELECT COUNT(*) FROM users WHERE is_live = true)               AS live_now,
+      (SELECT COUNT(*) FROM stream_reports WHERE status = 'pending')  AS pending_stream_reports,
+      (SELECT COUNT(*) FROM bug_reports    WHERE status = 'pending')  AS pending_bug_reports,
+      (SELECT COUNT(*) FROM users
+        WHERE created_at > now() - INTERVAL '7 days')                AS new_users_7d,
+      (SELECT COUNT(*) FROM stream_categories)                        AS total_categories
+  `.then(r => r.rows)
+  );
 
   return {
     totalUsers: snapshot.totalUsersActive,
@@ -68,6 +87,9 @@ export async function GET(): Promise<Response> {
       },
     });
   } catch (err) {
+    if (err instanceof ReplicaUnavailableError) {
+      return replicaUnavailableResponse();
+    }
     console.error("[admin/analytics] DB error:", err);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }

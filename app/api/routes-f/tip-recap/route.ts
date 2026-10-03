@@ -61,8 +61,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         u_tipper.username   AS tipper_username,
         u_tipper.avatar     AS tipper_avatar
       FROM tip_transactions t
-      LEFT JOIN users u_creator ON u_creator.id = t.creator_id
-      LEFT JOIN users u_tipper  ON u_tipper.id = t.tipper_id
+      LEFT JOIN users u_creator ON u_creator.id = t.creator_id AND u_creator.deleted_at IS NULL
+      LEFT JOIN users u_tipper  ON u_tipper.id = t.tipper_id AND u_tipper.deleted_at IS NULL
       WHERE t.id = ${tip_id}
       LIMIT 1
     `;

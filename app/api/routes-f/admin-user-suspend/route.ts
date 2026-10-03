@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
 
     // Check if user exists
     const userResult = await sql`
+      -- tombstone-aware: admin view includes accounts pending deletion
       SELECT id, username, is_banned, is_live FROM users WHERE id = ${userId}
     `;
 
@@ -208,6 +209,7 @@ export async function GET(req: NextRequest) {
     }
 
     const result = await sql`
+      -- tombstone-aware: admin view includes accounts pending deletion
       SELECT 
         id,
         username,

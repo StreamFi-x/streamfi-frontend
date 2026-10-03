@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAuthorizedCronRequest } from "@/lib/cron-auth";
-import { assertJobFresh, runScheduledJob } from "@/lib/jobs/scheduled-job";
+import { assertJobFresh, runScheduledJob } from "@/lib/jobs/leased-job";
 import { purgeExpiredMuxWebhookEvents } from "@/lib/mux/webhook-retention";
 import { MUX_RECONCILE_JOB } from "@/lib/mux/reconciliation";
 

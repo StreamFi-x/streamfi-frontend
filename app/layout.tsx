@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import React from "react";
 import SidebarWrapper from "../components/SidebarWrapper";
+import { headers } from "next/headers";
 
 const BASE_URL = "https://www.streamfi.media";
 
@@ -67,21 +68,25 @@ const websiteSchema = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+}) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="en" suppressHydrationWarning className="bg-transparent">
       <body className="antialiased" suppressHydrationWarning>
         <script
+          nonce={nonce}
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify(organizationSchema),
           }}
         />
         <script
+          nonce={nonce}
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
         />

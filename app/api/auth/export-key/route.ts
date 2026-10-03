@@ -18,6 +18,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { decryptSecret } from "@/lib/security/encrypted-secrets";
+import { consumeStepUp } from "@/lib/security/step-up";
 import {
   CustodialKeyError,
   decryptCustodialSecret,
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Verify session
-  const session = await verifySession(req);
+  const session = await verifySession(req, { allowPendingDeletion: true });
   if (!session.ok) {
     return session.response;
   }
@@ -56,10 +58,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const challengeId = req.headers.get("x-step-up-challenge");
+  if (!challengeId || !(await consumeStepUp(session.userId, challengeId, "wallet_export", session.userId))) {
+    return NextResponse.json({ error: "Complete two-factor verification before exporting the wallet" }, { status: 403 });
+  }
+
   // 4. Fetch the encrypted key from DB
   let encryptedKey: string | null = null;
   try {
     const { rows } = await sql`
+      -- tombstone-aware: users can export their key during the deletion grace window
       SELECT encrypted_stellar_key
       FROM users
       WHERE id = ${session.userId}

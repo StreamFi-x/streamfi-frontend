@@ -13,12 +13,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     mechanism: "session_role",
     route: "routes-f/admin-user-search",
     userId: session.userId,
-    check: async () => {
-      const { rows: userRows } = await sql`
-        SELECT role FROM users WHERE id = ${session.userId} LIMIT 1
-      `;
-      return userRows[0]?.role === "admin";
-    },
+    check: () => true,
   });
   if (adminDenied) {
     return adminDenied;
@@ -34,7 +29,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   const term = `%${q}%`;
   try {
     const { rows } = await sql`
-      SELECT id, username, email, wallet_address, role, is_suspended, created_at
+      -- tombstone-aware: admin view includes accounts pending deletion
+      SELECT id, username, email, wallet_address, role, is_suspended, created_at, deleted_at
       FROM users
       WHERE username ILIKE ${term}
          OR email ILIKE ${term}

@@ -18,6 +18,8 @@ import { Keypair } from "@stellar/stellar-sdk";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { encryptSecret } from "@/lib/security/encrypted-secrets";
+import { consumeStepUp } from "@/lib/security/step-up";
 import {
   CustodialKeyError,
   encryptCustodialSecret,
@@ -53,6 +55,12 @@ export async function POST(req: NextRequest) {
       },
       { status: 403 }
     );
+  }
+
+  let body: { stepUpChallengeId?: unknown };
+  try {body = await req.json();} catch {return NextResponse.json({ error: "Step-up challenge required" }, { status: 403 });}
+  if (typeof body.stepUpChallengeId !== "string" || !(await consumeStepUp(session.userId, body.stepUpChallengeId, "wallet_regeneration", session.userId))) {
+    return NextResponse.json({ error: "Complete two-factor verification before regenerating the wallet" }, { status: 403 });
   }
 
   const keypair = Keypair.random();

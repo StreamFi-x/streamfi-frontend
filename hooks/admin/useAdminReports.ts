@@ -3,6 +3,8 @@ import useSWR from "swr";
 export interface StreamReport {
   id: string;
   reporter_id: string;
+  is_anonymous: boolean;
+  priority: "normal" | "expedited";
   stream_id: string;
   streamer: string;
   reason: string;

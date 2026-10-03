@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
         wh.watch_seconds,
         'continue_watching' as reason
       FROM watch_history wh
-      JOIN users u ON u.id = wh.streamer_id
+      JOIN users u ON u.id = wh.streamer_id AND u.deleted_at IS NULL
       WHERE wh.viewer_id = ${userId}
         AND wh.stream_type IN ('vod', 'clip')
         AND wh.completed = false
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
         'recommended' as reason,
         ROW_NUMBER() OVER (PARTITION BY wh.streamer_id ORDER BY wh.last_seen_at DESC) as recency_rank
       FROM watch_history wh
-      JOIN users u ON u.id = wh.streamer_id
+      JOIN users u ON u.id = wh.streamer_id AND u.deleted_at IS NULL
       WHERE wh.viewer_id = ${userId}
         AND wh.started_at > NOW() - INTERVAL '30 days'
       ORDER BY u.id, wh.last_seen_at DESC

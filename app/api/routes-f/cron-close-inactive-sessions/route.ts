@@ -17,12 +17,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAdminSession } from "@/lib/admin-auth";
 import { isAuthorizedCronRequest } from "@/lib/jobs/cron-auth";
 import { jobHttpStatus, runScheduledJob } from "@/lib/jobs/scheduled-job";
 import { getMuxLiveStreamState } from "@/lib/mux/server";
-import { sql } from "@vercel/postgres";
-import { requireAdminSecret, verifyAdminSession } from "@/lib/admin-auth";
+import { verifyAdminSession } from "@/lib/admin-auth";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { reconcileOrphanedSessions } from "@/lib/stream/session-reconciliation";
 

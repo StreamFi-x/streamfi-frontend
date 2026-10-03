@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
             u.username as streamer_username,
             u.avatar as streamer_avatar
           FROM watch_history wh
-          JOIN users u ON u.id = wh.streamer_id
+          JOIN users u ON u.id = wh.streamer_id AND u.deleted_at IS NULL
           WHERE wh.viewer_id = ${userId}
             AND wh.last_seen_at < ${cursor}
           ORDER BY wh.last_seen_at DESC
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
             u.username as streamer_username,
             u.avatar as streamer_avatar
           FROM watch_history wh
-          JOIN users u ON u.id = wh.streamer_id
+          JOIN users u ON u.id = wh.streamer_id AND u.deleted_at IS NULL
           WHERE wh.viewer_id = ${userId}
           ORDER BY wh.last_seen_at DESC
           LIMIT ${limit}

@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { signToken } from "@/lib/auth/sign-token";
+import { currentKeyring } from "@/lib/security/keyring";
+import { recordLoginAndCheckTravel } from "@/lib/security/login-anomaly";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { createSession } from "@/lib/sessions/user-sessions";
 
 const isRateLimited = createRateLimiter(60_000, 20); // 20 requests/min per IP
 
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
-
-function getSecret(): string {
-  const s = process.env.SESSION_SECRET;
-  if (!s) {
-    throw new Error("SESSION_SECRET env var is required");
-  }
-  return s;
-}
 
 function getIp(req: NextRequest): string {
   return (
@@ -73,8 +67,13 @@ export async function POST(req: NextRequest) {
     const now = Math.floor(Date.now() / 1000);
     const token = signToken(
       { userId: u.id, wallet: u.wallet, iat: now, exp: now + COOKIE_MAX_AGE },
-      getSecret()
+      currentKeyring()
     );
+    try {
+      await recordLoginAndCheckTravel(u.id, getIp(req));
+    } catch (anomalyError) {
+      console.error("[wallet-session] Login anomaly processing failed:", anomalyError);
+    }
 
     const isProduction = process.env.NODE_ENV === "production";
     const cookieValue = [

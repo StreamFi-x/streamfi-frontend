@@ -21,7 +21,7 @@ export default async function Image({ params }: Props) {
     const { rows } = await sql`
       SELECT username, avatar, is_live, creator
       FROM users
-      WHERE LOWER(username) = ${username.toLowerCase()}
+      WHERE LOWER(username) = ${username.toLowerCase()} AND deleted_at IS NULL
       LIMIT 1
     `;
     const user = rows[0];

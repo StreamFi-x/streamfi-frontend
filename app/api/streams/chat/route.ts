@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { verifySession } from "@/lib/auth/verify-session";
 import { CACHE_POLICIES, cacheHeaders } from "@/lib/cache";
 import { createCache, createMemoryBackend } from "@/lib/cache/store";
+import {
+  buildPage,
+  keysetBounds,
+  readPageParams,
+  type KeysetRow,
+  type PageParams,
+} from "@/lib/pagination/cursor";
+import { publishRealtimeMessage } from "@/lib/realtime/pubsub";
 
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
 
-const MAX_LIMIT = 200;
 const DEFAULT_LIMIT = 50;
+/** The live chat view polls the newest 200 messages; keep that possible. */
+const MAX_LIMIT = 200;
 
 // Every viewer of a stream polls the same window once a second. The edge
 // (chatWindow policy) collapses those per region; this per-instance cache
@@ -18,14 +28,6 @@ const DEFAULT_LIMIT = 50;
 // docs/postgres-pooling-and-chat-load.md has the measurements.
 const chatWindowCache = createCache(createMemoryBackend());
 const chatTag = (playbackId: string) => `chat:${playbackId}`;
-
-function parseLimit(raw: string | null): number {
-  const parsed = Number.parseInt(raw ?? "", 10);
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return DEFAULT_LIMIT;
-  }
-  return Math.min(parsed, MAX_LIMIT);
-}
 
 export async function POST(req: NextRequest) {
   const ip =
@@ -39,6 +41,13 @@ export async function POST(req: NextRequest) {
       { status: 429, headers: { "Retry-After": "60" } }
     );
   }
+
+  // Verify caller identity server-side via session
+  const session = await verifySession(req);
+  if (!session.ok) {
+    return session.response;
+  }
+
   try {
     const {
       wallet,
@@ -47,10 +56,22 @@ export async function POST(req: NextRequest) {
       messageType = "message",
     } = await req.json();
 
-    if (!wallet || !playbackId || !content) {
+    if (!playbackId || !content) {
       return NextResponse.json(
-        { error: "Wallet, playback ID, and content are required" },
+        { error: "Playback ID and content are required" },
         { status: 400 }
+      );
+    }
+
+    // Never trust client-supplied wallet if it contradicts the verified session
+    if (
+      wallet &&
+      session.wallet &&
+      session.wallet.toLowerCase() !== wallet.toLowerCase()
+    ) {
+      return NextResponse.json(
+        { error: "Forbidden: wallet mismatch" },
+        { status: 403 }
       );
     }
 
@@ -68,11 +89,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Combined query: look up sender + stream + active session in one round-trip
+    // Derive sender strictly from verified session user
     const result = await sql`
       SELECT
         sender.id AS sender_id,
         sender.username AS sender_username,
+        sender.wallet AS sender_wallet,
         streamer.id AS streamer_id,
         streamer.is_live,
         (
@@ -82,7 +104,7 @@ export async function POST(req: NextRequest) {
         ) AS session_id
       FROM users sender
       CROSS JOIN users streamer
-      WHERE sender.wallet = ${wallet}
+      WHERE sender.id = ${session.userId}
         AND streamer.mux_playback_id = ${playbackId}
     `;
 
@@ -93,7 +115,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { sender_id, sender_username, is_live, session_id } = result.rows[0];
+    const { sender_id, sender_username, sender_wallet, is_live, session_id } =
+      result.rows[0];
 
     if (!is_live) {
       return NextResponse.json(
@@ -131,6 +154,24 @@ export async function POST(req: NextRequest) {
     `;
     await chatWindowCache.invalidate([chatTag(playbackId)]);
 
+    const formattedMessage = {
+      id: newMessage.id,
+      content,
+      messageType,
+      user: {
+        username: sender_username,
+        wallet: wallet,
+      },
+      createdAt: newMessage.created_at,
+    };
+
+    // Publish to Realtime Pub/Sub channel for instantaneous push delivery (#1450)
+    publishRealtimeMessage(
+      `stream:${playbackId}:chat`,
+      "chat:message",
+      formattedMessage
+    ).catch((e) => console.error("[chat] Realtime publish error:", e));
+
     return NextResponse.json(
       {
         message: "Message sent successfully",
@@ -140,13 +181,15 @@ export async function POST(req: NextRequest) {
           messageType,
           user: {
             username: sender_username,
-            wallet: wallet,
+            wallet: sender_wallet || session.wallet || "",
           },
           createdAt: newMessage.created_at,
         },
+        chatMessage: formattedMessage,
       },
       { status: 201 }
     );
+
   } catch (error) {
     console.error("Chat message error:", error);
     return NextResponse.json(
@@ -156,11 +199,16 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function loadChatWindow(
-  playbackId: string,
-  limit: number,
-  beforeId: number | null
-) {
+interface ChatRow extends KeysetRow {
+  content: string;
+  message_type: string;
+  created_at: string;
+  username: string;
+  wallet: string;
+  avatar: string | null;
+}
+
+async function loadChatPage(playbackId: string, page: PageParams) {
   const streamResult = await sql`
     SELECT ss.id as session_id
     FROM users u
@@ -171,7 +219,7 @@ async function loadChatWindow(
   `;
 
   if (streamResult.rows.length === 0) {
-    return [];
+    return { items: [], nextCursor: null, hasMore: false };
   }
 
   // Kept as a second statement on purpose: with the session id bound as a
@@ -179,13 +227,18 @@ async function loadChatWindow(
   // idx_chat_messages_session_window backwards. Folded into one statement it
   // assumes an average-sized chat and sorts every message of a busy stream
   // (5x slower in scripts/load-test; see docs/postgres-pooling-and-chat-load.md).
+  // The (created_at, id) row comparison becomes an index condition on
+  // created_at, so a deep history page costs the same as the first one
+  // (docs/database/query-performance.md).
   const sessionId = streamResult.rows[0].session_id;
-  const messagesResult = await sql`
+  const bound = keysetBounds(page.after);
+  const messagesResult = await sql<ChatRow>`
     SELECT
       cm.id,
       cm.content,
       cm.message_type,
       cm.created_at,
+      to_char(cm.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts,
       u.username,
       u.wallet,
       u.avatar
@@ -193,32 +246,34 @@ async function loadChatWindow(
     JOIN users u ON cm.user_id = u.id
     WHERE cm.stream_session_id = ${sessionId}
       AND cm.is_deleted = false
-      AND (${beforeId}::int IS NULL OR cm.id < ${beforeId})
-    ORDER BY cm.created_at DESC
-    LIMIT ${limit}
+      AND (cm.created_at, cm.id) < (${bound.ts}::timestamptz, ${bound.id}::uuid)
+    ORDER BY cm.created_at DESC, cm.id DESC
+    LIMIT ${page.limit + 1}
   `;
 
-  return messagesResult.rows
-    .map(msg => ({
-      id: msg.id,
-      content: msg.content,
-      messageType: msg.message_type,
-      createdAt: msg.created_at,
-      user: {
-        username: msg.username,
-        wallet: msg.wallet,
-        avatar: msg.avatar,
-      },
-    }))
-    .reverse();
+  return buildPage(messagesResult.rows, page.limit, msg => ({
+    id: msg.id,
+    content: msg.content,
+    messageType: msg.message_type,
+    createdAt: msg.created_at,
+    user: {
+      username: msg.username,
+      wallet: msg.wallet,
+      avatar: msg.avatar,
+    },
+  }));
 }
 
+/**
+ * Chat history, newest first, on the shared cursor contract
+ * (docs/api/pagination.md): `?playbackId&limit&cursor` →
+ * `{ items, nextCursor, hasMore }`. Polling clients request the first page;
+ * `nextCursor` walks back through older history.
+ */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const playbackId = searchParams.get("playbackId");
-    const limit = parseLimit(searchParams.get("limit"));
-    const before = searchParams.get("before");
 
     if (!playbackId) {
       return NextResponse.json(
@@ -227,20 +282,35 @@ export async function GET(req: Request) {
       );
     }
 
-    const beforeId = before ? parseInt(before) : null;
-    const messages = await chatWindowCache.getOrLoad(
+    if (searchParams.has("before")) {
+      return NextResponse.json(
+        { error: "The before parameter was replaced by cursor" },
+        { status: 400 }
+      );
+    }
+
+    const params = readPageParams(searchParams, {
+      defaultLimit: DEFAULT_LIMIT,
+      maxLimit: MAX_LIMIT,
+    });
+    if (!params.ok) {
+      return params.response;
+    }
+    const { page } = params;
+
+    const result = await chatWindowCache.getOrLoad(
       {
-        key: `chat:${playbackId}:${limit}:${beforeId ?? "live"}`,
+        key: `chat:${playbackId}:${page.limit}:${searchParams.get("cursor") ?? "live"}`,
         tags: [chatTag(playbackId)],
         ttlSeconds: CACHE_POLICIES.chatWindow.appTtlSeconds,
       },
-      () => loadChatWindow(playbackId, limit, beforeId)
+      () => loadChatPage(playbackId, page)
     );
 
-    return NextResponse.json(
-      { messages },
-      { status: 200, headers: cacheHeaders("chatWindow") }
-    );
+    return NextResponse.json(result, {
+      status: 200,
+      headers: cacheHeaders("chatWindow"),
+    });
   } catch (error) {
     console.error("Get chat messages error:", error);
     return NextResponse.json(
@@ -250,29 +320,31 @@ export async function GET(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
   try {
+    // Authenticate moderator via verified server session
+    const session = await verifySession(req);
+    if (!session.ok) {
+      return session.response;
+    }
+
     const { messageId, moderatorWallet } = await req.json();
 
-    if (!messageId || !moderatorWallet) {
+    if (!messageId) {
       return NextResponse.json(
-        { error: "Message ID and moderator wallet are required" },
+        { error: "Message ID is required" },
         { status: 400 }
       );
     }
 
-    const moderatorResult = await sql`
-      SELECT id FROM users WHERE wallet = ${moderatorWallet}
-    `;
-
-    if (moderatorResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: "Moderator not found" },
-        { status: 404 }
-      );
+    // Prevent spoofing moderator wallet
+    if (
+      moderatorWallet &&
+      session.wallet &&
+      session.wallet.toLowerCase() !== moderatorWallet.toLowerCase()
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-
-    const moderatorId = moderatorResult.rows[0].id;
 
     const messageResult = await sql`
       SELECT 
@@ -292,10 +364,11 @@ export async function DELETE(req: Request) {
 
     const message = messageResult.rows[0];
 
-    if (
-      moderatorId !== message.stream_owner_id &&
-      moderatorId !== message.message_user_id
-    ) {
+    // Check permissions against verified session.userId
+    const isOwner = session.userId === message.stream_owner_id;
+    const isAuthor = session.userId === message.message_user_id;
+
+    if (!isOwner && !isAuthor) {
       return NextResponse.json(
         { error: "Insufficient permissions to delete this message" },
         { status: 403 }
@@ -306,7 +379,7 @@ export async function DELETE(req: Request) {
       UPDATE chat_messages SET
         is_deleted = true,
         is_moderated = true,
-        moderated_by = ${moderatorId}
+        moderated_by = ${session.userId}
       WHERE id = ${messageId}
     `;
     if (message.mux_playback_id) {

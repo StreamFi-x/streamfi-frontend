@@ -5,8 +5,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
 import { z } from "zod";
+import {
+  readFromReplica,
+  ReplicaUnavailableError,
+  replicaUnavailableResponse,
+} from "@/lib/db/replica";
 import { verifySession } from "@/lib/auth/verify-session";
 import { validateQuery } from "@/app/api/routes-f/_lib/validate";
 import { CACHE_POLICIES } from "@/lib/cache";
@@ -58,40 +62,47 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    // Get total count
-    const { rows: countRows } = await sql<{ count: number }>`
-      SELECT COUNT(*) as count
-      FROM stream_sessions
-      WHERE user_id = ${creator_id}
-    `;
+    const { countRows, sessionRows } = await readFromReplica(
+      "routes-f.analytics-session-list",
+      async db => {
+        // Get total count
+        const { rows: countRows } = await db<{ count: number }>`
+          SELECT COUNT(*) as count
+          FROM stream_sessions
+          WHERE user_id = ${creator_id}
+        `;
+
+        // Get paginated sessions
+        const { rows: sessionRows } = await db<SessionListItem>`
+          SELECT
+            ss.id,
+            ss.title,
+            ss.started_at,
+            ss.ended_at,
+            ss.duration_seconds,
+            (ss.end_source = 'reconciliation') IS TRUE AS ended_at_estimated,
+            ss.peak_viewers,
+            ss.total_unique_viewers,
+            ss.total_messages,
+            CASE
+              WHEN EXISTS (
+                SELECT 1 FROM route_f_session_retention
+                WHERE session_id = ss.id LIMIT 1
+              ) THEN true
+              ELSE false
+            END as has_retention_data
+          FROM stream_sessions ss
+          WHERE ss.user_id = ${creator_id}
+          ORDER BY ss.started_at DESC
+          LIMIT ${limit}
+          OFFSET ${offset}
+        `;
+        return { countRows, sessionRows };
+      },
+      { request: req }
+    );
 
     const totalCount = countRows[0]?.count || 0;
-
-    // Get paginated sessions
-    const { rows: sessionRows } = await sql<SessionListItem>`
-      SELECT 
-        ss.id,
-        ss.title,
-        ss.started_at,
-        ss.ended_at,
-        ss.duration_seconds,
-        (ss.end_source = 'reconciliation') IS TRUE AS ended_at_estimated,
-        ss.peak_viewers,
-        ss.total_unique_viewers,
-        ss.total_messages,
-        CASE 
-          WHEN EXISTS (
-            SELECT 1 FROM route_f_session_retention 
-            WHERE session_id = ss.id LIMIT 1
-          ) THEN true
-          ELSE false
-        END as has_retention_data
-      FROM stream_sessions ss
-      WHERE ss.user_id = ${creator_id}
-      ORDER BY ss.started_at DESC
-      LIMIT ${limit}
-      OFFSET ${offset}
-    `;
 
     const response: SessionListResponse = {
       sessions: sessionRows,
@@ -107,6 +118,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
+    if (error instanceof ReplicaUnavailableError) {
+      return replicaUnavailableResponse();
+    }
     console.error("[analytics-session-list] GET error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

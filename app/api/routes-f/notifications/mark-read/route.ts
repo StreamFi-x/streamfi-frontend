@@ -8,7 +8,10 @@
  *   — Provide ids (non-empty array) OR all=true; not both required.
  *
  * Response:
- *   { updated_count: number }
+ *   { 
+ *     updated_count: number,
+ *     unread_count: number  // remaining unread count after this operation
+ *   }
  *
  * Error responses:
  *   400 — missing/invalid body
@@ -17,7 +20,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { markReadSchema } from "./schema";
-import { markById, markAll } from "./helpers";
+import { markById, markAll, getUnreadCount } from "./helpers";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const bodyResult = await validateBody(req, markReadSchema);
@@ -28,5 +31,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const updated_count =
     all === true ? markAll(viewer_id) : markById(viewer_id, ids ?? []);
 
-  return NextResponse.json({ updated_count });
+  // Return remaining unread count for accurate badge updates
+  const unread_count = getUnreadCount(viewer_id);
+
+  return NextResponse.json({ updated_count, unread_count });
 }

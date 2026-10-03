@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
             s.thumbnail_url
           FROM watch_history wh
           JOIN streams s ON s.id = wh.stream_id
-          JOIN users u   ON u.id = s.creator_id
+          JOIN users u   ON u.id = s.creator_id AND u.deleted_at IS NULL
           WHERE wh.user_id = ${session.userId}
             AND wh.watched_at < (SELECT watched_at FROM watch_history WHERE id = ${cursor} LIMIT 1)
           ORDER BY wh.watched_at DESC
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
             s.thumbnail_url
           FROM watch_history wh
           JOIN streams s ON s.id = wh.stream_id
-          JOIN users u   ON u.id = s.creator_id
+          JOIN users u   ON u.id = s.creator_id AND u.deleted_at IS NULL
           WHERE wh.user_id = ${session.userId}
           ORDER BY wh.watched_at DESC
           LIMIT ${limit + 1}

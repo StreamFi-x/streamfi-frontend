@@ -5,6 +5,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Check, ChevronDown, X, AlertTriangle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import TwoFactorManager from "./two-factor-manager";
+import StepUpDialog, { type ProtectedAction } from "./step-up-dialog";
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -385,6 +387,16 @@ const VerifyEmailModal: React.FC<{
         title={feedback?.title || ""}
         message={feedback?.message || ""}
       />
+      <StepUpDialog
+        action={stepUpAction}
+        resourceId="self"
+        onCancel={() => setStepUpAction(null)}
+        onApproved={(challengeId, action) => {
+          setStepUpAction(null);
+          if (action === "wallet_export") {void handleExportKey(challengeId);}
+          else {void handleRegenerateWallet(challengeId);}
+        }}
+      />
     </>
   );
 };
@@ -527,7 +539,6 @@ const PrivacySecurityPage: React.FC = () => {
 
   // State management for all settings
   const [settings, setSettings] = useState({
-    twoFactorEnabled: false,
     showActivityStatus: true,
     profileVisibility: "Public (Everyone)",
     emailVerified: false,
@@ -551,6 +562,7 @@ const PrivacySecurityPage: React.FC = () => {
   const [keyCopied, setKeyCopied] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [decryptionFailed, setDecryptionFailed] = useState(false);
+  const [stepUpAction, setStepUpAction] = useState<ProtectedAction | null>(null);
 
   // Handle all setting changes
   const updateSetting = useCallback(
@@ -582,7 +594,8 @@ const PrivacySecurityPage: React.FC = () => {
     }
   }, [updateSetting]);
 
-  const handleExportKey = async () => {
+  const handleExportKey = async (challengeId?: string) => {
+    if (!challengeId) {setStepUpAction("wallet_export"); return;}
     setIsExporting(true);
     setExportError(null);
     setDecryptionFailed(false);
@@ -590,6 +603,7 @@ const PrivacySecurityPage: React.FC = () => {
       const res = await fetch("/api/auth/export-key", {
         method: "POST",
         credentials: "include",
+        headers: { "x-step-up-challenge": challengeId },
       });
       const data = await res.json();
       if (!res.ok) {
@@ -600,7 +614,7 @@ const PrivacySecurityPage: React.FC = () => {
         ) {
           setDecryptionFailed(true);
           setExportError(
-            "Your wallet was encrypted with a different key. Regenerate your wallet to fix this."
+            "Your saved wallet could not be decrypted. Contact support before replacing it; regeneration creates a different wallet address."
           );
         } else {
           setExportError(data.error ?? "Failed to export key");
@@ -616,7 +630,8 @@ const PrivacySecurityPage: React.FC = () => {
     }
   };
 
-  const handleRegenerateWallet = async () => {
+  const handleRegenerateWallet = async (challengeId?: string) => {
+    if (!challengeId) {setStepUpAction("wallet_regeneration"); return;}
     setIsRegenerating(true);
     setExportError(null);
     setDecryptionFailed(false);
@@ -624,6 +639,8 @@ const PrivacySecurityPage: React.FC = () => {
       const res = await fetch("/api/auth/regenerate-wallet", {
         method: "POST",
         credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stepUpChallengeId: challengeId }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -631,7 +648,7 @@ const PrivacySecurityPage: React.FC = () => {
         return;
       }
       // Key re-generated — now export it immediately
-      await handleExportKey();
+          await handleExportKey();
     } catch {
       setExportError("Network error — please try again");
     } finally {
@@ -657,28 +674,12 @@ const PrivacySecurityPage: React.FC = () => {
     setFeedback({ type, title, message });
   };
 
-  const toggleTwoFactor = () => {
-    updateSetting("twoFactorEnabled", !settings.twoFactorEnabled);
-  };
-
   const toggleActivityStatus = () => {
     updateSetting("showActivityStatus", !settings.showActivityStatus);
   };
 
   const selectVisibilityOption = (option: string) => {
     updateSetting("profileVisibility", option);
-  };
-
-  // Manage 2FA button click handler
-  const handleManage2FA = () => {
-    // TODO: Replace with actual 2FA management flow
-    // Example: navigate to 2FA setup or show setup modal
-
-    showFeedback(
-      "success",
-      "2FA Management",
-      "Taking you to two-factor authentication management..."
-    );
   };
 
   const handleChangePassword = () => {
@@ -765,10 +766,7 @@ const PrivacySecurityPage: React.FC = () => {
                 Verify Email Address
               </h2>
               <p className="text-muted-foreground italic text-sm mb-4">
-                Your account is protected with an additional verification step
-                using your Authenticator App. You&apos;ll need to provide a
-                verification code along with your password when signing in from
-                new devices.
+                Confirm your email address to keep account notices and recovery options current.
               </p>
               <div className="bg-input flex w-full justify-between px-3 py-4 items-center gap-2 rounded">
                 <span className="text-muted-foreground">
@@ -801,16 +799,7 @@ const PrivacySecurityPage: React.FC = () => {
           </div>
         </SectionCard>
 
-        <ToggleSection
-          title="Two-Factor Authentication"
-          description="Your account is protected with an additional verification step using your Authenticator App. You'll need to provide a verification code along with your password when signing in from new devices."
-          enabled={settings.twoFactorEnabled}
-          onToggle={toggleTwoFactor}
-          actionButton={{
-            text: "Manage 2FA",
-            onClick: handleManage2FA,
-          }}
-        />
+        <TwoFactorManager />
 
         {/* Password */}
         <SectionCard>

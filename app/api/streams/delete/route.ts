@@ -3,6 +3,7 @@ import { sql } from "@vercel/postgres";
 import { deleteMuxStream } from "@/lib/mux/server";
 import { verifySession } from "@/lib/auth/verify-session";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { markRecentWrite } from "@/lib/db/replica";
 
 export async function DELETE(req: NextRequest) {
   // Verify caller is authenticated — identity comes from the server-side session
@@ -16,7 +17,7 @@ export async function DELETE(req: NextRequest) {
     const userResult = await sql`
       SELECT id, username, mux_stream_id, is_live
       FROM users
-      WHERE id = ${session.userId}
+      WHERE id = ${session.userId} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -72,9 +73,11 @@ export async function DELETE(req: NextRequest) {
     `;
     await invalidateUserCaches({ id: session.userId });
 
-    return NextResponse.json(
-      { message: "Stream deleted successfully" },
-      { status: 200 }
+    return markRecentWrite(
+      NextResponse.json(
+        { message: "Stream deleted successfully" },
+        { status: 200 }
+      )
     );
   } catch (error) {
     console.error("Stream deletion error:", error);
