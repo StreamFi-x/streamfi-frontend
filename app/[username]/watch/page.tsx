@@ -47,8 +47,9 @@ const WatchPage = ({ params }: PageProps) => {
     setAccessGranted(true);
   }, []);
 
-  // Viewer tracking: one unique ID per page visit
+  // Viewer tracking: one server-issued session (id + signed token) per page visit
   const viewerSessionId = useRef<string | null>(null);
+  const viewerSessionToken = useRef<string | null>(null);
   const viewerPlaybackId = useRef<string | null>(null);
   const viewerRegistered = useRef(false);
 
@@ -114,19 +115,43 @@ const WatchPage = ({ params }: PageProps) => {
     }
 
     viewerRegistered.current = true;
-    const sessionId = crypto.randomUUID();
-    viewerSessionId.current = sessionId;
-    viewerPlaybackId.current = userData.mux_playback_id;
 
-    fetch("/api/streams/viewers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        playbackId: userData.mux_playback_id,
-        sessionId,
-        userId: null,
-      }),
-    }).catch(() => {});
+    // Mint a server-issued viewer session (#725) before joining so the count
+    // endpoints can bind the submission to an unforgeable, per-stream token.
+    const registerViewer = async () => {
+      try {
+        const mintRes = await fetch(
+          `/api/streams/viewers?playbackId=${encodeURIComponent(
+            userData.mux_playback_id as string
+          )}`
+        );
+        if (!mintRes.ok) {
+          return;
+        }
+        const session = (await mintRes.json()) as {
+          sessionId: string;
+          token: string;
+        };
+        viewerSessionId.current = session.sessionId;
+        viewerSessionToken.current = session.token;
+        viewerPlaybackId.current = userData.mux_playback_id as string;
+
+        await fetch("/api/streams/viewers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            playbackId: userData.mux_playback_id,
+            sessionId: session.sessionId,
+            token: session.token,
+            userId: null,
+          }),
+        });
+      } catch {
+        // Best-effort — a dropped viewer event must never break the watch page.
+      }
+    };
+
+    registerViewer();
   }, [userData?.mux_playback_id, userData?.is_live]);
 
   // Heartbeat (#1403): lets the viewer-count reconciliation job tell a
@@ -141,7 +166,10 @@ const WatchPage = ({ params }: PageProps) => {
       fetch("/api/streams/viewers", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: viewerSessionId.current }),
+        body: JSON.stringify({
+          sessionId: viewerSessionId.current,
+          token: viewerSessionToken.current,
+        }),
       }).catch(() => {});
     }, 30_000);
     return () => clearInterval(interval);
@@ -158,7 +186,11 @@ const WatchPage = ({ params }: PageProps) => {
       fetch("/api/streams/viewers", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: id, playbackId: pid }),
+        body: JSON.stringify({
+          sessionId: id,
+          playbackId: pid,
+          token: viewerSessionToken.current,
+        }),
         keepalive: true,
       }).catch(() => {});
     };
