@@ -2,30 +2,168 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { ipToCountry } from "@/lib/geolocation/ip-to-country";
+import {
+  createViewerSession,
+  verifyViewerSessionToken,
+} from "@/lib/stream/viewer-session-token";
 
-// 60 viewer join/leave events per minute per IP prevents count inflation attacks
-const isRateLimited = createRateLimiter(60_000, 60);
+// The GET handler mints a fresh session per request — it must never be cached
+// or every viewer would receive the same sessionId and collapse into one.
+export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
-  const ip =
+// Two limits cooperate here (#725): a coarse per-IP cap bounds abuse from a
+// single origin across any stream, and a per-IP+stream cap bounds how fast one
+// origin can inflate any single stream's counters. Neither is keyed by the
+// client-chosen sessionId (which was the whole problem) — the per-stream key
+// comes from the server-issued viewer token's `pid`.
+const IP_WINDOW_MS = 60_000;
+const IP_MAX_REQUESTS = 120;
+const STREAM_MAX_REQUESTS = 60;
+
+const isIpRateLimited = createRateLimiter(IP_WINDOW_MS, IP_MAX_REQUESTS);
+const isStreamRateLimited = createRateLimiter(
+  IP_WINDOW_MS,
+  STREAM_MAX_REQUESTS
+);
+
+const RATE_LIMITED_RESPONSE = {
+  error: "Too many requests",
+} as const;
+
+function clientIp(req: Request): string {
+  return (
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("x-real-ip") ??
-    "unknown";
+    "unknown"
+  );
+}
+
+async function isRateLimited(
+  ip: string,
+  stream?: string | null
+): Promise<boolean> {
+  if (await isIpRateLimited(ip)) {
+    return true;
+  }
+  if (stream && (await isStreamRateLimited(`${ip}|${stream}`))) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Viewer token is accepted either in the JSON body (`token`) or the
+ * `x-viewer-token` header. Body is the primary channel; the header keeps the
+ * heartbeat path (which is a tiny JSON payload) convenient.
+ */
+function extractViewerToken(req: Request, body: unknown): unknown {
+  const header = req.headers.get("x-viewer-token");
+  if (header) {
+    return header;
+  }
+  if (body && typeof body === "object" && "token" in body) {
+    return (body as { token?: unknown }).token;
+  }
+  return undefined;
+}
+
+/**
+ * GET /api/streams/viewers?playbackId=... (#725)
+ *
+ * Mints a viewer session for the stream. The returned `sessionId` is generated
+ * server-side and signed into `token`; the client must present both on every
+ * subsequent POST/PATCH/DELETE. Anonymous callers are allowed — this is not an
+ * auth gate, it makes the session id unforgeable and tieable to one stream.
+ */
+export async function GET(req: NextRequest) {
+  const ip = clientIp(req);
 
   if (await isRateLimited(ip)) {
+    return NextResponse.json(RATE_LIMITED_RESPONSE, {
+      status: 429,
+      headers: { "Retry-After": "60" },
+    });
+  }
+
+  const playbackId = new URL(req.url).searchParams.get("playbackId");
+  if (!playbackId) {
     return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": "60" } }
+      { error: "Playback ID is required" },
+      { status: 400 }
     );
   }
+
   try {
-    const { playbackId, sessionId, userId } = await req.json();
+    const result = await sql`
+      SELECT id
+      FROM users
+      WHERE mux_playback_id = ${playbackId}
+        AND is_live = true
+        AND deleted_at IS NULL
+      LIMIT 1
+    `;
+
+    if (result.rows.length === 0) {
+      return NextResponse.json(
+        { error: "Stream is not currently live" },
+        { status: 404 }
+      );
+    }
+
+    const session = createViewerSession(playbackId);
+    return NextResponse.json(session, {
+      status: 200,
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  } catch (error) {
+    console.error("Viewer session mint error:", error);
+    return NextResponse.json(
+      { error: "Failed to start viewer session" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const ip = clientIp(req);
+
+  if (await isRateLimited(ip)) {
+    return NextResponse.json(RATE_LIMITED_RESPONSE, {
+      status: 429,
+      headers: { "Retry-After": "60" },
+    });
+  }
+
+  try {
+    const body = await req.json();
+    const { playbackId, sessionId, userId } = body ?? {};
 
     if (!playbackId || !sessionId) {
       return NextResponse.json(
         { error: "Playback ID and session ID are required" },
         { status: 400 }
       );
+    }
+
+    // #725: the session id must be the one carried in a server-issued token
+    // bound to this exact stream. A client can no longer invent a session id.
+    const claims = verifyViewerSessionToken(extractViewerToken(req, body), {
+      playbackId,
+      sessionId,
+    });
+    if (!claims) {
+      return NextResponse.json(
+        { error: "A valid viewer session token is required" },
+        { status: 401 }
+      );
+    }
+
+    // Rate-limit by the *token-bound* stream, not the freely supplied one.
+    if (await isRateLimited(ip, claims.pid)) {
+      return NextResponse.json(RATE_LIMITED_RESPONSE, {
+        status: 429,
+        headers: { "Retry-After": "60" },
+      });
     }
 
     // Single query: fetch stream + active session together
@@ -132,28 +270,46 @@ export async function POST(req: NextRequest) {
  * the row was already closed by that job or an explicit leave, since the
  * heartbeat losing a benign race against either is expected, not a failure
  * the client needs to react to.
+ *
+ * #725: requires the viewer token, and only touches rows whose session id is
+ * the one bound to that token.
  */
 export async function PATCH(req: NextRequest) {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
+  const ip = clientIp(req);
 
   if (await isRateLimited(ip)) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": "60" } }
-    );
+    return NextResponse.json(RATE_LIMITED_RESPONSE, {
+      status: 429,
+      headers: { "Retry-After": "60" },
+    });
   }
 
   try {
-    const { sessionId } = await req.json();
+    const body = await req.json();
+    const { sessionId } = body ?? {};
 
     if (!sessionId) {
       return NextResponse.json(
         { error: "Session ID is required" },
         { status: 400 }
       );
+    }
+
+    const claims = verifyViewerSessionToken(extractViewerToken(req, body), {
+      sessionId,
+    });
+    if (!claims) {
+      return NextResponse.json(
+        { error: "A valid viewer session token is required" },
+        { status: 401 }
+      );
+    }
+
+    if (await isRateLimited(ip, claims.pid)) {
+      return NextResponse.json(RATE_LIMITED_RESPONSE, {
+        status: 429,
+        headers: { "Retry-After": "60" },
+      });
     }
 
     try {
@@ -180,15 +336,46 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
+  const ip = clientIp(req);
+
+  if (await isRateLimited(ip)) {
+    return NextResponse.json(RATE_LIMITED_RESPONSE, {
+      status: 429,
+      headers: { "Retry-After": "60" },
+    });
+  }
+
   try {
-    const { sessionId, playbackId } = await req.json();
+    const body = await req.json();
+    const { sessionId, playbackId } = body ?? {};
 
     if (!sessionId) {
       return NextResponse.json(
         { error: "Session ID is required" },
         { status: 400 }
       );
+    }
+
+    // #725: a client can only leave a session it was actually issued. This
+    // closes the saboteur path of DELETEing a guessed/brute-forced session id
+    // to zero out someone else's viewer count.
+    const claims = verifyViewerSessionToken(extractViewerToken(req, body), {
+      sessionId,
+      ...(playbackId ? { playbackId } : {}),
+    });
+    if (!claims) {
+      return NextResponse.json(
+        { error: "A valid viewer session token is required" },
+        { status: 401 }
+      );
+    }
+
+    if (await isRateLimited(ip, claims.pid)) {
+      return NextResponse.json(RATE_LIMITED_RESPONSE, {
+        status: 429,
+        headers: { "Retry-After": "60" },
+      });
     }
 
     // --- Primary path: stream_viewers record exists ---
@@ -221,15 +408,14 @@ export async function DELETE(req: Request) {
       // stream_viewers or stream_sessions table missing — fall through to playbackId path
     }
 
-    // --- Fallback path: use playbackId to decrement directly ---
-    if (playbackId) {
-      await sql`
-        UPDATE users SET
-          current_viewers = GREATEST(current_viewers - 1, 0),
-          updated_at      = CURRENT_TIMESTAMP
-        WHERE mux_playback_id = ${playbackId} AND current_viewers > 0
-      `;
-    }
+    // --- Fallback path: use the token-bound playbackId to decrement directly ---
+    // (Never the request body's playbackId — that is client-chosen.)
+    await sql`
+      UPDATE users SET
+        current_viewers = GREATEST(current_viewers - 1, 0),
+        updated_at      = CURRENT_TIMESTAMP
+      WHERE mux_playback_id = ${claims.pid} AND current_viewers > 0
+    `;
 
     return NextResponse.json(
       { message: "Viewer left successfully" },

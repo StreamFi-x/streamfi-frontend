@@ -113,7 +113,7 @@ The following routes already have rate limiting (using the old pattern):
 - `/api/auth/session` - 10 req/min IP
 - `/api/auth/wallet-session` - 20 req/min IP
 - `/api/routes-f/auth-magic-link-request` - 5 req/15min IP + account
-- `/api/streams/viewers` - 60 req/min IP
+- `/api/streams/viewers` - 60 req/min IP + stream, 120 req/min IP (viewer session token required on write, see #725)
 - Webhook routes - 60-120 req/min IP
 
 **Migration Path:**
