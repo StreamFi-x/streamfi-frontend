@@ -173,8 +173,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Convert transaction to XDR (for client to sign)
     const transactionXdr = transaction.toEnvelope().toXDR("base64");
 
-    // Calculate fee
-    const fee = formatXLMAmount(calculateFeeEstimate());
+    // Report the fee actually baked into the transaction
+    const fee = formatXLMAmount(calculateFeeEstimate(Number(transaction.fee)));
 
     return NextResponse.json(
       {

@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import Mux from "@mux/mux-node";
 import { getMuxBreaker } from "@/lib/resilience/breakers";
 import { logger } from "@/lib/tracing/logger";
@@ -48,6 +49,15 @@ export interface MuxStreamData {
   isActive?: boolean;
 }
 
+/**
+ * Every live stream this app creates carries `passthrough` starting with this
+ * prefix. A create call that times out (and is aborted) may still have been
+ * processed by Mux, in which case the caller never learns the stream id; the
+ * tag is how the orphan sweep (lib/mux/orphan-sweep.ts) finds such streams
+ * later and tells them apart from streams created by anyone else.
+ */
+export const MUX_CREATE_PASSTHROUGH_PREFIX = "streamfi:create:";
+
 export async function createMuxStream(streamData?: {
   name: string;
   record?: boolean;
@@ -78,6 +88,7 @@ export async function createMuxStream(streamData?: {
               playback_policy: policies as any,
             },
           }),
+          passthrough: `${MUX_CREATE_PASSTHROUGH_PREFIX}${randomUUID()}`,
           reconnect_window: 60,
           latency_mode: latencyMode,
           max_continuous_duration: 43200,
@@ -486,6 +497,41 @@ export async function listActiveMuxLiveStreamIds(): Promise<ActiveMuxLiveStreams
     }
   }
   return { ids, complete: false, pages: MUX_LIST_MAX_PAGES };
+}
+
+export interface MuxLiveStreamSummary {
+  id: string;
+  status: string;
+  createdAt: Date;
+  passthrough: string | null;
+}
+
+/** One page of live streams in any status (Mux returns newest first). */
+export async function listMuxLiveStreamsPage(
+  page: number,
+  limit: number
+): Promise<MuxLiveStreamSummary[]> {
+  const result = await muxCall(
+    options => mux.video.liveStreams.list({ page, limit }, options),
+    MUX_RECONCILE_TIMEOUT_MS
+  );
+  const items: unknown = result?.data;
+  if (!Array.isArray(items)) {
+    throw new Error("Unexpected Mux live stream list response shape");
+  }
+  return (
+    items as Array<{
+      id: string;
+      status: string;
+      created_at: string;
+      passthrough?: string;
+    }>
+  ).map(item => ({
+    id: item.id,
+    status: item.status,
+    createdAt: new Date(Number(item.created_at) * 1000),
+    passthrough: item.passthrough ?? null,
+  }));
 }
 
 /** Current status of a single live stream, straight from Mux. */

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { createMuxStream } from "@/lib/mux/server";
+import { createMuxStream, deleteMuxStream } from "@/lib/mux/server";
 import { checkExistingTableDetail } from "@/utils/validators";
 import { createRateLimiter } from "@/lib/rate-limit";
 import {
@@ -250,8 +250,7 @@ export async function POST(req: NextRequest) {
 
       console.log("🧹 Attempting to cleanup Mux stream...");
       try {
-        // TODO: Add stream cleanup here if needed
-        console.log("Stream cleanup would go here");
+        await deleteMuxStream(muxStream.id);
       } catch (cleanupError) {
         console.error("❌ Cleanup failed:", cleanupError);
       }

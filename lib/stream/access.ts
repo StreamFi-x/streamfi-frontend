@@ -1,5 +1,5 @@
 import { sql } from "@vercel/postgres";
-import { isSubscriptionActive } from "./subscriptions/rpc-client";
+import { isSubscriptionActive } from "../subscriptions/rpc-client";
 
 export type StreamAccessReason = "password" | "subscription";
 
