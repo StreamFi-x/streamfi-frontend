@@ -37,6 +37,13 @@ export async function GET(req: NextRequest) {
       SELECT id, username, avatar
       FROM users
       WHERE username ILIKE ${"%" + query + "%"}
+      ORDER BY
+        CASE
+          WHEN username ILIKE ${query}               THEN 0
+          WHEN username ILIKE ${query + "%"}         THEN 1
+          ELSE                                            2
+        END,
+        username
       LIMIT 8
     `;
 
