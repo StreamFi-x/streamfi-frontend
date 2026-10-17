@@ -21,6 +21,7 @@ import {
   hasInsufficientBalance,
   getXLMPrice,
   calculateFeeEstimate,
+  getRecommendedFeeStroops,
 } from "@/lib/stellar/payments";
 import { TransactionBuilder, Networks } from "@stellar/stellar-sdk";
 import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
@@ -76,7 +77,8 @@ export function TipModal({
   } | null>(null);
 
   const { kit } = useStellarWallet();
-  const fee = calculateFeeEstimate();
+  const [feeStroops, setFeeStroops] = useState<number | undefined>(undefined);
+  const fee = calculateFeeEstimate(feeStroops);
   const usdEquivalent =
     xlmPrice && amount ? (parseFloat(amount) * xlmPrice).toFixed(2) : "0.00";
 
@@ -84,6 +86,11 @@ export function TipModal({
     if (isOpen) {
       setIsLoadingPrice(true);
       setPriceFetchFailed(false);
+      // Cached for 30s in payments.ts and falls back to the network minimum
+      // if Horizon is unreachable, so this never blocks or throws.
+      getRecommendedFeeStroops()
+        .then(setFeeStroops)
+        .catch(() => undefined);
       getXLMPrice()
         .then((price: number) => {
           setXlmPrice(price);
@@ -170,9 +177,14 @@ export function TipModal({
 
     try {
       setTransactionState("building");
+      // One fee for both the balance check and the transaction, so they
+      // cannot disagree if the network fee moves in between.
+      const currentFeeStroops = await getRecommendedFeeStroops();
+      setFeeStroops(currentFeeStroops);
       const insufficientBalance = await hasInsufficientBalance(
         senderPublicKey,
-        amount
+        amount,
+        currentFeeStroops
       );
 
       if (insufficientBalance) {
@@ -193,6 +205,7 @@ export function TipModal({
         destinationPublicKey: recipientPublicKey,
         amount: amount,
         network: network as "testnet" | "mainnet",
+        feeStroops: currentFeeStroops,
       });
 
       setTransactionState("signing");

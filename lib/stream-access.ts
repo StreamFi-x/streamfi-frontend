@@ -3,6 +3,15 @@ import { sql } from "@vercel/postgres";
 
 export type StreamPrivacy = "public" | "unlisted" | "subscribers_only";
 
+/** The subscription lookup failed; the viewer's access is unknown, not denied. */
+export class SubscriptionCheckError extends Error {
+  constructor(cause: unknown) {
+    super("Subscription access check failed");
+    this.name = "SubscriptionCheckError";
+    this.cause = cause;
+  }
+}
+
 /**
  * Decide whether a viewer can access a creator's stream.
  *
@@ -12,9 +21,14 @@ export type StreamPrivacy = "public" | "unlisted" | "subscribers_only";
  *   - subscribers_only: viewer has matching share_token, or has active subscription,
  *     or is the creator
  *
- * NOTE: Subscriber gating currently only checks the share_token + creator self-access.
- * Active-subscription checks will activate once the subscriptions table is populated
- * via real Stellar payments.
+ * The subscriptions table uses subscriber_id / creator_id / expires_at (see
+ * db/migrations/20260926130100_subscription_cancellation_refunds.sql and
+ * 20261017090000_subscriptions_single_schema.sql). This is the only place that
+ * decides subscription access.
+ *
+ * Throws SubscriptionCheckError when the subscription lookup itself fails
+ * (missing column or table, database outage). A failed lookup must never look
+ * like "not subscribed": that would lock paying subscribers out silently.
  */
 export async function canAccessStream(opts: {
   privacy: StreamPrivacy | null;
@@ -59,8 +73,8 @@ export async function canAccessStream(opts: {
         return { allowed: true, reason: "subscription" };
       }
     } catch (err) {
-      // If subscriptions table doesn't exist yet, just treat as denied silently
-      console.warn("[stream-access] subscriptions check failed:", err);
+      console.error("[stream-access] subscriptions check failed:", err);
+      throw new SubscriptionCheckError(err);
     }
   }
 

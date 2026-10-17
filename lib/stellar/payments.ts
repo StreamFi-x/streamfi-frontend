@@ -20,6 +20,12 @@ interface BuildTipTransactionParams {
   amount: string; // XLM amount (e.g., "10.0000000")
   network: "testnet" | "mainnet";
   memo?: string;
+  /**
+   * Fee in stroops. Pass the value the balance pre-flight check used so the
+   * check and the transaction agree; defaults to the current network
+   * recommendation (see getRecommendedFeeStroops).
+   */
+  feeStroops?: number;
 }
 
 interface SubmitTransactionResult {
@@ -81,8 +87,14 @@ export function getUsdcAsset(network: "testnet" | "mainnet"): Asset {
 export async function buildTipTransaction(
   params: BuildTipTransactionParams
 ): Promise<Transaction> {
-  const { sourcePublicKey, destinationPublicKey, amount, network, memo } =
-    params;
+  const {
+    sourcePublicKey,
+    destinationPublicKey,
+    amount,
+    network,
+    memo,
+    feeStroops,
+  } = params;
   const startTime = Date.now();
 
   try {
@@ -101,9 +113,10 @@ export async function buildTipTransaction(
     }
 
     const sourceAccount = await server.loadAccount(sourcePublicKey);
+    const fee = String(feeStroops ?? (await getRecommendedFeeStroops(network)));
 
     const transaction = new TransactionBuilder(sourceAccount, {
-      fee: BASE_FEE,
+      fee,
       networkPassphrase,
     })
       .addOperation(
@@ -147,8 +160,14 @@ export async function buildTipTransaction(
 export async function buildUsdcTipTransaction(
   params: BuildTipTransactionParams
 ): Promise<Transaction> {
-  const { sourcePublicKey, destinationPublicKey, amount, network, memo } =
-    params;
+  const {
+    sourcePublicKey,
+    destinationPublicKey,
+    amount,
+    network,
+    memo,
+    feeStroops,
+  } = params;
   const startTime = Date.now();
 
   try {
@@ -168,9 +187,10 @@ export async function buildUsdcTipTransaction(
 
     const sourceAccount = await server.loadAccount(sourcePublicKey);
     const asset = getUsdcAsset(network);
+    const fee = String(feeStroops ?? (await getRecommendedFeeStroops(network)));
 
     const transaction = new TransactionBuilder(sourceAccount, {
-      fee: BASE_FEE,
+      fee,
       networkPassphrase,
     })
       .addOperation(
@@ -330,11 +350,107 @@ export function formatXLMAmount(amount: number): string {
   return amount.toFixed(7);
 }
 
+const STROOPS_PER_XLM = 10_000_000;
+const BASE_FEE_STROOPS = Number(BASE_FEE);
+/** feeStats() is cached this long, so typing an amount never hits Horizon. */
+const FEE_CACHE_TTL_MS = 30_000;
+const FEE_STATS_TIMEOUT_MS = 3_000;
+/** Upper bound per operation (0.01 XLM) so a bad response cannot drain a wallet. */
+const MAX_FEE_STROOPS = 100_000;
+
+interface CachedFee {
+  stroops: number;
+  fetchedAt: number;
+}
+const feeCache = new Map<string, CachedFee>();
+const feeInFlight = new Map<string, Promise<number>>();
+
+export function resetFeeCacheForTests(): void {
+  feeCache.clear();
+  feeInFlight.clear();
+}
+
+async function fetchFeeStroops(
+  network: "testnet" | "mainnet"
+): Promise<number> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const stats = await Promise.race([
+      getServer(network).feeStats(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("feeStats timed out")),
+          FEE_STATS_TIMEOUT_MS
+        );
+      }),
+    ]);
+    // p90 of what recent transactions were willing to pay: high enough to be
+    // included under current congestion, without bidding for the very next slot.
+    const surge = Number(stats.max_fee.p90);
+    const lastBase = Number(stats.last_ledger_base_fee);
+    const recommended = Math.max(
+      BASE_FEE_STROOPS,
+      Number.isFinite(lastBase) ? lastBase : 0,
+      Number.isFinite(surge) ? surge : 0
+    );
+    return Math.min(Math.ceil(recommended), MAX_FEE_STROOPS);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
- * Calculate the fee estimate for a transaction in XLM
+ * Per-operation fee, in stroops, needed to be included under current network
+ * conditions. Cached for FEE_CACHE_TTL_MS and shared between concurrent
+ * callers. If Horizon's feeStats cannot be read, the last known value is used,
+ * else the network minimum.
  */
-export function calculateFeeEstimate(): number {
-  return (BASE_FEE as any) / 10000000;
+export async function getRecommendedFeeStroops(
+  network: "testnet" | "mainnet" = getCurrentNetwork()
+): Promise<number> {
+  const cached = feeCache.get(network);
+  if (cached && Date.now() - cached.fetchedAt < FEE_CACHE_TTL_MS) {
+    return cached.stroops;
+  }
+  let pending = feeInFlight.get(network);
+  if (!pending) {
+    pending = fetchFeeStroops(network)
+      .then(stroops => {
+        feeCache.set(network, { stroops, fetchedAt: Date.now() });
+        return stroops;
+      })
+      .catch(error => {
+        logger.warn("Stellar fee stats unavailable, using fallback fee", {
+          operation: "getRecommendedFeeStroops",
+          network,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+        // Remember the fallback briefly too, so an outage is not retried per call.
+        const stroops = cached?.stroops ?? BASE_FEE_STROOPS;
+        feeCache.set(network, { stroops, fetchedAt: Date.now() });
+        return stroops;
+      })
+      .finally(() => feeInFlight.delete(network));
+    feeInFlight.set(network, pending);
+  }
+  return pending;
+}
+
+/**
+ * Convert a fee in stroops (default: the network minimum) to XLM.
+ * For the live network fee use getFeeEstimate.
+ */
+export function calculateFeeEstimate(
+  feeStroops: number = BASE_FEE_STROOPS
+): number {
+  return feeStroops / STROOPS_PER_XLM;
+}
+
+/** The current recommended fee for a one-operation transaction, in XLM. */
+export async function getFeeEstimate(
+  network: "testnet" | "mainnet" = getCurrentNetwork()
+): Promise<number> {
+  return calculateFeeEstimate(await getRecommendedFeeStroops(network));
 }
 
 /**
@@ -377,7 +493,8 @@ export async function getXLMPrice(): Promise<number> {
  */
 export async function hasInsufficientBalance(
   publicKey: string,
-  amount: string
+  amount: string,
+  feeStroops?: number
 ): Promise<boolean> {
   try {
     const network = getCurrentNetwork();
@@ -389,7 +506,10 @@ export async function hasInsufficientBalance(
     }
 
     const balance = parseFloat(nativeBalance.balance);
-    const required = parseFloat(amount) + calculateFeeEstimate();
+    const fee = calculateFeeEstimate(
+      feeStroops ?? (await getRecommendedFeeStroops(network))
+    );
+    const required = parseFloat(amount) + fee;
     return balance < required;
   } catch (error) {
     // If account doesn't exist, it definitely has insufficient balance
