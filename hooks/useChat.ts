@@ -7,6 +7,7 @@ import type {
   UseChatReturn,
 } from "@/types/chat";
 import type { SpikeLevel } from "@/lib/chat-spike";
+import { shouldShedTypingIndicators } from "@/lib/chat-spike";
 import {
   reconcileWithRecentWrites,
   recentWritesFor,
@@ -482,5 +483,6 @@ export function useChat(
     error: error?.message || history.error?.message || sendError,
     retryAfterMs: retryAfterMs ?? undefined,
     spikeLevel,
+    shedTypingIndicators: shouldShedTypingIndicators(spikeLevel),
   };
 }

@@ -692,33 +692,9 @@ const ViewStream = ({
                             : "Check back later or browse past streams below"}
                         </p>
                       </div>
-                {isLive && userData?.playbackId ? (
-                  <MuxPlayer
-                    playbackId={userData.playbackId}
-                    streamType={userData.latencyMode === "standard" ? "live:dvr" : "live"}
-                    autoPlay="muted"
-                    metadata={{
-                      video_id: userData.playbackId,
-                      video_title: streamData.title || `${username}'s Stream`,
-                      viewer_user_id: "anonymous",
-                    }}
-                    primaryColor="#ac39f2"
-                    className="w-full h-full"
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center bg-card">
-                    <div className="text-foreground text-center">
-                      <p className="text-lg mb-2">
-                        {isLive ? "Loading stream..." : "Stream is offline"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {isLive
-                          ? "Please wait while we load the stream"
-                          : "Check back later or browse past streams below"}
-                      </p>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Stream info overlay in fullscreen (visible on hover) */}
                 {isFullscreen && (
@@ -792,6 +768,17 @@ const ViewStream = ({
                               <X size={16} className="text-white" />
                             </button>
                           </div>
+
+                          {/* Degradation banner — shown when chat is under heavy load */}
+                          {spikeLevel && spikeLevel !== "normal" && (
+                            <div
+                              role="status"
+                              aria-live="polite"
+                              className="text-xs text-center px-2 py-1 bg-amber-500/20 text-amber-400 border-b border-amber-500/30"
+                            >
+                              ⚡ Chat is experiencing high traffic — messages may be slower than usual
+                            </div>
+                          )}
 
                           {/* Messages */}
                           <div
