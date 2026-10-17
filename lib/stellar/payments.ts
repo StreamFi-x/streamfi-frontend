@@ -8,6 +8,7 @@ import {
   Transaction,
   Horizon,
   StrKey,
+  Server as StellarServer,
 } from "@stellar/stellar-sdk";
 import { logger } from "@/lib/tracing/logger";
 import { getTraceHeaders } from "@/lib/tracing/trace-context";
@@ -22,6 +23,19 @@ interface BuildTipTransactionParams {
   memo?: string;
 }
 
+interface BuildPathPaymentParams {
+  sourcePublicKey: string;
+  destinationPublicKey: string;
+  sendAsset: Asset; // Asset the sender pays with
+  sendAmount: string; // Amount sender pays
+  receiveAsset: Asset; // Asset the recipient receives
+  receiveAmount: string; // Amount recipient receives
+  maxSlippage: number; // Slippage tolerance as percentage (e.g., 0.5 for 0.5%)
+  network: "testnet" | "mainnet";
+  memo?: string;
+  strict?: "send" | "receive"; // Default "send"
+}
+
 interface SubmitTransactionResult {
   success: boolean;
   hash?: string;
@@ -29,10 +43,6 @@ interface SubmitTransactionResult {
   error?: string;
   resultCode?: string;
 }
-
-/**
- * Get Stellar Horizon server instance based on network
- */
 function getServer(network: "testnet" | "mainnet"): typeof Server.prototype {
   const horizonUrl =
     network === "testnet"
@@ -76,6 +86,92 @@ export function getUsdcAssetIssuer(network: "testnet" | "mainnet"): string {
 
 export function getUsdcAsset(network: "testnet" | "mainnet"): Asset {
   return new Asset("USDC", getUsdcAssetIssuer(network));
+}
+
+/**
+ * Check if an account has a trustline to a given asset
+ */
+export async function hasTrustline(
+  publicKey: string,
+  asset: Asset,
+  network: "testnet" | "mainnet"
+): Promise<boolean> {
+  try {
+    const server = getServer(network);
+    const account = await server.loadAccount(publicKey);
+
+    // Check if the account has a trustline to the asset
+    return account.balances.some(
+      balance =>
+        balance.asset_code === asset.code &&
+        balance.asset_issuer === asset.issuer
+    );
+  } catch (error) {
+    logger.warn("Failed to check trustline", {
+      publicKey: publicKey.substring(0, 8),
+      asset: asset.code,
+      issuer: asset.issuer?.substring(0, 8),
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
+/**
+ * Get path for a path payment from Stellar
+ * @returns Array of Asset objects representing the payment path, or null if no path found
+ */
+export async function findPathPaymentPath(
+  sourceAsset: Asset,
+  destinationAsset: Asset,
+  sendAmount: string,
+  network: "testnet" | "mainnet"
+): Promise<Asset[] | null> {
+  try {
+    const server = getServer(network);
+    const paths = await server
+      .strictReceivePaths([sourceAsset], destinationAsset, sendAmount)
+      .call();
+
+    if (paths.records && paths.records.length > 0) {
+      // Return the first (best) path
+      return paths.records[0].path || [];
+    }
+
+    return null;
+  } catch (error) {
+    logger.warn("Failed to find path payment path", {
+      sourceAsset: sourceAsset.code,
+      destAsset: destinationAsset.code,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+/**
+ * Calculate the maximum send amount with slippage tolerance
+ */
+function calculateMaxSendWithSlippage(
+  baseAmount: string,
+  maxSlippagePercent: number
+): string {
+  const base = parseFloat(baseAmount);
+  const factor = 1 + maxSlippagePercent / 100;
+  return (base * factor).toFixed(7);
+}
+
+/**
+ * Calculate the minimum receive amount with slippage tolerance
+ */
+function calculateMinReceiveWithSlippage(
+  baseAmount: string,
+  maxSlippagePercent: number
+): string {
+  const base = parseFloat(baseAmount);
+  const factor = 1 - maxSlippagePercent / 100;
+  const result = (base * factor).toFixed(7);
+  return result;
 }
 
 export async function buildTipTransaction(
@@ -208,6 +304,174 @@ export async function buildUsdcTipTransaction(
       throw new Error(`Failed to build USDC transaction: ${error.message}`);
     }
     throw new Error("Failed to build USDC transaction: Unknown error");
+  }
+}
+
+/**
+ * Build a multi-asset path payment transaction with slippage protection
+ * Supports cross-asset and cross-issuer transfers via Stellar's path payment
+ */
+export async function buildPathPaymentTipTransaction(
+  params: BuildPathPaymentParams
+): Promise<Transaction> {
+  const {
+    sourcePublicKey,
+    destinationPublicKey,
+    sendAsset,
+    sendAmount,
+    receiveAsset,
+    receiveAmount,
+    maxSlippage,
+    network,
+    memo,
+    strict = "send",
+  } = params;
+  const startTime = Date.now();
+
+  try {
+    logger.info("Building path payment tip transaction", {
+      operation: "buildPathPaymentTipTransaction",
+      network,
+      sendAsset: sendAsset.code,
+      receiveAsset: receiveAsset.code,
+      sendAmount,
+      receiveAmount,
+      maxSlippage,
+      strict,
+    });
+
+    if (maxSlippage < 0 || maxSlippage > 100) {
+      throw new Error("maxSlippage must be between 0 and 100");
+    }
+
+    const server = getServer(network);
+    const networkPassphrase = getNetworkPassphrase(network);
+
+    const sendNum = Number(sendAmount);
+    const receiveNum = Number(receiveAmount);
+    if (
+      !Number.isFinite(sendNum) ||
+      !Number.isFinite(receiveNum) ||
+      sendNum <= 0 ||
+      receiveNum <= 0
+    ) {
+      throw new Error("Amounts must be valid positive numbers");
+    }
+
+    // Load source account
+    const sourceAccount = await server.loadAccount(sourcePublicKey);
+
+    // Verify sender has trustline to send asset (if not native)
+    if (!sendAsset.isNative()) {
+      const hasSendTrustline = await hasTrustline(
+        sourcePublicKey,
+        sendAsset,
+        network
+      );
+      if (!hasSendTrustline) {
+        throw new Error(
+          `Sender does not have a trustline to ${sendAsset.code}. Please establish the trustline first.`
+        );
+      }
+    }
+
+    // Verify recipient has trustline to receive asset (if not native)
+    if (!receiveAsset.isNative()) {
+      const hasReceiveTrustline = await hasTrustline(
+        destinationPublicKey,
+        receiveAsset,
+        network
+      );
+      if (!hasReceiveTrustline) {
+        throw new Error(
+          `Recipient does not have a trustline to ${receiveAsset.code}. Please ask them to establish it first.`
+        );
+      }
+    }
+
+    // Calculate path and slippage bounds
+    const path = await findPathPaymentPath(
+      sendAsset,
+      receiveAsset,
+      receiveAmount,
+      network
+    );
+
+    if (!path) {
+      throw new Error(
+        `No payment path found between ${sendAsset.code} and ${receiveAsset.code} within acceptable slippage`
+      );
+    }
+
+    // Build the operation based on strict semantics
+    let operation;
+    if (strict === "send") {
+      // Sender pays exactly sendAmount, recipient gets at least minReceive
+      const minReceive = calculateMinReceiveWithSlippage(
+        receiveAmount,
+        maxSlippage
+      );
+      operation = Operation.pathPaymentStrictSend({
+        sendAsset,
+        sendAmount: sendAmount,
+        destination: destinationPublicKey,
+        destAsset: receiveAsset,
+        destMin: minReceive,
+        path,
+      });
+
+      logger.debug("Path payment strict-send configured", {
+        sendAmount,
+        destMin: minReceive,
+        pathLength: path.length,
+      });
+    } else {
+      // Sender pays at most maxSend, recipient receives exactly receiveAmount
+      const maxSend = calculateMaxSendWithSlippage(sendAmount, maxSlippage);
+      operation = Operation.pathPaymentStrictReceive({
+        sendAsset,
+        sendMax: maxSend,
+        destination: destinationPublicKey,
+        destAsset: receiveAsset,
+        destAmount: receiveAmount,
+        path,
+      });
+
+      logger.debug("Path payment strict-receive configured", {
+        sendMax: maxSend,
+        destAmount: receiveAmount,
+        pathLength: path.length,
+      });
+    }
+
+    const transaction = new TransactionBuilder(sourceAccount, {
+      fee: BASE_FEE,
+      networkPassphrase,
+    })
+      .addOperation(operation)
+      .addMemo(Memo.text((memo ?? "StreamFi Multi-Asset Tip").slice(0, 28)))
+      .setTimeout(30)
+      .build();
+
+    const durationMs = Date.now() - startTime;
+    logger.info("Path payment tip transaction built", {
+      operation: "buildPathPaymentTipTransaction",
+      durationMs,
+    });
+
+    return transaction;
+  } catch (error) {
+    const durationMs = Date.now() - startTime;
+    logger.error("Path payment tip transaction build failed", {
+      operation: "buildPathPaymentTipTransaction",
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("Failed to build path payment transaction: Unknown error");
   }
 }
 
