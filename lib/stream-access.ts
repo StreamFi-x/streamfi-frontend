@@ -1,16 +1,8 @@
 import crypto from "crypto";
 import { sql } from "@vercel/postgres";
+import { isSubscriptionActive } from "./subscriptions/rpc-client";
 
 export type StreamPrivacy = "public" | "unlisted" | "subscribers_only";
-
-/** The subscription lookup failed; the viewer's access is unknown, not denied. */
-export class SubscriptionCheckError extends Error {
-  constructor(cause: unknown) {
-    super("Subscription access check failed");
-    this.name = "SubscriptionCheckError";
-    this.cause = cause;
-  }
-}
 
 /**
  * Decide whether a viewer can access a creator's stream.
@@ -18,17 +10,12 @@ export class SubscriptionCheckError extends Error {
  * Access rules:
  *   - public: anyone
  *   - unlisted: viewer has matching share_token, or viewer is the creator
- *   - subscribers_only: viewer has matching share_token, or has active subscription,
+ *   - subscribers_only: viewer has matching share_token, or has active subscription on-chain,
  *     or is the creator
  *
- * The subscriptions table uses subscriber_id / creator_id / expires_at (see
- * db/migrations/20260926130100_subscription_cancellation_refunds.sql and
- * 20261017090000_subscriptions_single_schema.sql). This is the only place that
- * decides subscription access.
- *
- * Throws SubscriptionCheckError when the subscription lookup itself fails
- * (missing column or table, database outage). A failed lookup must never look
- * like "not subscribed": that would lock paying subscribers out silently.
+ * Subscription gating uses Soroban RPC to check on-chain contract state (source of truth).
+ * DB subscriptions table is a synced cache only.
+ * Falls back to fail-closed (deny) on RPC unavailable.
  */
 export async function canAccessStream(opts: {
   privacy: StreamPrivacy | null;
@@ -36,6 +23,8 @@ export async function canAccessStream(opts: {
   providedToken: string | null;
   creatorUserId: string;
   viewerUserId: string | null;
+  creatorWallet?: string | null;
+  viewerWallet?: string | null;
 }): Promise<{ allowed: boolean; reason?: string }> {
   const privacy = (opts.privacy ?? "public") as StreamPrivacy;
 
@@ -57,24 +46,45 @@ export async function canAccessStream(opts: {
     return { allowed: true, reason: "share_token" };
   }
 
-  // Subscribers-only: check active subscription (defers to share_token gate for now,
-  // but we still query in case a paid subscription has been seeded).
+  // Subscribers-only: check active subscription on-chain via Soroban RPC
   if (privacy === "subscribers_only" && opts.viewerUserId) {
-    try {
-      const result = await sql`
-        SELECT 1 FROM subscriptions
-        WHERE subscriber_id = ${opts.viewerUserId}
-          AND creator_id = ${opts.creatorUserId}
-          AND status = 'active'
-          AND expires_at > NOW()
-        LIMIT 1
-      `;
-      if (result.rows.length > 0) {
-        return { allowed: true, reason: "subscription" };
+    // If wallet addresses are not provided, fetch them from DB
+    let creatorWallet = opts.creatorWallet;
+    let viewerWallet = opts.viewerWallet;
+
+    if (!creatorWallet || !viewerWallet) {
+      try {
+        const { rows } = await sql`
+          SELECT 
+            (SELECT wallet FROM users WHERE id = ${opts.creatorUserId}) AS creator_wallet,
+            (SELECT wallet FROM users WHERE id = ${opts.viewerUserId}) AS viewer_wallet
+        `;
+        if (rows.length > 0) {
+          creatorWallet = rows[0].creator_wallet;
+          viewerWallet = rows[0].viewer_wallet;
+        }
+      } catch (err) {
+        console.warn("[stream-access] failed to fetch wallets from DB:", err);
       }
-    } catch (err) {
-      console.error("[stream-access] subscriptions check failed:", err);
-      throw new SubscriptionCheckError(err);
+    }
+
+    // Check on-chain subscription state via Soroban RPC
+    if (creatorWallet && viewerWallet) {
+      try {
+        const isActive = await isSubscriptionActive(
+          viewerWallet,
+          creatorWallet
+        );
+        if (isActive) {
+          return { allowed: true, reason: "subscription" };
+        }
+      } catch (err) {
+        // RPC client already logs the error; fail-closed (deny) is applied inside isSubscriptionActive
+        console.warn(
+          "[stream-access] subscription check via RPC failed, denying access:",
+          err
+        );
+      }
     }
   }
 

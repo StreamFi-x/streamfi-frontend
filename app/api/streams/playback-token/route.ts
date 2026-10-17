@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
-import { canAccessStream, SubscriptionCheckError } from "@/lib/stream-access";
+import { canAccessStream } from "@/lib/stream-access";
 import { hasStreamPasswordGrant } from "@/lib/stream-password";
 import { verifySession } from "@/lib/auth/verify-session";
 import {
@@ -59,25 +59,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "access_denied", reason: "password_required" }, { status: 403 });
     }
 
-    let access;
-    try {
-      access = await canAccessStream({
-        privacy: creator.stream_privacy,
-        streamShareToken: creator.share_token,
-        providedToken,
-        creatorUserId: creator.id,
-        viewerUserId,
-      });
-    } catch (err) {
-      if (err instanceof SubscriptionCheckError) {
-        // Not "access_denied": the viewer may well be a paying subscriber.
-        return NextResponse.json(
-          { error: "subscription_check_unavailable" },
-          { status: 503 }
-        );
-      }
-      throw err;
-    }
+    const access = await canAccessStream({
+      privacy: creator.stream_privacy,
+      streamShareToken: creator.share_token,
+      providedToken,
+      creatorUserId: creator.id,
+      viewerUserId,
+    });
 
     if (!access.allowed) {
       return NextResponse.json(

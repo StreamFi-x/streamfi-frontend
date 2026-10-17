@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { canAccessStream, SubscriptionCheckError } from "@/lib/stream-access";
+import { canAccessStream } from "@/lib/stream-access";
 import { hasStreamPasswordGrant } from "@/lib/stream-password";
 import { verifySession } from "@/lib/auth/verify-session";
 import {
@@ -114,23 +114,13 @@ export async function GET(
     const verifiedViewer = await verifySession(req);
     const verifiedViewerId = verifiedViewer.ok ? verifiedViewer.userId : null;
 
-    let access: Awaited<ReturnType<typeof canAccessStream>>;
-    try {
-      access = await canAccessStream({
-        privacy: user.stream_privacy,
-        streamShareToken: user.share_token,
-        providedToken,
-        creatorUserId: user.id,
-        viewerUserId,
-      });
-    } catch (err) {
-      if (!(err instanceof SubscriptionCheckError)) {
-        throw err;
-      }
-      // Already logged by canAccessStream. Keep the profile page up and keep
-      // the stream hidden until the check works again.
-      access = { allowed: false, reason: "needs_subscription" };
-    }
+    const access = await canAccessStream({
+      privacy: user.stream_privacy,
+      streamShareToken: user.share_token,
+      providedToken,
+      creatorUserId: user.id,
+      viewerUserId,
+    });
     if (access.allowed && user.stream_password_hash && user.id !== verifiedViewerId &&
         (!user.stream_session_id || !hasStreamPasswordGrant(req, user.id, user.stream_session_id))) {
       access.allowed = false;
