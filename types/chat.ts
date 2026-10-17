@@ -60,4 +60,5 @@ export interface UseChatReturn {
   isLoading: boolean;
   isSending: boolean;
   error: string | null;
+  retryAfterMs?: number;
 }

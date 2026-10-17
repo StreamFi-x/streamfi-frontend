@@ -4,6 +4,7 @@ import { createRateLimiter } from "@/lib/rate-limit";
 import { verifySession } from "@/lib/auth/verify-session";
 import { CACHE_POLICIES, cacheHeaders } from "@/lib/cache";
 import { createCache, createMemoryBackend } from "@/lib/cache/store";
+import { getUpstashRedis } from "@/lib/upstash-redis";
 import {
   buildPage,
   keysetBounds,
@@ -30,18 +31,6 @@ const chatWindowCache = createCache(createMemoryBackend());
 const chatTag = (playbackId: string) => `chat:${playbackId}`;
 
 export async function POST(req: NextRequest) {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
-
-  if (await isRateLimited(ip)) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": "60" } }
-    );
-  }
-
   // Verify caller identity server-side via session
   const session = await verifySession(req);
   if (!session.ok) {
@@ -95,8 +84,11 @@ export async function POST(req: NextRequest) {
         sender.id AS sender_id,
         sender.username AS sender_username,
         sender.wallet AS sender_wallet,
+        sender.role AS sender_role,
         streamer.id AS streamer_id,
         streamer.is_live,
+        streamer.creator->>'chatSlowModeSeconds' AS chat_slow_mode_seconds,
+        streamer.creator->>'chatSubscriberOnly'  AS chat_subscriber_only,
         (
           SELECT ss.id FROM stream_sessions ss
           WHERE ss.user_id = streamer.id AND ss.ended_at IS NULL
@@ -115,7 +107,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { sender_id, sender_username, sender_wallet, is_live, session_id } =
+    const { sender_id, sender_username, sender_wallet, is_live, session_id, streamer_id, chat_slow_mode_seconds, chat_subscriber_only, sender_role } =
       result.rows[0];
 
     if (!is_live) {
@@ -130,6 +122,63 @@ export async function POST(req: NextRequest) {
         { error: "No active stream session" },
         { status: 404 }
       );
+    }
+
+    // Per-user rate-limit backstop (moved from pre-auth IP check)
+    if (await isRateLimited(session.userId)) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
+
+    // Creator/mod exemption from chat mode restrictions
+    const isCreator = session.userId === streamer_id;
+    const isMod = sender_role === 'moderator' || sender_role === 'super_admin';
+    const isExempt = isCreator || isMod;
+
+    // Slow mode check
+    if (!isExempt) {
+      const intervalSecs = parseInt(chat_slow_mode_seconds ?? '0', 10);
+      if (intervalSecs > 0) {
+        const redis = getUpstashRedis();
+        if (redis) {
+          const key = `chat:slowmode:${streamer_id}:${session.userId}`;
+          const set = await redis.set(key, '1', { nx: true, px: intervalSecs * 1000 });
+          if (set === null) {
+            const ttl = await redis.pttl(key);
+            return NextResponse.json(
+              {
+                error: 'Slow mode is active. Please wait before sending another message.',
+                code: 'slow_mode',
+                retryAfterMs: Math.max(0, ttl),
+              },
+              { status: 429 }
+            );
+          }
+        }
+      }
+    }
+
+    // Subscriber-only check
+    if (!isExempt && chat_subscriber_only === 'true') {
+      const subResult = await sql`
+        SELECT 1 FROM subscriptions
+        WHERE subscriber_id = ${session.userId}
+          AND streamer_id   = ${streamer_id}
+          AND status = 'active'
+          AND current_period_end > NOW()
+        LIMIT 1
+      `;
+      if (subResult.rows.length === 0) {
+        return NextResponse.json(
+          {
+            error: 'This chat is subscriber-only. Subscribe to the channel to participate.',
+            code: 'subscriber_only',
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const messageResult = await sql`

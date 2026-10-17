@@ -122,6 +122,7 @@ export function useChat(
 ): UseChatReturn {
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [retryAfterMs, setRetryAfterMs] = useState<number | null>(null);
   const [anchor, setAnchor] = useState<string | null>(null);
   const [bridge, setBridge] = useState<ChatMessage[]>([]);
   const previousLive = useRef<ChatMessage[]>([]);
@@ -342,7 +343,10 @@ export function useChat(
         });
 
         if (!res.ok) {
-          const errorData = await res.json();
+          const errorData = await res.json().catch(() => ({}));
+          if (typeof errorData.retryAfterMs === 'number') {
+            setRetryAfterMs(errorData.retryAfterMs);
+          }
           throw new Error(errorData.error || "Failed to send message");
         }
 
@@ -351,6 +355,7 @@ export function useChat(
         const { chatMessage } = await res.json();
         const confirmed = normalizeMessage(chatMessage);
         rememberSent(recentWritesFor(playbackId), confirmed);
+        setRetryAfterMs(null);
         await mutate(
           current =>
             current && {
@@ -436,5 +441,6 @@ export function useChat(
     isLoading,
     isSending,
     error: error?.message || history.error?.message || sendError,
+    retryAfterMs: retryAfterMs ?? undefined,
   };
 }
