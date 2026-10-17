@@ -49,7 +49,7 @@ async function dispatchLiveFanout(creatorIds: string[]): Promise<void> {
         liveFanoutJob,
         { creatorId, streamSessionId },
         {
-          deduplicationId: `live-fanout:${creatorId}:${streamSessionId ?? "nosession"}`,
+          deduplicationId: `live-fanout:${creatorId}:${new Date().toISOString().slice(0, 10)}`,
         }
       );
       if (!result.dispatched) {

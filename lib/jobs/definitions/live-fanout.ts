@@ -38,7 +38,7 @@ export function createLiveFanoutJob(deps: LiveFanoutDeps = {}) {
     timeoutSeconds: 50,
     leaseSeconds: 70,
     leaseKey: (payload: LiveFanoutPayload) =>
-      `live-fanout:${payload.creatorId}:${payload.streamSessionId ?? "nosession"}`,
+      `live-fanout:${payload.creatorId}:${new Date().toISOString().slice(0, 10)}`,
     parsePayload: (raw: unknown): LiveFanoutPayload => {
       const r = raw as { creatorId?: unknown; streamSessionId?: unknown } | null;
       const creatorId = r?.creatorId;
@@ -87,11 +87,15 @@ export function createLiveFanoutJob(deps: LiveFanoutDeps = {}) {
       const username = creator.username ?? "A creator";
 
       // Claim or resume the fan-out record.
+      // ON CONFLICT DO NOTHING (no target) dedups against the COALESCE unique
+      // index on (creator_id, COALESCE(stream_session_id, <zero-uuid>)), so a
+      // NULL stream_session_id (the no-session fallback) still collapses to a
+      // single row rather than allowing many.
       await executor(
         `INSERT INTO live_fanout_jobs
            (id, creator_id, stream_session_id, status)
          VALUES (gen_random_uuid(), $1, $2, 'pending')
-         ON CONFLICT (creator_id, stream_session_id) DO NOTHING`,
+         ON CONFLICT DO NOTHING`,
         [payload.creatorId, payload.streamSessionId]
       );
 
@@ -142,6 +146,12 @@ export function createLiveFanoutJob(deps: LiveFanoutDeps = {}) {
       const rowCount = rows.length;
       const lastId = rowCount > 0 ? rows[rowCount - 1].follower_id : cursor;
 
+      // Per-follower writes are idempotent: a retried or duplicated batch that
+      // re-processes these same followers is a no-op because writeNotification
+      // dedupes on (recipient, dedupKey) for this go-live (#1138). This closes
+      // the window between writing a batch's notifications and advancing the
+      // cursor below, so a crash there cannot double-notify anyone.
+      const dedupKey = `live-fanout:${payload.creatorId}:${new Date().toISOString().slice(0, 10)}`;
       let batchNotified = 0;
       for (const row of rows) {
         const shouldSend = await _shouldSend(row.follower_id, "live");
@@ -150,7 +160,9 @@ export function createLiveFanoutJob(deps: LiveFanoutDeps = {}) {
             row.follower_id,
             "live",
             `${username} is live!`,
-            `${username} just started streaming`
+            `${username} just started streaming`,
+            undefined,
+            dedupKey
           );
           batchNotified++;
         }
@@ -170,15 +182,31 @@ export function createLiveFanoutJob(deps: LiveFanoutDeps = {}) {
       );
 
       if (rowCount === batchSize) {
-        // Full page → dispatch a continuation.
-        const deduplicationId = `live-fanout:${payload.creatorId}:${payload.streamSessionId ?? "nosession"}:${lastId}`;
+        // Full page → dispatch a continuation. The cursor is already advanced,
+        // so if the publish fails (QStash not configured or a transient error)
+        // we return "failed" rather than "succeeded": QStash redelivers this
+        // message, the retry re-reads the advanced cursor and fetches the next
+        // page, so the fan-out resumes instead of stalling past this batch
+        // (#1138). Returning "succeeded" here would silently drop every
+        // follower past this batch with no automatic recovery.
+        const deduplicationId = `live-fanout:${payload.creatorId}:${new Date().toISOString().slice(0, 10)}:${lastId}`;
         const next = await dispatch(payload, { deduplicationId });
+        if (!next.dispatched) {
+          return {
+            status: "failed",
+            metrics: {
+              batch_size: rowCount,
+              notified: batchNotified,
+              continued: 0,
+            },
+          };
+        }
         return {
           status: "succeeded",
           metrics: {
             batch_size: rowCount,
             notified: batchNotified,
-            continued: next.dispatched ? 1 : 0,
+            continued: 1,
           },
         };
       }
