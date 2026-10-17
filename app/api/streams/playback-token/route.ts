@@ -54,9 +54,16 @@ export async function GET(req: NextRequest) {
       viewerUserId = viewer.rows[0]?.id ?? null;
     }
 
-    if (creator.stream_password_hash && creator.id !== verifiedViewerId &&
-        (!creator.stream_session_id || !hasStreamPasswordGrant(req, creator.id, creator.stream_session_id))) {
-      return NextResponse.json({ error: "access_denied", reason: "password_required" }, { status: 403 });
+    if (
+      creator.stream_password_hash &&
+      creator.id !== verifiedViewerId &&
+      (!creator.stream_session_id ||
+        !hasStreamPasswordGrant(req, creator.id, creator.stream_session_id))
+    ) {
+      return NextResponse.json(
+        { error: "access_denied", reason: "password_required" },
+        { status: 403 }
+      );
     }
 
     const access = await canAccessStream({
@@ -68,6 +75,17 @@ export async function GET(req: NextRequest) {
     });
 
     if (!access.allowed) {
+      if (access.isError) {
+        return NextResponse.json(
+          {
+            error: "service_unavailable",
+            reason: access.reason,
+            message:
+              "Unable to verify subscription access due to a database/service outage. Please try again.",
+          },
+          { status: 503 }
+        );
+      }
       return NextResponse.json(
         { error: "access_denied", reason: access.reason },
         { status: 403 }

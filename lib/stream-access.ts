@@ -17,6 +17,13 @@ export type StreamPrivacy = "public" | "unlisted" | "subscribers_only";
  * DB subscriptions table is a synced cache only.
  * Falls back to fail-closed (deny) on RPC unavailable.
  */
+export interface StreamAccessResult {
+  allowed: boolean;
+  reason?: string;
+  isError?: boolean;
+  error?: unknown;
+}
+
 export async function canAccessStream(opts: {
   privacy: StreamPrivacy | null;
   streamShareToken: string | null;
@@ -25,7 +32,7 @@ export async function canAccessStream(opts: {
   viewerUserId: string | null;
   creatorWallet?: string | null;
   viewerWallet?: string | null;
-}): Promise<{ allowed: boolean; reason?: string }> {
+}): Promise<StreamAccessResult> {
   const privacy = (opts.privacy ?? "public") as StreamPrivacy;
 
   if (privacy === "public") {
@@ -65,6 +72,12 @@ export async function canAccessStream(opts: {
         }
       } catch (err) {
         console.warn("[stream-access] failed to fetch wallets from DB:", err);
+        return {
+          allowed: false,
+          reason: "database_error",
+          isError: true,
+          error: err,
+        };
       }
     }
 
@@ -84,6 +97,12 @@ export async function canAccessStream(opts: {
           "[stream-access] subscription check via RPC failed, denying access:",
           err
         );
+        return {
+          allowed: false,
+          reason: "rpc_error",
+          isError: true,
+          error: err,
+        };
       }
     }
   }
