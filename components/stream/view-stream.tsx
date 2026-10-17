@@ -304,7 +304,8 @@ const ViewStream = ({
     loadOlder,
     hasOlder,
     isLoadingOlder,
-  } = useChat(userData?.playbackId, address, isLive);
+    spikeLevel,
+  } = useChat(userData?.playbackId, address, isLive, true, userData?.id);
 
   // Stable refs so the native keydown listener always reads current values
   const chatOverlayMessageRef = useRef(chatOverlayMessage);
@@ -1177,6 +1178,7 @@ const ViewStream = ({
                   onLoadOlder={loadOlder}
                   hasOlder={hasOlder}
                   isLoadingOlder={isLoadingOlder}
+                  spikeLevel={spikeLevel}
                 />
               </div>
             )}
@@ -1207,6 +1209,7 @@ const ViewStream = ({
                 onLoadOlder={loadOlder}
                 hasOlder={hasOlder}
                 isLoadingOlder={isLoadingOlder}
+                spikeLevel={spikeLevel}
               />
             </div>
           )}

@@ -13,6 +13,13 @@ import {
   type PageParams,
 } from "@/lib/pagination/cursor";
 import { publishRealtimeMessage } from "@/lib/realtime/pubsub";
+import {
+  recordAndGetSpikeLevel,
+  getSpikeLevelForStream,
+  recordConnectionRate,
+  getEffectiveSlowMode,
+  getPollIntervalSeconds,
+} from "@/lib/chat-spike";
 
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
@@ -137,9 +144,16 @@ export async function POST(req: NextRequest) {
     const isMod = sender_role === 'moderator' || sender_role === 'super_admin';
     const isExempt = isCreator || isMod;
 
+    // Record message rate and derive spike level (before slow-mode so the
+    // effective interval can be raised by the spike floor). Errors are caught
+    // inside recordAndGetSpikeLevel and return 'normal', so this never throws.
+    const spikeLevel = await recordAndGetSpikeLevel(streamer_id);
+
     // Slow mode check
     if (!isExempt) {
-      const intervalSecs = parseInt(chat_slow_mode_seconds ?? '0', 10);
+      const configuredSecs = parseInt(chat_slow_mode_seconds ?? '0', 10);
+      // Spike can raise the floor; it never lowers the creator's setting.
+      const intervalSecs = getEffectiveSlowMode(configuredSecs, spikeLevel);
       if (intervalSecs > 0) {
         const redis = getUpstashRedis();
         if (redis) {
@@ -153,7 +167,7 @@ export async function POST(req: NextRequest) {
                 code: 'slow_mode',
                 retryAfterMs: Math.max(0, ttl),
               },
-              { status: 429 }
+              { status: 429, headers: { "X-Chat-Spike": spikeLevel } }
             );
           }
         }
@@ -224,19 +238,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         message: "Message sent successfully",
-        chatMessage: {
-          id: newMessage.id,
-          content,
-          messageType,
-          user: {
-            username: sender_username,
-            wallet: sender_wallet || session.wallet || "",
-          },
-          createdAt: newMessage.created_at,
-        },
         chatMessage: formattedMessage,
       },
-      { status: 201 }
+      { status: 201, headers: { "X-Chat-Spike": spikeLevel } }
     );
 
   } catch (error) {
@@ -356,9 +360,39 @@ export async function GET(req: Request) {
       () => loadChatPage(playbackId, page)
     );
 
+    // Resolve streamerId for spike-level signals. A missing/failed lookup is
+    // non-fatal: we simply omit the spike headers rather than erroring.
+    let spikeHeaders: Record<string, string> = {};
+    try {
+      const streamerRow = await sql`
+        SELECT id FROM users WHERE mux_playback_id = ${playbackId} LIMIT 1
+      `;
+      if (streamerRow.rows.length > 0) {
+        const streamerId: string = streamerRow.rows[0].id;
+        // Record connection rate (leading indicator of load) without touching
+        // the message-rate counter — GET is a read path.
+        const connLevel = await recordConnectionRate(streamerId);
+        // Read persisted spike level (written by POST handler on each message).
+        const msgLevel = await getSpikeLevelForStream(streamerId);
+        // Use the higher of the two levels.
+        const effectiveLevel =
+          connLevel === "critical" || msgLevel === "critical"
+            ? "critical"
+            : connLevel === "degraded" || msgLevel === "degraded"
+              ? "degraded"
+              : "normal";
+        spikeHeaders = {
+          "X-Chat-Spike": effectiveLevel,
+          "X-Poll-Interval": String(getPollIntervalSeconds(effectiveLevel)),
+        };
+      }
+    } catch {
+      // Non-fatal: spike headers are best-effort.
+    }
+
     return NextResponse.json(result, {
       status: 200,
-      headers: cacheHeaders("chatWindow"),
+      headers: { ...cacheHeaders("chatWindow"), ...spikeHeaders },
     });
   } catch (error) {
     console.error("Get chat messages error:", error);

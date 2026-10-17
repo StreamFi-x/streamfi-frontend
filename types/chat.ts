@@ -1,4 +1,5 @@
 import { StellarPublicKey } from "@/types/user";
+import type { SpikeLevel } from "@/lib/chat-spike";
 
 /** Message as returned by the chat API */
 export interface ChatMessageAPI {
@@ -61,4 +62,8 @@ export interface UseChatReturn {
   isSending: boolean;
   error: string | null;
   retryAfterMs?: number;
+  /** Current spike level for this stream (for degradation banner) */
+  spikeLevel: SpikeLevel;
 }
+
+export type { SpikeLevel };

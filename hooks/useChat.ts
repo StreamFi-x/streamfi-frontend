@@ -6,6 +6,7 @@ import type {
   ChatPage,
   UseChatReturn,
 } from "@/types/chat";
+import type { SpikeLevel } from "@/lib/chat-spike";
 import {
   reconcileWithRecentWrites,
   recentWritesFor,
@@ -113,12 +114,14 @@ function dedupeById(messages: ChatMessage[]): ChatMessage[] {
  * @param wallet      - Connected wallet address (required to send messages)
  * @param isLive      - Whether the stream is currently live (stops polling when false)
  * @param enablePush  - Whether push-based delivery is enabled (feature-flagged)
+ * @param streamerId  - Creator user id — used to poll the spike-level endpoint
  */
 export function useChat(
   playbackId: string | null | undefined,
   wallet: string | null | undefined,
   isLive: boolean = true,
-  enablePush: boolean = true
+  enablePush: boolean = true,
+  streamerId?: string | null
 ): UseChatReturn {
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -127,6 +130,31 @@ export function useChat(
   const [bridge, setBridge] = useState<ChatMessage[]>([]);
   const previousLive = useRef<ChatMessage[]>([]);
   const optimisticIdCounter = useRef(0);
+
+  // Spike level — updated from the POST response header after each send, and
+  // polled from the public spike-level endpoint every 15 s so read-only
+  // viewers also see the banner.
+  const [spikeLevel, setSpikeLevel] = useState<SpikeLevel>("normal");
+
+  const spikeLevelKey = streamerId && isLive
+    ? `/api/streams/chat/spike-level?streamerId=${streamerId}`
+    : null;
+
+  useSWR<{ level: SpikeLevel }>(
+    spikeLevelKey,
+    async (url: string) => {
+      const res = await fetch(url);
+      if (!res.ok) return { level: "normal" as SpikeLevel };
+      return res.json() as Promise<{ level: SpikeLevel }>;
+    },
+    {
+      refreshInterval: 15_000,
+      revalidateOnFocus: false,
+      onSuccess: (data) => {
+        setSpikeLevel(data?.level ?? "normal");
+      },
+    }
+  );
 
   // Always fetch history when we have a playbackId — isLive only controls polling.
   // This ensures the fullscreen overlay (and any late-mounting consumer) sees
@@ -347,7 +375,18 @@ export function useChat(
           if (typeof errorData.retryAfterMs === 'number') {
             setRetryAfterMs(errorData.retryAfterMs);
           }
+          // Still read spike level from error responses (e.g. 429 slow mode)
+          const spikeLevelHeader = res.headers.get("X-Chat-Spike");
+          if (spikeLevelHeader === "degraded" || spikeLevelHeader === "critical") {
+            setSpikeLevel(spikeLevelHeader);
+          }
           throw new Error(errorData.error || "Failed to send message");
+        }
+
+        // Read spike level from successful response
+        const spikeLevelHeader = res.headers.get("X-Chat-Spike");
+        if (spikeLevelHeader === "normal" || spikeLevelHeader === "degraded" || spikeLevelHeader === "critical") {
+          setSpikeLevel(spikeLevelHeader as SpikeLevel);
         }
 
         // Swap the optimistic entry for the confirmed one. Refetching here
@@ -442,5 +481,6 @@ export function useChat(
     isSending,
     error: error?.message || history.error?.message || sendError,
     retryAfterMs: retryAfterMs ?? undefined,
+    spikeLevel,
   };
 }

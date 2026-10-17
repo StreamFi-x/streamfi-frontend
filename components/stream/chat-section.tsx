@@ -5,6 +5,7 @@ import type React from "react";
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { ChevronRight, Send, Smile, GiftIcon, LogIn } from "lucide-react";
 import type { ChatMessage } from "@/types/chat";
+import type { SpikeLevel } from "@/lib/chat-spike";
 import { EMOJI_CATEGORIES, CATEGORY_LABELS } from "@/lib/emoji-categories";
 
 interface ChatSectionProps {
@@ -22,6 +23,8 @@ interface ChatSectionProps {
   onLoadOlder?: () => void;
   hasOlder?: boolean;
   isLoadingOlder?: boolean;
+  /** Current spike level — renders a degradation banner when not 'normal' */
+  spikeLevel?: SpikeLevel;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -39,6 +42,7 @@ const ChatSection = ({
   onLoadOlder,
   hasOlder = false,
   isLoadingOlder = false,
+  spikeLevel,
 }: ChatSectionProps) => {
   const [chatMessage, setChatMessage] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -126,6 +130,17 @@ const ChatSection = ({
           </button>
         )}
       </div>
+
+      {/* Degradation banner — shown when chat is under heavy load */}
+      {spikeLevel && spikeLevel !== "normal" && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="text-xs text-center px-2 py-1 bg-amber-500/20 text-amber-400 border-b border-amber-500/30 flex-shrink-0"
+        >
+          ⚡ Chat is experiencing high traffic — messages may be slower than usual
+        </div>
+      )}
 
       {/* Chat messages — absolute inset-0 fills exactly the space between header and input */}
       <div className="text-foreground bg-background relative flex-1 min-h-0">
