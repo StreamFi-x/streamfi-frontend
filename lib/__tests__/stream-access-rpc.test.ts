@@ -1,6 +1,6 @@
 /**
  * @jest-environment node
- * 
+ *
  * Tests for canAccessStream with RPC-backed subscription checks:
  * - Public access (no gating)
  * - Share token access
@@ -116,7 +116,9 @@ describe("canAccessStream with RPC subscriptions", () => {
     });
 
     it("denies access without credentials", async () => {
-      (rpcClient.isSubscriptionActive as jest.Mock).mockResolvedValueOnce(false);
+      (rpcClient.isSubscriptionActive as jest.Mock).mockResolvedValueOnce(
+        false
+      );
 
       const result = await canAccessStream({
         privacy: "subscribers_only",
@@ -154,7 +156,9 @@ describe("canAccessStream with RPC subscriptions", () => {
     });
 
     it("denies lapsed subscription from RPC", async () => {
-      (rpcClient.isSubscriptionActive as jest.Mock).mockResolvedValueOnce(false);
+      (rpcClient.isSubscriptionActive as jest.Mock).mockResolvedValueOnce(
+        false
+      );
 
       const result = await canAccessStream({
         privacy: "subscribers_only",
@@ -240,7 +244,8 @@ describe("canAccessStream with RPC subscriptions", () => {
       });
 
       expect(result.allowed).toBe(false);
-      expect(result.reason).toBe("needs_subscription");
+      expect(result.reason).toBe("database_error");
+      expect(result.isError).toBe(true);
     });
   });
 
