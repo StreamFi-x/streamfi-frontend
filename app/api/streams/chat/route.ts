@@ -16,6 +16,12 @@ import { publishRealtimeMessage } from "@/lib/realtime/pubsub";
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
 
+// 120 deletes per minute per authenticated user — generous enough for a
+// spam-wave clear (moderator removing ~2 msg/s) but caps worst-case damage
+// if credentials are compromised (#763). Keyed on userId, not IP, so the
+// limit tracks the moderator identity rather than a shared proxy address.
+const isDeleteRateLimited = createRateLimiter(60_000, 120);
+
 const DEFAULT_LIMIT = 50;
 /** The live chat view polls the newest 200 messages; keep that possible. */
 const MAX_LIMIT = 200;
@@ -326,6 +332,13 @@ export async function DELETE(req: NextRequest) {
     const session = await verifySession(req);
     if (!session.ok) {
       return session.response;
+    }
+
+    if (await isDeleteRateLimited(session.userId)) {
+      return NextResponse.json(
+        { error: "Too many delete requests" },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
     }
 
     const { messageId, moderatorWallet } = await req.json();
