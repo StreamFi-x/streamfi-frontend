@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
 import { verifySession } from "@/lib/auth/verify-session";
-import { writeTemplatedNotification } from "@/lib/notifications";
-import { shouldSendInAppNotification } from "@/lib/notifications/preferences";
 import { markRecentWrite } from "@/lib/db/replica";
-import { writeNotification } from "@/lib/notifications";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
 import { syncScheduleLiveStatusForCreator } from "@/lib/routes-f/schedule";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { dispatchJob } from "@/lib/jobs/qstash";
+import { liveFanoutJob } from "@/lib/jobs/definitions/live-fanout";
 
 export async function POST(req: NextRequest) {
   // Verify the caller is logged in
@@ -65,38 +64,41 @@ export async function POST(req: NextRequest) {
 
     const updatedUser = result.rows[0];
 
+    let streamSessionId: string | null = null;
     try {
-      await sql`
+      const sessionResult = await sql`
         INSERT INTO stream_sessions (user_id, mux_session_id, playback_id, started_at)
         VALUES (${updatedUser.id}, ${updatedUser.mux_stream_id}, ${updatedUser.mux_playback_id}, CURRENT_TIMESTAMP)
+        RETURNING id
       `;
+      streamSessionId = (sessionResult.rows[0]?.id as string) ?? null;
       await sql`DELETE FROM stream_password_attempts WHERE updated_at < now() - interval '1 day' OR stream_session_id IN (SELECT id FROM stream_sessions WHERE ended_at IS NOT NULL AND ended_at < now() - interval '1 day')`;
       await syncScheduleLiveStatusForCreator(String(updatedUser.id));
     } catch (sessionError) {
       console.error("Failed to create stream session record:", sessionError);
     }
 
-    // Fire-and-forget live notifications to all followers via join table
-    sql`SELECT follower_id FROM user_follows WHERE followee_id = ${updatedUser.id}`
-      .then(async ({ rows }) => {
-        for (const { follower_id } of rows) {
-          try {
-            // Check if follower has live notifications enabled
-            const shouldSend = await shouldSendInAppNotification(follower_id, "live", { sql });
-            if (shouldSend) {
-              await writeTemplatedNotification(
-                follower_id,
-                "live",
-                { actor: updatedUser.username },
-                { sql }
-              );
-            }
-          } catch (err) {
-            console.error(`[stream-start] notification failed for ${follower_id}:`, err);
-          }
+    // Enqueue the async fan-out of "go live" notifications to followers (#1138).
+    // Fire-and-forget: a single QStash publish that never blocks the response.
+    // The job pages through the follower graph in batches, respects per-follower
+    // notification preferences, and is idempotent per (creator, stream-session).
+    dispatchJob(
+      liveFanoutJob,
+      { creatorId: updatedUser.id, streamSessionId },
+      {
+        deduplicationId: `live-fanout:${updatedUser.id}:${streamSessionId ?? "nosession"}`,
+      }
+    )
+      .then(result => {
+        if (!result.dispatched) {
+          console.warn(
+            `[stream-start] live-fanout not dispatched (${result.reason})`
+          );
         }
       })
-      .catch(() => {});
+      .catch(err => {
+        console.error("[stream-start] live-fanout dispatch error:", err);
+      });
 
     return markRecentWrite(
       NextResponse.json(

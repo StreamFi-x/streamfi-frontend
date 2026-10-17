@@ -165,6 +165,23 @@ CREATE TABLE payouts (
   completed_at TIMESTAMPTZ,
   notes TEXT
 );
+
+-- Per-fanout idempotency marker for the live-notification fan-out job (#1138).
+-- Added here so integration tests can reference it without waiting for the
+-- migration to be applied.  The versioned migration 20260928120000_live_fanout_job.sql
+-- is the authoritative DDL; this copy must stay in sync.
+CREATE TABLE IF NOT EXISTS live_fanout_jobs (
+  id                          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id                  UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  stream_session_id           UUID        REFERENCES stream_sessions(id) ON DELETE SET NULL,
+  status                      TEXT        NOT NULL DEFAULT 'pending'
+                                          CHECK (status IN ('pending', 'in_progress', 'completed')),
+  last_processed_follower_id  UUID,
+  notified_count              INT         NOT NULL DEFAULT 0,
+  created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (creator_id, stream_session_id)
+);
 `;
 
 export async function applyAppSchema(pool: Pool): Promise<void> {
