@@ -6,6 +6,8 @@ import { CACHE_POLICIES, cacheHeaders } from "@/lib/cache";
 import { createCache, createMemoryBackend } from "@/lib/cache/store";
 import {
   buildPage,
+  decodeCursor,
+  encodeCursor,
   keysetBounds,
   readPageParams,
   type KeysetRow,
@@ -286,11 +288,46 @@ export async function GET(req: Request) {
       );
     }
 
-    if (searchParams.has("before")) {
-      return NextResponse.json(
-        { error: "The before parameter was replaced by cursor" },
-        { status: 400 }
-      );
+    if (searchParams.has("before") && !searchParams.has("cursor")) {
+      const beforeVal = searchParams.get("before")!;
+      try {
+        decodeCursor(beforeVal);
+        searchParams.set("cursor", beforeVal);
+        searchParams.delete("before");
+      } catch {
+        if (
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            beforeVal
+          )
+        ) {
+          const msgLookup = await sql`
+            SELECT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts
+            FROM chat_messages
+            WHERE id = ${beforeVal}::uuid
+            LIMIT 1
+          `;
+          if (msgLookup.rows.length > 0) {
+            searchParams.set(
+              "cursor",
+              encodeCursor({
+                ts: msgLookup.rows[0].cursor_ts,
+                id: beforeVal.toLowerCase(),
+              })
+            );
+            searchParams.delete("before");
+          } else {
+            return NextResponse.json(
+              { error: "Message specified in before cursor not found" },
+              { status: 404 }
+            );
+          }
+        } else {
+          return NextResponse.json(
+            { error: "Invalid before cursor format; provide a valid UUID or cursor" },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     const params = readPageParams(searchParams, {

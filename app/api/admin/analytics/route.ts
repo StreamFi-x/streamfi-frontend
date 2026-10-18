@@ -44,7 +44,8 @@ async function loadStats(): Promise<AdminAnalyticsStats> {
       (SELECT COUNT(*) FROM stream_reports WHERE status = 'pending')  AS pending_stream_reports,
       (SELECT COUNT(*) FROM bug_reports    WHERE status = 'pending')  AS pending_bug_reports,
       (SELECT COUNT(*) FROM users
-        WHERE created_at > now() - INTERVAL '7 days')                AS new_users_7d,
+        WHERE is_banned = false
+          AND created_at > now() - INTERVAL '7 days')                 AS new_users_7d,
       (SELECT COUNT(*) FROM stream_categories)                        AS total_categories
   `.then(r => r.rows)
   );

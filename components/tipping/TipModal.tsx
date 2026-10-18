@@ -24,6 +24,8 @@ import {
   getXLMPrice,
   calculateFeeEstimate,
   getRecommendedFeeStroops,
+  MAX_TIP_AMOUNT_XLM,
+  MIN_TIP_AMOUNT_XLM,
 } from "@/lib/stellar/payments";
 import { TransactionBuilder, Networks } from "@stellar/stellar-sdk";
 import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
@@ -50,8 +52,8 @@ type TransactionState =
   | "error";
 
 const PRESET_AMOUNTS = [1, 5, 10, 25];
-const MAX_TIP_AMOUNT = 10000;
-const MIN_TIP_AMOUNT = 0.0000001;
+const MAX_TIP_AMOUNT = MAX_TIP_AMOUNT_XLM;
+const MIN_TIP_AMOUNT = MIN_TIP_AMOUNT_XLM;
 
 export function TipModal({
   isOpen,

@@ -110,6 +110,12 @@ describe("Stellar Payments", () => {
       ).rejects.toThrow();
     });
 
+    it("should reject amount exceeding maximum ceiling", async () => {
+      await expect(
+        buildTipTransaction(buildParams({ amount: "10000.0000001" }))
+      ).rejects.toThrow(/Maximum is 10,000/);
+    });
+
     it("should handle account not found error", async () => {
       mockServerInstance.loadAccount.mockRejectedValue(
         new Error("Account not found")

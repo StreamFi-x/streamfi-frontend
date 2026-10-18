@@ -285,4 +285,8 @@ INSERT INTO stream_categories (title, description, tags) VALUES
 ('Art & Design', 'Creative content and design work', ARRAY['art', 'design', 'creative']),
 ('Business', 'Business discussions and entrepreneurship', ARRAY['business', 'startup', 'entrepreneur']),
 ('Lifestyle', 'Lifestyle and personal content', ARRAY['lifestyle', 'personal', 'vlog'])
-ON CONFLICT (title) DO NOTHING;
+ON CONFLICT (title) DO UPDATE SET
+  description = EXCLUDED.description,
+  tags = EXCLUDED.tags
+WHERE stream_categories.description IS DISTINCT FROM EXCLUDED.description
+   OR stream_categories.tags IS DISTINCT FROM EXCLUDED.tags;
