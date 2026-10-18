@@ -132,26 +132,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Single atomic statement: the INSERT and the counter increment are in the
+    // same implicit transaction, so a crash or connection drop between them
+    // can never leave total_messages permanently out of sync (#764).
     const messageResult = await sql`
-      INSERT INTO chat_messages (
-        user_id,
-        username,
-        stream_session_id,
-        content,
-        message_type,
-        created_at
+      WITH new_msg AS (
+        INSERT INTO chat_messages (
+          user_id,
+          username,
+          stream_session_id,
+          content,
+          message_type,
+          created_at
+        )
+        VALUES (${sender_id}, ${sender_username}, ${session_id}, ${content}, ${messageType}, CURRENT_TIMESTAMP)
+        RETURNING id, created_at, stream_session_id
+      ),
+      _counter AS (
+        UPDATE stream_sessions
+        SET total_messages = total_messages + 1
+        WHERE id = (SELECT stream_session_id FROM new_msg)
       )
-      VALUES (${sender_id}, ${sender_username}, ${session_id}, ${content}, ${messageType}, CURRENT_TIMESTAMP)
-      RETURNING id, created_at
+      SELECT id, created_at FROM new_msg
     `;
 
     const newMessage = messageResult.rows[0];
-
-    await sql`
-      UPDATE stream_sessions SET
-        total_messages = total_messages + 1
-      WHERE id = ${session_id}
-    `;
     await chatWindowCache.invalidate([chatTag(playbackId)]);
 
     const formattedMessage = {

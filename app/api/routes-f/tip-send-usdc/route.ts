@@ -167,7 +167,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         assetCode: "USDC",
         assetIssuer,
         memo: memo ?? null,
-        fee: String(calculateFeeEstimate()),
+        fee: String(calculateFeeEstimate(Number(transaction.fee))),
         network,
       },
       { status: 200 }

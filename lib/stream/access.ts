@@ -1,4 +1,5 @@
 import { sql } from "@vercel/postgres";
+import { isSubscriptionActive } from "../subscriptions/rpc-client";
 
 export type StreamAccessReason = "password" | "subscription";
 
@@ -6,6 +7,13 @@ export type AccessResult =
   | { allowed: true }
   | { allowed: false; reason: StreamAccessReason };
 
+/**
+ * Check subscription access via Soroban RPC.
+ *
+ * Queries the on-chain contract for the current subscription state.
+ * DB cache is synced from contract state.
+ * Fails closed on RPC unavailable (denies access for security).
+ */
 export async function checkSubscriptionAccess(
   streamerId: string,
   viewerPublicKey: string | null
@@ -14,18 +22,30 @@ export async function checkSubscriptionAccess(
     return { allowed: false, reason: "subscription" };
   }
 
-  const { rows } = await sql`
-    SELECT id FROM subscriptions
-    WHERE streamer_id = ${streamerId}
-      AND subscriber_id = (
-        SELECT id FROM users WHERE LOWER(wallet) = LOWER(${viewerPublicKey}) AND deleted_at IS NULL
-      )
-      AND status = 'active'
-      AND current_period_end > now()
-    LIMIT 1
-  `;
+  try {
+    // Get streamer's wallet address
+    const streamerResult = await sql`
+      SELECT wallet FROM users WHERE id = ${streamerId} AND deleted_at IS NULL LIMIT 1
+    `;
 
-  return rows.length > 0
-    ? { allowed: true }
-    : { allowed: false, reason: "subscription" };
+    if (streamerResult.rows.length === 0) {
+      return { allowed: false, reason: "subscription" };
+    }
+
+    const streamerWallet = streamerResult.rows[0].wallet as string;
+
+    // Check on-chain subscription state via Soroban RPC
+    const isActive = await isSubscriptionActive(
+      viewerPublicKey,
+      streamerWallet
+    );
+
+    return isActive
+      ? { allowed: true }
+      : { allowed: false, reason: "subscription" };
+  } catch (err) {
+    console.error("[stream-access] checkSubscriptionAccess failed:", err);
+    // Fail closed: deny access on any error
+    return { allowed: false, reason: "subscription" };
+  }
 }

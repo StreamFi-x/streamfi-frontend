@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import Mux from "@mux/mux-node";
 import { getMuxBreaker } from "@/lib/resilience/breakers";
 import { logger } from "@/lib/tracing/logger";
@@ -48,6 +49,15 @@ export interface MuxStreamData {
   isActive?: boolean;
 }
 
+/**
+ * Every live stream this app creates carries `passthrough` starting with this
+ * prefix. A create call that times out (and is aborted) may still have been
+ * processed by Mux, in which case the caller never learns the stream id; the
+ * tag is how the orphan sweep (lib/mux/orphan-sweep.ts) finds such streams
+ * later and tells them apart from streams created by anyone else.
+ */
+export const MUX_CREATE_PASSTHROUGH_PREFIX = "streamfi:create:";
+
 export async function createMuxStream(streamData?: {
   name: string;
   record?: boolean;
@@ -78,6 +88,7 @@ export async function createMuxStream(streamData?: {
               playback_policy: policies as any,
             },
           }),
+          passthrough: `${MUX_CREATE_PASSTHROUGH_PREFIX}${randomUUID()}`,
           reconnect_window: 60,
           latency_mode: latencyMode,
           max_continuous_duration: 43200,
@@ -248,23 +259,61 @@ export async function getPlaybackUrl(playbackId: string) {
 }
 
 /**
- * Update recording preference on an existing Mux live stream.
- * Must be called whenever enable_recording changes — recording is baked into
- * new_asset_settings at stream creation time, so toggling the DB flag alone
- * has no effect on streams that already exist in Mux.
+ * Update the recording preference on an existing Mux live stream.
+ *
+ * Mux allows updating `new_asset_settings` via the live-stream update API.
+ * Enabling sets a public-playback asset policy so the stream is saved when it
+ * ends; disabling clears it so no new asset is created. Note: changes take
+ * effect for the *next* broadcast segment — Mux cannot retroactively stop
+ * recording a segment already in progress, so the UI should inform creators
+ * accordingly (#755).
  */
-/**
- * Recording policy (playback_policy inside new_asset_settings) is baked in at
- * stream-creation time and cannot be changed via the Mux update endpoint.
- * This function is a no-op intentionally — recording changes take effect the
- * next time a Mux stream is created for this user.
- */
-
 export async function updateMuxStreamRecording(
-  _streamId: string,
-  _enable: boolean
-): Promise<{ success: true }> {
-  return { success: true };
+  streamId: string,
+  enable: boolean
+): Promise<{ success: boolean; streamId: string }> {
+  const startTime = Date.now();
+  try {
+    logger.info("Updating Mux stream recording setting", {
+      operation: "updateMuxStreamRecording",
+      streamId,
+      enable,
+    });
+
+    await muxCall(options =>
+      mux.video.liveStreams.update(
+        streamId,
+        {
+          new_asset_settings: enable
+            ? { playback_policy: ["public"] as any }
+            : {},
+        },
+        options
+      )
+    );
+
+    const durationMs = Date.now() - startTime;
+    logger.info("Mux stream recording updated", {
+      operation: "updateMuxStreamRecording",
+      streamId,
+      enable,
+      durationMs,
+    });
+
+    return { success: true, streamId };
+  } catch (error) {
+    const durationMs = Date.now() - startTime;
+    logger.error("Mux recording update failed", {
+      operation: "updateMuxStreamRecording",
+      streamId,
+      enable,
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    throw new Error(
+      `Failed to update Mux recording setting: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }
 
 export async function enableMuxStreamRecording(streamId: string) {
@@ -353,7 +402,11 @@ export async function getMuxStreamHealth(streamId: string) {
       status: liveStream.status,
       reconnectWindow: liveStream.reconnect_window,
       latencyMode: liveStream.latency_mode,
-      lastSeen: liveStream.recent_asset_ids?.[0] || null,
+      // recent_asset_ids contains Mux asset UUIDs, not timestamps (#759).
+      // Exposed as recentAssetId so callers are not tempted to pass it to
+      // `new Date()`. Use createdAt for time-based recency.
+      recentAssetId: liveStream.recent_asset_ids?.[0] ?? null,
+      createdAt: liveStream.created_at ?? null,
     };
   } catch (error) {
     console.error("Mux stream health error:", error);
@@ -444,6 +497,41 @@ export async function listActiveMuxLiveStreamIds(): Promise<ActiveMuxLiveStreams
     }
   }
   return { ids, complete: false, pages: MUX_LIST_MAX_PAGES };
+}
+
+export interface MuxLiveStreamSummary {
+  id: string;
+  status: string;
+  createdAt: Date;
+  passthrough: string | null;
+}
+
+/** One page of live streams in any status (Mux returns newest first). */
+export async function listMuxLiveStreamsPage(
+  page: number,
+  limit: number
+): Promise<MuxLiveStreamSummary[]> {
+  const result = await muxCall(
+    options => mux.video.liveStreams.list({ page, limit }, options),
+    MUX_RECONCILE_TIMEOUT_MS
+  );
+  const items: unknown = result?.data;
+  if (!Array.isArray(items)) {
+    throw new Error("Unexpected Mux live stream list response shape");
+  }
+  return (
+    items as Array<{
+      id: string;
+      status: string;
+      created_at: string;
+      passthrough?: string;
+    }>
+  ).map(item => ({
+    id: item.id,
+    status: item.status,
+    createdAt: new Date(Number(item.created_at) * 1000),
+    passthrough: item.passthrough ?? null,
+  }));
 }
 
 /** Current status of a single live stream, straight from Mux. */
