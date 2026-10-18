@@ -94,6 +94,62 @@ function dedupeById(messages: ChatMessage[]): ChatMessage[] {
 }
 
 /**
+ * Per-cache-key monotonic counter for optimistic message IDs (issue #779).
+ * Shared across all mounted hook instances for the same stream so fullscreen
+ * and sidebar chat widgets never produce colliding IDs.
+ */
+const optimisticCountersByCacheKey = new Map<string, number>();
+
+export function getNextOptimisticId(cacheKey: string): string {
+  const current = optimisticCountersByCacheKey.get(cacheKey) ?? 0;
+  const next = current + 1;
+  optimisticCountersByCacheKey.set(cacheKey, next);
+  return `pending-${next}`;
+}
+
+export function resetOptimisticCounters(): void {
+  optimisticCountersByCacheKey.clear();
+  pendingMessagesByStream.clear();
+}
+
+/**
+ * Registry of currently in-flight pending messages by playbackId (issue #778).
+ * Ensures background polling revalidations preserve in-flight optimistic messages
+ * instead of dropping or displacing them before send completion or rollback.
+ */
+const pendingMessagesByStream = new Map<string, Map<string, ChatMessage>>();
+
+export function getPendingMessages(playbackId: string): ChatMessage[] {
+  const map = pendingMessagesByStream.get(playbackId);
+  return map ? Array.from(map.values()) : [];
+}
+
+export function trackPendingMessage(
+  playbackId: string,
+  message: ChatMessage
+): void {
+  let map = pendingMessagesByStream.get(playbackId);
+  if (!map) {
+    map = new Map();
+    pendingMessagesByStream.set(playbackId, map);
+  }
+  map.set(message.id, message);
+}
+
+export function untrackPendingMessage(
+  playbackId: string,
+  messageId: string
+): void {
+  const map = pendingMessagesByStream.get(playbackId);
+  if (map) {
+    map.delete(messageId);
+    if (map.size === 0) {
+      pendingMessagesByStream.delete(playbackId);
+    }
+  }
+}
+
+/**
  * Chat hook used by all chat components: push delivery (#1450) with SWR
  * polling as the fallback and background sync.
  *
@@ -125,7 +181,6 @@ export function useChat(
   const [anchor, setAnchor] = useState<string | null>(null);
   const [bridge, setBridge] = useState<ChatMessage[]>([]);
   const previousLive = useRef<ChatMessage[]>([]);
-  const optimisticIdCounter = useRef(0);
 
   // Always fetch history when we have a playbackId — isLive only controls polling.
   // This ensures the fullscreen overlay (and any late-mounting consumer) sees
@@ -140,12 +195,19 @@ export function useChat(
     cacheKey,
     async (url: string) => {
       const window = await chatFetcher(url);
+      const reconciled = reconcileWithRecentWrites(
+        window.messages,
+        playbackId ? recentWritesFor(playbackId) : undefined
+      );
+      const pending = playbackId ? getPendingMessages(playbackId) : [];
+      const existingIds = new Set(reconciled.map(m => m.id));
+      const preservedPending = pending.filter(p => !existingIds.has(p.id));
       return {
         ...window,
-        messages: reconcileWithRecentWrites(
-          window.messages,
-          playbackId ? recentWritesFor(playbackId) : undefined
-        ),
+        messages:
+          preservedPending.length > 0
+            ? [...reconciled, ...preservedPending]
+            : reconciled,
       };
     },
     {
@@ -306,9 +368,9 @@ export function useChat(
       setSendError(null);
       setIsSending(true);
 
-      // Optimistic update — add message locally before API confirms
-      optimisticIdCounter.current += 1;
-      const optimisticId = `pending-${optimisticIdCounter.current}`;
+      // Optimistic update — add message locally before API confirms (issues #779 & #778)
+      const effectiveKey = cacheKey ?? playbackId;
+      const optimisticId = getNextOptimisticId(effectiveKey);
       const optimisticMessage: ChatMessage = {
         id: optimisticId,
         username: "You",
@@ -318,6 +380,8 @@ export function useChat(
         createdAt: new Date().toISOString(),
         isPending: true,
       };
+
+      trackPendingMessage(playbackId, optimisticMessage);
 
       // Optimistically update the cache
       await mutate(
@@ -346,6 +410,8 @@ export function useChat(
           throw new Error(errorData.error || "Failed to send message");
         }
 
+        untrackPendingMessage(playbackId, optimisticId);
+
         // Swap the optimistic entry for the confirmed one. Refetching here
         // could return a shared window that predates this message.
         const { chatMessage } = await res.json();
@@ -363,14 +429,15 @@ export function useChat(
           { revalidate: false }
         );
       } catch (err) {
-        // Rollback optimistic update
+        untrackPendingMessage(playbackId, optimisticId);
+        // Rollback optimistic update cleanly (issue #778)
         await mutate(
           current =>
             current && {
               ...current,
               messages: current.messages.filter(m => m.id !== optimisticId),
             },
-          { revalidate: true }
+          { revalidate: false }
         );
         const errorMessage =
           err instanceof Error ? err.message : "Failed to send message";
@@ -379,7 +446,7 @@ export function useChat(
         setIsSending(false);
       }
     },
-    [wallet, playbackId, mutate]
+    [wallet, playbackId, mutate, cacheKey]
   );
 
   const deleteMessage = useCallback(

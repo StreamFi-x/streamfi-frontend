@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
       `stream:${playbackId}:chat`,
       "chat:message",
       formattedMessage
-    ).catch((e) => console.error("[chat] Realtime publish error:", e));
+    ).catch(e => console.error("[chat] Realtime publish error:", e));
 
     return NextResponse.json(
       {
@@ -194,7 +194,6 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-
   } catch (error) {
     console.error("Chat message error:", error);
     return NextResponse.json(
@@ -244,11 +243,11 @@ async function loadChatPage(playbackId: string, page: PageParams) {
       cm.message_type,
       cm.created_at,
       to_char(cm.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts,
-      u.username,
-      u.wallet,
+      COALESCE(u.username, 'deleted user') AS username,
+      COALESCE(u.wallet, '') AS wallet,
       u.avatar
     FROM chat_messages cm
-    JOIN users u ON cm.user_id = u.id
+    LEFT JOIN users u ON cm.user_id = u.id
     WHERE cm.stream_session_id = ${sessionId}
       AND cm.is_deleted = false
       AND (cm.created_at, cm.id) < (${bound.ts}::timestamptz, ${bound.id}::uuid)
