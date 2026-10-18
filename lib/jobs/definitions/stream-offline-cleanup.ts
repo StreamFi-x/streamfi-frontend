@@ -48,6 +48,6 @@ export const streamOfflineCleanupJob = defineJob<StreamOfflineCleanupPayload, vo
       [payload.userId]
     );
 
-    return { status: "succeeded" };
+    return { status: "succeeded", metrics: {} };
   },
 });
