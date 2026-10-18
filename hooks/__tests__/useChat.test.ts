@@ -1,5 +1,9 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { useChat } from "../useChat";
+import {
+  useChat,
+  resetOptimisticCounters,
+  trackPendingMessage,
+} from "../useChat";
 
 // Mock SWR globally so tests don't hit the real network
 jest.mock("swr", () => ({
@@ -83,6 +87,7 @@ const lastHistoryKey = () => {
 describe("useChat", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetOptimisticCounters();
     (useSWR as jest.Mock).mockReturnValue(makeSwrReturn());
     (useSWRInfinite as jest.Mock).mockReturnValue(makeInfiniteReturn());
     global.fetch = jest.fn();
@@ -556,11 +561,10 @@ describe("useChat", () => {
         await result.current.sendMessage("hello");
       });
 
-      const rollback = mockMutate.mock.calls.find(
-        ([, opts]) => opts?.revalidate === true
-      );
+      const rollback = mockMutate.mock.calls[1];
       expect(rollback).toBeDefined();
-      const restored = rollback![0]({
+      expect(rollback[1]).toEqual({ revalidate: false });
+      const restored = rollback[0]({
         ...liveWindow([1]),
         messages: [msg(1), { ...msg(9), id: "pending-1" }],
       });
@@ -570,6 +574,71 @@ describe("useChat", () => {
       expect(result.current.error).toBe(
         "Cannot send message to offline stream"
       );
+    });
+
+    it("allocates monotonic sequential optimistic IDs across multiple mounted hook instances (#779)", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ chatMessage: apiMsg(1) }),
+      });
+      mockMutate.mockResolvedValue(undefined);
+
+      const hook1 = renderHook(() =>
+        useChat("playback-shared", "0xWALLET", true)
+      );
+      const hook2 = renderHook(() =>
+        useChat("playback-shared", "0xWALLET", true)
+      );
+
+      await act(async () => {
+        await hook1.result.current.sendMessage("msg from sidebar");
+      });
+
+      const firstCall = mockMutate.mock.calls[0][0](liveWindow([]));
+      expect(firstCall.messages[firstCall.messages.length - 1].id).toBe(
+        "pending-1"
+      );
+
+      await act(async () => {
+        await hook2.result.current.sendMessage("msg from fullscreen");
+      });
+
+      const secondCall = mockMutate.mock.calls[2][0](liveWindow([]));
+      expect(secondCall.messages[secondCall.messages.length - 1].id).toBe(
+        "pending-2"
+      );
+    });
+
+    it("preserves pending optimistic messages when background fetcher revalidates (#778)", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          messages: [],
+          nextCursor: null,
+          hasMore: false,
+        }),
+      });
+
+      renderHook(() => useChat("playback-pending-test", "0xWALLET", true));
+      const fetcher = (useSWR as jest.Mock).mock.calls[0][1];
+
+      const pendingMsg = {
+        id: "pending-1",
+        username: "You",
+        message: "in flight message",
+        color: "#9333ea",
+        messageType: "message" as const,
+        createdAt: new Date().toISOString(),
+        isPending: true,
+      };
+      trackPendingMessage("playback-pending-test", pendingMsg);
+
+      const revalidated = await fetcher(
+        "/api/streams/chat?playbackId=playback-pending-test&limit=200"
+      );
+      expect(
+        revalidated.messages.some((m: { id: string }) => m.id === "pending-1")
+      ).toBe(true);
     });
 
     it("sets isSending to true during send and false after", async () => {

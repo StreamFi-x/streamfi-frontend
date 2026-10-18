@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS stream_sessions (
 -- ---------------------------------------------------------------- chat_messages
 CREATE TABLE IF NOT EXISTS chat_messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     message_type VARCHAR(20) DEFAULT 'message',
@@ -251,6 +251,7 @@ CREATE INDEX IF NOT EXISTS idx_stream_viewers_user_id ON stream_viewers(user_id)
 CREATE INDEX IF NOT EXISTS idx_stream_viewers_session_id ON stream_viewers(session_id);
 CREATE INDEX IF NOT EXISTS idx_stream_viewers_joined_at ON stream_viewers(joined_at);
 CREATE INDEX IF NOT EXISTS idx_stream_categories_title ON stream_categories(title);
+CREATE INDEX IF NOT EXISTS idx_stream_categories_title_lower ON stream_categories(LOWER(title));
 CREATE INDEX IF NOT EXISTS idx_stream_categories_active ON stream_categories(is_active);
 CREATE INDEX IF NOT EXISTS idx_tags_title ON tags(title);
 CREATE INDEX IF NOT EXISTS idx_tags_title_lower ON tags(LOWER(title));
