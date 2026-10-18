@@ -295,6 +295,9 @@ describe("Stellar Payments", () => {
     let fetchSpy: jest.SpyInstance;
 
     beforeEach(() => {
+      if (typeof global.fetch !== "function") {
+        (global as any).fetch = jest.fn();
+      }
       fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
         json: async () => ({ stellar: { usd: 0.12 } }),
       } as Response);
@@ -400,6 +403,9 @@ describe("Stellar Payments", () => {
     });
 
     it("should handle concurrent price fetches", async () => {
+      if (typeof global.fetch !== "function") {
+        (global as any).fetch = jest.fn();
+      }
       const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
         json: async () => ({ stellar: { usd: 0.12 } }),
       } as Response);

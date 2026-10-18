@@ -610,8 +610,30 @@ export function isValidStellarPublicKey(publicKey: string): boolean {
  * @param amount - Amount to format
  * @returns Formatted amount string
  */
-export function formatXLMAmount(amount: number): string {
-  return amount.toFixed(7);
+export function formatXLMAmount(amount: number | string | bigint): string {
+  if (typeof amount === "bigint") {
+    const negative = amount < BigInt(0);
+    const abs = negative ? -amount : amount;
+    const whole = abs / BigInt(10_000_000);
+    const fraction = (abs % BigInt(10_000_000)).toString().padStart(7, "0");
+    return `${negative ? "-" : ""}${whole}.${fraction}`;
+  }
+
+  const str = String(amount).trim();
+  const match = /^(-?)(\d*)(?:\.(\d*))?$/.exec(str);
+  if (!match) {
+    const num = Number(amount);
+    return isNaN(num) ? "0.0000000" : num.toFixed(7);
+  }
+
+  const [, sign, whole, fraction = ""] = match;
+  const stroops =
+    BigInt(whole || "0") * BigInt(10_000_000) +
+    BigInt((fraction + "0000000").slice(0, 7));
+  const negative = sign === "-";
+  const wholePart = stroops / BigInt(10_000_000);
+  const fracPart = (stroops % BigInt(10_000_000)).toString().padStart(7, "0");
+  return `${negative ? "-" : ""}${wholePart}.${fracPart}`;
 }
 
 const STROOPS_PER_XLM = 10_000_000;
