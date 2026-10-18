@@ -900,6 +900,13 @@ const StreamPreferencesPage: React.FC = () => {
               <p className="text-xs text-muted-foreground mt-2">
                 Anyone with this link can watch. Rotate to invalidate previously
                 shared links.
+              </p>
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Stream Access */}
+        <SectionCard>
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="flex-1">
               <h2 className="text-highlight text-xl font-medium mb-2">

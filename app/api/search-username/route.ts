@@ -136,8 +136,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       { users: results },
       { headers: { "Cache-Control": "public, s-maxage=5" } }
-      { users: results.rows },
-      { headers: { "Cache-Control": CACHE_POLICIES.typeahead.cacheControl } }
     );
   } catch (error) {
     const queryDuration = Date.now() - startTime;
