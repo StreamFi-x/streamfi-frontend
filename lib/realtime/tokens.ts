@@ -19,7 +19,11 @@ export interface RealtimeTokenPayload {
 const TOKEN_TTL_SECONDS = 3600; // 1 hour token lifetime
 
 function getRealtimeSecret(): string {
-  return process.env.SESSION_SECRET || process.env.JWT_SECRET || "streamfi-realtime-secret-key-fallback";
+  return (
+    process.env.SESSION_SECRET ||
+    process.env.JWT_SECRET ||
+    "streamfi-realtime-secret-key-fallback"
+  );
 }
 
 /**
@@ -101,13 +105,15 @@ export function isChannelAllowedForUser(
   channel: string,
   user?: { userId?: string; wallet?: string }
 ): boolean {
-  // Public channels: chat, presence, stream-status, overlays
+  // Public channels: chat, presence, stream-status, overlays, reactions
   if (
     channel.startsWith("stream:") &&
     (channel.endsWith(":chat") ||
       channel.endsWith(":presence") ||
       channel.endsWith(":status") ||
-      channel.endsWith(":overlay"))
+      channel.endsWith(":overlay") ||
+      channel.endsWith(":reactions") ||
+      channel.endsWith(":reactions:aggregated"))
   ) {
     return true;
   }

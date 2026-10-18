@@ -1,16 +1,42 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import MuxPlayer from "@mux/mux-player-react";
+import { getMuxViewerId } from "@/lib/mux/viewer-id";
 
 interface VideoPlayerMuxProps {
   playbackId: string;
+  /** Stream title reported to Mux Data. */
+  title?: string;
+  /**
+   * Signed-in viewer's wallet address or user id; omit when logged out. It is
+   * hashed before it reaches Mux Data, never sent as is.
+   */
+  viewerIdentity?: string | null;
   addLog: (message: string, type?: "info" | "success" | "error") => void;
 }
 
 export default function VideoPlayerMux({
   playbackId,
+  title,
+  viewerIdentity,
   addLog,
 }: VideoPlayerMuxProps) {
+  const [viewerId, setViewerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setViewerId(null);
+    getMuxViewerId(viewerIdentity).then(id => {
+      if (!cancelled) {
+        setViewerId(id);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [viewerIdentity]);
+
   if (!playbackId) {
     return (
       <div className="w-full aspect-video bg-gray-900 rounded-lg flex items-center justify-center text-white">
@@ -25,6 +51,14 @@ export default function VideoPlayerMux({
     );
   }
 
+  // Hold the player until the id is ready: Mux Data fixes the viewer when the
+  // session starts, so mounting first would report this viewer as someone else.
+  if (!viewerId) {
+    return (
+      <div className="relative bg-black rounded-lg overflow-hidden aspect-video" />
+    );
+  }
+
   return (
     <div className="relative bg-black rounded-lg overflow-hidden">
       <MuxPlayer
@@ -33,8 +67,8 @@ export default function VideoPlayerMux({
         autoPlay="muted"
         metadata={{
           video_id: playbackId,
-          video_title: "Live Stream Test",
-          viewer_user_id: "test-user",
+          video_title: title || "Live Stream",
+          viewer_user_id: viewerId,
         }}
         primaryColor="#ac39f2"
         secondaryColor="#000000"

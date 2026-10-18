@@ -33,6 +33,10 @@
       "schedule": "30 3 * * *"
     },
     {
+      "path": "/api/routes-f/cron-mux-orphan-sweep",
+      "schedule": "15 * * * *"
+    },
+    {
       "path": "/api/routes-f/cron-mux-asset-reconciliation",
       "schedule": "45 3 * * *"
     },

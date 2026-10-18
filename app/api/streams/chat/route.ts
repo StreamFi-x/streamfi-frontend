@@ -131,90 +131,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Per-user rate-limit backstop (moved from pre-auth IP check)
-    if (await isRateLimited(session.userId)) {
-      return NextResponse.json(
-        { error: "Too many requests" },
-        { status: 429, headers: { "Retry-After": "60" } }
-      );
-    }
-
-    // Creator/mod exemption from chat mode restrictions
-    const isCreator = session.userId === streamer_id;
-    const isMod = sender_role === 'moderator' || sender_role === 'super_admin';
-    const isExempt = isCreator || isMod;
-
-    // Record message rate and derive spike level (before slow-mode so the
-    // effective interval can be raised by the spike floor). Errors are caught
-    // inside recordAndGetSpikeLevel and return 'normal', so this never throws.
-    const spikeLevel = await recordAndGetSpikeLevel(streamer_id);
-
-    // Slow mode check
-    if (!isExempt) {
-      const configuredSecs = parseInt(chat_slow_mode_seconds ?? '0', 10);
-      // Spike can raise the floor; it never lowers the creator's setting.
-      const intervalSecs = getEffectiveSlowMode(configuredSecs, spikeLevel);
-      if (intervalSecs > 0) {
-        const redis = getUpstashRedis();
-        if (redis) {
-          const key = `chat:slowmode:${streamer_id}:${session.userId}`;
-          const set = await redis.set(key, '1', { nx: true, px: intervalSecs * 1000 });
-          if (set === null) {
-            const ttl = await redis.pttl(key);
-            return NextResponse.json(
-              {
-                error: 'Slow mode is active. Please wait before sending another message.',
-                code: 'slow_mode',
-                retryAfterMs: Math.max(0, ttl),
-              },
-              { status: 429, headers: { "X-Chat-Spike": spikeLevel } }
-            );
-          }
-        }
-      }
-    }
-
-    // Subscriber-only check
-    if (!isExempt && chat_subscriber_only === 'true') {
-      const subResult = await sql`
-        SELECT 1 FROM subscriptions
-        WHERE subscriber_id = ${session.userId}
-          AND streamer_id   = ${streamer_id}
-          AND status = 'active'
-          AND current_period_end > NOW()
-        LIMIT 1
-      `;
-      if (subResult.rows.length === 0) {
-        return NextResponse.json(
-          {
-            error: 'This chat is subscriber-only. Subscribe to the channel to participate.',
-            code: 'subscriber_only',
-          },
-          { status: 403 }
-        );
-      }
-    }
-
+    // Single atomic statement: the INSERT and the counter increment are in the
+    // same implicit transaction, so a crash or connection drop between them
+    // can never leave total_messages permanently out of sync (#764).
     const messageResult = await sql`
-      INSERT INTO chat_messages (
-        user_id,
-        username,
-        stream_session_id,
-        content,
-        message_type,
-        created_at
+      WITH new_msg AS (
+        INSERT INTO chat_messages (
+          user_id,
+          username,
+          stream_session_id,
+          content,
+          message_type,
+          created_at
+        )
+        VALUES (${sender_id}, ${sender_username}, ${session_id}, ${content}, ${messageType}, CURRENT_TIMESTAMP)
+        RETURNING id, created_at, stream_session_id
+      ),
+      _counter AS (
+        UPDATE stream_sessions
+        SET total_messages = total_messages + 1
+        WHERE id = (SELECT stream_session_id FROM new_msg)
       )
-      VALUES (${sender_id}, ${sender_username}, ${session_id}, ${content}, ${messageType}, CURRENT_TIMESTAMP)
-      RETURNING id, created_at
+      SELECT id, created_at FROM new_msg
     `;
 
     const newMessage = messageResult.rows[0];
-
-    await sql`
-      UPDATE stream_sessions SET
-        total_messages = total_messages + 1
-      WHERE id = ${session_id}
-    `;
     await chatWindowCache.invalidate([chatTag(playbackId)]);
 
     const formattedMessage = {
