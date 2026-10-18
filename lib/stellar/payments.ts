@@ -180,6 +180,14 @@ function calculateMinReceiveWithSlippage(
   return result;
 }
 
+/**
+ * Minimum and maximum tip amounts allowed before transaction construction.
+ * Enforces safety ceilings across all entry points before signing.
+ */
+export const MIN_TIP_AMOUNT_XLM = 0.0000001;
+export const MAX_TIP_AMOUNT_XLM = 10_000;
+export const MAX_TIP_AMOUNT_USDC = 10_000;
+
 export async function buildTipTransaction(
   params: BuildTipTransactionParams
 ): Promise<Transaction> {
@@ -204,8 +212,13 @@ export async function buildTipTransaction(
     const networkPassphrase = getNetworkPassphrase(network);
 
     const normalizedAmount = Number(amount);
-    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
-      throw new Error("Amount must be greater than 0");
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount < MIN_TIP_AMOUNT_XLM) {
+      throw new Error(`Amount must be at least ${MIN_TIP_AMOUNT_XLM} XLM`);
+    }
+    if (normalizedAmount > MAX_TIP_AMOUNT_XLM) {
+      throw new Error(
+        `Amount is too large. Maximum is ${MAX_TIP_AMOUNT_XLM.toLocaleString()} XLM`
+      );
     }
 
     const sourceAccount = await server.loadAccount(sourcePublicKey);
@@ -279,6 +292,11 @@ export async function buildUsdcTipTransaction(
     const normalizedAmount = Number(amount);
     if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
       throw new Error("Amount must be greater than 0");
+    }
+    if (normalizedAmount > MAX_TIP_AMOUNT_USDC) {
+      throw new Error(
+        `Amount is too large. Maximum is ${MAX_TIP_AMOUNT_USDC.toLocaleString()} USDC`
+      );
     }
 
     const sourceAccount = await server.loadAccount(sourcePublicKey);
@@ -376,6 +394,11 @@ export async function buildPathPaymentTipTransaction(
       receiveNum <= 0
     ) {
       throw new Error("Amounts must be valid positive numbers");
+    }
+    if (sendNum > MAX_TIP_AMOUNT_XLM || receiveNum > MAX_TIP_AMOUNT_XLM) {
+      throw new Error(
+        `Tip amount exceeds maximum ceiling of ${MAX_TIP_AMOUNT_XLM.toLocaleString()}`
+      );
     }
 
     // Load source account

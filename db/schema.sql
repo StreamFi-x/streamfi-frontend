@@ -221,6 +221,8 @@ CREATE INDEX IF NOT EXISTS idx_stream_recordings_playback_id ON stream_recording
 CREATE INDEX IF NOT EXISTS idx_stream_recordings_created_at ON stream_recordings(created_at DESC);
 
 
+-- Initial bootstrap reference data. Canonical versions are maintained and versioned
+-- in db/seeds/ and applied via db/migrations.
 INSERT INTO stream_categories (title, description, tags) VALUES
 ('Gaming', 'Video game streaming and gameplay', ARRAY['gaming', 'esports', 'gameplay']),
 ('Technology', 'Tech talks, coding, and development', ARRAY['coding', 'programming', 'tech']),
@@ -230,7 +232,11 @@ INSERT INTO stream_categories (title, description, tags) VALUES
 ('Art & Design', 'Creative content and design work', ARRAY['art', 'design', 'creative']),
 ('Business', 'Business discussions and entrepreneurship', ARRAY['business', 'startup', 'entrepreneur']),
 ('Lifestyle', 'Lifestyle and personal content', ARRAY['lifestyle', 'personal', 'vlog'])
-ON CONFLICT (title) DO NOTHING;
+ON CONFLICT (title) DO UPDATE SET
+  description = EXCLUDED.description,
+  tags = EXCLUDED.tags
+WHERE stream_categories.description IS DISTINCT FROM EXCLUDED.description
+   OR stream_categories.tags IS DISTINCT FROM EXCLUDED.tags;
 
 
 CREATE OR REPLACE FUNCTION cleanup_expired_tokens()
