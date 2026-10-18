@@ -28,10 +28,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifyToken } from "@/lib/auth/sign-token";
 import { currentKeyring } from "@/lib/security/keyring";
-import {
-  findActiveSession,
-  touchSession,
-} from "@/lib/sessions/user-sessions";
+import { findActiveSession, touchSession } from "@/lib/sessions/user-sessions";
+import { logger } from "@/lib/tracing/logger";
 
 export type VerifiedSession =
   | {
@@ -43,6 +41,34 @@ export type VerifiedSession =
       email: string | null;
     }
   | { ok: false; response: NextResponse };
+
+/**
+ * Fire-and-forget session touch with rate-limited structured error logging
+ * and telemetry visibility (Issue #782).
+ */
+let lastTouchErrorLogTime = 0;
+let touchErrorCountSinceLastLog = 0;
+const ERROR_LOG_THROTTLE_MS = 10_000;
+
+export function safeTouchSession(
+  sessionId: string,
+  sessionType: "privy" | "wallet" | "legacy" = "privy"
+): void {
+  touchSession(sessionId).catch(err => {
+    const now = Date.now();
+    touchErrorCountSinceLastLog++;
+    if (now - lastTouchErrorLogTime >= ERROR_LOG_THROTTLE_MS) {
+      logger.error("touch_session_failed", {
+        sessionType,
+        sessionId: sessionId.substring(0, 8),
+        error: err instanceof Error ? err.message : String(err),
+        suppressedFailures: touchErrorCountSinceLastLog - 1,
+      });
+      lastTouchErrorLogTime = now;
+      touchErrorCountSinceLastLog = 0;
+    }
+  });
+}
 
 function getSessionSecret(): string | null {
   return process.env.SESSION_SECRET ?? null;
@@ -122,11 +148,9 @@ export async function verifySession(
         };
       }
 
-      // Touch last_seen_at (debounced — at most once per minute)
+      // Touch last_seen_at (debounced — at most once per minute, with error visibility #782)
       if (sessionRow) {
-        touchSession(sessionRow.id).catch(() => {
-          // Non-critical — ignore errors
-        });
+        safeTouchSession(sessionRow.id, "privy");
       }
 
       const u = rows[0];
@@ -226,9 +250,7 @@ export async function verifySession(
 
       // Touch last_seen_at (debounced)
       if (sessionRow) {
-        touchSession(sessionRow.id).catch(() => {
-          // Non-critical — ignore errors
-        });
+        safeTouchSession(sessionRow.id, "wallet");
       }
 
       const u = rows[0];
@@ -309,9 +331,7 @@ export async function verifySession(
 
       // Touch last_seen_at (debounced)
       if (sessionRow) {
-        touchSession(sessionRow.id).catch(() => {
-          // Non-critical — ignore errors
-        });
+        safeTouchSession(sessionRow.id, "legacy");
       }
 
       const u = rows[0];

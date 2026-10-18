@@ -775,20 +775,55 @@ export async function getXLMPrice(): Promise<number> {
 }
 
 /**
- * Check if the account has insufficient balance for the payment and fee
+ * Error thrown when an account has not been activated on the Stellar network (Horizon 404).
  */
-export async function hasInsufficientBalance(
+export class AccountNotFundedError extends Error {
+  readonly code = "account_not_funded";
+  readonly account: string;
+  constructor(account: string, message?: string) {
+    super(
+      message ??
+        `Account ${account} is not funded on the Stellar network. It must be activated with the minimum reserve before transactions can be sent.`
+    );
+    this.name = "AccountNotFundedError";
+    this.account = account;
+  }
+}
+
+export type BalanceCheckStatus =
+  | "ok"
+  | "insufficient_balance"
+  | "account_not_funded";
+
+export interface BalanceCheckResult {
+  insufficient: boolean;
+  status: BalanceCheckStatus;
+  balance?: number;
+  required?: number;
+  error?: string;
+}
+
+/**
+ * Checks an account's balance against an amount and fee, explicitly distinguishing
+ * unfunded accounts (Horizon 404) from funded accounts with insufficient balances (Issue #781).
+ */
+export async function checkAccountBalance(
   publicKey: string,
   amount: string,
   feeStroops?: number
-): Promise<boolean> {
+): Promise<BalanceCheckResult> {
   try {
     const network = getCurrentNetwork();
     const server = getServer(network);
     const account = await server.loadAccount(publicKey);
     const nativeBalance = account.balances.find(b => b.asset_type === "native");
     if (!nativeBalance) {
-      return true;
+      return {
+        insufficient: true,
+        status: "insufficient_balance",
+        balance: 0,
+        required: parseFloat(amount),
+      };
     }
 
     const balance = parseFloat(nativeBalance.balance);
@@ -796,10 +831,54 @@ export async function hasInsufficientBalance(
       feeStroops ?? (await getRecommendedFeeStroops(network))
     );
     const required = parseFloat(amount) + fee;
-    return balance < required;
-  } catch (error) {
-    // If account doesn't exist, it definitely has insufficient balance
-    console.error("Failed to check balance:", error);
-    return true;
+    const isInsufficient = balance < required;
+
+    return {
+      insufficient: isInsufficient,
+      status: isInsufficient ? "insufficient_balance" : "ok",
+      balance,
+      required,
+    };
+  } catch (error: any) {
+    const isNotFound =
+      error?.response?.status === 404 ||
+      (typeof error?.message === "string" &&
+        (error.message.includes("Account not found") ||
+          error.message.includes("404") ||
+          error.message.includes("not found")));
+
+    if (isNotFound) {
+      logger.warn("Stellar account not funded / not found", {
+        publicKey: publicKey.substring(0, 8),
+      });
+      return {
+        insufficient: true,
+        status: "account_not_funded",
+        error: `Account ${publicKey} has not been funded on the network.`,
+      };
+    }
+
+    logger.error("Failed to check balance:", error);
+    return {
+      insufficient: true,
+      status: "insufficient_balance",
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
+}
+
+/**
+ * Check if the account has insufficient balance for the payment and fee.
+ * Throws AccountNotFundedError if the account does not exist on Horizon (Issue #781).
+ */
+export async function hasInsufficientBalance(
+  publicKey: string,
+  amount: string,
+  feeStroops?: number
+): Promise<boolean> {
+  const result = await checkAccountBalance(publicKey, amount, feeStroops);
+  if (result.status === "account_not_funded") {
+    throw new AccountNotFundedError(publicKey);
+  }
+  return result.status === "insufficient_balance";
 }
