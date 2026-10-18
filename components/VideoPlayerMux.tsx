@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import MuxPlayer from "@mux/mux-player-react";
 import { getMuxViewerId } from "@/lib/mux/viewer-id";
+import { useNetworkQuality, getNetworkStatusDescription, getMaxQualityForNetwork } from "@/hooks/useNetworkQuality";
+import { resolveQuality, toMuxQuality, logQualitySelection, type Quality } from "@/lib/video/quality-selection";
 
 interface VideoPlayerMuxProps {
   playbackId: string;
@@ -23,6 +25,24 @@ export default function VideoPlayerMux({
   addLog,
 }: VideoPlayerMuxProps) {
   const [viewerId, setViewerId] = useState<string | null>(null);
+  const [manualQuality, setManualQuality] = useState<Quality | undefined>(undefined);
+  const [showNetworkInfo, setShowNetworkInfo] = useState(false);
+  
+  // Get network quality information
+  const networkQuality = useNetworkQuality();
+  
+  // Determine the connection-aware quality cap
+  const connectionQualityCap = getMaxQualityForNetwork(networkQuality);
+
+  // Resolve final quality with precedence: manual override > connection cap > ABR
+  const qualityResolution = resolveQuality({
+    manualSelection: manualQuality,
+    connectionCap: connectionQualityCap as Quality | undefined,
+    saveDataEnabled: networkQuality.saveData,
+    isMeteredConnection: networkQuality.isMetered,
+  });
+
+  const maxQuality = toMuxQuality(qualityResolution.quality);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +56,21 @@ export default function VideoPlayerMux({
       cancelled = true;
     };
   }, [viewerIdentity]);
+
+  // Log quality selection in development
+  useEffect(() => {
+    logQualitySelection(qualityResolution);
+  }, [qualityResolution]);
+
+  // Log network changes
+  useEffect(() => {
+    if (networkQuality.isSupported && qualityResolution.isConstrained) {
+      addLog(
+        `Network detected: ${getNetworkStatusDescription(networkQuality)}`,
+        "info"
+      );
+    }
+  }, [networkQuality, qualityResolution, addLog]);
 
   if (!playbackId) {
     return (
@@ -73,7 +108,7 @@ export default function VideoPlayerMux({
         primaryColor="#ac39f2"
         secondaryColor="#000000"
         targetLiveWindow={1.5}
-        maxResolution="1080p"
+        maxResolution={maxQuality as "auto" | "1080p" | "720p" | "480p" | "360p" | "240p"}
         minResolution="480p"
         preferPlayback="mse"
         startTime={-10}
@@ -105,6 +140,36 @@ export default function VideoPlayerMux({
           );
         }}
       />
+      
+      {/* Network info indicator - shown when quality is constrained */}
+      {qualityResolution.isConstrained && networkQuality.isSupported && (
+        <div className="absolute top-4 right-4 group">
+          <button
+            onClick={() => setShowNetworkInfo(!showNetworkInfo)}
+            className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-semibold hover:bg-blue-700 transition-colors"
+            title="Click to see network details"
+          >
+            Quality Capped: {qualityResolution.quality}
+          </button>
+          
+          {/* Tooltip showing network details */}
+          {showNetworkInfo && (
+            <div className="absolute top-8 right-0 bg-gray-900 text-white text-xs p-3 rounded shadow-lg whitespace-nowrap border border-blue-600 z-10">
+              <div className="font-semibold mb-1">Network Status</div>
+              {networkQuality.saveData && (
+                <div>📊 Data Saver: Enabled</div>
+              )}
+              <div>📡 Type: {networkQuality.connectionType}</div>
+              {networkQuality.effectiveBandwidth !== null && (
+                <div>⚡ Bandwidth: ~{networkQuality.effectiveBandwidth.toFixed(1)} Mbps</div>
+              )}
+              <div className="mt-1 pt-1 border-t border-gray-600 text-gray-400">
+                Quality set to {qualityResolution.quality}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
