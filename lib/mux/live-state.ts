@@ -79,18 +79,18 @@ export async function markMuxStreamLive(
 export async function markMuxStreamOffline(
   tx: Tx,
   muxStreamId: string
-): Promise<string[]> {
-  const { rows } = await tx.sql<{ id: string }>`
+): Promise<Array<{ id: string; mux_playback_id: string | null }>> {
+  const { rows } = await tx.sql<{ id: string; mux_playback_id: string | null }>`
     UPDATE users SET
       is_live = false,
       stream_started_at = NULL,
       current_viewers = 0,
       updated_at = CURRENT_TIMESTAMP
     WHERE mux_stream_id = ${muxStreamId}
-    RETURNING id
+    RETURNING id, mux_playback_id
   `;
   for (const user of rows) {
     await closeOpenSessions(tx, user.id);
   }
-  return rows.map(r => r.id);
+  return rows.map(r => ({ id: r.id, mux_playback_id: r.mux_playback_id }));
 }

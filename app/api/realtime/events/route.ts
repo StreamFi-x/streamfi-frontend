@@ -13,6 +13,7 @@ import {
   subscribeLocal,
   RealtimeMessage,
 } from "@/lib/realtime/pubsub";
+import { startRedisChannelPoller } from "@/lib/realtime/redis-subscriber";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -89,6 +90,25 @@ export async function GET(req: NextRequest) {
           }
         });
         unsubs.push(unsub);
+      }
+
+      // 3b. Poll Redis history for messages published on other instances
+      for (const channel of allowedChannels) {
+        startRedisChannelPoller(
+          channel,
+          (msg: RealtimeMessage) => {
+            try {
+              controller.enqueue(
+                encoder.encode(
+                  `event: message\ndata: ${JSON.stringify(msg)}\n\n`
+                )
+              );
+            } catch {
+              // Stream closed
+            }
+          },
+          req.signal
+        );
       }
 
       // 4. Send keep-alive heartbeat every 15s

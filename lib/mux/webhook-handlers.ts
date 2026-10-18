@@ -10,6 +10,8 @@ import type {
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
 import { dispatchJob } from "@/lib/jobs/qstash";
 import { liveFanoutJob } from "@/lib/jobs/definitions/live-fanout";
+import { streamOfflineCleanupJob } from "@/lib/jobs/definitions/stream-offline-cleanup";
+import { publishRealtimeMessage } from "@/lib/realtime/pubsub";
 
 /**
  * Side-effecting Mux event handlers. Each runs inside the transaction opened
@@ -81,8 +83,32 @@ export const liveStreamHandlers: Record<string, MuxEventHandler> = {
   // Stream is genuinely offline (reconnect window elapsed).
   "video.live_stream.idle": async (tx, event, afterCommit) => {
     console.log(`⚫ Stream OFFLINE (idle): ${streamId(event)}`);
-    const userIds = await markMuxStreamOffline(tx, streamId(event));
-    afterCommit?.(() => invalidateUsers(userIds));
+    const users = await markMuxStreamOffline(tx, streamId(event));
+    afterCommit?.(async () => {
+      for (const user of users) {
+        await invalidateUsers([user.id]);
+        if (user.mux_playback_id !== null) {
+          await publishRealtimeMessage(
+            `stream:${user.mux_playback_id}:status`,
+            "stream:ended",
+            {
+              playbackId: user.mux_playback_id,
+              endedAt: new Date().toISOString(),
+            }
+          );
+        }
+        const result = await dispatchJob(
+          streamOfflineCleanupJob,
+          { userId: user.id },
+          { deduplicationId: `stream-offline-cleanup:${user.id}` }
+        );
+        if (!result.dispatched) {
+          console.warn(
+            `[mux] stream-offline-cleanup not dispatched for ${user.id} (${result.reason})`
+          );
+        }
+      }
+    });
     console.log("✅ Stream marked as OFFLINE");
   },
 };
