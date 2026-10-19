@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   }
   try {
     const body = await req.json();
-    const { title, description, category, tags } = body;
+    const { title, description, category, tags, latencyMode } = body;
 
     // A stream is provisioned for the CALLER, never for an arbitrary
     // body-supplied wallet — otherwise anyone can trigger Mux stream
@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
       description,
       category,
       tags,
+      latencyMode,
       timestamp: new Date().toISOString(),
     });
 
@@ -182,16 +183,25 @@ export async function POST(req: NextRequest) {
     console.log("✅ Mux credentials found");
 
     const enableRecording = user.enable_recording === true;
-    const latencyMode = (
-      user.latency_mode === "standard" ? "standard" : "low"
+    // Use provided per-stream latency mode, fall back to user's global preference
+    const effectiveLatencyMode = (
+      latencyMode === "standard" || latencyMode === "low"
+        ? latencyMode
+        : user.latency_mode === "standard"
+          ? "standard"
+          : "low"
     ) as "low" | "standard";
-    console.log("🎬 Creating Mux stream...", { enableRecording, latencyMode });
+    console.log("🎬 Creating Mux stream...", {
+      enableRecording,
+      latencyMode: effectiveLatencyMode,
+      isPerStreamChoice: !!latencyMode,
+    });
     let muxStream;
     try {
       muxStream = await createMuxStream({
         name: `${user.username} - ${title}`,
         record: enableRecording,
-        latencyMode,
+        latencyMode: effectiveLatencyMode,
       });
       console.log("✅ Mux stream created successfully:", {
         id: muxStream?.id,

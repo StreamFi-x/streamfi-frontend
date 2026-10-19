@@ -18,8 +18,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    let requestedLatencyMode: string | undefined;
+    try {
+      const body = await req.json();
+      requestedLatencyMode = body.latencyMode;
+    } catch {
+      // No body or invalid JSON, that's fine - will use user default
+    }
     const userResult = await sql`
-      SELECT id, username, mux_stream_id, is_live, mux_playback_id
+      SELECT id, username, mux_stream_id, is_live, mux_playback_id, latency_mode
       FROM users
       WHERE id = ${session.userId} AND mux_stream_id IS NOT NULL AND deleted_at IS NULL
     `;
@@ -66,9 +73,18 @@ export async function POST(req: NextRequest) {
     const updatedUser = result.rows[0];
 
     try {
+      // Use requested latency mode if valid, otherwise fall back to user's global preference
+      const effectiveLatencyMode = (
+        requestedLatencyMode === "standard" || requestedLatencyMode === "low"
+          ? requestedLatencyMode
+          : user.latency_mode === "standard"
+            ? "standard"
+            : "low"
+      ) as "low" | "standard";
+
       await sql`
-        INSERT INTO stream_sessions (user_id, mux_session_id, playback_id, started_at)
-        VALUES (${updatedUser.id}, ${updatedUser.mux_stream_id}, ${updatedUser.mux_playback_id}, CURRENT_TIMESTAMP)
+        INSERT INTO stream_sessions (user_id, mux_session_id, playback_id, started_at, latency_mode)
+        VALUES (${updatedUser.id}, ${updatedUser.mux_stream_id}, ${updatedUser.mux_playback_id}, CURRENT_TIMESTAMP, ${effectiveLatencyMode})
       `;
       await sql`DELETE FROM stream_password_attempts WHERE updated_at < now() - interval '1 day' OR stream_session_id IN (SELECT id FROM stream_sessions WHERE ended_at IS NOT NULL AND ended_at < now() - interval '1 day')`;
       await syncScheduleLiveStatusForCreator(String(updatedUser.id));
