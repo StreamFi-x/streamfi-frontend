@@ -5,5 +5,6 @@ export const tabs = [
   { id: "Stream & Channel Preferences", route: "/settings/stream-Preference" },
   { id: "Appearance", route: "/settings/Appearance" },
   { id: "Connected Accounts", route: "/settings/connected-accounts" },
+  { id: "Subscriptions", route: "/settings/subscriptions" },
   { id: "Preferences", route: "/settings/preferences" },
 ];
