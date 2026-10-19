@@ -30,3 +30,9 @@ export function verifyPassword(password: string, hashedPassword: string): boolea
 
   return crypto.timingSafeEqual(left, right);
 }
+
+export function needsRehash(hashedPassword: string): boolean {
+  if (!hashedPassword) return false;
+  // If it does not contain the salt separator ':', it is a legacy unsalted SHA-256 hash
+  return !hashedPassword.includes(":");
+}

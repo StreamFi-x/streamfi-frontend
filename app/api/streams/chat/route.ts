@@ -6,6 +6,8 @@ import { CACHE_POLICIES, cacheHeaders } from "@/lib/cache";
 import { createCache, createMemoryBackend } from "@/lib/cache/store";
 import {
   buildPage,
+  decodeCursor,
+  encodeCursor,
   keysetBounds,
   readPageParams,
   type KeysetRow,
@@ -15,6 +17,12 @@ import { publishRealtimeMessage } from "@/lib/realtime/pubsub";
 
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
+
+// 120 deletes per minute per authenticated user — generous enough for a
+// spam-wave clear (moderator removing ~2 msg/s) but caps worst-case damage
+// if credentials are compromised (#763). Keyed on userId, not IP, so the
+// limit tracks the moderator identity rather than a shared proxy address.
+const isDeleteRateLimited = createRateLimiter(60_000, 120);
 
 const DEFAULT_LIMIT = 50;
 /** The live chat view polls the newest 200 messages; keep that possible. */
@@ -175,7 +183,7 @@ export async function POST(req: NextRequest) {
       `stream:${playbackId}:chat`,
       "chat:message",
       formattedMessage
-    ).catch((e) => console.error("[chat] Realtime publish error:", e));
+    ).catch(e => console.error("[chat] Realtime publish error:", e));
 
     return NextResponse.json(
       {
@@ -194,7 +202,6 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-
   } catch (error) {
     console.error("Chat message error:", error);
     return NextResponse.json(
@@ -244,11 +251,11 @@ async function loadChatPage(playbackId: string, page: PageParams) {
       cm.message_type,
       cm.created_at,
       to_char(cm.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts,
-      u.username,
-      u.wallet,
+      COALESCE(u.username, 'deleted user') AS username,
+      COALESCE(u.wallet, '') AS wallet,
       u.avatar
     FROM chat_messages cm
-    JOIN users u ON cm.user_id = u.id
+    LEFT JOIN users u ON cm.user_id = u.id
     WHERE cm.stream_session_id = ${sessionId}
       AND cm.is_deleted = false
       AND (cm.created_at, cm.id) < (${bound.ts}::timestamptz, ${bound.id}::uuid)
@@ -287,11 +294,46 @@ export async function GET(req: Request) {
       );
     }
 
-    if (searchParams.has("before")) {
-      return NextResponse.json(
-        { error: "The before parameter was replaced by cursor" },
-        { status: 400 }
-      );
+    if (searchParams.has("before") && !searchParams.has("cursor")) {
+      const beforeVal = searchParams.get("before")!;
+      try {
+        decodeCursor(beforeVal);
+        searchParams.set("cursor", beforeVal);
+        searchParams.delete("before");
+      } catch {
+        if (
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            beforeVal
+          )
+        ) {
+          const msgLookup = await sql`
+            SELECT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts
+            FROM chat_messages
+            WHERE id = ${beforeVal}::uuid
+            LIMIT 1
+          `;
+          if (msgLookup.rows.length > 0) {
+            searchParams.set(
+              "cursor",
+              encodeCursor({
+                ts: msgLookup.rows[0].cursor_ts,
+                id: beforeVal.toLowerCase(),
+              })
+            );
+            searchParams.delete("before");
+          } else {
+            return NextResponse.json(
+              { error: "Message specified in before cursor not found" },
+              { status: 404 }
+            );
+          }
+        } else {
+          return NextResponse.json(
+            { error: "Invalid before cursor format; provide a valid UUID or cursor" },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     const params = readPageParams(searchParams, {
@@ -331,6 +373,13 @@ export async function DELETE(req: NextRequest) {
     const session = await verifySession(req);
     if (!session.ok) {
       return session.response;
+    }
+
+    if (await isDeleteRateLimited(session.userId)) {
+      return NextResponse.json(
+        { error: "Too many delete requests" },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
     }
 
     const { messageId, moderatorWallet } = await req.json();

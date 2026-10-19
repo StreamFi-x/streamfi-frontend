@@ -226,9 +226,21 @@ export async function POST(req: NextRequest) {
     // These fail silently if the tables don't exist or session record is missing.
     if (stream.session_id && !alreadyCounted) {
       try {
-        // Resolve country from IP (#1383)
-        const geoResult = await ipToCountry(ip);
-        const countryCode = geoResult.country || null;
+        // Resolve country from headers or IP geolocation (#1383, #777)
+        const headerCountry =
+          req.headers.get("cf-ipcountry") ||
+          req.headers.get("x-vercel-ip-country") ||
+          null;
+        const normalizedHeaderCountry =
+          headerCountry && headerCountry !== "XX" && headerCountry.length === 2
+            ? headerCountry.toUpperCase()
+            : null;
+
+        let countryCode = normalizedHeaderCountry;
+        if (!countryCode) {
+          const geoResult = await ipToCountry(ip);
+          countryCode = geoResult?.country || null;
+        }
 
         await sql`
           INSERT INTO stream_viewers (stream_session_id, user_id, session_id, joined_at, ip_address, country)

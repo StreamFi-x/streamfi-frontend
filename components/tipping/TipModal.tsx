@@ -19,9 +19,13 @@ import {
   buildTipTransaction,
   submitTransaction,
   hasInsufficientBalance,
+  checkAccountBalance,
+  AccountNotFundedError,
   getXLMPrice,
   calculateFeeEstimate,
   getRecommendedFeeStroops,
+  MAX_TIP_AMOUNT_XLM,
+  MIN_TIP_AMOUNT_XLM,
 } from "@/lib/stellar/payments";
 import { TransactionBuilder, Networks } from "@stellar/stellar-sdk";
 import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
@@ -48,8 +52,8 @@ type TransactionState =
   | "error";
 
 const PRESET_AMOUNTS = [1, 5, 10, 25];
-const MAX_TIP_AMOUNT = 10000;
-const MIN_TIP_AMOUNT = 0.0000001;
+const MAX_TIP_AMOUNT = MAX_TIP_AMOUNT_XLM;
+const MIN_TIP_AMOUNT = MIN_TIP_AMOUNT_XLM;
 
 export function TipModal({
   isOpen,
@@ -181,17 +185,40 @@ export function TipModal({
       // cannot disagree if the network fee moves in between.
       const currentFeeStroops = await getRecommendedFeeStroops();
       setFeeStroops(currentFeeStroops);
-      const insufficientBalance = await hasInsufficientBalance(
-        senderPublicKey,
-        amount,
-        currentFeeStroops
-      );
+      try {
+        const insufficientBalance = await hasInsufficientBalance(
+          senderPublicKey,
+          amount,
+          currentFeeStroops
+        );
 
-      if (insufficientBalance) {
-        setError("insufficient_balance");
+        if (insufficientBalance) {
+          setError("insufficient_balance");
+          setTransactionState("error");
+          if (onError) {
+            onError("Insufficient balance");
+          }
+          return;
+        }
+      } catch (err: unknown) {
+        if (err instanceof AccountNotFundedError) {
+          setError("sender_not_funded");
+          setTransactionState("error");
+          if (onError) {
+            onError(err.message);
+          }
+          return;
+        }
+        throw err;
+      }
+
+      // Check recipient account funding status
+      const recipientCheck = await checkAccountBalance(recipientPublicKey, "0");
+      if (recipientCheck.status === "account_not_funded") {
+        setError("recipient_not_funded");
         setTransactionState("error");
         if (onError) {
-          onError("Insufficient balance");
+          onError("Recipient account is not funded on the Stellar network.");
         }
         return;
       }
@@ -476,6 +503,25 @@ export function TipModal({
                       className="border-highlight/40 text-highlight hover:bg-highlight/10 h-8 text-xs"
                     />
                   </>
+                ) : error === "sender_not_funded" ? (
+                  <>
+                    <p className="text-sm text-destructive">
+                      Your Stellar account is not yet funded or activated. You
+                      need a minimum balance of 1 XLM to activate it.
+                    </p>
+                    <AddFundsButton
+                      walletAddress={senderPublicKey}
+                      variant="outline"
+                      size="sm"
+                      className="border-highlight/40 text-highlight hover:bg-highlight/10 h-8 text-xs"
+                    />
+                  </>
+                ) : error === "recipient_not_funded" ? (
+                  <p className="text-sm text-destructive">
+                    Recipient&apos;s wallet has not yet been activated on
+                    Stellar. An account requires a minimum balance of 1 XLM
+                    before it can receive standard payment transfers.
+                  </p>
                 ) : (
                   <p className="text-sm text-destructive">{error}</p>
                 )}
