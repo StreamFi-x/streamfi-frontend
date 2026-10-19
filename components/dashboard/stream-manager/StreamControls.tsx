@@ -99,9 +99,12 @@ export default function StreamControls({
           ) : (
             <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
           )}
-          <div>
+          <div className="flex-1">
             <h4 className="text-sm font-semibold text-foreground">Stream Health: {diagnostics.results.health.status}</h4>
             <p className="text-xs text-muted-foreground mt-1">{diagnostics.summary}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              ℹ️ You can still go live. This is just a warning to help improve quality.
+            </p>
             <button
               onClick={() => setShowDiagnostics(true)}
               className="text-xs text-purple-600 hover:text-purple-700 font-medium mt-2"

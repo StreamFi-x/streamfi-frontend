@@ -42,8 +42,8 @@ export async function runDiagnostics(
     testStreamId = streamData.id;
     logger.info("Created test stream", { testStreamId });
 
-    // Simulate sending frames at target bitrate for diagnostic duration
-    const testMetrics = await sendTestFrames(encoderSettings, DIAGNOSTIC_DURATION_MS);
+    // Send test frames at target bitrate for diagnostic duration
+    const testMetrics = await sendTestFrames(testStreamId, encoderSettings, DIAGNOSTIC_DURATION_MS);
 
     logger.info("Test frames sent", {
       testStreamId,

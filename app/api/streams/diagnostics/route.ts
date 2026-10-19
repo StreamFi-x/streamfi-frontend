@@ -18,7 +18,27 @@ const RequestBodySchema = z.object({
 });
 
 // Rate limiting: track diagnostics per user per time window
+// Note: This uses in-memory state which does not persist across server restarts or
+// instances in a multi-instance deployment. For production, implement with Redis or
+// a distributed cache. Current approach is suitable for development and single-instance
+// deployments.
+// TODO: Move to Redis-backed rate limiting for production scaling
 const diagnosticsRateLimiter = new Map<string, { count: number; resetTime: number }>();
+
+// Periodic cleanup of expired rate limit entries (every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  let cleaned = 0;
+  for (const [key, value] of diagnosticsRateLimiter.entries()) {
+    if (now > value.resetTime + 60000) { // Clean up entries 1 minute after expiry
+      diagnosticsRateLimiter.delete(key);
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) {
+    logger.debug("Rate limiter cleanup", { entriesCleaned: cleaned });
+  }
+}, 5 * 60 * 1000);
 
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
