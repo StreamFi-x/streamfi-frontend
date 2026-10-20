@@ -43,15 +43,36 @@ describe("GET /api/wallet/balance", () => {
     expect((await get("not-an-address")).status).toBe(400);
   });
 
-  it("returns the native balance", async () => {
+  it("returns the native balance and spendable balance", async () => {
     mockAccountCall.mockResolvedValue({
       balances: [
         { asset_type: "credit_alphanum4", balance: "3" },
         { asset_type: "native", balance: "12.5000000" },
       ],
+      subentry_count: 0,
     });
     const res = await get();
-    expect(await res.json()).toEqual({ balance: "12.5000000" });
+    // 12.5 XLM raw - 2 XLM base reserve = 10.5 XLM spendable
+    expect(await res.json()).toEqual({
+      balance: "12.5000000",
+      spendableBalance: "10.5000000",
+    });
+  });
+
+  it("accounts for trustlines when calculating spendable balance", async () => {
+    mockAccountCall.mockResolvedValue({
+      balances: [
+        { asset_type: "credit_alphanum4", balance: "100" }, // USDC or similar
+        { asset_type: "native", balance: "10.0000000" },
+      ],
+      subentry_count: 1, // One trustline for the credit asset
+    });
+    const res = await get();
+    // 10 XLM raw - (2 XLM base + 0.5 XLM per trustline) = 7.5 XLM spendable
+    expect(await res.json()).toEqual({
+      balance: "10.0000000",
+      spendableBalance: "7.5000000",
+    });
   });
 
   it("reports an account that was never funded", async () => {
@@ -60,7 +81,11 @@ describe("GET /api/wallet/balance", () => {
     );
     const res = await get();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ balance: "0", unfunded: true });
+    expect(await res.json()).toEqual({
+      balance: "0",
+      spendableBalance: "0",
+      unfunded: true,
+    });
   });
 
   it("answers 503 at once while Horizon's circuit is open", async () => {

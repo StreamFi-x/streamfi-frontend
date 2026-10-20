@@ -245,6 +245,7 @@ describe("Stellar Payments", () => {
     it("should return false when balance is sufficient", async () => {
       mockServerInstance.loadAccount.mockResolvedValue({
         balances: [{ asset_type: "native", balance: "100.0000000" }],
+        subentry_count: 0,
       });
 
       const result = await hasInsufficientBalance(mockPublicKey, "10");
@@ -255,6 +256,7 @@ describe("Stellar Payments", () => {
     it("should return true when balance is insufficient", async () => {
       mockServerInstance.loadAccount.mockResolvedValue({
         balances: [{ asset_type: "native", balance: "1.0000000" }],
+        subentry_count: 0,
       });
 
       const result = await hasInsufficientBalance(mockPublicKey, "100");
@@ -265,9 +267,11 @@ describe("Stellar Payments", () => {
     it("should consider transaction fees in calculation", async () => {
       mockServerInstance.loadAccount.mockResolvedValue({
         balances: [{ asset_type: "native", balance: "10.0000000" }],
+        subentry_count: 0,
       });
 
-      // 10 XLM balance - 10 XLM tip leaves only fee margin; required = 10 + fee > 10
+      // 10 XLM balance - 2 XLM reserve = 8 XLM spendable
+      // 8 XLM spendable - 10 XLM tip leaves insufficient; required = 10 + fee > 8
       const result = await hasInsufficientBalance(mockPublicKey, "10");
 
       expect(result).toBe(true);
@@ -286,9 +290,39 @@ describe("Stellar Payments", () => {
     it("should handle missing native balance", async () => {
       mockServerInstance.loadAccount.mockResolvedValue({
         balances: [{ asset_type: "credit_alphanum4", balance: "100.0000000" }],
+        subentry_count: 0,
       });
 
       const result = await hasInsufficientBalance(mockPublicKey, "10");
+
+      expect(result).toBe(true);
+    });
+
+    it("should account for Stellar minimum reserve (#1164)", async () => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        balances: [{ asset_type: "native", balance: "5.0000000" }],
+        subentry_count: 0, // No trustlines: 2 XLM reserve required
+      });
+
+      // 5 XLM raw - 2 XLM reserve = 3 XLM spendable
+      // User tries to send 4 XLM, which exceeds spendable amount
+      const result = await hasInsufficientBalance(mockPublicKey, "4");
+
+      expect(result).toBe(true);
+    });
+
+    it("should account for trustline reserve requirements", async () => {
+      mockServerInstance.loadAccount.mockResolvedValue({
+        balances: [
+          { asset_type: "native", balance: "5.0000000" },
+          { asset_type: "credit_alphanum4", balance: "100", code: "USDC", issuer: "GA..." },
+        ],
+        subentry_count: 1, // One trustline: 2.5 XLM reserve required (2 + 0.5)
+      });
+
+      // 5 XLM raw - 2.5 XLM reserve = 2.5 XLM spendable
+      // User tries to send 3 XLM, which exceeds spendable amount
+      const result = await hasInsufficientBalance(mockPublicKey, "3");
 
       expect(result).toBe(true);
     });
