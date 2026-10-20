@@ -51,6 +51,13 @@ type TransactionState =
   | "success"
   | "error";
 
+interface Quote {
+  quote_token: string;
+  quoted_rate: number;
+  quoted_xlm_amount: number;
+  expires_at: string;
+}
+
 const PRESET_AMOUNTS = [1, 5, 10, 25];
 const MAX_TIP_AMOUNT = MAX_TIP_AMOUNT_XLM;
 const MIN_TIP_AMOUNT = MIN_TIP_AMOUNT_XLM;
@@ -79,12 +86,66 @@ export function TipModal({
     details?: string;
     code?: string;
   } | null>(null);
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [quoteCountdown, setQuoteCountdown] = useState<number>(0);
+  const [isLoadingQuote, setIsLoadingQuote] = useState<boolean>(false);
+  const [quoteFetchFailed, setQuoteFetchFailed] = useState<boolean>(false);
 
   const { kit } = useStellarWallet();
   const [feeStroops, setFeeStroops] = useState<number | undefined>(undefined);
   const fee = calculateFeeEstimate(feeStroops);
   const usdEquivalent =
     xlmPrice && amount ? (parseFloat(amount) * xlmPrice).toFixed(2) : "0.00";
+
+  const getQuote = async (amountXlm: string) => {
+    if (!amountXlm || parseFloat(amountXlm) <= 0) {
+      setQuote(null);
+      setQuoteCountdown(0);
+      return;
+    }
+
+    setIsLoadingQuote(true);
+    setQuoteFetchFailed(false);
+
+    try {
+      // Parse amount to get fiat cents
+      const xlmAmount = parseFloat(amountXlm);
+      const currentRate = xlmPrice || 0.08; // Fallback rate
+      const fiatCents = Math.round(xlmAmount * currentRate * 100);
+
+      const response = await fetch("/api/tips/get-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fiat_amount_cents: fiatCents,
+          creator_id: senderPublicKey, // Use sender as a proxy; ideally this comes from context
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("Failed to fetch quote:", response.status);
+        setQuoteFetchFailed(true);
+        setQuote(null);
+        return;
+      }
+
+      const quoteData = (await response.json()) as any;
+      setQuote({
+        quote_token: quoteData.quote_token,
+        quoted_rate: quoteData.quoted_rate,
+        quoted_xlm_amount: quoteData.quoted_xlm_amount,
+        expires_at: quoteData.expires_at,
+      });
+      setQuoteCountdown(300); // 5 minutes
+      setQuoteFetchFailed(false);
+    } catch (err) {
+      console.error("Error fetching quote:", err);
+      setQuoteFetchFailed(true);
+      setQuote(null);
+    } finally {
+      setIsLoadingQuote(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -108,6 +169,25 @@ export function TipModal({
     }
   }, [isOpen]);
 
+  // Countdown timer for quote expiry
+  useEffect(() => {
+    if (quoteCountdown <= 0) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setQuoteCountdown(prev => {
+        if (prev <= 1) {
+          setQuote(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [quoteCountdown]);
+
   useEffect(() => {
     if (!isOpen) {
       resetModal();
@@ -121,17 +201,27 @@ export function TipModal({
     setTxHash(null);
     setIsConfirmationOpen(false);
     setStructuredError(null);
+    setQuote(null);
+    setQuoteCountdown(0);
+    setQuoteFetchFailed(false);
   };
 
   const handlePresetClick = (presetAmount: number) => {
     setAmount(presetAmount.toString());
     setError(null);
+    getQuote(presetAmount.toString());
   };
 
   const handleAmountChange = (value: string) => {
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
       setAmount(value);
       setError(null);
+      if (value !== "") {
+        getQuote(value);
+      } else {
+        setQuote(null);
+        setQuoteCountdown(0);
+      }
     }
   };
 
@@ -462,6 +552,14 @@ export function TipModal({
                   </span>
                 </div>
               )}
+              {quote && quoteCountdown > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Locked rate</span>
+                  <span className="font-semibold text-highlight">
+                    ${quote.quoted_rate} /XLM
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Network fee</span>
                 <span className="text-muted-foreground">
@@ -474,6 +572,17 @@ export function TipModal({
                   {(parseFloat(amount) + fee).toFixed(7)} XLM
                 </span>
               </div>
+              {quote && quoteCountdown > 0 && (
+                <div className="text-xs text-amber-600 pt-2 border-t border-border">
+                  Quote expires in {Math.floor(quoteCountdown / 60)}:
+                  {String(quoteCountdown % 60).padStart(2, "0")}
+                </div>
+              )}
+              {quoteFetchFailed && (
+                <div className="text-xs text-destructive pt-2 border-t border-border">
+                  Failed to fetch exchange rate quote
+                </div>
+              )}
             </div>
           )}
 

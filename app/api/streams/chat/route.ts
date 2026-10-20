@@ -4,6 +4,7 @@ import { createRateLimiter } from "@/lib/rate-limit";
 import { verifySession } from "@/lib/auth/verify-session";
 import { CACHE_POLICIES, cacheHeaders } from "@/lib/cache";
 import { createCache, createMemoryBackend } from "@/lib/cache/store";
+import { getUpstashRedis } from "@/lib/upstash-redis";
 import {
   buildPage,
   decodeCursor,
@@ -14,6 +15,13 @@ import {
   type PageParams,
 } from "@/lib/pagination/cursor";
 import { publishRealtimeMessage } from "@/lib/realtime/pubsub";
+import {
+  recordAndGetSpikeLevel,
+  getSpikeLevelForStream,
+  recordConnectionRate,
+  getEffectiveSlowMode,
+  getPollIntervalSeconds,
+} from "@/lib/chat-spike";
 
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
@@ -38,18 +46,6 @@ const chatWindowCache = createCache(createMemoryBackend());
 const chatTag = (playbackId: string) => `chat:${playbackId}`;
 
 export async function POST(req: NextRequest) {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
-
-  if (await isRateLimited(ip)) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": "60" } }
-    );
-  }
-
   // Verify caller identity server-side via session
   const session = await verifySession(req);
   if (!session.ok) {
@@ -103,8 +99,11 @@ export async function POST(req: NextRequest) {
         sender.id AS sender_id,
         sender.username AS sender_username,
         sender.wallet AS sender_wallet,
+        sender.role AS sender_role,
         streamer.id AS streamer_id,
         streamer.is_live,
+        streamer.creator->>'chatSlowModeSeconds' AS chat_slow_mode_seconds,
+        streamer.creator->>'chatSubscriberOnly'  AS chat_subscriber_only,
         (
           SELECT ss.id FROM stream_sessions ss
           WHERE ss.user_id = streamer.id AND ss.ended_at IS NULL
@@ -123,7 +122,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { sender_id, sender_username, sender_wallet, is_live, session_id } =
+    const { sender_id, sender_username, sender_wallet, is_live, session_id, streamer_id, chat_slow_mode_seconds, chat_subscriber_only, sender_role } =
       result.rows[0];
 
     if (!is_live) {
@@ -188,19 +187,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         message: "Message sent successfully",
-        chatMessage: {
-          id: newMessage.id,
-          content,
-          messageType,
-          user: {
-            username: sender_username,
-            wallet: sender_wallet || session.wallet || "",
-          },
-          createdAt: newMessage.created_at,
-        },
         chatMessage: formattedMessage,
       },
-      { status: 201 }
+      { status: 201, headers: { "X-Chat-Spike": spikeLevel } }
     );
   } catch (error) {
     console.error("Chat message error:", error);
@@ -354,9 +343,39 @@ export async function GET(req: Request) {
       () => loadChatPage(playbackId, page)
     );
 
+    // Resolve streamerId for spike-level signals. A missing/failed lookup is
+    // non-fatal: we simply omit the spike headers rather than erroring.
+    let spikeHeaders: Record<string, string> = {};
+    try {
+      const streamerRow = await sql`
+        SELECT id FROM users WHERE mux_playback_id = ${playbackId} LIMIT 1
+      `;
+      if (streamerRow.rows.length > 0) {
+        const streamerId: string = streamerRow.rows[0].id;
+        // Record connection rate (leading indicator of load) without touching
+        // the message-rate counter — GET is a read path.
+        const connLevel = await recordConnectionRate(streamerId);
+        // Read persisted spike level (written by POST handler on each message).
+        const msgLevel = await getSpikeLevelForStream(streamerId);
+        // Use the higher of the two levels.
+        const effectiveLevel =
+          connLevel === "critical" || msgLevel === "critical"
+            ? "critical"
+            : connLevel === "degraded" || msgLevel === "degraded"
+              ? "degraded"
+              : "normal";
+        spikeHeaders = {
+          "X-Chat-Spike": effectiveLevel,
+          "X-Poll-Interval": String(getPollIntervalSeconds(effectiveLevel)),
+        };
+      }
+    } catch {
+      // Non-fatal: spike headers are best-effort.
+    }
+
     return NextResponse.json(result, {
       status: 200,
-      headers: cacheHeaders("chatWindow"),
+      headers: { ...cacheHeaders("chatWindow"), ...spikeHeaders },
     });
   } catch (error) {
     console.error("Get chat messages error:", error);

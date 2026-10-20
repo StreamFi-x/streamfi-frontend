@@ -1,4 +1,6 @@
 import type { BackgroundJob } from "./definition";
+import { liveFanoutJob } from "./definitions/live-fanout";
+import { streamOfflineCleanupJob } from "./definitions/stream-offline-cleanup";
 import {
   tipRefreshCreatorJob,
   tipTotalReconciliationJob,
@@ -13,6 +15,8 @@ import {
 export const JOBS: readonly BackgroundJob<any, unknown>[] = [
   tipTotalReconciliationJob,
   tipRefreshCreatorJob,
+  liveFanoutJob,
+  streamOfflineCleanupJob,
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see JOBS
