@@ -12,6 +12,7 @@ import {
 } from "@stellar/stellar-sdk";
 import { logger } from "@/lib/tracing/logger";
 import { getTraceHeaders } from "@/lib/tracing/trace-context";
+import { calculateSpendableBalance } from "./reserve";
 
 const Server = Horizon.Server;
 
@@ -829,6 +830,9 @@ export interface BalanceCheckResult {
 /**
  * Checks an account's balance against an amount and fee, explicitly distinguishing
  * unfunded accounts (Horizon 404) from funded accounts with insufficient balances (Issue #781).
+ *
+ * Uses spendable balance (raw balance minus Stellar's minimum reserve requirement)
+ * to ensure the balance check reflects what the user can actually spend (Issue #1164).
  */
 export async function checkAccountBalance(
   publicKey: string,
@@ -849,17 +853,18 @@ export async function checkAccountBalance(
       };
     }
 
-    const balance = parseFloat(nativeBalance.balance);
+    // Use spendable balance (raw - reserve) for the actual affordability check
+    const spendableBalance = parseFloat(calculateSpendableBalance(account));
     const fee = calculateFeeEstimate(
       feeStroops ?? (await getRecommendedFeeStroops(network))
     );
     const required = parseFloat(amount) + fee;
-    const isInsufficient = balance < required;
+    const isInsufficient = spendableBalance < required;
 
     return {
       insufficient: isInsufficient,
       status: isInsufficient ? "insufficient_balance" : "ok",
-      balance,
+      balance: spendableBalance,
       required,
     };
   } catch (error: any) {
