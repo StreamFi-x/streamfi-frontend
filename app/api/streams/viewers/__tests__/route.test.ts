@@ -175,6 +175,55 @@ describe("/api/streams/viewers", () => {
       expect(res.status).toBe(201);
       const body = await res.json();
       expect(body.currentViewers).toBe(42);
+
+      // Verify stream_viewers insert includes country
+      const insertCall = sqlMock.mock.calls.find(call =>
+        call[0].join("").includes("INSERT INTO stream_viewers")
+      );
+      expect(insertCall).toBeDefined();
+      expect(insertCall[0].join("")).toContain("country");
+      expect(insertCall).toContain("US");
+    });
+
+    it("populates country from CF-IPCountry header if present", async () => {
+      const session = createViewerSession("playback-1");
+      sqlMock
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: "user-1",
+              username: "creator",
+              is_live: true,
+              session_id: "ss-1",
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ current_viewers: 10 }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const req = new Request("http://localhost/api/streams/viewers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "cf-ipcountry": "GB",
+        },
+        body: JSON.stringify({
+          playbackId: "playback-1",
+          sessionId: session.sessionId,
+          token: session.token,
+        }),
+      }) as unknown as import("next/server").NextRequest;
+
+      const res = await POST(req);
+      expect(res.status).toBe(201);
+
+      const insertCall = sqlMock.mock.calls.find(call =>
+        call[0].join("").includes("INSERT INTO stream_viewers")
+      );
+      expect(insertCall).toBeDefined();
+      expect(insertCall).toContain("GB");
     });
   });
 

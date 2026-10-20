@@ -12,14 +12,16 @@ jest.mock("@/lib/resilience/breakers", () => ({
   }),
 }));
 
-const mockCreate = jest.fn();
-const mockRetrieve = jest.fn();
+const mockLiveStreamOps = {
+  create: jest.fn(),
+  retrieve: jest.fn(),
+};
 jest.mock("@mux/mux-node", () => {
   return jest.fn().mockImplementation(() => ({
     video: {
       liveStreams: {
-        create: mockCreate,
-        retrieve: mockRetrieve,
+        create: (...args: any[]) => mockLiveStreamOps.create(...args),
+        retrieve: (...args: any[]) => mockLiveStreamOps.retrieve(...args),
       },
     },
   }));
@@ -43,7 +45,7 @@ describe("Issues #1618, #1616, #1615, #1614 verification", () => {
 
   describe("Issue #1616: Signed Mux playback policy & password hashing & webhook prod guard", () => {
     it("createMuxStream includes signed playback policy when withSignedPlayback is true", async () => {
-      mockCreate.mockResolvedValueOnce({
+      mockLiveStreamOps.create.mockResolvedValueOnce({
         id: "stream-123",
         stream_key: "key-123",
         status: "idle",
@@ -58,7 +60,7 @@ describe("Issues #1618, #1616, #1615, #1614 verification", () => {
         withSignedPlayback: true,
       });
 
-      expect(mockCreate).toHaveBeenCalledWith(
+      expect(mockLiveStreamOps.create).toHaveBeenCalledWith(
         expect.objectContaining({
           playback_policy: ["public", "signed"],
         }),
@@ -69,7 +71,7 @@ describe("Issues #1618, #1616, #1615, #1614 verification", () => {
     });
 
     it("getMuxStream retrieves signedPlaybackId if available", async () => {
-      mockRetrieve.mockResolvedValueOnce({
+      mockLiveStreamOps.retrieve.mockResolvedValueOnce({
         id: "stream-123",
         stream_key: "key-123",
         status: "active",

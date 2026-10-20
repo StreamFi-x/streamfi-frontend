@@ -180,6 +180,14 @@ function calculateMinReceiveWithSlippage(
   return result;
 }
 
+/**
+ * Minimum and maximum tip amounts allowed before transaction construction.
+ * Enforces safety ceilings across all entry points before signing.
+ */
+export const MIN_TIP_AMOUNT_XLM = 0.0000001;
+export const MAX_TIP_AMOUNT_XLM = 10_000;
+export const MAX_TIP_AMOUNT_USDC = 10_000;
+
 export async function buildTipTransaction(
   params: BuildTipTransactionParams
 ): Promise<Transaction> {
@@ -204,8 +212,13 @@ export async function buildTipTransaction(
     const networkPassphrase = getNetworkPassphrase(network);
 
     const normalizedAmount = Number(amount);
-    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
-      throw new Error("Amount must be greater than 0");
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount < MIN_TIP_AMOUNT_XLM) {
+      throw new Error(`Amount must be at least ${MIN_TIP_AMOUNT_XLM} XLM`);
+    }
+    if (normalizedAmount > MAX_TIP_AMOUNT_XLM) {
+      throw new Error(
+        `Amount is too large. Maximum is ${MAX_TIP_AMOUNT_XLM.toLocaleString()} XLM`
+      );
     }
 
     const sourceAccount = await server.loadAccount(sourcePublicKey);
@@ -279,6 +292,11 @@ export async function buildUsdcTipTransaction(
     const normalizedAmount = Number(amount);
     if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
       throw new Error("Amount must be greater than 0");
+    }
+    if (normalizedAmount > MAX_TIP_AMOUNT_USDC) {
+      throw new Error(
+        `Amount is too large. Maximum is ${MAX_TIP_AMOUNT_USDC.toLocaleString()} USDC`
+      );
     }
 
     const sourceAccount = await server.loadAccount(sourcePublicKey);
@@ -376,6 +394,11 @@ export async function buildPathPaymentTipTransaction(
       receiveNum <= 0
     ) {
       throw new Error("Amounts must be valid positive numbers");
+    }
+    if (sendNum > MAX_TIP_AMOUNT_XLM || receiveNum > MAX_TIP_AMOUNT_XLM) {
+      throw new Error(
+        `Tip amount exceeds maximum ceiling of ${MAX_TIP_AMOUNT_XLM.toLocaleString()}`
+      );
     }
 
     // Load source account
@@ -610,8 +633,30 @@ export function isValidStellarPublicKey(publicKey: string): boolean {
  * @param amount - Amount to format
  * @returns Formatted amount string
  */
-export function formatXLMAmount(amount: number): string {
-  return amount.toFixed(7);
+export function formatXLMAmount(amount: number | string | bigint): string {
+  if (typeof amount === "bigint") {
+    const negative = amount < BigInt(0);
+    const abs = negative ? -amount : amount;
+    const whole = abs / BigInt(10_000_000);
+    const fraction = (abs % BigInt(10_000_000)).toString().padStart(7, "0");
+    return `${negative ? "-" : ""}${whole}.${fraction}`;
+  }
+
+  const str = String(amount).trim();
+  const match = /^(-?)(\d*)(?:\.(\d*))?$/.exec(str);
+  if (!match) {
+    const num = Number(amount);
+    return isNaN(num) ? "0.0000000" : num.toFixed(7);
+  }
+
+  const [, sign, whole, fraction = ""] = match;
+  const stroops =
+    BigInt(whole || "0") * BigInt(10_000_000) +
+    BigInt((fraction + "0000000").slice(0, 7));
+  const negative = sign === "-";
+  const wholePart = stroops / BigInt(10_000_000);
+  const fracPart = (stroops % BigInt(10_000_000)).toString().padStart(7, "0");
+  return `${negative ? "-" : ""}${wholePart}.${fracPart}`;
 }
 
 const STROOPS_PER_XLM = 10_000_000;
@@ -753,20 +798,55 @@ export async function getXLMPrice(): Promise<number> {
 }
 
 /**
- * Check if the account has insufficient balance for the payment and fee
+ * Error thrown when an account has not been activated on the Stellar network (Horizon 404).
  */
-export async function hasInsufficientBalance(
+export class AccountNotFundedError extends Error {
+  readonly code = "account_not_funded";
+  readonly account: string;
+  constructor(account: string, message?: string) {
+    super(
+      message ??
+        `Account ${account} is not funded on the Stellar network. It must be activated with the minimum reserve before transactions can be sent.`
+    );
+    this.name = "AccountNotFundedError";
+    this.account = account;
+  }
+}
+
+export type BalanceCheckStatus =
+  | "ok"
+  | "insufficient_balance"
+  | "account_not_funded";
+
+export interface BalanceCheckResult {
+  insufficient: boolean;
+  status: BalanceCheckStatus;
+  balance?: number;
+  required?: number;
+  error?: string;
+}
+
+/**
+ * Checks an account's balance against an amount and fee, explicitly distinguishing
+ * unfunded accounts (Horizon 404) from funded accounts with insufficient balances (Issue #781).
+ */
+export async function checkAccountBalance(
   publicKey: string,
   amount: string,
   feeStroops?: number
-): Promise<boolean> {
+): Promise<BalanceCheckResult> {
   try {
     const network = getCurrentNetwork();
     const server = getServer(network);
     const account = await server.loadAccount(publicKey);
     const nativeBalance = account.balances.find(b => b.asset_type === "native");
     if (!nativeBalance) {
-      return true;
+      return {
+        insufficient: true,
+        status: "insufficient_balance",
+        balance: 0,
+        required: parseFloat(amount),
+      };
     }
 
     const balance = parseFloat(nativeBalance.balance);
@@ -774,10 +854,54 @@ export async function hasInsufficientBalance(
       feeStroops ?? (await getRecommendedFeeStroops(network))
     );
     const required = parseFloat(amount) + fee;
-    return balance < required;
-  } catch (error) {
-    // If account doesn't exist, it definitely has insufficient balance
-    console.error("Failed to check balance:", error);
-    return true;
+    const isInsufficient = balance < required;
+
+    return {
+      insufficient: isInsufficient,
+      status: isInsufficient ? "insufficient_balance" : "ok",
+      balance,
+      required,
+    };
+  } catch (error: any) {
+    const isNotFound =
+      error?.response?.status === 404 ||
+      (typeof error?.message === "string" &&
+        (error.message.includes("Account not found") ||
+          error.message.includes("404") ||
+          error.message.includes("not found")));
+
+    if (isNotFound) {
+      logger.warn("Stellar account not funded / not found", {
+        publicKey: publicKey.substring(0, 8),
+      });
+      return {
+        insufficient: true,
+        status: "account_not_funded",
+        error: `Account ${publicKey} has not been funded on the network.`,
+      };
+    }
+
+    logger.error("Failed to check balance:", error);
+    return {
+      insufficient: true,
+      status: "insufficient_balance",
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
+}
+
+/**
+ * Check if the account has insufficient balance for the payment and fee.
+ * Throws AccountNotFundedError if the account does not exist on Horizon (Issue #781).
+ */
+export async function hasInsufficientBalance(
+  publicKey: string,
+  amount: string,
+  feeStroops?: number
+): Promise<boolean> {
+  const result = await checkAccountBalance(publicKey, amount, feeStroops);
+  if (result.status === "account_not_funded") {
+    throw new AccountNotFundedError(publicKey);
+  }
+  return result.status === "insufficient_balance";
 }

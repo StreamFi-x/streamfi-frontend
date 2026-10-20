@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "follow") {
-      await sql`
+      const followResult = await sql`
         INSERT INTO user_follows (follower_id, followee_id)
         VALUES (${callerId}, ${receiverId})
         ON CONFLICT DO NOTHING
@@ -76,20 +76,29 @@ export async function POST(req: NextRequest) {
         console.error("[follow] badge evaluation failed:", badgeErr);
       }
 
-      // Write notification — awaited so it completes before response is sent
-      try {
-        // Check if user has follow notifications enabled
-        const shouldSend = await shouldSendInAppNotification(receiverId, "follow", { sql });
-        if (shouldSend) {
-          await writeTemplatedNotification(
+      // Write notification only if this follow was newly created (not a retried/duplicate click)
+      if (followResult.rowCount > 0) {
+        try {
+          // Check if user has follow notifications enabled
+          const shouldSend = await shouldSendInAppNotification(
             receiverId,
             "follow",
-            { actor: callerUsername },
             { sql }
           );
+          if (shouldSend) {
+            const idempotencyKey = `follow:${callerId}:${receiverId}:${Math.floor(Date.now() / 60000)}`;
+            await writeTemplatedNotification(
+              receiverId,
+              "follow",
+              { actor: callerUsername },
+              { sql },
+              "en",
+              { idempotencyKey }
+            );
+          }
+        } catch (notifErr) {
+          console.error("[follow] notification write failed:", notifErr);
         }
-      } catch (notifErr) {
-        console.error("[follow] notification write failed:", notifErr);
       }
 
       return NextResponse.json({ message: "Followed successfully" });

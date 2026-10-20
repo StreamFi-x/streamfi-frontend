@@ -51,15 +51,32 @@ ALTER TABLE users
 ADD COLUMN IF NOT EXISTS stream_access_type TEXT DEFAULT 'public'
 CHECK (stream_access_type IN ('public', 'password', 'subscription'));
 
+-- Creator-defined subscription tiers (price points, labels).
+-- Referenced by subscriptions below; must precede it.
+CREATE TABLE IF NOT EXISTS subscription_tiers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  price_usdc NUMERIC(10,2) NOT NULL,
+  description TEXT,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Active subscriptions: one row per purchased subscription period.
+-- Stellar does not support recurring billing natively, so each row is a
+-- one-time time-bounded purchase; renewal = new row with new expires_at.
+-- Shape matches db/migrations/add-stream-privacy-and-subs.sql (authoritative).
 CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  subscriber_id UUID REFERENCES users(id),
-  streamer_id UUID REFERENCES users(id),
-  price_usdc NUMERIC(10,2) NOT NULL,
-  status TEXT NOT NULL,
-  current_period_end TIMESTAMPTZ NOT NULL,
-  tx_hash TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  subscriber_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  creator_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tier_id UUID REFERENCES subscription_tiers(id) ON DELETE SET NULL,
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  payment_tx_hash VARCHAR(255),
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS stream_sessions (
@@ -84,12 +101,18 @@ CREATE TABLE IF NOT EXISTS stream_sessions (
     avg_bitrate INTEGER,
     resolution VARCHAR(20),
     
+    -- Per-stream latency configuration
+    -- 'low' = low-latency (3-5s delay, no DVR/rewind)
+    -- 'standard' = standard latency (10-15s delay, DVR/rewind enabled)
+    -- NULL falls back to user's global preference
+    latency_mode VARCHAR(10),
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS chat_messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE CASCADE,
     
     content TEXT NOT NULL,
@@ -199,6 +222,13 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created
 CREATE INDEX IF NOT EXISTS idx_chat_messages_not_deleted ON chat_messages(stream_session_id) WHERE is_deleted = FALSE;
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session_window ON chat_messages(stream_session_id, created_at DESC) WHERE is_deleted = FALSE;
 CREATE INDEX IF NOT EXISTS idx_users_mux_playback_id ON users(mux_playback_id);
+-- idx_users_mux_stream_id and idx_stream_sessions_mux_session_id replace the
+-- Livepeer-era indexes dropped by 20260925190100_retire_livepeer_columns.sql (#766).
+CREATE INDEX IF NOT EXISTS idx_users_mux_stream_id ON users(mux_stream_id);
+CREATE INDEX IF NOT EXISTS idx_stream_sessions_mux_session_id ON stream_sessions(mux_session_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_subscriber ON subscriptions(subscriber_id, creator_id) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_subscriptions_creator ON subscriptions(creator_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_expires ON subscriptions(expires_at) WHERE status = 'active';
 CREATE INDEX IF NOT EXISTS idx_stream_sessions_open_by_user ON stream_sessions(user_id, started_at DESC) WHERE ended_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_stream_viewers_session ON stream_viewers(stream_session_id);
 CREATE INDEX IF NOT EXISTS idx_stream_viewers_user_id ON stream_viewers(user_id);
@@ -210,6 +240,7 @@ CREATE INDEX IF NOT EXISTS idx_verification_tokens_expires ON verification_token
 CREATE INDEX IF NOT EXISTS idx_waitlist_email ON waitlist(email);
 CREATE INDEX IF NOT EXISTS idx_waitlist_subscribed_at ON waitlist(subscribed_at);
 CREATE INDEX IF NOT EXISTS idx_stream_categories_title ON stream_categories(title);
+CREATE INDEX IF NOT EXISTS idx_stream_categories_title_lower ON stream_categories(LOWER(title));
 CREATE INDEX IF NOT EXISTS idx_stream_categories_active ON stream_categories(is_active);
 CREATE INDEX IF NOT EXISTS idx_tags_title ON tags(title);
 CREATE INDEX IF NOT EXISTS idx_tags_title_lower ON tags(LOWER(title));
@@ -220,6 +251,8 @@ CREATE INDEX IF NOT EXISTS idx_stream_recordings_playback_id ON stream_recording
 CREATE INDEX IF NOT EXISTS idx_stream_recordings_created_at ON stream_recordings(created_at DESC);
 
 
+-- Initial bootstrap reference data. Canonical versions are maintained and versioned
+-- in db/seeds/ and applied via db/migrations.
 INSERT INTO stream_categories (title, description, tags) VALUES
 ('Gaming', 'Video game streaming and gameplay', ARRAY['gaming', 'esports', 'gameplay']),
 ('Technology', 'Tech talks, coding, and development', ARRAY['coding', 'programming', 'tech']),
@@ -229,7 +262,11 @@ INSERT INTO stream_categories (title, description, tags) VALUES
 ('Art & Design', 'Creative content and design work', ARRAY['art', 'design', 'creative']),
 ('Business', 'Business discussions and entrepreneurship', ARRAY['business', 'startup', 'entrepreneur']),
 ('Lifestyle', 'Lifestyle and personal content', ARRAY['lifestyle', 'personal', 'vlog'])
-ON CONFLICT (title) DO NOTHING;
+ON CONFLICT (title) DO UPDATE SET
+  description = EXCLUDED.description,
+  tags = EXCLUDED.tags
+WHERE stream_categories.description IS DISTINCT FROM EXCLUDED.description
+   OR stream_categories.tags IS DISTINCT FROM EXCLUDED.tags;
 
 
 CREATE OR REPLACE FUNCTION cleanup_expired_tokens()

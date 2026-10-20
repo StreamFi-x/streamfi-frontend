@@ -1,5 +1,6 @@
 import { logger } from "@/lib/tracing/logger";
 import { callHorizon } from "./horizon-client";
+import { toStroops, fromStroops } from "./tip-reconciliation";
 
 interface FetchPaymentsParams {
   publicKey: string;
@@ -115,7 +116,7 @@ export async function getAccountTipStats(publicKey: string) {
       server.payments().forAccount(publicKey).order("desc").limit(200).call()
     );
 
-    let totalTipsReceived = 0;
+    let totalTipsStroops = BigInt(0);
     let totalTipsCount = 0;
     let lastTipAt: Date | null = null;
 
@@ -131,7 +132,12 @@ export async function getAccountTipStats(publicKey: string) {
     });
 
     tipRecords.forEach((record: any) => {
-      totalTipsReceived += parseFloat(record.amount);
+      try {
+        totalTipsStroops += toStroops(record.amount);
+      } catch {
+        // Fallback for unexpected number formatting
+        totalTipsStroops += BigInt(Math.round(parseFloat(record.amount || "0") * 10_000_000));
+      }
       totalTipsCount += 1;
 
       const createdAt = new Date(record.created_at);
@@ -144,12 +150,12 @@ export async function getAccountTipStats(publicKey: string) {
     logger.info("Account tip stats fetched from Stellar", {
       operation: "getAccountTipStats",
       totalTipsCount,
-      totalTipsReceived,
+      totalTipsStroops: totalTipsStroops.toString(),
       durationMs,
     });
 
     return {
-      totalTipsReceived: totalTipsReceived.toFixed(7),
+      totalTipsReceived: fromStroops(totalTipsStroops),
       totalTipsCount,
       lastTipAt: lastTipAt ? (lastTipAt as Date).toISOString() : null,
     };

@@ -42,7 +42,7 @@ export async function captureAdminAnalyticsSnapshot(): Promise<AdminAnalyticsSna
         (SELECT COUNT(*) FROM users WHERE is_live = true) AS live_streams_count,
         (SELECT COUNT(*) FROM stream_reports WHERE status = 'pending') AS pending_stream_reports,
         (SELECT COUNT(*) FROM bug_reports WHERE status = 'pending') AS pending_bug_reports,
-        (SELECT COUNT(*) FROM users WHERE created_at > now() - INTERVAL '7 days') AS new_users_count,
+        (SELECT COUNT(*) FROM users WHERE is_banned = false AND created_at > now() - INTERVAL '7 days') AS new_users_count,
         (SELECT COUNT(*) FROM stream_categories) AS total_categories
     `;
 
