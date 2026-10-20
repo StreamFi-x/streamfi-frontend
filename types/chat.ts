@@ -1,4 +1,5 @@
 import { StellarPublicKey } from "@/types/user";
+import type { SpikeLevel } from "@/lib/chat-spike";
 
 /** Message as returned by the chat API */
 export interface ChatMessageAPI {
@@ -60,4 +61,14 @@ export interface UseChatReturn {
   isLoading: boolean;
   isSending: boolean;
   error: string | null;
+  retryAfterMs?: number;
+  /** Current spike level for this stream (for degradation banner) */
+  spikeLevel: SpikeLevel;
+  /**
+   * True when the spike level is critical, meaning cosmetic typing indicators
+   * and presence updates should be suppressed to reduce load.
+   */
+  shedTypingIndicators: boolean;
 }
+
+export type { SpikeLevel };

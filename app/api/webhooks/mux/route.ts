@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
-import { loadSecretKeyring } from "@/lib/security/keyring";
 import { handleMuxWebhook } from "@/lib/mux/webhook";
 import {
   assetHandlers,

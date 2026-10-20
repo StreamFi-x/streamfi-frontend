@@ -7,6 +7,7 @@ import { ViewStreamSkeleton } from "@/components/skeletons/ViewStreamSkeleton";
 import AccessGate from "@/components/stream/AccessGate";
 import { toast } from "sonner";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { useStreamStatus } from "@/hooks/useStreamStatus";
 
 interface PageProps {
   params: Promise<{ username: string }>;
@@ -42,6 +43,22 @@ const WatchPage = ({ params }: PageProps) => {
   const [followLoading, setFollowLoading] = useState(false);
   const [loggedInUsername, setLoggedInUsername] = useState<string | null>(null);
   const [accessGranted, setAccessGranted] = useState(false);
+  const [offlineBannerDismissed, setOfflineBannerDismissed] = useState(false);
+
+  // Push-based live status: initialises from the poll value and updates
+  // immediately when a stream:ended SSE event arrives.
+  const { isLive: pushIsLive } = useStreamStatus(
+    userData?.mux_playback_id ?? null,
+    userData?.is_live ?? false
+  );
+  const effectiveIsLive = pushIsLive;
+
+  // Track whether the stream was ever live so we can show the offline banner
+  // only after a viewer has witnessed it go from live → offline.
+  const wasLiveRef = useRef(false);
+  if (effectiveIsLive) {
+    wasLiveRef.current = true;
+  }
 
   const handleAccessGranted = useCallback(() => {
     setAccessGranted(true);
@@ -304,21 +321,59 @@ const WatchPage = ({ params }: PageProps) => {
     stellarAddress: userData.stellar_address || "",
     playbackId: userData.mux_playback_id,
     latencyMode: userData.latency_mode || "low",
-    isLive: userData.is_live,
+    isLive: effectiveIsLive,
   };
 
+  const showOfflineBanner =
+    !effectiveIsLive && wasLiveRef.current && !offlineBannerDismissed;
+
   return (
-    <ViewStream
-      username={username}
-      isLive={userData.is_live}
-      isOwner={isOwner}
-      userData={transformedUserData}
-      isFollowing={isFollowing}
-      followerCount={userData.follower_count ?? 0}
-      onFollow={handleFollow}
-      onUnfollow={handleUnfollow}
-      followLoading={followLoading}
-    />
+    <>
+      {showOfflineBanner && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 16px",
+            background: "#1a1a1a",
+            borderBottom: "1px solid #333",
+            color: "#e5e5e5",
+            fontSize: "14px",
+          }}
+        >
+          <span>Stream has ended — the streamer went offline</span>
+          <button
+            onClick={() => setOfflineBannerDismissed(true)}
+            aria-label="Dismiss offline notification"
+            style={{
+              background: "none",
+              border: "none",
+              color: "#999",
+              cursor: "pointer",
+              fontSize: "16px",
+              lineHeight: 1,
+              padding: "0 4px",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      <ViewStream
+        username={username}
+        isLive={effectiveIsLive}
+        isOwner={isOwner}
+        userData={transformedUserData}
+        isFollowing={isFollowing}
+        followerCount={userData.follower_count ?? 0}
+        onFollow={handleFollow}
+        onUnfollow={handleUnfollow}
+        followLoading={followLoading}
+      />
+    </>
   );
 };
 
