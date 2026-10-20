@@ -13,6 +13,7 @@ const bodySchema = z.object({
   destinationPublicKey: z.string(),
   amount: z.string().regex(/^\d+(\.\d+)?$/),
   memo: z.string().optional(),
+  quote_token: z.string().optional(),
 });
 
 const handler = async (req: NextRequest): Promise<NextResponse> => {
@@ -22,6 +23,7 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
 
   const traceContext = getCurrentTraceContext();
   const traceId = traceContext?.traceId;
+  let quoteToken: string | undefined;
 
   try {
     logger.info('Tip send request received', {
@@ -70,6 +72,103 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
       destinationPublicKey: destinationPublicKey.substring(0, 8),
       amount,
     });
+
+    // 2.5. Validate quote if provided
+    const providedQuoteToken = (validation.data as any).quote_token;
+    if (providedQuoteToken) {
+      quoteToken = providedQuoteToken;
+      logger.info('Quote token provided, validating quote', {
+        quoteToken: quoteToken.substring(0, 16),
+      });
+
+      try {
+        const quoteResult = await sql`
+          SELECT 
+            id,
+            quoted_xlm_amount,
+            expires_at,
+            status,
+            consumed_at
+          FROM exchange_rate_quotes
+          WHERE quote_token = ${quoteToken}
+          LIMIT 1
+        `;
+
+        if (quoteResult.rows.length === 0) {
+          logger.warn('Quote not found or already used', {
+            quoteToken: quoteToken.substring(0, 16),
+          });
+          return NextResponse.json(
+            { error: 'Quote not found or already used' },
+            { status: 400, headers: { 'x-request-id': traceId || '' } }
+          );
+        }
+
+        const quote = quoteResult.rows[0] as any;
+
+        // Check if quote is expired
+        const expiresAt = new Date(quote.expires_at);
+        if (expiresAt < new Date()) {
+          logger.warn('Quote has expired', {
+            expiresAt: quote.expires_at,
+          });
+          return NextResponse.json(
+            { error: 'Quote expired' },
+            { status: 400, headers: { 'x-request-id': traceId || '' } }
+          );
+        }
+
+        // Check if quote has already been consumed
+        if (quote.status === 'consumed') {
+          logger.warn('Quote already consumed', {
+            quoteToken: quoteToken.substring(0, 16),
+            consumedAt: quote.consumed_at,
+          });
+          return NextResponse.json(
+            { error: 'Quote not found or already used' },
+            { status: 400, headers: { 'x-request-id': traceId || '' } }
+          );
+        }
+
+        // Check if the amount matches the quoted amount (allow 0.1% tolerance)
+        const quotedAmount = parseFloat(quote.quoted_xlm_amount);
+        const requestAmount = parseFloat(amount);
+        const tolerance = quotedAmount * 0.001; // 0.1%
+
+        if (Math.abs(requestAmount - quotedAmount) > tolerance) {
+          logger.warn('Amount mismatch with quote', {
+            requestAmount,
+            quotedAmount,
+            difference: Math.abs(requestAmount - quotedAmount),
+            tolerance,
+          });
+          return NextResponse.json(
+            { error: 'Amount does not match quote' },
+            { status: 400, headers: { 'x-request-id': traceId || '' } }
+          );
+        }
+
+        logger.info('Quote validated successfully', {
+          quotedAmount,
+          requestAmount,
+        });
+      } catch (error) {
+        if ((error as any).message?.includes('Quote')) {
+          throw error; // Re-throw our validation errors
+        }
+        logger.error('Failed to validate quote', {
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+        return NextResponse.json(
+          { error: 'Failed to validate quote' },
+          { status: 500, headers: { 'x-request-id': traceId || '' } }
+        );
+      }
+    } else {
+      logger.warn('No quote token provided for tip submission', {
+        amount,
+      });
+    }
 
     // 3. Query database to get sender's Stellar public key
     logger.debug('Querying database for user wallet', {
@@ -210,6 +309,28 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
         errorMessage: dbError.message,
       });
       // Non-critical
+    }
+
+    // 8. Mark quote as consumed if one was provided
+    if (quoteToken) {
+      try {
+        await sql`
+          UPDATE exchange_rate_quotes
+          SET status = 'consumed', consumed_at = NOW()
+          WHERE quote_token = ${quoteToken}
+        `;
+
+        logger.info('Quote marked as consumed', {
+          quoteToken: quoteToken.substring(0, 16),
+          txHash: result.hash,
+        });
+      } catch (error) {
+        dbError = error instanceof Error ? error : new Error(String(error));
+        logger.warn('Failed to mark quote as consumed', {
+          errorMessage: dbError.message,
+        });
+        // Non-critical - quote will eventually expire
+      }
     }
 
     logger.info('Tip send completed successfully', {
