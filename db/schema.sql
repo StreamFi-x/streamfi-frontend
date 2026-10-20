@@ -101,6 +101,12 @@ CREATE TABLE IF NOT EXISTS stream_sessions (
     avg_bitrate INTEGER,
     resolution VARCHAR(20),
     
+    -- Per-stream latency configuration
+    -- 'low' = low-latency (3-5s delay, no DVR/rewind)
+    -- 'standard' = standard latency (10-15s delay, DVR/rewind enabled)
+    -- NULL falls back to user's global preference
+    latency_mode VARCHAR(10),
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
