@@ -145,9 +145,14 @@ export async function POST(req: Request) {
 
             if (existingSession.rows.length === 0) {
               const streamTitle =
-                user.creator?.title ||
                 user.creator?.streamTitle ||
+                user.creator?.title ||
                 "Live Stream";
+              if (!user.creator?.streamTitle && !user.creator?.title) {
+                console.warn(
+                  `⚠️ No streamTitle or title found in creator JSON for user ${user.id} — falling back to "Live Stream". Check for schema drift in the creator column.`
+                );
+              }
 
               await sql`
                 INSERT INTO stream_sessions (user_id, title, playback_id, started_at, mux_session_id)
@@ -275,6 +280,11 @@ export async function POST(req: Request) {
               userId = u.id;
               sessionTitle =
                 u.creator?.streamTitle ?? u.creator?.title ?? sessionTitle;
+              if (!u.creator?.streamTitle && !u.creator?.title) {
+                console.warn(
+                  `⚠️ No streamTitle or title found in creator JSON for user ${u.id} — falling back to default title. Check for schema drift in the creator column.`
+                );
+              }
               const sessionResult = await sql`
                 SELECT id FROM stream_sessions
                 WHERE user_id = ${u.id} AND ended_at IS NOT NULL
