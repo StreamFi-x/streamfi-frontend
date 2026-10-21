@@ -48,3 +48,16 @@ export function listActiveTimeouts(stream_id: string): TimeoutListItem[] {
 
   return results;
 }
+
+/** True while the user has an unexpired timeout on this stream. */
+export function isTimedOut(stream_id: string, user_id: string): boolean {
+  const entry = timeoutStore.get(key(stream_id, user_id));
+  if (!entry) {
+    return false;
+  }
+  if (new Date(entry.expires_at).getTime() <= Date.now()) {
+    timeoutStore.delete(key(stream_id, user_id));
+    return false;
+  }
+  return true;
+}

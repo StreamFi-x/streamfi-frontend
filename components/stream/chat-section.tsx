@@ -25,6 +25,12 @@ interface ChatSectionProps {
   isLoadingOlder?: boolean;
   /** Current spike level — renders a degradation banner when not 'normal' */
   spikeLevel?: SpikeLevel;
+  /** Aggregated "who is typing" text; hidden when null/undefined */
+  typingLabel?: string | null;
+  /** Reports every change of the input value (drives outgoing typing events) */
+  onTypingInput?: (value: string) => void;
+  /** Reports that the message was submitted (ends the outgoing typing state) */
+  onTypingStop?: () => void;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -43,6 +49,9 @@ const ChatSection = ({
   hasOlder = false,
   isLoadingOlder = false,
   spikeLevel,
+  typingLabel,
+  onTypingInput,
+  onTypingStop,
 }: ChatSectionProps) => {
   const [chatMessage, setChatMessage] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -89,6 +98,7 @@ const ChatSection = ({
       return;
     }
     onSendMessage(chatMessage);
+    onTypingStop?.();
     setChatMessage("");
     setShowEmojiPicker(false);
     if (chatContainerRef.current) {
@@ -108,7 +118,9 @@ const ChatSection = ({
   };
 
   const handleEmojiClick = (emoji: string) => {
-    setChatMessage(prev => prev + emoji);
+    const next = chatMessage + emoji;
+    setChatMessage(next);
+    onTypingInput?.(next);
   };
 
   if (!showChat) {
@@ -210,6 +222,15 @@ const ChatSection = ({
 
       {/* Chat input — always pinned at bottom */}
       <div className="border border-border p-3 border-t flex-shrink-0 relative">
+        {/* Fixed-height line so the list does not jump when the label appears */}
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="typing-indicator"
+          className="h-4 mb-1 text-xs text-muted-foreground truncate"
+        >
+          {typingLabel ?? ""}
+        </div>
         {/* Emoji picker */}
         {showEmojiPicker && isWalletConnected && (
           <div
@@ -254,7 +275,10 @@ const ChatSection = ({
             <input
               type="text"
               value={chatMessage}
-              onChange={e => setChatMessage(e.target.value)}
+              onChange={e => {
+                setChatMessage(e.target.value);
+                onTypingInput?.(e.target.value);
+              }}
               onKeyDown={handleKeyDown}
               placeholder="Send a message"
               disabled={isSending}

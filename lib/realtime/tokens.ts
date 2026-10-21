@@ -112,6 +112,7 @@ export function isChannelAllowedForUser(
       channel.endsWith(":presence") ||
       channel.endsWith(":status") ||
       channel.endsWith(":overlay") ||
+      channel.endsWith(":typing") ||
       channel.endsWith(":reactions") ||
       channel.endsWith(":reactions:aggregated"))
   ) {
