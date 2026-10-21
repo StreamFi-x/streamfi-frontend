@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { sql } from "@vercel/postgres";
+import { unstable_cache } from "next/cache";
+import { safeJsonLd } from "@/lib/security/json-ld";
 
 const BASE = "https://www.streamfi.media";
 
@@ -58,6 +60,62 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default function ClipLayout({ children }: Props) {
-  return <>{children}</>;
+type ClipRow = {
+  playback_id: string;
+  title: string | null;
+  bio: string | null;
+  duration: number | null;
+  created_at: string;
+};
+
+const fetchClip = (id: string): Promise<ClipRow | null> =>
+  unstable_cache(
+    async (): Promise<ClipRow | null> => {
+      try {
+        const { rows } = await sql`
+          SELECT r.playback_id, r.title, u.bio, r.duration, r.created_at
+          FROM stream_recordings r
+          JOIN users u ON u.id = r.user_id AND u.deleted_at IS NULL
+          WHERE r.id = ${id} AND r.status = 'ready'
+          LIMIT 1
+        `;
+        return (rows[0] as ClipRow) ?? null;
+      } catch {
+        return null;
+      }
+    },
+    ["clip-layout", id],
+    { revalidate: 3600 }
+  )();
+
+export default async function ClipLayout({ children, params }: Props) {
+  const { username, id } = await params;
+  const rec = await fetchClip(id);
+
+  const videoSchema = rec
+    ? {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        name: rec.title ?? `${username}'s Past Stream`,
+        description:
+          rec.bio?.trim() || `Watch ${username}'s past stream on StreamFi.`,
+        thumbnailUrl: `https://image.mux.com/${rec.playback_id}/thumbnail.jpg?width=1280&height=720&fit_mode=smartcrop`,
+        contentUrl: `https://stream.mux.com/${rec.playback_id}.m3u8`,
+        uploadDate: rec.created_at,
+        ...(rec.duration ? { duration: `PT${Math.round(rec.duration)}S` } : {}),
+        url: `${BASE}/${username}/clips/${id}`,
+      }
+    : null;
+
+  return (
+    <>
+      {videoSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(videoSchema) }}
+        />
+      )}
+      {children}
+    </>
+  );
 }

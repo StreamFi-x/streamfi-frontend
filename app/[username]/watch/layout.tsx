@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { sql } from "@vercel/postgres";
 import { unstable_cache } from "next/cache";
 import { CACHE_POLICIES, cacheTags } from "@/lib/cache";
+import { safeJsonLd } from "@/lib/security/json-ld";
 
 const BASE = "https://www.streamfi.media";
 
@@ -131,6 +132,43 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default function WatchLayout({ children }: Props) {
-  return <>{children}</>;
+export default async function WatchLayout({ children, params }: Props) {
+  const { username } = await params;
+  const user = await fetchWatchUser(username.toLowerCase());
+
+  const videoSchema =
+    user?.is_live && user.mux_playback_id
+      ? {
+          "@context": "https://schema.org",
+          "@type": "VideoObject",
+          name:
+            user.creator?.streamTitle?.trim() ||
+            user.creator?.title?.trim() ||
+            `${user.username}'s Live Stream`,
+          description:
+            user.creator?.description?.trim() ||
+            user.bio?.trim() ||
+            `Watch ${user.username} stream live on StreamFi.`,
+          thumbnailUrl: `https://image.mux.com/${user.mux_playback_id}/thumbnail.jpg?width=1280&height=720&fit_mode=smartcrop`,
+          uploadDate: new Date().toISOString(),
+          url: `${BASE}/${user.username}/watch`,
+          publication: {
+            "@type": "BroadcastEvent",
+            isLiveBroadcast: true,
+            startDate: new Date().toISOString(),
+          },
+        }
+      : null;
+
+  return (
+    <>
+      {videoSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(videoSchema) }}
+        />
+      )}
+      {children}
+    </>
+  );
 }
