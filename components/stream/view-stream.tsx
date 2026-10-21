@@ -40,6 +40,7 @@ import { ViewStreamSkeleton } from "../skeletons/ViewStreamSkeleton";
 import MuxPlayer from "@/components/MuxPlayerLazy";
 import ReportLiveStreamModal from "../modals/ReportLiveStreamModal";
 import { useChat } from "@/hooks/useChat";
+import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { TipButton, TipModalContainer } from "@/components/tipping";
 import { useTipModal } from "@/hooks/useTipModal";
 import { toast } from "sonner";
@@ -305,7 +306,13 @@ const ViewStream = ({
     hasOlder,
     isLoadingOlder,
     spikeLevel,
+    shedTypingIndicators,
   } = useChat(userData?.playbackId, address, isLive, true, userData?.id);
+  const { typingLabel, onInputChange, onMessageSent } = useTypingIndicator({
+    playbackId: userData?.playbackId,
+    wallet: address,
+    enabled: !!address && isLive && !shedTypingIndicators,
+  });
 
   // Stable refs so the native keydown listener always reads current values
   const chatOverlayMessageRef = useRef(chatOverlayMessage);
@@ -1166,6 +1173,9 @@ const ViewStream = ({
                   hasOlder={hasOlder}
                   isLoadingOlder={isLoadingOlder}
                   spikeLevel={spikeLevel}
+                  typingLabel={typingLabel}
+                  onTypingInput={onInputChange}
+                  onTypingStop={onMessageSent}
                 />
               </div>
             )}
@@ -1197,6 +1207,9 @@ const ViewStream = ({
                 hasOlder={hasOlder}
                 isLoadingOlder={isLoadingOlder}
                 spikeLevel={spikeLevel}
+                typingLabel={typingLabel}
+                onTypingInput={onInputChange}
+                onTypingStop={onMessageSent}
               />
             </div>
           )}

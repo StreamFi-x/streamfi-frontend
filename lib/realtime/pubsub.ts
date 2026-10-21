@@ -26,6 +26,18 @@ const channelSequenceCounters = new Map<string, number>();
 const MAX_HISTORY_PER_CHANNEL = 50;
 const CHANNEL_TTL_SECONDS = 3600; // 1 hour retention in Redis for recent reconnect catch-up
 
+// Ephemeral channels (typing indicators) are never replayed to reconnecting
+// clients: a stale "user is typing" is misleading. Redis keeps only a tiny,
+// very short-lived buffer so the cross-instance SSE poller can still deliver
+// the event, and nothing is retained in process memory.
+const EPHEMERAL_CHANNEL_SUFFIXES = [":typing"];
+const EPHEMERAL_MAX_HISTORY = 20;
+const EPHEMERAL_TTL_SECONDS = 10;
+
+export function isEphemeralChannel(channel: string): boolean {
+  return EPHEMERAL_CHANNEL_SUFFIXES.some(suffix => channel.endsWith(suffix));
+}
+
 /**
  * Generate a sequential sequence number per channel.
  */
@@ -67,14 +79,22 @@ export async function publishRealtimeMessage<T = any>(
     timestamp: Date.now(),
   };
 
+  const ephemeral = isEphemeralChannel(channel);
   const redis = getUpstashRedis();
   if (redis) {
     try {
       // Store in a capped list for replay on client reconnection
       const listKey = `realtime:history:${channel}`;
       await redis.lpush(listKey, JSON.stringify(message));
-      await redis.ltrim(listKey, 0, MAX_HISTORY_PER_CHANNEL - 1);
-      await redis.expire(listKey, CHANNEL_TTL_SECONDS);
+      await redis.ltrim(
+        listKey,
+        0,
+        (ephemeral ? EPHEMERAL_MAX_HISTORY : MAX_HISTORY_PER_CHANNEL) - 1
+      );
+      await redis.expire(
+        listKey,
+        ephemeral ? EPHEMERAL_TTL_SECONDS : CHANNEL_TTL_SECONDS
+      );
 
       // Publish notification key for active listeners
       await redis.publish(`realtime:channel:${channel}`, JSON.stringify(message));
@@ -88,14 +108,16 @@ export async function publishRealtimeMessage<T = any>(
   }
 
   // Also dispatch locally (for single process, testing, and memory listeners)
-  let history = localChannelHistory.get(channel);
-  if (!history) {
-    history = [];
-    localChannelHistory.set(channel, history);
-  }
-  history.unshift(message);
-  if (history.length > MAX_HISTORY_PER_CHANNEL) {
-    history.pop();
+  if (!ephemeral) {
+    let history = localChannelHistory.get(channel);
+    if (!history) {
+      history = [];
+      localChannelHistory.set(channel, history);
+    }
+    history.unshift(message);
+    if (history.length > MAX_HISTORY_PER_CHANNEL) {
+      history.pop();
+    }
   }
 
   const listeners = localSubscribers.get(channel);
@@ -119,6 +141,10 @@ export async function getRecentMessages(
   channel: string,
   sinceSeq?: number
 ): Promise<RealtimeMessage[]> {
+  if (isEphemeralChannel(channel)) {
+    return [];
+  }
+
   const redis = getUpstashRedis();
   if (redis) {
     try {
