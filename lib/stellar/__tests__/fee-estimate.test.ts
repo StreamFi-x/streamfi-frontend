@@ -42,6 +42,7 @@ function account(balance: string) {
     sequenceNumber: () => "1",
     incrementSequenceNumber: jest.fn(),
     balances: [{ asset_type: "native", balance }],
+    subentry_count: 0, // No trustlines for test account
   };
 }
 

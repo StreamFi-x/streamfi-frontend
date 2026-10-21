@@ -17,13 +17,13 @@ export async function GET(req: Request) {
   }
 
   try {
-    const { balance, activated } = await getNativeBalance(address);
+    const { balance, spendableBalance, activated } = await getNativeBalance(address);
     if (!activated) {
       // The account has never been funded (below minimum reserve).
-      return NextResponse.json({ balance: "0", unfunded: true });
+      return NextResponse.json({ balance: "0", spendableBalance: "0", unfunded: true });
     }
     return NextResponse.json(
-      { balance },
+      { balance, spendableBalance },
       {
         headers: { "Cache-Control": "private, max-age=5" },
       }

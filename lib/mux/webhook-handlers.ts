@@ -1,3 +1,4 @@
+import { defaultExecutor } from "@/lib/db/executor";
 import { writeNotification } from "@/lib/notifications";
 import { markMuxStreamLive, markMuxStreamOffline } from "@/lib/mux/live-state";
 import { upsertRecordingFromAsset } from "@/lib/mux/recordings";
@@ -7,6 +8,10 @@ import type {
   MuxWebhookEvent,
 } from "@/lib/mux/webhook";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { dispatchJob } from "@/lib/jobs/qstash";
+import { liveFanoutJob } from "@/lib/jobs/definitions/live-fanout";
+import { streamOfflineCleanupJob } from "@/lib/jobs/definitions/stream-offline-cleanup";
+import { publishRealtimeMessage } from "@/lib/realtime/pubsub";
 
 /**
  * Side-effecting Mux event handlers. Each runs inside the transaction opened
@@ -24,20 +29,86 @@ async function invalidateUsers(userIds: string[]): Promise<void> {
   }
 }
 
+/**
+ * Enqueue (after the live-state transaction commits) the async fan-out of
+ * "go live" notifications to every follower of each streamer (#1138). Runs
+ * outside the transaction so the webhook returns promptly; the queued job
+ * pages through the follower graph in batches and is idempotent per
+ * (creator, stream-session), so a webhook ↔ /api/streams/start race enqueues
+ * a single fan-out rather than two.
+ */
+async function dispatchLiveFanout(creatorIds: string[]): Promise<void> {
+  for (const creatorId of creatorIds) {
+    try {
+      const { rows } = await defaultExecutor(
+        `SELECT id FROM stream_sessions
+          WHERE user_id = $1 AND ended_at IS NULL
+          ORDER BY started_at DESC LIMIT 1`,
+        [creatorId]
+      );
+      const streamSessionId = (rows[0]?.id as string | undefined) ?? null;
+      const result = await dispatchJob(
+        liveFanoutJob,
+        { creatorId, streamSessionId },
+        {
+          deduplicationId: `live-fanout:${creatorId}:${new Date().toISOString().slice(0, 10)}`,
+        }
+      );
+      if (!result.dispatched) {
+        console.warn(
+          `[mux] live-fanout not dispatched for ${creatorId} (${result.reason})`
+        );
+      }
+    } catch (err) {
+      console.error(
+        `[mux] live-fanout dispatch failed for ${creatorId}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+}
+
 export const liveStreamHandlers: Record<string, MuxEventHandler> = {
   // The stream is actively broadcasting. This is when we mark the user live.
   "video.live_stream.active": async (tx, event, afterCommit) => {
     console.log(`🔴 Stream ACTIVE (broadcasting): ${streamId(event)}`);
     const userIds = await markMuxStreamLive(tx, streamId(event));
-    afterCommit?.(() => invalidateUsers(userIds));
+    afterCommit?.(async () => {
+      await invalidateUsers(userIds);
+      await dispatchLiveFanout(userIds);
+    });
     console.log("✅ Stream marked as LIVE");
   },
 
   // Stream is genuinely offline (reconnect window elapsed).
   "video.live_stream.idle": async (tx, event, afterCommit) => {
     console.log(`⚫ Stream OFFLINE (idle): ${streamId(event)}`);
-    const userIds = await markMuxStreamOffline(tx, streamId(event));
-    afterCommit?.(() => invalidateUsers(userIds));
+    const users = await markMuxStreamOffline(tx, streamId(event));
+    afterCommit?.(async () => {
+      for (const user of users) {
+        await invalidateUsers([user.id]);
+        if (user.mux_playback_id !== null) {
+          await publishRealtimeMessage(
+            `stream:${user.mux_playback_id}:status`,
+            "stream:ended",
+            {
+              playbackId: user.mux_playback_id,
+              endedAt: new Date().toISOString(),
+            }
+          );
+        }
+        const result = await dispatchJob(
+          streamOfflineCleanupJob,
+          { userId: user.id },
+          { deduplicationId: `stream-offline-cleanup:${user.id}` }
+        );
+        if (!result.dispatched) {
+          console.warn(
+            `[mux] stream-offline-cleanup not dispatched for ${user.id} (${result.reason})`
+          );
+        }
+      }
+    });
     console.log("✅ Stream marked as OFFLINE");
   },
 };

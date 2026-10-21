@@ -5,6 +5,7 @@ import type React from "react";
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { ChevronRight, Send, Smile, GiftIcon, LogIn } from "lucide-react";
 import type { ChatMessage } from "@/types/chat";
+import type { SpikeLevel } from "@/lib/chat-spike";
 import { EMOJI_CATEGORIES, CATEGORY_LABELS } from "@/lib/emoji-categories";
 
 interface ChatSectionProps {
@@ -22,6 +23,14 @@ interface ChatSectionProps {
   onLoadOlder?: () => void;
   hasOlder?: boolean;
   isLoadingOlder?: boolean;
+  /** Current spike level — renders a degradation banner when not 'normal' */
+  spikeLevel?: SpikeLevel;
+  /** Aggregated "who is typing" text; hidden when null/undefined */
+  typingLabel?: string | null;
+  /** Reports every change of the input value (drives outgoing typing events) */
+  onTypingInput?: (value: string) => void;
+  /** Reports that the message was submitted (ends the outgoing typing state) */
+  onTypingStop?: () => void;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -39,6 +48,10 @@ const ChatSection = ({
   onLoadOlder,
   hasOlder = false,
   isLoadingOlder = false,
+  spikeLevel,
+  typingLabel,
+  onTypingInput,
+  onTypingStop,
 }: ChatSectionProps) => {
   const [chatMessage, setChatMessage] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -85,6 +98,7 @@ const ChatSection = ({
       return;
     }
     onSendMessage(chatMessage);
+    onTypingStop?.();
     setChatMessage("");
     setShowEmojiPicker(false);
     if (chatContainerRef.current) {
@@ -104,7 +118,9 @@ const ChatSection = ({
   };
 
   const handleEmojiClick = (emoji: string) => {
-    setChatMessage(prev => prev + emoji);
+    const next = chatMessage + emoji;
+    setChatMessage(next);
+    onTypingInput?.(next);
   };
 
   if (!showChat) {
@@ -126,6 +142,17 @@ const ChatSection = ({
           </button>
         )}
       </div>
+
+      {/* Degradation banner — shown when chat is under heavy load */}
+      {spikeLevel && spikeLevel !== "normal" && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="text-xs text-center px-2 py-1 bg-amber-500/20 text-amber-400 border-b border-amber-500/30 flex-shrink-0"
+        >
+          ⚡ Chat is experiencing high traffic — messages may be slower than usual
+        </div>
+      )}
 
       {/* Chat messages — absolute inset-0 fills exactly the space between header and input */}
       <div className="text-foreground bg-background relative flex-1 min-h-0">
@@ -195,6 +222,15 @@ const ChatSection = ({
 
       {/* Chat input — always pinned at bottom */}
       <div className="border border-border p-3 border-t flex-shrink-0 relative">
+        {/* Fixed-height line so the list does not jump when the label appears */}
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="typing-indicator"
+          className="h-4 mb-1 text-xs text-muted-foreground truncate"
+        >
+          {typingLabel ?? ""}
+        </div>
         {/* Emoji picker */}
         {showEmojiPicker && isWalletConnected && (
           <div
@@ -239,7 +275,10 @@ const ChatSection = ({
             <input
               type="text"
               value={chatMessage}
-              onChange={e => setChatMessage(e.target.value)}
+              onChange={e => {
+                setChatMessage(e.target.value);
+                onTypingInput?.(e.target.value);
+              }}
               onKeyDown={handleKeyDown}
               placeholder="Send a message"
               disabled={isSending}

@@ -7,6 +7,7 @@ import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { useDiagnostics } from "@/hooks/useDiagnostics";
 import PreflightDiagnosticsPanel from "./PreflightDiagnosticsPanel";
 import { toast } from "sonner";
+import LatencyModeSelector, { type LatencyMode } from "@/components/stream/LatencyModeSelector";
 
 interface StreamControlsProps {
   isLive: boolean;
@@ -20,6 +21,8 @@ export default function StreamControls({
   const { publicKey: address } = useStellarWallet();
   const [isLoading, setIsLoading] = useState(false);
   const [liveState, setLiveState] = useState(isLive);
+  const [selectedLatencyMode, setSelectedLatencyMode] = useState<LatencyMode>("low");
+  const [showLatencySelector, setShowLatencySelector] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const diagnostics = useDiagnostics();
 
@@ -34,7 +37,10 @@ export default function StreamControls({
       const response = await fetch("/api/streams/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wallet: address }),
+        body: JSON.stringify({ 
+          wallet: address,
+          latencyMode: selectedLatencyMode,
+        }),
       });
 
       const data = await response.json();
@@ -44,8 +50,9 @@ export default function StreamControls({
       }
 
       setLiveState(true);
+      setShowLatencySelector(false);
       onStreamStateChange?.(true);
-      toast.success("Stream started! You're now live ??");
+      toast.success(`Stream started in ${selectedLatencyMode === "standard" ? "standard" : "low"}-latency mode! You're now live 🎥`);
     } catch (error) {
       console.error("Failed to start stream:", error);
       toast.error(
@@ -174,6 +181,54 @@ export default function StreamControls({
         </p>
       </div>
 
+      {!liveState && !showLatencySelector && (
+        <Button
+          onClick={() => setShowLatencySelector(true)}
+          disabled={isLoading}
+          className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+        >
+          <Radio className="w-4 h-4 mr-2" />
+          {isLoading ? "Starting..." : "Start Stream"}
+        </Button>
+      )}
+
+      {showLatencySelector && !liveState && (
+        <div className="space-y-3">
+          <LatencyModeSelector
+            value={selectedLatencyMode}
+            onChange={setSelectedLatencyMode}
+            disabled={isLoading}
+          />
+          <div className="flex gap-2">
+            <Button
+              onClick={handleStartStream}
+              disabled={isLoading}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Radio className="w-4 h-4 mr-2" />
+              {isLoading ? "Starting..." : "Go Live"}
+            </Button>
+            <Button
+              onClick={() => setShowLatencySelector(false)}
+              disabled={isLoading}
+              variant="outline"
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {liveState && (
+        <Button
+          onClick={handleStopStream}
+          disabled={isLoading}
+          className="w-full bg-red-600 hover:bg-red-700 text-white"
+        >
+          <Square className="w-4 h-4 mr-2" />
+          {isLoading ? "Stopping..." : "Stop Stream"}
+        </Button>
       {/* Diagnostics Panel */}
       {showDiagnostics && !liveState && (
         <PreflightDiagnosticsPanel onClose={() => setShowDiagnostics(false)} />

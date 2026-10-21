@@ -12,7 +12,7 @@ export default function Chat() {
   const { publicKey, privyWallet } = useStellarWallet();
   const address = publicKey || privyWallet?.wallet || null;
   const { streamData } = useStreamData(address || undefined);
-  const { messages, sendMessage, isSending, isLoading } = useChat(
+  const { messages, sendMessage, isSending, isLoading, error } = useChat(
     streamData?.playbackId,
     address ?? undefined,
     streamData?.isLive ?? false
@@ -154,6 +154,9 @@ export default function Chat() {
       </div>
 
       <div className="p-2 bg-background border-border border-t relative">
+        {error && (
+          <p className="text-xs text-red-500 mt-1 px-1">{error}</p>
+        )}
         {/* Emoji picker */}
         {showEmojiPicker && (
           <div

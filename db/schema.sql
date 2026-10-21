@@ -101,6 +101,12 @@ CREATE TABLE IF NOT EXISTS stream_sessions (
     avg_bitrate INTEGER,
     resolution VARCHAR(20),
     
+    -- Per-stream latency configuration
+    -- 'low' = low-latency (3-5s delay, no DVR/rewind)
+    -- 'standard' = standard latency (10-15s delay, DVR/rewind enabled)
+    -- NULL falls back to user's global preference
+    latency_mode VARCHAR(10),
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -300,6 +306,31 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Exchange-rate quotes: lock rates at tip initiation to prevent price-move exploitation
+CREATE TABLE IF NOT EXISTS exchange_rate_quotes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  quoted_rate NUMERIC(20, 10) NOT NULL,
+  quoted_xlm_amount NUMERIC(20, 7) NOT NULL,
+  fiat_amount_cents INTEGER NOT NULL,
+  quote_token TEXT UNIQUE NOT NULL,
+  issued_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  consumed_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'issued' CHECK (status IN ('issued', 'consumed', 'expired')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_exchange_rate_quotes_creator_id 
+  ON exchange_rate_quotes(creator_id);
+
+CREATE INDEX IF NOT EXISTS idx_exchange_rate_quotes_quote_token 
+  ON exchange_rate_quotes(quote_token) 
+  WHERE status = 'issued';
+
+CREATE INDEX IF NOT EXISTS idx_exchange_rate_quotes_expires_at 
+  ON exchange_rate_quotes(expires_at) 
+  WHERE status = 'issued';
 
 SELECT 
     table_name,
