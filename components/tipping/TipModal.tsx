@@ -31,6 +31,7 @@ import { TransactionBuilder, Networks } from "@stellar/stellar-sdk";
 import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { TipConfirmation } from "./TipConfirmation";
+import { sessionReplay } from "@/lib/session-replay";
 
 interface TipModalProps {
   isOpen: boolean;
@@ -207,6 +208,12 @@ export function TipModal({
   };
 
   const handlePresetClick = (presetAmount: number) => {
+    sessionReplay.addBreadcrumb({
+      category: "tipping",
+      message: `Selected preset tip amount: ${presetAmount} XLM`,
+      level: "info",
+      data: { presetAmount, recipient: recipientUsername },
+    });
     setAmount(presetAmount.toString());
     setError(null);
     getQuote(presetAmount.toString());
@@ -217,6 +224,12 @@ export function TipModal({
       setAmount(value);
       setError(null);
       if (value !== "") {
+        sessionReplay.addBreadcrumb({
+          category: "tipping",
+          message: `Custom tip amount entered: ${value} XLM`,
+          level: "info",
+          data: { amount: value, recipient: recipientUsername },
+        });
         getQuote(value);
       } else {
         setQuote(null);
@@ -263,14 +276,38 @@ export function TipModal({
   };
 
   const handleSubmit = async () => {
+    sessionReplay.addBreadcrumb({
+      category: "tipping",
+      message: `Submitting tip: ${amount} XLM to @${recipientUsername}`,
+      level: "info",
+      data: {
+        amount,
+        recipientUsername,
+        recipientPublicKey: `${recipientPublicKey.slice(0, 4)}...${recipientPublicKey.slice(-4)}`,
+        senderPublicKey: `${senderPublicKey.slice(0, 4)}...${senderPublicKey.slice(-4)}`,
+      },
+    });
+
     if (!validateAmount()) {
+      sessionReplay.addBreadcrumb({
+        category: "tipping",
+        message: "Tip validation failed",
+        level: "warning",
+        data: { amount },
+      });
       return;
     }
 
     setError(null);
+    let stage: TransactionState = "building";
 
     try {
       setTransactionState("building");
+      sessionReplay.addBreadcrumb({
+        category: "tipping",
+        message: "Building tip transaction and checking fee",
+        level: "info",
+      });
       // One fee for both the balance check and the transaction, so they
       // cannot disagree if the network fee moves in between.
       const currentFeeStroops = await getRecommendedFeeStroops();
@@ -285,6 +322,10 @@ export function TipModal({
         if (insufficientBalance) {
           setError("insufficient_balance");
           setTransactionState("error");
+          sessionReplay.recordFlowError("tipping", new Error("Insufficient balance"), {
+            amount,
+            feeStroops: currentFeeStroops,
+          });
           if (onError) {
             onError("Insufficient balance");
           }
@@ -294,6 +335,10 @@ export function TipModal({
         if (err instanceof AccountNotFundedError) {
           setError("sender_not_funded");
           setTransactionState("error");
+          sessionReplay.recordFlowError("tipping", err, {
+            amount,
+            stage: "sender_funding_check",
+          });
           if (onError) {
             onError(err.message);
           }
@@ -307,6 +352,9 @@ export function TipModal({
       if (recipientCheck.status === "account_not_funded") {
         setError("recipient_not_funded");
         setTransactionState("error");
+        sessionReplay.recordFlowError("tipping", new Error("Recipient account is not funded"), {
+          recipientPublicKey: `${recipientPublicKey.slice(0, 4)}...${recipientPublicKey.slice(-4)}`,
+        });
         if (onError) {
           onError("Recipient account is not funded on the Stellar network.");
         }
@@ -325,7 +373,14 @@ export function TipModal({
         feeStroops: currentFeeStroops,
       });
 
+      stage = "signing";
       setTransactionState("signing");
+      sessionReplay.addBreadcrumb({
+        category: "tipping",
+        message: "Prompting wallet signature",
+        level: "info",
+        data: { network },
+      });
       const walletNetwork =
         network === "mainnet" ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
       const { signedTxXdr } = await kit.signTransaction(transaction.toXDR(), {
@@ -339,13 +394,25 @@ export function TipModal({
         networkPassphrase
       );
 
+      stage = "submitting";
       setTransactionState("submitting");
+      sessionReplay.addBreadcrumb({
+        category: "tipping",
+        message: "Submitting signed transaction to Stellar network",
+        level: "info",
+      });
       const result = await submitTransaction(
         signedTransaction as any,
         network as "testnet" | "mainnet"
       );
 
       if (result.success) {
+        sessionReplay.addBreadcrumb({
+          category: "tipping",
+          message: `Tip transaction successful: ${result.hash}`,
+          level: "info",
+          data: { txHash: result.hash },
+        });
         setTransactionState("success");
         setTxHash(result.hash ?? null);
         setIsConfirmationOpen(true);
@@ -359,6 +426,12 @@ export function TipModal({
       }
     } catch (err: unknown) {
       console.error("Transaction error:", err);
+
+      sessionReplay.recordFlowError("tipping", err, {
+        amount,
+        recipientUsername,
+        stage,
+      });
 
       let errorMessage = "An unexpected error occurred. Please try again.";
 
