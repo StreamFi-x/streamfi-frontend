@@ -1,6 +1,7 @@
 import useSWR from "swr";
 import { useCallback, useState } from "react";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
+import { fetcher } from "@/lib/fetcher";
 
 export interface WhitelistEntry {
   id: string;
@@ -9,8 +10,6 @@ export interface WhitelistEntry {
   avatar: string | null;
   created_at: string;
 }
-
-const fetcher = (url: string) => fetch(url, { credentials: "include" }).then(r => r.json());
 
 /** Streamer-side: manage their whitelist (paginated, newest first) */
 export function useStreamWhitelist() {
