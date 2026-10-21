@@ -28,7 +28,8 @@
     "prebuild": "npm run type-check",
     "backfill": "tsx scripts/backfill-analytics.ts",
     "migrate:custodial-keys": "tsx scripts/migrate-custodial-keys-to-kms.ts",
-    "jobs:sync-schedules": "tsx scripts/sync-job-schedules.ts"
+    "jobs:sync-schedules": "tsx scripts/sync-job-schedules.ts",
+    "licenses:check": "npx --yes license-checker --production --onlyAllow 'MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;0BSD;CC0-1.0;Unlicense'"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.1140.0",
@@ -126,7 +127,7 @@
     "commitizen": "^4.3.1",
     "cz-conventional-changelog": "^3.3.0",
     "eslint": "^9",
-    "eslint-config-next": "15.1.6",
+    "eslint-config-next": "16.1.6",
     "husky": "^9.1.7",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.0.4",
