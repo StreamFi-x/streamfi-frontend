@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 
 import Link from "next/link";
+import { toSafeHref } from "@/lib/validation/safe-link";
 
 interface AboutSectionProps {
   username: string;
@@ -72,40 +73,53 @@ const AboutSection = ({
         </div>
       </div>
 
-      {socialLinks && (
-        <div className="flex space-x-4 mb-4">
-          {socialLinks.twitter && (
-            <a
-              href={socialLinks.twitter}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Twitter className="h-5 w-5" />
-            </a>
-          )}
-          {socialLinks.instagram && (
-            <a
-              href={socialLinks.instagram}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Instagram className="h-5 w-5" />
-            </a>
-          )}
-          {socialLinks.discord && (
-            <a
-              href={socialLinks.discord}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Discord className="h-5 w-5" />
-            </a>
-          )}
-        </div>
-      )}
+      {socialLinks &&
+        (() => {
+          // Defense in depth: re-check the scheme here even though these
+          // links should already have been validated at submission time —
+          // data written before that validation existed, or written
+          // through a different path, must not become a clickable
+          // javascript: or data: URI.
+          const twitterHref = toSafeHref(socialLinks.twitter);
+          const instagramHref = toSafeHref(socialLinks.instagram);
+          const discordHref = toSafeHref(socialLinks.discord);
+          const hasAnyLink = twitterHref || instagramHref || discordHref;
+
+          return hasAnyLink ? (
+            <div className="flex space-x-4 mb-4">
+              {twitterHref && (
+                <a
+                  href={twitterHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Twitter className="h-5 w-5" />
+                </a>
+              )}
+              {instagramHref && (
+                <a
+                  href={instagramHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Instagram className="h-5 w-5" />
+                </a>
+              )}
+              {discordHref && (
+                <a
+                  href={discordHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Discord className="h-5 w-5" />
+                </a>
+              )}
+            </div>
+          ) : null;
+        })()}
 
       {userBio ? (
         <p className="text-muted-foreground text-sm whitespace-pre-line">
