@@ -205,20 +205,37 @@ export default function RecordingsPage() {
                   <p className="text-sm text-muted-foreground">
                     {formatDate(r.stream_date ?? r.created_at)} ·{" "}
                     {formatDuration(r.duration)}
-                    {r.status !== "ready" && (
-                      <span className="ml-2 text-amber-600">({r.status})</span>
+                    {r.status === "errored" ||
+                    r.status === "error" ||
+                    r.status === "failed" ? (
+                      <span className="ml-2 text-red-600 font-medium">
+                        (processing failed)
+                      </span>
+                    ) : (
+                      r.status !== "ready" && (
+                        <span className="ml-2 text-amber-600">
+                          ({r.status})
+                        </span>
+                      )
                     )}
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button
                     type="button"
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 text-sm"
+                    disabled={r.status !== "ready"}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() =>
                       setPlayingId(playingId === r.id ? null : r.id)
                     }
                   >
-                    {playingId === r.id ? "Hide player" : "Play"}
+                    {r.status === "errored" ||
+                    r.status === "error" ||
+                    r.status === "failed"
+                      ? "Failed"
+                      : playingId === r.id
+                        ? "Hide player"
+                        : "Play"}
                   </button>
                   {confirmingDeleteId === r.id ? (
                     <>

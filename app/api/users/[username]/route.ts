@@ -121,15 +121,27 @@ export async function GET(
       creatorUserId: user.id,
       viewerUserId,
     });
-    if (access.allowed && user.stream_password_hash && user.id !== verifiedViewerId &&
-        (!user.stream_session_id || !hasStreamPasswordGrant(req, user.id, user.stream_session_id))) {
+    if (
+      access.allowed &&
+      user.stream_password_hash &&
+      user.id !== verifiedViewerId &&
+      (!user.stream_session_id ||
+        !hasStreamPasswordGrant(req, user.id, user.stream_session_id))
+    ) {
       access.allowed = false;
       access.reason = "password_required";
     }
 
     // Strip private/internal fields before sending to any client
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { privy_id, email, share_token, stream_password_hash, stream_session_id, ...publicUser } = user;
+    const {
+      privy_id,
+      email,
+      share_token,
+      stream_password_hash,
+      stream_session_id,
+      ...publicUser
+    } = user;
 
     // For private streams without access: hide the playback id and current_viewers
     if (!access.allowed) {
@@ -137,13 +149,16 @@ export async function GET(
       publicUser.is_live = false; // hide live status to prevent traffic spikes from URL leaks
       publicUser.current_viewers = 0;
       publicUser.stream_started_at = null;
+      if (access.isError) {
+        publicUser.access_error = access.reason ?? "database_error";
+      }
     }
     const is_following = viewerUsername
       ? await isFollowing(viewerUsername, user.id)
       : false;
 
     return NextResponse.json(
-      { user: { ...user, is_following } },
+      { user: { ...publicUser, is_following } },
       { headers: cacheHeaders("publicProfile") }
     );
   } catch (error) {
