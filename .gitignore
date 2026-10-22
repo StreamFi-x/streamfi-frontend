@@ -52,3 +52,6 @@ fix.md
 issue.md
 pr.md
 ..
+
+# local lint output accidentally committed before (#1766)
+lint_output.txt
