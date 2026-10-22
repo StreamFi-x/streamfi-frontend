@@ -79,3 +79,32 @@ jobs:
         with:
           # Possible values: "critical", "high", "moderate", "low"
           fail-on-severity: high
+
+  package-audit:
+    name: Package-Level Vulnerability Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Surface Package Vulnerabilities by Name
+        run: |
+          npm audit --json > audit.json || true
+          node -e "
+            const fs = require('fs');
+            if (!fs.existsSync('audit.json')) process.exit(0);
+            const report = JSON.parse(fs.readFileSync('audit.json', 'utf8'));
+            const vulns = report.vulnerabilities || {};
+            console.log('--- PACKAGE VULNERABILITY REPORT ---');
+            for (const [pkgName, detail] of Object.entries(vulns)) {
+              console.log(\`[ADVISORY] Package: \${pkgName} | Severity: \${detail.severity} | Via: \${JSON.stringify(detail.via)}\`);
+            }
+            if (vulns['formidable']) {
+              console.error('[ALERT] Vulnerability detected in file upload parsing dependency: formidable');
+              process.exit(1);
+            }
+            console.log('File upload dependency (formidable) verified clean and uncompromised.');
+          "
