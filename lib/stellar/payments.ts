@@ -910,3 +910,134 @@ export async function hasInsufficientBalance(
   }
   return result.status === "insufficient_balance";
 }
+
+/**
+ * Build a ChangeTrust transaction to establish a trustline to a non-native asset
+ * 
+ * @param publicKey - Account public key establishing the trustline
+ * @param asset - Asset object (e.g., USDC) to create trustline for
+ * @param network - "testnet" or "mainnet"
+ * @param memo - Optional transaction memo
+ * @param feeStroops - Optional custom fee in stroops (uses network default if omitted)
+ * @returns Unsigned Stellar transaction ready for client signing
+ * 
+ * Trustlines lock up 0.5 XLM of account minimum balance reserve.
+ * The sending account must have enough XLM to cover this reserve increase.
+ */
+export async function buildChangeTrustTransaction(
+  publicKey: string,
+  asset: Asset,
+  network: "testnet" | "mainnet",
+  memo?: string,
+  feeStroops?: number
+): Promise<Transaction> {
+  const startTime = Date.now();
+
+  try {
+    logger.info("Building Stellar ChangeTrust transaction", {
+      operation: "buildChangeTrustTransaction",
+      publicKey: publicKey.substring(0, 8),
+      asset: asset.code,
+      issuer: asset.issuer?.substring(0, 8),
+      network,
+    });
+
+    if (!StrKey.isValidEd25519PublicKey(publicKey)) {
+      throw new Error(`Invalid Stellar public key: ${publicKey}`);
+    }
+
+    // Native asset cannot have a trustline
+    if (asset.isNative()) {
+      throw new Error("Cannot create trustline for native XLM asset");
+    }
+
+    const server = getServer(network);
+    const networkPassphrase = getNetworkPassphrase(network);
+
+    const sourceAccount = await server.loadAccount(publicKey);
+    const fee = String(feeStroops ?? (await getRecommendedFeeStroops(network)));
+
+    const transaction = new TransactionBuilder(sourceAccount, {
+      fee,
+      networkPassphrase,
+    })
+      .addOperation(
+        Operation.changeTrust({
+          asset,
+          limit: "922337203.6854775807", // Max possible limit (int64 max in stroops)
+        })
+      )
+      .addMemo(Memo.text((memo ?? `Add ${asset.code} trustline`).slice(0, 28)))
+      .setTimeout(30)
+      .build();
+
+    const durationMs = Date.now() - startTime;
+    logger.info("Stellar ChangeTrust transaction built", {
+      operation: "buildChangeTrustTransaction",
+      durationMs,
+      asset: asset.code,
+    });
+
+    return transaction;
+  } catch (error) {
+    const durationMs = Date.now() - startTime;
+    logger.error("Stellar ChangeTrust transaction build failed", {
+      operation: "buildChangeTrustTransaction",
+      durationMs,
+      asset: asset.code,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+
+    if (error instanceof Error) {
+      if (error.message.includes("Account not found")) {
+        throw new Error(
+          `Source account not found: ${publicKey}. Account must be funded before establishing a trustline.`
+        );
+      }
+      throw new Error(`Failed to build trustline transaction: ${error.message}`);
+    }
+    throw new Error("Failed to build trustline transaction: Unknown error");
+  }
+}
+
+/**
+ * Verify trustline needs before attempting non-native asset payment
+ * Returns helpful error message if trustline is missing
+ */
+export async function verifyTrustlineForAsset(
+  publicKey: string,
+  asset: Asset,
+  network: "testnet" | "mainnet"
+): Promise<{
+  hasTrustline: boolean;
+  error?: string;
+}> {
+  try {
+    // Native assets don't need trustlines
+    if (asset.isNative()) {
+      return { hasTrustline: true };
+    }
+
+    const trustlineExists = await hasTrustline(publicKey, asset, network);
+
+    if (!trustlineExists) {
+      return {
+        hasTrustline: false,
+        error: `Account does not have a trustline for ${asset.code}. A trustline must be established before sending or receiving this asset. This transaction will lock up 0.5 XLM of reserve.`,
+      };
+    }
+
+    return { hasTrustline: true };
+  } catch (error) {
+    logger.error("Failed to verify trustline", {
+      publicKey: publicKey.substring(0, 8),
+      asset: asset.code,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    return {
+      hasTrustline: false,
+      error: `Unable to verify trustline status: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
