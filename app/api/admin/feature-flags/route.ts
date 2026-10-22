@@ -26,6 +26,73 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ flags: rows });
 }
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function validateAllowedUserIds(
+  allowedUserIds: unknown,
+  dbClient: { sql: typeof sql } = { sql }
+): Promise<NextResponse | null> {
+  if (allowedUserIds === undefined || allowedUserIds === null) {
+    return null;
+  }
+  if (!Array.isArray(allowedUserIds)) {
+    return NextResponse.json(
+      {
+        error: "invalid_user_ids",
+        message: "allowed_user_ids must be an array of UUIDs",
+      },
+      { status: 400 }
+    );
+  }
+
+  const invalidFormatIds: string[] = [];
+  for (const id of allowedUserIds) {
+    if (typeof id !== "string" || !UUID_REGEX.test(id.trim())) {
+      invalidFormatIds.push(String(id));
+    }
+  }
+
+  if (invalidFormatIds.length > 0) {
+    return NextResponse.json(
+      {
+        error: "invalid_user_ids",
+        message: "One or more user IDs have an invalid UUID format",
+        invalidIds: invalidFormatIds,
+      },
+      { status: 400 }
+    );
+  }
+
+  if (allowedUserIds.length > 0) {
+    const uniqueIds = Array.from(
+      new Set(allowedUserIds.map((id: string) => id.trim()))
+    );
+    const { rows: existingUsers } = await dbClient.sql<{ id: string }>`
+      SELECT id::text FROM users WHERE id = ANY(${uniqueIds as any}::uuid[])
+    `;
+    const existingSet = new Set(
+      existingUsers.map((u: { id: string }) => u.id.toLowerCase())
+    );
+    const notFoundIds = uniqueIds.filter(
+      id => !existingSet.has(id.toLowerCase())
+    );
+
+    if (notFoundIds.length > 0) {
+      return NextResponse.json(
+        {
+          error: "users_not_found",
+          message: "Some allowed_user_ids do not exist in the database",
+          notFoundIds,
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (!guard.ok) {
@@ -41,6 +108,11 @@ export async function POST(req: NextRequest) {
   } = await req.json();
   if (!key) {
     return NextResponse.json({ error: "key is required" }, { status: 400 });
+  }
+
+  const validationError = await validateAllowedUserIds(allowed_user_ids);
+  if (validationError) {
+    return validationError;
   }
 
   try {
@@ -93,6 +165,13 @@ export async function PATCH(req: NextRequest) {
     await req.json();
   if (!key) {
     return NextResponse.json({ error: "key is required" }, { status: 400 });
+  }
+
+  if (allowed_user_ids !== undefined) {
+    const validationError = await validateAllowedUserIds(allowed_user_ids);
+    if (validationError) {
+      return validationError;
+    }
   }
 
   try {

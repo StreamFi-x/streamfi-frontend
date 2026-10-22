@@ -1,6 +1,6 @@
 /**
  * @jest-environment node
- * 
+ *
  * Tests for checkSubscriptionAccess with Soroban RPC:
  * - Active subscription (allowed)
  * - Lapsed subscription (denied)
@@ -20,8 +20,10 @@ jest.mock("@vercel/postgres", () => ({
 const { sql } = require("@vercel/postgres");
 
 const streamerId = "streamer-user-id";
-const viewerPublicKey = "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX1";
-const streamerWallet = "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX2";
+const viewerPublicKey =
+  "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX1";
+const streamerWallet =
+  "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX2";
 
 describe("checkSubscriptionAccess via Soroban RPC", () => {
   beforeEach(() => {
@@ -87,7 +89,8 @@ describe("checkSubscriptionAccess via Soroban RPC", () => {
     const result = await checkSubscriptionAccess(streamerId, viewerPublicKey);
 
     expect(result.allowed).toBe(false);
-    expect(result.reason).toBe("subscription");
+    expect(result.reason).toBe("rpc_error");
+    expect((result as any).isError).toBe(true);
   });
 
   it("denies when streamer wallet not found", async () => {
@@ -108,7 +111,8 @@ describe("checkSubscriptionAccess via Soroban RPC", () => {
     const result = await checkSubscriptionAccess(streamerId, viewerPublicKey);
 
     expect(result.allowed).toBe(false);
-    expect(result.reason).toBe("subscription");
+    expect(result.reason).toBe("database_error");
+    expect((result as any).isError).toBe(true);
   });
 
   it("accepts resolved userId directly without needing raw wallet in call", async () => {

@@ -1,11 +1,21 @@
 import { sql } from "@vercel/postgres";
 import { isSubscriptionActive } from "../subscriptions/rpc-client";
 
-export type StreamAccessReason = "password" | "subscription" | "not_registered";
+export type StreamAccessReason =
+  | "password"
+  | "subscription"
+  | "not_registered"
+  | "database_error"
+  | "rpc_error";
 
 export type AccessResult =
   | { allowed: true }
-  | { allowed: false; reason: StreamAccessReason };
+  | {
+      allowed: false;
+      reason: StreamAccessReason;
+      isError?: boolean;
+      error?: unknown;
+    };
 
 export type ViewerIdentifier =
   | string // wallet public key or user id
@@ -35,6 +45,7 @@ export async function checkSubscriptionAccess(
 
   let viewerPublicKey: string | null = null;
   let viewerUserId: string | null = null;
+  let streamerWallet: string;
 
   if (typeof viewer === "string") {
     // If it looks like a Stellar public key (starts with 'G' and 50+ chars)
@@ -73,8 +84,21 @@ export async function checkSubscriptionAccess(
       return { allowed: false, reason: "subscription" };
     }
 
-    const streamerWallet = streamerResult.rows[0].wallet as string;
+    streamerWallet = streamerResult.rows[0].wallet as string;
+  } catch (err) {
+    console.error(
+      "[stream-access] checkSubscriptionAccess database query failed:",
+      err
+    );
+    return {
+      allowed: false,
+      reason: "database_error",
+      isError: true,
+      error: err,
+    };
+  }
 
+  try {
     // Check on-chain subscription state via Soroban RPC
     const isActive = await isSubscriptionActive(
       viewerPublicKey,
@@ -85,8 +109,12 @@ export async function checkSubscriptionAccess(
       ? { allowed: true }
       : { allowed: false, reason: "subscription" };
   } catch (err) {
-    console.error("[stream-access] checkSubscriptionAccess failed:", err);
-    // Fail closed: deny access on any error
-    return { allowed: false, reason: "subscription" };
+    console.error("[stream-access] checkSubscriptionAccess RPC failed:", err);
+    return {
+      allowed: false,
+      reason: "rpc_error",
+      isError: true,
+      error: err,
+    };
   }
 }

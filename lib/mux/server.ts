@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import Mux from "@mux/mux-node";
 import { getMuxBreaker } from "@/lib/resilience/breakers";
 import { logger } from "@/lib/tracing/logger";
+import { mintPlaybackToken } from "@/lib/mux/playback-token";
 
 // Check if Mux credentials are configured
 if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
@@ -98,9 +99,14 @@ export async function createMuxStream(streamData?: {
     );
 
     // Get the playback IDs from the created stream
-    const publicPlayback = liveStream.playback_ids?.find(p => p.policy === "public");
-    const signedPlayback = liveStream.playback_ids?.find(p => p.policy === "signed");
-    const playbackId = publicPlayback?.id || liveStream.playback_ids?.[0]?.id || "";
+    const publicPlayback = liveStream.playback_ids?.find(
+      p => p.policy === "public"
+    );
+    const signedPlayback = liveStream.playback_ids?.find(
+      p => p.policy === "signed"
+    );
+    const playbackId =
+      publicPlayback?.id || liveStream.playback_ids?.[0]?.id || "";
     const signedPlaybackId = signedPlayback?.id;
 
     const durationMs = Date.now() - startTime;
@@ -151,9 +157,14 @@ export async function getMuxStream(streamId: string) {
       durationMs,
     });
 
-    const publicPlayback = liveStream.playback_ids?.find(p => p.policy === "public");
-    const signedPlayback = liveStream.playback_ids?.find(p => p.policy === "signed");
-    const playbackId = publicPlayback?.id || liveStream.playback_ids?.[0]?.id || "";
+    const publicPlayback = liveStream.playback_ids?.find(
+      p => p.policy === "public"
+    );
+    const signedPlayback = liveStream.playback_ids?.find(
+      p => p.policy === "signed"
+    );
+    const playbackId =
+      publicPlayback?.id || liveStream.playback_ids?.[0]?.id || "";
     const signedPlaybackId = signedPlayback?.id;
 
     return {
@@ -335,18 +346,33 @@ export async function enableMuxStreamRecording(streamId: string) {
 
 export async function createMuxSignedUrl(
   playbackId: string,
-  type: "video" | "thumbnail" = "video"
-) {
+  type: "video" | "thumbnail" = "video",
+  options?: { expirationSeconds?: number }
+): Promise<string> {
   try {
-    // For public playback IDs, no signing is needed
-    // For private/signed playback, you would use JWT signing here
-    if (type === "thumbnail") {
-      return `https://image.mux.com/${playbackId}/thumbnail.jpg`;
+    const audience = type === "thumbnail" ? "t" : "v";
+    const token = mintPlaybackToken(playbackId, {
+      audience,
+      ttlSeconds: options?.expirationSeconds,
+    });
+
+    if (!token) {
+      throw new Error(
+        "Mux signing keys (MUX_SIGNING_KEY_ID, MUX_SIGNING_KEY_PRIVATE) are not configured or invalid."
+      );
     }
-    return `https://stream.mux.com/${playbackId}.m3u8`;
+
+    const baseUrl =
+      type === "thumbnail"
+        ? `https://image.mux.com/${playbackId}/thumbnail.jpg`
+        : `https://stream.mux.com/${playbackId}.m3u8`;
+
+    return `${baseUrl}?token=${token}`;
   } catch (error) {
     console.error("Mux signed URL error:", error);
-    throw new Error("Failed to create signed URL");
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to create signed URL");
   }
 }
 
@@ -362,6 +388,8 @@ export async function getMuxAsset(assetId: string) {
       duration: asset.duration,
       playbackIds: asset.playback_ids,
       createdAt: asset.created_at,
+      errors: asset.errors,
+      isErrored: asset.status === "errored",
     };
   } catch (error) {
     console.error("Mux asset retrieval error:", error);
