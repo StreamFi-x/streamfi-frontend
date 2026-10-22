@@ -1,5 +1,6 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
+import { sql } from "@vercel/postgres";
 import { NextRequest } from "next/server";
-import { currentAdminPrivyId, requireAdminSession } from "@/lib/admin-auth";
 import { withAdminAudit } from "@/lib/audit/admin-events";
 
 /**
@@ -11,7 +12,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ reportId: string }> }
 ): Promise<Response> {
-  const adminDenied = await requireAdminSession(
+  const { response: adminDenied } = await authorizeAdmin(
+    req,
     "admin/reports/stream/[reportId]"
   );
   if (adminDenied) {
@@ -48,7 +50,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ reportId: string }> }
 ): Promise<Response> {
-  const adminDenied = await requireAdminSession(
+  const { admin: adminIdentity, response: adminDenied } = await authorizeAdmin(
+    req,
     "admin/reports/stream/[reportId]"
   );
   if (adminDenied) {
@@ -69,11 +72,22 @@ export async function PATCH(
 
   try {
     await withAdminAudit(
-      { actorId: await currentAdminPrivyId(), action: "stream_report_status_changed", targetType: "stream_report", targetId: reportId },
+      {
+        actorId: adminIdentity!.userId,
+        action: "stream_report_status_changed",
+        targetType: "stream_report",
+        targetId: reportId,
+      },
       async tx => {
-        const { rows: beforeRows } = await tx.sql`SELECT status FROM stream_reports WHERE id = ${reportId} FOR UPDATE`;
-        const { rows } = await tx.sql`UPDATE stream_reports SET status = ${status} WHERE id = ${reportId} RETURNING status`;
-        return { result: undefined, beforeState: beforeRows[0] ?? null, afterState: rows[0] ?? null };
+        const { rows: beforeRows } =
+          await tx.sql`SELECT status FROM stream_reports WHERE id = ${reportId} FOR UPDATE`;
+        const { rows } =
+          await tx.sql`UPDATE stream_reports SET status = ${status} WHERE id = ${reportId} RETURNING status`;
+        return {
+          result: undefined,
+          beforeState: beforeRows[0] ?? null,
+          afterState: rows[0] ?? null,
+        };
       }
     );
     return Response.json({ ok: true });

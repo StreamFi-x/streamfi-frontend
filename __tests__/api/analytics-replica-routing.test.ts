@@ -28,12 +28,7 @@ jest.mock("@/lib/tracing/logger", () => ({
 }));
 jest.mock("@/lib/auth/verify-session", () => ({ verifySession: jest.fn() }));
 jest.mock("@/lib/admin-auth", () => ({
-  verifyAdminSession: jest.fn(),
-  requireAdminSession: jest.fn(),
-  currentAdminPrivyId: jest.fn().mockResolvedValue("did:privy:admin"),
-  isAdmin: jest.fn().mockReturnValue(false),
-  adminUnauthorized: () =>
-    Response.json({ error: "Unauthorized" }, { status: 401 }),
+  authorizeAdmin: jest.fn(),
 }));
 jest.mock("@/lib/stellar/horizon", () => ({
   fetchPaymentsReceived: jest
@@ -101,7 +96,7 @@ import { signToken } from "@/lib/auth/sign-token";
 import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
-import { requireAdminSession, verifyAdminSession } from "@/lib/admin-auth";
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { resetAppCacheForTests } from "@/lib/cache";
 import { RECENT_WRITE_COOKIE, resetReplicaRouter } from "@/lib/db/replica";
 
@@ -130,8 +125,7 @@ import { DELETE as streamDelete } from "@/app/api/streams/delete/route";
 
 const mockPrimarySql = sql as unknown as jest.Mock;
 const verifySessionMock = verifySession as jest.Mock;
-const verifyAdminMock = verifyAdminSession as jest.Mock;
-const requireAdminMock = requireAdminSession as jest.Mock;
+const requireAdminMock = authorizeAdmin as jest.Mock;
 
 const CHANNEL = "550e8400-e29b-41d4-a716-446655440000";
 const OTHER_UUID = "660e8400-e29b-41d4-a716-446655440001";
@@ -198,7 +192,8 @@ const readCases: ReadCase[] = [
     // staleness by design and has no read-your-own-writes path.
     name: "admin/analytics",
     readYourWrites: false,
-    call: () => adminAnalytics(),
+    call: () =>
+      adminAnalytics(new NextRequest("http://localhost/api/admin/analytics")),
   },
   {
     name: "analytics-daily-followers",
@@ -313,8 +308,11 @@ beforeEach(() => {
     username: "creator",
     email: "creator@example.com",
   });
-  verifyAdminMock.mockResolvedValue(true);
-  requireAdminMock.mockResolvedValue(null);
+  requireAdminMock.mockResolvedValue({
+    ok: true,
+    admin: { userId: "did:privy:admin" },
+    response: null,
+  });
   resetAppCacheForTests();
   setEnv({ POSTGRES_REPLICA_URL: REPLICA_URL });
 });

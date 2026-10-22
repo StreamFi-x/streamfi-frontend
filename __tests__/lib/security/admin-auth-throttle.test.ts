@@ -28,7 +28,7 @@ jest.mock("@/lib/sessions/user-sessions", () => ({
 import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { findActiveSession } from "@/lib/sessions/user-sessions";
-import { GET as adminMe } from "@/app/api/admin/me/route";
+import { GET as adminMeRoute } from "@/app/api/admin/me/route";
 import { GET as adminUserSearch } from "@/app/api/routes-f/admin-user-search/route";
 import { verifySession } from "@/lib/auth/verify-session";
 import { requireAdminSecret } from "@/lib/admin-auth";
@@ -41,6 +41,17 @@ import {
   setSecurityKvStoreForTesting,
   type SecurityKvStore,
 } from "@/lib/security/kv-store";
+
+function adminMe() {
+  const cookie = Object.entries(cookieJar)
+    .map(([k, v]) => k + "=" + v)
+    .join("; ");
+  return adminMeRoute(
+    new NextRequest("http://localhost/api/admin/me", {
+      headers: { ...headerJar, cookie },
+    })
+  );
+}
 
 const ADMIN_DID = "did:privy:admin-legit";
 const findActiveSessionMock = findActiveSession as jest.Mock;
@@ -83,6 +94,31 @@ beforeEach(() => {
     OPS_ALERT_WEBHOOK_URL: "https://hooks.example.test/alerts",
     OPS_ALERT_HOURLY_BUDGET: "50",
   };
+  sqlMock.mockImplementation(
+    async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const query = strings.join("?");
+      if (query.includes("SELECT role")) {
+        return { rows: [{ role: "super_admin" }] };
+      }
+      return {
+        rows: values.some(
+          value => value === ADMIN_DID || value === "did:privy:admin-two"
+        )
+          ? [
+              {
+                id: "u-admin",
+                privy_id: ADMIN_DID,
+                deleted_at: null,
+                role: "super_admin",
+                wallet: null,
+                username: "admin",
+                email: null,
+              },
+            ]
+          : [],
+      };
+    }
+  );
   fetchMock.mockResolvedValue(new Response("ok"));
   global.fetch = fetchMock as unknown as typeof fetch;
   findActiveSessionMock.mockResolvedValue({
@@ -119,7 +155,7 @@ describe("admin backoff schedule", () => {
   });
 });
 
-describe("GET /api/admin/me (privy_session allowlist)", () => {
+describe("GET /api/admin/me (verified session and database role)", () => {
   it("allows a legitimate admin with an active session", async () => {
     as("203.0.113.10", ADMIN_DID);
     const res = await adminMe();
@@ -285,7 +321,7 @@ describe("admin auth alerting", () => {
     expect(body).not.toContain("did:privy:");
     expect(body).not.toContain("198.51.100.51");
     expect(body).toContain("198.51.100.x");
-    expect(body).toContain("mechanism: privy_session_allowlist");
+    expect(body).toContain("mechanism: session_role");
     expect(body).toContain("route: admin/me");
   });
 

@@ -1,25 +1,11 @@
-/**
- * #1403: reconciles users.current_viewers against the true set of currently
- * connected viewers in stream_viewers, and closes stream_viewers rows whose
- * viewer never called the leave endpoint (tab closed, connection lost,
- * browser crashed).
- *
- * current_viewers is an independently maintained counter, incremented on
- * join and decremented on leave (app/api/streams/viewers/route.ts). Nothing
- * previously corrected it back to ground truth while a stream stayed live;
- * the only path that reset it was the fully-offline transition in
- * lib/mux/reconciliation.ts and lib/stream/session-reconciliation.ts, which
- * does not help a still-live stream whose counter has already drifted.
- *
- * "Currently connected" is judged by heartbeat_at (see
- * db/migrations/20260926121650_add_stream_viewer_heartbeat.sql), touched
- * periodically by the watch page while a viewer is actually still on the
- * page. A row is abandoned once its heartbeat is older than
- * staleWindowSeconds; the exact multiple of the client's real ping interval
- * is a tuning parameter, not a correctness requirement, since a too-short
- * window only means an occasional false-positive "leave" that a real
- * still-watching viewer's next heartbeat immediately corrects.
+/** Reconciles each live stream through the same transaction and creator lock as
+ * join/heartbeat/leave, so a sweep cannot overwrite a concurrent join with an
+ * older snapshot. Also expires stale records and samples confirmed peaks.
  */
+import {
+  mutateViewerTracking,
+  type ViewerTransaction,
+} from "@/lib/stream/viewer-tracking";
 import { defaultExecutor, SqlExecutor } from "@/lib/db/executor";
 import type { JobOutcome } from "@/lib/jobs/scheduled-job";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
@@ -27,6 +13,7 @@ import { logger } from "@/lib/tracing/logger";
 
 export interface ViewerCountReconciliationOptions {
   executor?: SqlExecutor;
+  transaction?: ViewerTransaction;
   /** A stream_viewers row with no heartbeat this old is abandoned. */
   staleWindowSeconds?: number;
   /** Live streams processed per run. */
@@ -35,7 +22,6 @@ export interface ViewerCountReconciliationOptions {
   alertMinCorrected?: number;
   /** ...making up at least this share of inspected live streams. */
   alertCorrectionRatio?: number;
-  now?: () => Date;
 }
 
 export interface ViewerCountReconciliationMetrics {
@@ -59,7 +45,6 @@ export async function reconcileViewerCounts(
   options: ViewerCountReconciliationOptions = {}
 ): Promise<JobOutcome<StreamCorrection[]>> {
   const executor = options.executor ?? defaultExecutor;
-  const now = options.now ?? (() => new Date());
   const staleWindowSeconds = options.staleWindowSeconds ?? 90;
   const batchSize = options.batchSize ?? 500;
 
@@ -71,7 +56,6 @@ export async function reconcileViewerCounts(
     db_errors: 0,
   };
   const corrections: StreamCorrection[] = [];
-  const observedAt = now().toISOString();
 
   let liveUserIds: string[];
   try {
@@ -95,59 +79,20 @@ export async function reconcileViewerCounts(
 
   for (const userId of liveUserIds) {
     try {
-      // Close abandoned rows first: a viewer whose heartbeat went stale
-      // never called the leave endpoint, so their row is still "open"
-      // (left_at IS NULL) even though they are gone.
-      const { rows: closedRows } = await executor(
-        `UPDATE stream_viewers sv
-            SET left_at = $2::timestamptz
-           FROM stream_sessions ss
-          WHERE sv.stream_session_id = ss.id
-            AND ss.user_id = $1
-            AND sv.left_at IS NULL
-            AND ss.ended_at IS NULL
-            AND COALESCE(sv.heartbeat_at, sv.joined_at) < $2::timestamptz
-                                                            - make_interval(secs => $3::int)
-          RETURNING sv.id`,
-        [userId, observedAt, staleWindowSeconds]
+      const snapshot = await mutateViewerTracking(
+        { userId, action: "reconcile", staleWindowSeconds },
+        options.transaction
       );
-      const abandonedClosed = closedRows.length;
+      if (!snapshot) {
+        continue;
+      }
+      const abandonedClosed = snapshot.abandonedClosed;
       metrics.abandoned_viewers_closed += abandonedClosed;
-
-      // True count: open stream_viewers rows for this user's current (still
-      // live, not-ended) session, after the sweep above.
-      const { rows: countRows } = await executor(
-        `SELECT COUNT(*)::int AS true_count
-           FROM stream_viewers sv
-           JOIN stream_sessions ss ON sv.stream_session_id = ss.id
-          WHERE ss.user_id = $1
-            AND ss.ended_at IS NULL
-            AND sv.left_at IS NULL`,
-        [userId]
-      );
-      const trueCount = countRows[0]?.true_count ?? 0;
-
-      // Conditional UPDATE: only overwrite current_viewers if it is actually
-      // wrong. A concurrent join/leave between the COUNT above and this
-      // UPDATE either already matches (no-op) or will be corrected on the
-      // next run; either way this never fights a live join/leave request.
-      // The prior value is captured via a CTE scanned before the UPDATE
-      // applies (not a separate round-trip beforehand, and not a
-      // same-statement subquery reading the same table mid-UPDATE, whose
-      // visibility of the row's old-vs-new value is not something to rely
-      // on), so "before" always reflects exactly what this UPDATE
-      // overwrote.
-      const { rows: correctedRows } = await executor(
-        `WITH old AS (
-           SELECT current_viewers FROM users WHERE id = $1
-         )
-         UPDATE users
-            SET current_viewers = $2, updated_at = CURRENT_TIMESTAMP
-           FROM old
-          WHERE users.id = $1 AND users.current_viewers IS DISTINCT FROM $2
-         RETURNING old.current_viewers AS before_value`,
-        [userId, trueCount]
-      );
+      const trueCount = snapshot.currentViewers;
+      const correctedRows =
+        snapshot.previousViewers !== trueCount
+          ? [{ before_value: snapshot.previousViewers }]
+          : [];
 
       if (correctedRows.length > 0) {
         metrics.counters_corrected++;

@@ -1,5 +1,5 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminSession } from "@/lib/admin-auth";
 import { withTransaction } from "@/lib/postgres-transaction";
 
 export const runtime = "nodejs";
@@ -62,7 +62,8 @@ function validateBody(
 }
 
 export async function PUT(req: NextRequest) {
-  const adminDenied = await requireAdminSession(
+  const { response: adminDenied } = await authorizeAdmin(
+    req,
     "routes-f/featured-streams-set"
   );
   if (adminDenied) {

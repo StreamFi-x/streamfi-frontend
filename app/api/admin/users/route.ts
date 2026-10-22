@@ -1,9 +1,9 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
-import { requireAdminSession } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const adminDenied = await requireAdminSession("admin/users");
+  const { response: adminDenied } = await authorizeAdmin(req, "admin/users");
   if (adminDenied) {
     return adminDenied;
   }

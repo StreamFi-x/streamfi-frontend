@@ -1,20 +1,12 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { verifySession } from "@/lib/auth/verify-session";
-import { requireAdminPrincipal } from "@/lib/admin-auth";
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const session = await verifySession(req);
-  if (!session.ok) {
-    return session.response;
-  }
-
-  const adminDenied = await requireAdminPrincipal(req, {
-    mechanism: "session_role",
-    route: "routes-f/admin-user-unsuspend",
-    userId: session.userId,
-    check: () => true,
-  });
+  const { response: adminDenied } = await authorizeAdmin(
+    req,
+    "routes-f/admin-user-unsuspend"
+  );
   if (adminDenied) {
     return adminDenied;
   }
@@ -48,6 +40,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
   } catch (err) {
     console.error("[admin-user-unsuspend] POST error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

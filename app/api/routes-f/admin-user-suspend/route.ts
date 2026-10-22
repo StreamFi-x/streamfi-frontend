@@ -1,11 +1,12 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Admin User Suspension Handler
- * 
+ *
  * POST /api/routes-f/admin-user-suspend
- * 
+ *
  * Suspends a user platform-wide with a reason. The suspension is reversible.
- * 
+ *
  * Request body:
  * {
  *   userId: string;          // UUID of user to suspend
@@ -13,7 +14,7 @@
  *   reason?: string;         // Reason for suspension (required for suspend)
  *   duration?: number;       // Duration in hours (optional, permanent if not provided)
  * }
- * 
+ *
  * Actions performed on suspension:
  * - Sets is_banned = true
  * - Records ban_reason and banned_at timestamp
@@ -26,7 +27,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { z } from "zod";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
-import { requireAdminSession } from "@/lib/admin-auth";
 import { writeNotification } from "@/lib/notifications";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
@@ -42,7 +42,10 @@ type SuspendPayload = z.infer<typeof suspendSchema>;
 export async function POST(req: NextRequest) {
   try {
     // Verify admin authentication
-    const adminDenied = await requireAdminSession("routes-f/admin-user-suspend");
+    const { response: adminDenied } = await authorizeAdmin(
+      req,
+      "routes-f/admin-user-suspend"
+    );
     if (adminDenied) {
       return adminDenied;
     }
@@ -70,10 +73,7 @@ export async function POST(req: NextRequest) {
     `;
 
     if (userResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const user = userResult.rows[0];
@@ -116,7 +116,9 @@ export async function POST(req: NextRequest) {
           WHERE user_id = ${userId} AND ended_at IS NULL
         `;
 
-        console.log(`🔴 Ended active stream for suspended user: ${user.username}`);
+        console.log(
+          `🔴 Ended active stream for suspended user: ${user.username}`
+        );
       }
 
       // Send notification to user
@@ -124,7 +126,7 @@ export async function POST(req: NextRequest) {
         const durationText = duration
           ? ` for ${duration} hour${duration !== 1 ? "s" : ""}`
           : " permanently";
-        
+
         await writeNotification(
           userId,
           "live",
@@ -193,7 +195,10 @@ export async function POST(req: NextRequest) {
 // Get suspension status for a user (admin only)
 export async function GET(req: NextRequest) {
   try {
-    const adminDenied = await requireAdminSession("routes-f/admin-user-suspend");
+    const { response: adminDenied } = await authorizeAdmin(
+      req,
+      "routes-f/admin-user-suspend"
+    );
     if (adminDenied) {
       return adminDenied;
     }
@@ -223,10 +228,7 @@ export async function GET(req: NextRequest) {
     `;
 
     if (result.rows.length === 0) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const user = result.rows[0];

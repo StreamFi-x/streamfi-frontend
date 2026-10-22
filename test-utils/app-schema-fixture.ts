@@ -22,6 +22,7 @@ CREATE TABLE users (
   is_live BOOLEAN DEFAULT FALSE,
   stream_started_at TIMESTAMPTZ,
   current_viewers INTEGER DEFAULT 0,
+  total_views INTEGER DEFAULT 0,
   mux_stream_id VARCHAR(255),
   mux_playback_id VARCHAR(255),
   creator JSONB,
@@ -60,6 +61,9 @@ CREATE TABLE chat_messages (
 );
 
 CREATE TABLE stream_viewers (
+  session_id VARCHAR(255) NOT NULL DEFAULT gen_random_uuid()::text,
+  ip_address INET,
+  country VARCHAR(2),
   id SERIAL PRIMARY KEY,
   stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,

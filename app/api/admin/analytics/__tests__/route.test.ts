@@ -7,11 +7,16 @@ jest.mock("@vercel/postgres", () => ({
   sql: (...args: unknown[]) => mockSql(...args),
 }));
 jest.mock("@/lib/admin-auth", () => ({
-  requireAdminSession: async () =>
-    (await mockAdminId())
-      ? null
-      : Response.json({ error: "Unauthorized" }, { status: 401 }),
-  currentAdminPrivyId: () => mockAdminId(),
+  authorizeAdmin: async () => {
+    const id = await mockAdminId();
+    return id
+      ? { ok: true, admin: { userId: id }, response: null }
+      : {
+          ok: false,
+          admin: null,
+          response: Response.json({ error: "Unauthorized" }, { status: 401 }),
+        };
+  },
 }));
 jest.mock("next/cache", () => ({ revalidateTag: jest.fn() }));
 

@@ -5,6 +5,7 @@
 // and lock state), sees the same mocks.
 const mockSql = jest.fn();
 const mockVerifySession = jest.fn();
+const mockAuthorizeAdmin = jest.fn();
 const mockReconcile = jest.fn();
 const mockBadges = jest.fn();
 const mockGetXlmUsdPrice = jest.fn();
@@ -14,6 +15,9 @@ jest.mock("@vercel/postgres", () => ({
 }));
 jest.mock("@/lib/auth/verify-session", () => ({
   verifySession: (...args: unknown[]) => mockVerifySession(...args),
+}));
+jest.mock("@/lib/admin-auth", () => ({
+  authorizeAdmin: (...args: unknown[]) => mockAuthorizeAdmin(...args),
 }));
 jest.mock("@/lib/routes-f/badges", () => ({
   evaluateAndAwardBadges: (...args: unknown[]) => mockBadges(...args),
@@ -25,7 +29,6 @@ jest.mock("@/lib/jobs/qstash", () => ({
   dispatchJob: (...args: unknown[]) => mockDispatch(...args),
 }));
 jest.mock("@/lib/stellar/tip-reconciliation", () => ({
-  ...jest.requireActual("@/lib/stellar/tip-reconciliation"),
   reconcileUserTipTotals: (...args: unknown[]) => mockReconcile(...args),
 }));
 
@@ -85,6 +88,11 @@ beforeEach(() => {
   mockDispatch
     .mockReset()
     .mockResolvedValue({ dispatched: true, messageId: "msg-1" });
+  mockAuthorizeAdmin.mockReset().mockResolvedValue({
+    ok: false,
+    admin: null,
+    response: Response.json({ error: "Forbidden" }, { status: 403 }),
+  });
   asUser(USER.id);
   jest.isolateModules(() => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -126,7 +134,11 @@ describe("POST /api/tips/refresh-total", () => {
   });
 
   it("lets an admin refresh another creator", async () => {
-    process.env.ADMIN_PRIVY_IDS = "did:privy:admin";
+    mockAuthorizeAdmin.mockResolvedValue({
+      ok: true,
+      admin: { userId: "admin-user-id", role: "support", privyId: null },
+      response: null,
+    });
     asUser("admin-user-id", { privyId: "did:privy:admin" });
     expect((await POST(request())).status).toBe(200);
   });
@@ -308,7 +320,11 @@ describe("POST /api/tips/refresh-total", () => {
     for (let i = 0; i < 11; i += 1) {
       await POST(request());
     }
-    process.env.ADMIN_PRIVY_IDS = "did:privy:admin";
+    mockAuthorizeAdmin.mockResolvedValue({
+      ok: true,
+      admin: { userId: "admin-user-id", role: "support", privyId: null },
+      response: null,
+    });
     asUser("admin-user-id", { privyId: "did:privy:admin" });
     expect((await POST(request())).status).toBe(200);
   });

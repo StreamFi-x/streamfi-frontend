@@ -17,15 +17,11 @@ jest.mock("@vercel/postgres", () => ({
 let mockAdminCookie: string | undefined;
 const MOCK_ADMIN = "did:privy:admin";
 jest.mock("@/lib/admin-auth", () => ({
-  requireAdminSession: jest.fn(async () =>
+  authorizeAdmin: jest.fn(async () =>
     mockAdminCookie === MOCK_ADMIN
-      ? null
-      : Response.json({ error: "Unauthorized" }, { status: 401 })
-  ),
-  requireAdminIdentity: jest.fn(async () =>
-    mockAdminCookie === MOCK_ADMIN
-      ? { admin: MOCK_ADMIN, response: null }
+      ? { ok: true, admin: { userId: MOCK_ADMIN }, response: null }
       : {
+          ok: false,
           admin: null,
           response: Response.json({ error: "Unauthorized" }, { status: 401 }),
         }

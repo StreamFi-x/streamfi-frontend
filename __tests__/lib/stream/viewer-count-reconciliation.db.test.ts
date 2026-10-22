@@ -9,11 +9,12 @@ jest.mock("@vercel/postgres", () => ({
 
 import { sql } from "@vercel/postgres";
 import { reconcileViewerCounts } from "@/lib/stream/viewer-count-reconciliation";
-import { applyAppSchema } from "@/test-utils/app-schema-fixture";
+import { applyViewerSchema } from "@/test-utils/viewer-schema-fixture";
 import {
   createTestSchema,
   describeWithDb,
   poolExecutor,
+  poolTransaction,
   TestSchema,
 } from "@/test-utils/pg-test-db";
 import { bindVercelSql } from "@/test-utils/vercel-sql-adapter";
@@ -25,7 +26,7 @@ describeWithDb("reconcileViewerCounts (PostgreSQL)", () => {
 
   beforeEach(async () => {
     schema = await createTestSchema("viewercounts");
-    await applyAppSchema(schema.pool);
+    await applyViewerSchema(schema.pool);
     bindVercelSql(sql as never, schema.pool);
   });
 
@@ -80,6 +81,7 @@ describeWithDb("reconcileViewerCounts (PostgreSQL)", () => {
   function run(extra = {}) {
     return reconcileViewerCounts({
       executor: poolExecutor(schema.pool),
+      transaction: poolTransaction(schema.pool),
       ...extra,
     });
   }

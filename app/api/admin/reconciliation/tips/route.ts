@@ -1,6 +1,7 @@
+import type { NextRequest } from "next/server";
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { requireAdminSession } from "@/lib/admin-auth";
 import { TIP_RECONCILIATION_JOB } from "@/lib/alerts/tip-reconciliation-alerts";
 
 export const dynamic = "force-dynamic";
@@ -11,8 +12,11 @@ export const dynamic = "force-dynamic";
  * anomaly alerts (with their delivery outcome) and runs still awaiting alert
  * evaluation — the operational view for investigating drift (#1405).
  */
-export async function GET(): Promise<Response> {
-  const adminDenied = await requireAdminSession("admin/reconciliation/tips");
+export async function GET(req: NextRequest): Promise<Response> {
+  const { response: adminDenied } = await authorizeAdmin(
+    req,
+    "admin/reconciliation/tips"
+  );
   if (adminDenied) {
     return adminDenied;
   }

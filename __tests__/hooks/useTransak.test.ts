@@ -1,7 +1,7 @@
 /**
  * useTransak against a stand-in for the Transak SDK (the external boundary):
  * every order event reaches the right callback, listeners are registered
- * once however many hook instances exist, and errors are reported.
+ * once per active widget however many hook instances exist, and errors are reported.
  */
 const mockListeners = new Map<string, (payload: unknown) => void>();
 const mockOn = jest.fn((event: string, cb: (payload: unknown) => void) => {
@@ -9,6 +9,7 @@ const mockOn = jest.fn((event: string, cb: (payload: unknown) => void) => {
 });
 const mockInit = jest.fn();
 const mockClose = jest.fn();
+const mockCleanup = jest.fn();
 jest.mock("@transak/transak-sdk", () => {
   const EVENTS = {
     TRANSAK_ORDER_CREATED: "TRANSAK_ORDER_CREATED",
@@ -22,7 +23,7 @@ jest.mock("@transak/transak-sdk", () => {
     static on = mockOn;
     init = mockInit;
     close = mockClose;
-    cleanup = jest.fn();
+    cleanup = mockCleanup;
   }
   return { Transak };
 });
@@ -42,6 +43,8 @@ beforeEach(() => {
   resetTransakListenersForTests();
   mockListeners.clear();
   jest.clearAllMocks();
+  mockClose.mockReset().mockImplementation(() => mockListeners.clear());
+  mockInit.mockReset();
 });
 
 it("opens the widget and maps each Transak event to its callback", async () => {
@@ -78,7 +81,7 @@ it("opens the widget and maps each Transak event to its callback", async () => {
   expect(result.current.isOpen).toBe(false);
 });
 
-it("registers the static listeners once and only notifies the instance that opened the widget", async () => {
+it("re-registers after SDK close and only notifies the instance that opened the widget", async () => {
   const first = { onSuccess: jest.fn() };
   const second = { onSuccess: jest.fn() };
   const a = renderHook(() => useTransak({ walletAddress: WALLET, ...first }));
@@ -95,7 +98,7 @@ it("registers the static listeners once and only notifies the instance that open
 
   expect(
     mockOn.mock.calls.filter(([e]) => e === "TRANSAK_ORDER_SUCCESSFUL")
-  ).toHaveLength(1);
+  ).toHaveLength(2);
   expect(first.onSuccess).not.toHaveBeenCalled();
   expect(second.onSuccess).toHaveBeenCalledTimes(1);
 });
@@ -154,4 +157,85 @@ it("closes the widget through the SDK's close()", async () => {
   expect(mockClose).toHaveBeenCalled();
   expect(onClose).toHaveBeenCalled();
   expect(result.current.isOpen).toBe(false);
+});
+
+it("rejects competing and repeated opens without changing the callback owner", async () => {
+  const first = jest.fn();
+  const second = jest.fn();
+  const error = jest.fn();
+  const a = renderHook(() =>
+    useTransak({ walletAddress: WALLET, onSuccess: first })
+  );
+  const b = renderHook(() =>
+    useTransak({ walletAddress: WALLET, onSuccess: second, onError: error })
+  );
+  await act(async () => {
+    const results = await Promise.all([
+      a.result.current.openTransak(),
+      b.result.current.openTransak(),
+    ]);
+    expect(results).toEqual([true, false]);
+    expect(await a.result.current.openTransak()).toBe(false);
+  });
+  emit("TRANSAK_ORDER_SUCCESSFUL");
+  expect(first).toHaveBeenCalledTimes(1);
+  expect(second).not.toHaveBeenCalled();
+  expect(mockInit).toHaveBeenCalledTimes(1);
+  expect(error).toHaveBeenCalledWith(expect.any(Error));
+});
+
+it("notifies close once when SDK close emits synchronously", async () => {
+  mockClose.mockImplementationOnce(() =>
+    mockListeners.get("TRANSAK_WIDGET_CLOSE")?.(null)
+  );
+  const onClose = jest.fn();
+  const a = renderHook(() => useTransak({ walletAddress: WALLET, onClose }));
+  await act(async () => {
+    await a.result.current.openTransak();
+  });
+  act(() => a.result.current.closeTransak());
+  emit("TRANSAK_WIDGET_CLOSE");
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+it("cleans up the owner on unmount and lets another instance open", async () => {
+  const onSuccess = jest.fn();
+  const a = renderHook(() => useTransak({ walletAddress: WALLET, onSuccess }));
+  await act(async () => {
+    await a.result.current.openTransak();
+  });
+  a.unmount();
+  expect(mockClose).toHaveBeenCalledTimes(1);
+  emit("TRANSAK_ORDER_SUCCESSFUL");
+  expect(onSuccess).not.toHaveBeenCalled();
+  const b = renderHook(() => useTransak({ walletAddress: WALLET }));
+  await act(async () => {
+    expect(await b.result.current.openTransak()).toBe(true);
+  });
+});
+
+it("does not initialize after unmount while loading the SDK", async () => {
+  const a = renderHook(() => useTransak({ walletAddress: WALLET }));
+  await act(async () => {
+    const opening = a.result.current.openTransak();
+    a.unmount();
+    expect(await opening).toBe(false);
+  });
+  expect(mockInit).not.toHaveBeenCalled();
+});
+
+it("releases ownership and reports initialization failures", async () => {
+  mockInit.mockImplementationOnce(() => {
+    throw new Error("init failed");
+  });
+  const onError = jest.fn();
+  const a = renderHook(() => useTransak({ walletAddress: WALLET, onError }));
+  await act(async () => {
+    expect(await a.result.current.openTransak()).toBe(false);
+  });
+  expect(onError).toHaveBeenCalledWith(new Error("init failed"));
+  expect(mockClose).toHaveBeenCalled();
+  await act(async () => {
+    expect(await a.result.current.openTransak()).toBe(true);
+  });
 });

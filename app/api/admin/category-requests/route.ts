@@ -1,3 +1,4 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 /**
  * GET /api/admin/category-requests — admin review queue (#1429)
  *
@@ -8,13 +9,15 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { requireAdminSession } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const adminDenied = await requireAdminSession("admin/category-requests");
+  const { response: adminDenied } = await authorizeAdmin(
+    req,
+    "admin/category-requests"
+  );
   if (adminDenied) {
     return adminDenied;
   }

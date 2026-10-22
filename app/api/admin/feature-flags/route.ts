@@ -1,8 +1,6 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { verifySession } from "@/lib/auth/verify-session";
-import { requireAdminPrincipal } from "@/lib/admin-auth";
-import { currentAdminPrivyId } from "@/lib/admin-auth";
 import { withAdminAudit } from "@/lib/audit/admin-events";
 
 /**
@@ -15,20 +13,7 @@ import { withAdminAudit } from "@/lib/audit/admin-events";
  */
 
 async function guardAdmin(req: NextRequest) {
-  const session = await verifySession(req);
-  if (!session.ok) {
-    return { ok: false as const, response: session.response };
-  }
-  const denied = await requireAdminPrincipal(req, {
-    mechanism: "session_role",
-    route: "admin/feature-flags",
-    userId: session.userId,
-    check: () => true,
-  });
-  if (denied) {
-    return { ok: false as const, response: denied };
-  }
-  return { ok: true as const };
+  return authorizeAdmin(req, "admin/feature-flags");
 }
 
 export async function GET(req: NextRequest) {
@@ -83,7 +68,7 @@ export async function validateAllowedUserIds(
     const uniqueIds = Array.from(
       new Set(allowedUserIds.map((id: string) => id.trim()))
     );
-    const { rows: existingUsers } = await dbClient.sql`
+    const { rows: existingUsers } = await dbClient.sql<{ id: string }>`
       SELECT id::text FROM users WHERE id = ANY(${uniqueIds as any}::uuid[])
     `;
     const existingSet = new Set(
@@ -133,7 +118,7 @@ export async function POST(req: NextRequest) {
   try {
     const flag = await withAdminAudit(
       {
-        actorId: await currentAdminPrivyId(),
+        actorId: guard.admin.userId,
         action: "feature_flag_created",
         targetType: "feature_flag",
         targetId: key,
@@ -192,7 +177,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const flag = await withAdminAudit(
       {
-        actorId: await currentAdminPrivyId(),
+        actorId: guard.admin.userId,
         action: "feature_flag_updated",
         targetType: "feature_flag",
         targetId: key,
@@ -247,7 +232,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await withAdminAudit(
       {
-        actorId: await currentAdminPrivyId(),
+        actorId: guard.admin.userId,
         action: "feature_flag_deleted",
         targetType: "feature_flag",
         targetId: key,
