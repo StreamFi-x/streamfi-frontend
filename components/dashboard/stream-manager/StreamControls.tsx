@@ -5,6 +5,8 @@ import { Radio, Square, AlertCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { useDiagnostics } from "@/hooks/useDiagnostics";
+import { useLiveStreamHealth } from "@/hooks/useLiveStreamHealth";
+import LiveHealthIndicator from "./LiveHealthIndicator";
 import PreflightDiagnosticsPanel from "./PreflightDiagnosticsPanel";
 import { toast } from "sonner";
 import LatencyModeSelector, { type LatencyMode } from "@/components/stream/LatencyModeSelector";
@@ -21,10 +23,12 @@ export default function StreamControls({
   const { publicKey: address } = useStellarWallet();
   const [isLoading, setIsLoading] = useState(false);
   const [liveState, setLiveState] = useState(isLive);
+  const [streamId, setStreamId] = useState<string | null>(null);
   const [selectedLatencyMode, setSelectedLatencyMode] = useState<LatencyMode>("low");
   const [showLatencySelector, setShowLatencySelector] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const diagnostics = useDiagnostics();
+  const healthProps = useLiveStreamHealth(streamId, liveState);
 
   const handleStartStream = async () => {
     if (!address) {
@@ -49,6 +53,7 @@ export default function StreamControls({
         throw new Error(data.error || "Failed to start stream");
       }
 
+      setStreamId(data.streamData?.streamId || null);
       setLiveState(true);
       setShowLatencySelector(false);
       onStreamStateChange?.(true);
@@ -83,6 +88,7 @@ export default function StreamControls({
         throw new Error(data.error || "Failed to stop stream");
       }
 
+      setStreamId(null);
       setLiveState(false);
       onStreamStateChange?.(false);
       toast.success("Stream stopped successfully");
@@ -148,14 +154,17 @@ export default function StreamControls({
         </div>
 
         {liveState ? (
-          <Button
-            onClick={handleStopStream}
-            disabled={isLoading}
-            className="w-full bg-red-600 hover:bg-red-700 text-white"
-          >
-            <Square className="w-4 h-4 mr-2" />
-            {isLoading ? "Stopping..." : "Stop Stream"}
-          </Button>
+          <>
+            <LiveHealthIndicator {...healthProps} />
+            <Button
+              onClick={handleStopStream}
+              disabled={isLoading}
+              className="w-full bg-red-600 hover:bg-red-700 text-white mt-3"
+            >
+              <Square className="w-4 h-4 mr-2" />
+              {isLoading ? "Stopping..." : "Stop Stream"}
+            </Button>
+          </>
         ) : (
           <>
             <Button
