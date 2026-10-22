@@ -1,4 +1,5 @@
-import { currentAdminPrivyId, requireAdminSession } from "@/lib/admin-auth";
+import type { NextRequest } from "next/server";
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { CACHE_POLICIES, cacheHeaders, cached } from "@/lib/cache";
 import {
   readFromReplica,
@@ -36,7 +37,7 @@ interface AdminAnalyticsStats {
 async function loadStats(): Promise<AdminAnalyticsStats> {
   // Use materialized rollup instead of live COUNT(*) queries (#1373)
   const snapshot = await getCurrentAdminAnalytics();
-  const rows = await readFromReplica("admin.analytics.counts", db =>
+  await readFromReplica("admin.analytics.counts", db =>
     db`
     SELECT
       (SELECT COUNT(*) FROM users WHERE is_banned = false)            AS total_users,
@@ -60,15 +61,18 @@ async function loadStats(): Promise<AdminAnalyticsStats> {
   };
 }
 
-export async function GET(): Promise<Response> {
+export async function GET(req: NextRequest): Promise<Response> {
   // Brute-force guard first (401/429/503); the per-admin limit below caps
   // what an authenticated admin can do.
-  const adminDenied = await requireAdminSession("admin/analytics");
+  const { admin: adminIdentity, response: adminDenied } = await authorizeAdmin(
+    req,
+    "admin/analytics"
+  );
   if (adminDenied) {
     return adminDenied;
   }
 
-  const limit = await adminAnalyticsLimit.check(await currentAdminPrivyId());
+  const limit = await adminAnalyticsLimit.check(adminIdentity!.userId);
   if (!limit.success) {
     return tooManyRequests(limit);
   }

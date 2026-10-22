@@ -1,20 +1,12 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { verifySession } from "@/lib/auth/verify-session";
-import { requireAdminPrincipal } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const session = await verifySession(req);
-  if (!session.ok) {
-    return session.response;
-  }
-
-  const adminDenied = await requireAdminPrincipal(req, {
-    mechanism: "session_role",
-    route: "routes-f/admin-user-search",
-    userId: session.userId,
-    check: () => true,
-  });
+  const { response: adminDenied } = await authorizeAdmin(
+    req,
+    "routes-f/admin-user-search"
+  );
   if (adminDenied) {
     return adminDenied;
   }
@@ -23,7 +15,10 @@ export async function GET(req: NextRequest): Promise<Response> {
   const q = searchParams.get("q")?.trim();
 
   if (!q) {
-    return NextResponse.json({ error: "Missing required query parameter: q" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing required query parameter: q" },
+      { status: 400 }
+    );
   }
 
   const term = `%${q}%`;
@@ -42,6 +37,9 @@ export async function GET(req: NextRequest): Promise<Response> {
     return NextResponse.json({ query: q, users: rows });
   } catch (err) {
     console.error("[admin-user-search] GET error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

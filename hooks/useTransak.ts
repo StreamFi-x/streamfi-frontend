@@ -44,13 +44,29 @@ interface WidgetInstance {
 }
 
 /**
- * Transak.on() is static and has no "off", so listeners are registered once
- * per page and forward events to whichever hook instance opened the widget.
- * (Registering per instance made every event fire every instance's handlers.)
+ * Transak.on() is global. Only one widget owns events at a time. The v4 SDK
+ * removes ALL listeners on close/cleanup, so reset registration on disposal.
  */
-let activeCallbacks: { current: Callbacks } | null = null;
-let activeOnClose: (() => void) | null = null;
+let activeOwner: {
+  callbacks: { current: Callbacks };
+  onClose: () => void;
+} | null = null;
 let listenersRegistered = false;
+let openingOwner: object | null = null;
+
+function disposeWidget(widget: WidgetInstance | null): void {
+  try {
+    if (widget?.close) {
+      widget.close();
+    } else {
+      widget?.cleanup();
+    }
+  } finally {
+    if (widget) {
+      listenersRegistered = false;
+    }
+  }
+}
 
 function orderOf(payload: unknown): TransakOrderData | null {
   return (payload as TransakEventPayload | null)?.status ?? null;
@@ -64,24 +80,23 @@ async function loadTransak() {
     Transak.on(EVENTS.TRANSAK_ORDER_CREATED, payload => {
       const order = orderOf(payload);
       if (order) {
-        activeCallbacks?.current.onOrderCreated?.(order);
+        activeOwner?.callbacks.current.onOrderCreated?.(order);
       }
     });
     Transak.on(EVENTS.TRANSAK_ORDER_SUCCESSFUL, payload => {
       const order = orderOf(payload);
       if (order) {
-        activeCallbacks?.current.onSuccess?.(order);
+        activeOwner?.callbacks.current.onSuccess?.(order);
       }
     });
     Transak.on(EVENTS.TRANSAK_ORDER_FAILED, payload => {
-      activeCallbacks?.current.onOrderFailed?.(orderOf(payload));
+      activeOwner?.callbacks.current.onOrderFailed?.(orderOf(payload));
     });
     Transak.on(EVENTS.TRANSAK_ORDER_CANCELLED, payload => {
-      activeCallbacks?.current.onOrderCancelled?.(orderOf(payload));
+      activeOwner?.callbacks.current.onOrderCancelled?.(orderOf(payload));
     });
     Transak.on(EVENTS.TRANSAK_WIDGET_CLOSE, () => {
-      const onClose = activeOnClose;
-      activeOnClose = null;
+      const onClose = activeOwner?.onClose;
       onClose?.();
     });
     listenersRegistered = true;
@@ -104,46 +119,67 @@ export function useTransak({
 }: UseTransakOptions): UseTransakReturn {
   const [isOpen, setIsOpen] = useState(false);
   const transakRef = useRef<WidgetInstance | null>(null);
+  const mountedRef = useRef(true);
+  const openingRef = useRef(false);
   // Latest callbacks, so events never reach a stale closure.
   const callbacksRef = useRef<Callbacks>(callbacks);
   callbacksRef.current = callbacks;
 
   const handleClosed = useCallback(() => {
-    transakRef.current = null;
-    setIsOpen(false);
-    if (activeCallbacks === callbacksRef) {
-      activeCallbacks = null;
+    if (!transakRef.current && activeOwner?.callbacks !== callbacksRef) {
+      return;
     }
-    callbacksRef.current.onClose?.();
+    const widget = transakRef.current;
+    transakRef.current = null;
+    if (mountedRef.current) {
+      setIsOpen(false);
+    }
+    if (activeOwner?.callbacks === callbacksRef) {
+      activeOwner = null;
+    }
+    try {
+      disposeWidget(widget);
+    } finally {
+      callbacksRef.current.onClose?.();
+    }
   }, []);
 
   const closeTransak = useCallback(() => {
-    const widget = transakRef.current;
-    if (widget) {
-      if (widget.close) {
-        widget.close();
-      } else {
-        widget.cleanup();
-      }
+    if (openingOwner === callbacksRef) {
+      openingOwner = null;
     }
     handleClosed();
   }, [handleClosed]);
 
-  useEffect(
-    () => () => {
-      if (activeCallbacks === callbacksRef) {
-        activeCallbacks = null;
-        activeOnClose = null;
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (openingOwner === callbacksRef) {
+        openingOwner = null;
       }
-    },
-    []
-  );
+      if (activeOwner?.callbacks === callbacksRef) {
+        activeOwner = null;
+      }
+      const widget = transakRef.current;
+      transakRef.current = null;
+      disposeWidget(widget);
+    };
+  }, []);
 
   const openTransak = useCallback(async () => {
     const fail = (error: Error) => {
-      callbacksRef.current.onError?.(error);
+      if (mountedRef.current) {
+        callbacksRef.current.onError?.(error);
+      }
       return false;
     };
+    if (!mountedRef.current) {
+      return false;
+    }
+    if (openingRef.current || openingOwner || activeOwner) {
+      return fail(new Error("A Transak widget is already open or opening"));
+    }
     if (!walletAddress) {
       return fail(new Error("A wallet address is required to add funds"));
     }
@@ -155,27 +191,46 @@ export function useTransak({
       return fail(err instanceof Error ? err : new Error(String(err)));
     }
 
-    let Transak;
+    openingRef.current = true;
+    openingOwner = callbacksRef;
     try {
-      Transak = await loadTransak();
+      const Transak = await loadTransak();
+      if (!mountedRef.current || openingOwner !== callbacksRef) {
+        return false;
+      }
+      activeOwner = { callbacks: callbacksRef, onClose: handleClosed };
+      const transak = new Transak(config) as unknown as WidgetInstance;
+      transakRef.current = transak;
+      transak.init();
+      if (transakRef.current === transak) {
+        setIsOpen(true);
+      }
+      return true;
     } catch (err) {
+      const widget = transakRef.current;
+      transakRef.current = null;
+      if (activeOwner?.callbacks === callbacksRef) {
+        activeOwner = null;
+      }
+      try {
+        disposeWidget(widget);
+      } catch {
+        /* Preserve the initialization error. */
+      }
       return fail(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      openingRef.current = false;
+      if (openingOwner === callbacksRef) {
+        openingOwner = null;
+      }
     }
-
-    activeCallbacks = callbacksRef;
-    activeOnClose = handleClosed;
-    const transak = new Transak(config) as unknown as WidgetInstance;
-    transakRef.current = transak;
-    transak.init();
-    setIsOpen(true);
-    return true;
   }, [walletAddress, paramOverrides, handleClosed]);
 
   return { openTransak, closeTransak, isOpen };
 }
 
 export function resetTransakListenersForTests(): void {
-  activeCallbacks = null;
-  activeOnClose = null;
+  activeOwner = null;
   listenersRegistered = false;
+  openingOwner = null;
 }

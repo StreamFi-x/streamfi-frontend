@@ -1,6 +1,6 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { requireAdminIdentity, requireAdminSession } from "@/lib/admin-auth";
 import {
   listFindings,
   remediateFinding,
@@ -23,7 +23,10 @@ const ACTIONS = new Set<RemediationAction>([
  * Drift findings (default: open) plus the most recent sweep runs.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  const adminDenied = await requireAdminSession("admin/reconciliation/mux");
+  const { response: adminDenied } = await authorizeAdmin(
+    req,
+    "admin/reconciliation/mux"
+  );
   if (adminDenied) {
     return adminDenied;
   }
@@ -57,9 +60,11 @@ export async function GET(req: NextRequest): Promise<Response> {
  * action: dismiss | delete_mux_asset | adopt | mark_unavailable | restore
  */
 export async function POST(req: NextRequest): Promise<Response> {
-  const { admin, response } = await requireAdminIdentity(
+  const { admin: adminIdentity, response } = await authorizeAdmin(
+    req,
     "admin/reconciliation/mux"
   );
+  const admin = adminIdentity?.userId ?? "";
   if (response) {
     return response;
   }

@@ -1,9 +1,12 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { NextRequest } from "next/server";
-import { requireAdminSession } from "@/lib/admin-auth";
 import { uploadImageFromBuffer } from "@/utils/upload/cloudinary";
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const adminDenied = await requireAdminSession("admin/categories/image");
+  const { response: adminDenied } = await authorizeAdmin(
+    req,
+    "admin/categories/image"
+  );
   if (adminDenied) {
     return adminDenied;
   }

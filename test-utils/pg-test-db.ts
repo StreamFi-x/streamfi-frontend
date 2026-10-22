@@ -71,3 +71,30 @@ export function poolExecutor(pool: Pool) {
     return { rows: result.rows, rowCount: result.rowCount ?? 0 };
   };
 }
+
+/** Uses one connection throughout, matching the production transaction helper. */
+export function poolTransaction(
+  pool: Pool
+): import("@/lib/stream/viewer-tracking").ViewerTransaction {
+  return async work => {
+    const client = await pool.connect();
+    const sql = (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const text = strings.reduce(
+        (out, part, i) => out + part + (i < values.length ? "$" + (i + 1) : ""),
+        ""
+      );
+      return client.query(text, values);
+    };
+    try {
+      await client.query("BEGIN");
+      const result = await work({ sql } as never);
+      await client.query("COMMIT");
+      return result;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  };
+}

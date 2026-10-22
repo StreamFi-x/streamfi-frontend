@@ -1,3 +1,4 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 /**
  * Cron Job: Reconcile orphaned stream sessions (#1402)
  *
@@ -20,7 +21,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthorizedCronRequest } from "@/lib/jobs/cron-auth";
 import { jobHttpStatus, runScheduledJob } from "@/lib/jobs/scheduled-job";
 import { getMuxLiveStreamState } from "@/lib/mux/server";
-import { verifyAdminSession } from "@/lib/admin-auth";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { reconcileOrphanedSessions } from "@/lib/stream/session-reconciliation";
 
@@ -38,7 +38,7 @@ async function verifyManualAuthorization(req: NextRequest): Promise<boolean> {
   if (isAuthorizedCronRequest(req)) {
     return true;
   }
-  if (await verifyAdminSession()) {
+  if ((await authorizeAdmin(req, "routes-f/cron-close-inactive-sessions")).ok) {
     return true;
   }
   const internalSecret = process.env.INTERNAL_API_SECRET;

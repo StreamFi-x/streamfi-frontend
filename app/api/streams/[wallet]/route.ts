@@ -38,6 +38,7 @@ export async function GET(
         ss.id as session_id,
         ss.started_at as session_started_at,
         ss.peak_viewers,
+        ss.peak_viewers_verified,
         ss.total_messages
       FROM users u
       LEFT JOIN stream_sessions ss ON u.id = ss.user_id AND ss.ended_at IS NULL
@@ -98,6 +99,7 @@ export async function GET(
         currentViewers: streamData.current_viewers || 0,
         totalViews: streamData.total_views || 0,
         peakViewers: streamData.peak_viewers || 0,
+        peakViewersVerified: streamData.peak_viewers_verified === true,
 
         avgBitrate: streamData.avg_bitrate,
         resolution: streamData.resolution,
@@ -109,6 +111,7 @@ export async function GET(
             id: streamData.session_id,
             startedAt: streamData.session_started_at,
             peakViewers: streamData.peak_viewers,
+            peakViewersVerified: streamData.peak_viewers_verified === true,
             totalMessages: streamData.total_messages,
           }
         : null,

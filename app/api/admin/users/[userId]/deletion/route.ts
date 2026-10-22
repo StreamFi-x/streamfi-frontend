@@ -1,5 +1,5 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminIdentity, requireAdminSession } from "@/lib/admin-auth";
 import {
   cancelAccountDeletion,
   resetPurgeAttempts,
@@ -13,12 +13,14 @@ import { cancelResponse } from "@/lib/users/deletion-http";
  *        { action: "retry" } → re-arm a purge that exhausted its attempts
  */
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ): Promise<Response> {
-  const { admin, response } = await requireAdminIdentity(
+  const { admin: adminIdentity, response } = await authorizeAdmin(
+    req,
     "admin/users/[userId]/deletion"
   );
+  const admin = adminIdentity?.userId ?? "";
   if (response) {
     return response;
   }
@@ -42,7 +44,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ): Promise<Response> {
-  const adminDenied = await requireAdminSession(
+  const { response: adminDenied } = await authorizeAdmin(
+    req,
     "admin/users/[userId]/deletion"
   );
   if (adminDenied) {

@@ -1,3 +1,4 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
@@ -7,7 +8,6 @@ import { tipRefreshCreatorJob } from "@/lib/jobs/definitions/tip-reconciliation"
 import { dispatchJob } from "@/lib/jobs/qstash";
 import { CircuitOpenError } from "@/lib/resilience/circuit-breaker";
 import { verifySession } from "@/lib/auth/verify-session";
-import { isAdmin } from "@/lib/admin-auth";
 import { cacheHeaders } from "@/lib/cache";
 import { markRecentWrite } from "@/lib/db/replica";
 import { acquireLock } from "@/lib/single-flight-lock";
@@ -121,9 +121,11 @@ export async function POST(request: NextRequest) {
     }
 
     const user = userResult.rows[0];
-    const callerIsAdmin = await isAdmin(session.userId);
-    if (user.id !== session.userId && !callerIsAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (user.id !== session.userId) {
+      const authorization = await authorizeAdmin(request, "tips/refresh-total");
+      if (!authorization.ok) {
+        return authorization.response;
+      }
     }
 
     if (!user.stellar_public_key) {

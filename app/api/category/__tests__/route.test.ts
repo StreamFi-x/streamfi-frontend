@@ -4,19 +4,19 @@
 jest.mock("@vercel/postgres", () => ({ sql: jest.fn() }));
 jest.mock("next/cache", () => ({ revalidateTag: jest.fn() }));
 jest.mock("@/lib/admin-auth", () => ({
-  requireAdminSession: jest.fn(),
+  authorizeAdmin: jest.fn(),
 }));
 
 import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { revalidateTag } from "next/cache";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { resetAppCacheForTests } from "@/lib/cache";
 import { GET, PATCH, POST, DELETE } from "../route";
 import { GET as GET_BY_TITLE } from "../[title]/route";
 
 const sqlMock = sql as unknown as jest.Mock;
-const adminMock = requireAdminSession as jest.Mock;
+const adminMock = authorizeAdmin as jest.Mock;
 
 const gaming = {
   id: "11111111-1111-1111-1111-111111111111",
@@ -41,7 +41,11 @@ const listReads = () =>
 beforeEach(() => {
   jest.clearAllMocks();
   resetAppCacheForTests();
-  adminMock.mockResolvedValue(null);
+  adminMock.mockResolvedValue({
+    ok: true,
+    admin: { userId: "admin-user" },
+    response: null,
+  });
   jest.spyOn(console, "error").mockImplementation(() => {});
   jest.spyOn(console, "log").mockImplementation(() => {});
   sqlMock.mockImplementation((strings: TemplateStringsArray) => {
@@ -167,9 +171,11 @@ describe("category writes purge the edge", () => {
   });
 
   it("rejects a non-admin before touching data", async () => {
-    adminMock.mockResolvedValue(
-      Response.json({ error: "Unauthorized" }, { status: 401 })
-    );
+    adminMock.mockResolvedValue({
+      ok: false,
+      admin: null,
+      response: Response.json({ error: "Unauthorized" }, { status: 401 }),
+    });
 
     const res = await PATCH(req("PATCH", "?id=gaming", { title: "x" }));
 

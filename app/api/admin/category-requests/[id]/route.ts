@@ -1,3 +1,4 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 /**
  * PATCH /api/admin/category-requests/[id] — approve, reject, or merge (#1429)
  *
@@ -15,7 +16,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sql } from "@vercel/postgres";
-import { requireAdminIdentity } from "@/lib/admin-auth";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { withTransaction } from "@/lib/postgres-transaction";
 import { invalidateCategoryCaches } from "@/lib/cache/invalidation";
@@ -41,9 +41,11 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { admin, response } = await requireAdminIdentity(
+  const { admin: adminIdentity, response } = await authorizeAdmin(
+    req,
     "admin/category-requests/[id]"
   );
+  const admin = adminIdentity?.userId ?? "";
   if (response) {
     return response;
   }
@@ -101,15 +103,23 @@ export async function PATCH(
           WHERE id = ${id} AND status = 'pending'
           RETURNING id, status
         `;
-        if (rows.length === 0) {throw new AlreadyDecidedError();}
+        if (rows.length === 0) {
+          throw new AlreadyDecidedError();
+        }
         resultRow = rows[0];
       } else {
         const { rows: targetCategory } = await tx.sql`
           SELECT id, tags FROM stream_categories WHERE id = ${decision.categoryId}
         `;
-        if (!targetCategory[0]) {throw new TargetNotFoundError();}
+        if (!targetCategory[0]) {
+          throw new TargetNotFoundError();
+        }
         const existingTags: string[] = targetCategory[0].tags ?? [];
-        if (!existingTags.some(t => t.toLowerCase() === proposedTitle.toLowerCase())) {
+        if (
+          !existingTags.some(
+            t => t.toLowerCase() === proposedTitle.toLowerCase()
+          )
+        ) {
           await tx.sql`
             UPDATE stream_categories
             SET tags = array_append(COALESCE(tags, ARRAY[]::text[]), ${proposedTitle})
@@ -123,7 +133,9 @@ export async function PATCH(
           WHERE id = ${id} AND status = 'pending'
           RETURNING id, status, category_id
         `;
-        if (rows.length === 0) {throw new AlreadyDecidedError();}
+        if (rows.length === 0) {
+          throw new AlreadyDecidedError();
+        }
         resultRow = rows[0];
       }
       await recordAdminEvent(tx, {
@@ -132,7 +144,10 @@ export async function PATCH(
         targetType: "category_request",
         targetId: id,
         beforeState: { status: "pending" },
-        afterState: { status: resultRow.status, category_id: resultRow.category_id ?? null },
+        afterState: {
+          status: resultRow.status,
+          category_id: resultRow.category_id ?? null,
+        },
       });
       return resultRow;
     });
@@ -145,7 +160,7 @@ export async function PATCH(
       actorType: "admin",
       actorId: admin,
       fromState: "pending",
-      toState: result.status,
+      toState: String(result.status),
       reason: decision.decision === "reject" ? decision.reason : null,
       metadata:
         decision.decision === "merge"

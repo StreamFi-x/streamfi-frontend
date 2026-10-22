@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 jest.mock("@/lib/mux/server", () => ({ getMuxLiveStreamState: jest.fn() }));
-jest.mock("@/lib/admin-auth", () => ({ verifyAdminSession: jest.fn() }));
+jest.mock("@/lib/admin-auth", () => ({ authorizeAdmin: jest.fn() }));
 jest.mock("@/lib/rate-limit", () => ({
   createRateLimiter: jest.fn(() => jest.fn().mockResolvedValue(false)),
 }));
@@ -15,14 +15,14 @@ jest.mock("@/lib/stream/session-reconciliation", () => ({
 }));
 
 import { NextRequest } from "next/server";
-import { verifyAdminSession } from "@/lib/admin-auth";
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { runScheduledJob } from "@/lib/jobs/scheduled-job";
 import { getMuxLiveStreamState } from "@/lib/mux/server";
 import { reconcileOrphanedSessions } from "@/lib/stream/session-reconciliation";
 import { GET, POST } from "../route";
 
 const runJob = runScheduledJob as jest.Mock;
-const adminSession = verifyAdminSession as jest.Mock;
+const adminSession = authorizeAdmin as jest.Mock;
 const ORIGINAL_ENV = process.env;
 
 function request(method: "GET" | "POST", headers: Record<string, string> = {}) {
@@ -39,7 +39,7 @@ describe("/api/routes-f/cron-close-inactive-sessions", () => {
       CRON_SECRET: "test-cron-secret",
       INTERNAL_API_SECRET: "test-internal-secret",
     };
-    adminSession.mockResolvedValue(false);
+    adminSession.mockResolvedValue({ ok: false });
     runJob.mockResolvedValue({
       job: "stream-session-reconciliation",
       status: "succeeded",
@@ -129,7 +129,11 @@ describe("/api/routes-f/cron-close-inactive-sessions", () => {
   });
 
   it("POST accepts an admin session", async () => {
-    adminSession.mockResolvedValue(true);
+    adminSession.mockResolvedValue({
+      ok: true,
+      admin: { userId: "admin" },
+      response: null,
+    });
     const res = await POST(request("POST"));
     expect(res.status).toBe(200);
   });

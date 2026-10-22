@@ -1,25 +1,22 @@
+import { authorizeAdmin } from "@/lib/admin-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { verifySession } from "@/lib/auth/verify-session";
-import { requireAdminPrincipal } from "@/lib/admin-auth";
 
 export async function PATCH(req: NextRequest): Promise<Response> {
-  const session = await verifySession(req);
-  if (!session.ok) {
-    return session.response;
-  }
-
-  const adminDenied = await requireAdminPrincipal(req, {
-    mechanism: "session_role",
-    route: "routes-f/admin-feature-flag-update",
-    userId: session.userId,
-    check: () => true,
-  });
+  const { response: adminDenied } = await authorizeAdmin(
+    req,
+    "routes-f/admin-feature-flag-update"
+  );
   if (adminDenied) {
     return adminDenied;
   }
 
-  let body: { flagKey?: string; enabled?: boolean; rollout_percentage?: number; rolloutPercentage?: number };
+  let body: {
+    flagKey?: string;
+    enabled?: boolean;
+    rollout_percentage?: number;
+    rolloutPercentage?: number;
+  };
   try {
     body = await req.json();
   } catch {
@@ -40,7 +37,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     );
   }
 
-  if (rolloutPercentage !== undefined && (rolloutPercentage < 0 || rolloutPercentage > 100)) {
+  if (
+    rolloutPercentage !== undefined &&
+    (rolloutPercentage < 0 || rolloutPercentage > 100)
+  ) {
     return NextResponse.json(
       { error: "rollout percentage must be between 0 and 100" },
       { status: 400 }
@@ -59,7 +59,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     `;
 
     if (rows.length === 0) {
-      return NextResponse.json({ error: "Feature flag not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Feature flag not found" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({
@@ -68,6 +71,9 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     });
   } catch (err) {
     console.error("[admin-feature-flag-update] PATCH error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

@@ -27,7 +27,7 @@ if (!result.success) return tooManyRequests(result);
 - **Identity:** the caller passes it. Use the session `userId` or the admin's
   Privy ID when there is one. IP is only for anonymous routes (for example
   chat POST). Identities always come from `verifySession` or
-  `currentAdminPrivyId` (after `requireAdminSession`), never from the request body.
+  `authorizeAdmin(request, route)`'s returned `admin.userId`, never from the request body.
 - **429:** `tooManyRequests()` returns `{ error, retryAfter }` (the API's
   usual `{ error }` shape) with `Retry-After`, `X-RateLimit-Limit`,
   `X-RateLimit-Remaining`, `X-RateLimit-Reset` and `Cache-Control: private,
@@ -59,7 +59,7 @@ are logged with the namespace.
 
 ## Admin analytics: `GET /api/admin/analytics`
 
-- The route is admin-only (`ADMIN_PRIVY_IDS`), behind the brute-force guard `requireAdminSession` from #1396.
+- The route is admin-only (verified session and database role), behind the brute-force guard in `authorizeAdmin(request, route)`.
 - **30 requests per minute per admin.** The dashboard polls every 30s
   (`hooks/admin/useAdminAnalytics.ts`), which is 2/min per tab. 30 allows
   several tabs plus manual refreshes, and stops a runaway refresh loop within
