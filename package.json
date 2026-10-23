@@ -29,7 +29,7 @@
     "backfill": "tsx scripts/backfill-analytics.ts",
     "migrate:custodial-keys": "tsx scripts/migrate-custodial-keys-to-kms.ts",
     "jobs:sync-schedules": "tsx scripts/sync-job-schedules.ts",
-    "licenses:check": "npx --yes license-checker --production --onlyAllow 'MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;0BSD;CC0-1.0;Unlicense'"
+    "licenses:check": "npx --yes license-checker --production --onlyAllow \"MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;0BSD;CC0-1.0;Unlicense\""
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.1140.0",
