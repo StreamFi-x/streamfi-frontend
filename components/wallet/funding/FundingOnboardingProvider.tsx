@@ -19,6 +19,7 @@ import {
   initialFundingMachine,
   type FundingMachine,
 } from "@/lib/onboarding/funding-machine";
+import { sessionReplay } from "@/lib/session-replay";
 import { FundingWizard } from "./FundingWizard";
 
 /**
@@ -216,22 +217,60 @@ export function FundingOnboardingProvider({
 
   const { openTransak, isOpen: widgetOpen } = useTransak({
     walletAddress: address,
-    onOrderCreated: order =>
+    onOrderCreated: order => {
+      sessionReplay.addBreadcrumb({
+        category: "wallet",
+        message: `Transak order created: ${order.id}`,
+        level: "info",
+        data: { orderId: order.id },
+      });
       dispatch({
         type: "ORDER_CREATED",
         orderId: order.id ?? null,
         at: Date.now(),
-      }),
-    onSuccess: order =>
+      });
+    },
+    onSuccess: order => {
+      sessionReplay.addBreadcrumb({
+        category: "wallet",
+        message: `Transak funding order successful: ${order.id}`,
+        level: "info",
+        data: { orderId: order.id },
+      });
       dispatch({
         type: "ORDER_SUCCESSFUL",
         orderId: order.id ?? null,
         at: Date.now(),
-      }),
-    onOrderFailed: () => dispatch({ type: "ORDER_FAILED" }),
-    onOrderCancelled: () => dispatch({ type: "ORDER_CANCELLED" }),
-    onClose: () => dispatch({ type: "WIDGET_CLOSED" }),
-    onError: () => dispatch({ type: "TRANSAK_UNAVAILABLE" }),
+      });
+    },
+    onOrderFailed: order => {
+      sessionReplay.recordFlowError("wallet", new Error("Transak funding order failed"), {
+        orderId: order?.id ?? null,
+      });
+      dispatch({ type: "ORDER_FAILED" });
+    },
+    onOrderCancelled: () => {
+      sessionReplay.addBreadcrumb({
+        category: "wallet",
+        message: "Transak funding order cancelled by user",
+        level: "info",
+      });
+      dispatch({ type: "ORDER_CANCELLED" });
+    },
+    onClose: () => {
+      sessionReplay.addBreadcrumb({
+        category: "wallet",
+        message: "Transak widget closed",
+        level: "info",
+      });
+      dispatch({ type: "WIDGET_CLOSED" });
+    },
+    onError: error => {
+      sessionReplay.recordFlowError("wallet", error, {
+        stage: "transak_open",
+      });
+      dispatch({ type: "TRANSAK_UNAVAILABLE" });
+    },
   });
 
   const startFunding = useCallback(() => {

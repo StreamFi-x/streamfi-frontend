@@ -16,6 +16,7 @@ import {
   FREIGHTER_ID,
 } from "@creit.tech/stellar-wallets-kit";
 import { getStellarNetwork } from "@/lib/stellar/config";
+import { sessionReplay } from "@/lib/session-replay";
 
 const network =
   getStellarNetwork() === "mainnet"
@@ -121,11 +122,22 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
       : "disconnected";
 
   const connect = useCallback(async () => {
+    sessionReplay.addBreadcrumb({
+      category: "wallet",
+      message: "Opening wallet connection modal",
+      level: "info",
+    });
     setIsConnecting(true);
     setError(null);
     try {
       await kit.openModal({
         onWalletSelected: async wallet => {
+          sessionReplay.addBreadcrumb({
+            category: "wallet",
+            message: `Wallet selected from modal: ${wallet.id}`,
+            level: "info",
+            data: { walletId: wallet.id, name: wallet.name },
+          });
           kit.setWallet(wallet.id);
           const { address } = await kit.getAddress();
           setPublicKey(address);
@@ -137,14 +149,27 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
           localStorage.setItem("stellar_last_wallet", wallet.id);
           localStorage.setItem("stellar_auto_connect", "true");
           setIsConnecting(false);
+          sessionReplay.addBreadcrumb({
+            category: "wallet",
+            message: `Wallet successfully connected: ${wallet.id}`,
+            level: "info",
+            data: { address: `${address.slice(0, 4)}...${address.slice(-4)}` },
+          });
         },
         onClosed: err => {
           console.log("Modal closed", err);
+          sessionReplay.addBreadcrumb({
+            category: "wallet",
+            message: "Wallet selection modal closed",
+            level: "info",
+            data: { error: err ? String(err) : undefined },
+          });
           setIsConnecting(false);
         },
       });
     } catch (err) {
       console.error("Failed to connect Stellar wallet:", err);
+      sessionReplay.recordFlowError("wallet", err, { action: "openModal" });
       setError("Failed to connect wallet");
       setIsConnecting(false);
     }
@@ -152,6 +177,12 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
 
   const connectWallet = useCallback(
     async (walletId: string) => {
+      sessionReplay.addBreadcrumb({
+        category: "wallet",
+        message: `Attempting direct connection to wallet: ${walletId}`,
+        level: "info",
+        data: { walletId },
+      });
       setIsConnecting(true);
       setError(null);
       try {
@@ -175,6 +206,15 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
           setPrivyWallet(null);
           localStorage.setItem("stellar_last_wallet", walletId);
           localStorage.setItem("stellar_auto_connect", "true");
+          sessionReplay.addBreadcrumb({
+            category: "wallet",
+            message: `Wallet connected directly: ${walletId}`,
+            level: "info",
+            data: {
+              walletId,
+              address: `${result.address.slice(0, 4)}...${result.address.slice(-4)}`,
+            },
+          });
         } else {
           throw new Error("No address returned from wallet");
         }
@@ -185,6 +225,11 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
           error: err,
           message: err?.message,
           stack: err?.stack,
+        });
+
+        sessionReplay.recordFlowError("wallet", err, {
+          walletId,
+          step: "kit.getAddress",
         });
 
         const errorMessage =
