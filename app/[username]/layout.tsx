@@ -68,16 +68,17 @@ export async function generateMetadata({
       ? `${name} is LIVE – ${streamTitle}`
       : `${name} – StreamFi`;
 
-  const ogImage = user.avatar
-    ? [{ url: user.avatar, width: 400, height: 400, alt: name }]
-    : [
-        {
-          url: `${BASE}/Images/streamFi.png`,
-          width: 1200,
-          height: 630,
-          alt: "StreamFi",
-        },
-      ];
+  // Serve the per-creator generated image (app/[username]/opengraph-image.tsx)
+  // so shared links render creator-specific art — avatar, bio, follower count,
+  // LIVE badge — instead of a raw avatar or the site-wide default.
+  const ogImage = [
+    {
+      url: `${BASE}/${name}/opengraph-image`,
+      width: 1200,
+      height: 630,
+      alt: `${name} on StreamFi`,
+    },
+  ];
 
   return {
     title,

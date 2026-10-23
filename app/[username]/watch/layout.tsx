@@ -74,30 +74,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     user.bio?.trim() ||
     `Watch ${user.username} stream live on StreamFi.`;
 
-  // Image priority:
-  //   1. Custom stream thumbnail set in stream details
-  //   2. Mux live thumbnail (real video frame) when public + live
-  //   3. User avatar
-  //   4. Site default
-  const customThumb: string | undefined = user.creator?.thumbnail;
+  // Serve the generated stream image (app/[username]/watch/opengraph-image.tsx)
+  // so shared links render stream-specific art — stream title, avatar, LIVE
+  // badge, viewer count, and a real video frame when the stream is public —
+  // instead of a raw thumbnail or the site-wide default.
+  const imageUrl = `${BASE}/${user.username}/watch/opengraph-image`;
+  const imageDims = { width: 1200, height: 630 };
   const isPublic = (user.stream_privacy ?? "public") === "public";
-  const muxThumb =
-    user.is_live && isPublic && user.mux_playback_id
-      ? `https://image.mux.com/${user.mux_playback_id}/thumbnail.jpg?width=1280&height=720&fit_mode=smartcrop`
-      : null;
-
-  let imageUrl: string;
-  let imageDims = { width: 1280, height: 720 };
-  if (customThumb) {
-    imageUrl = customThumb;
-  } else if (muxThumb) {
-    imageUrl = muxThumb;
-  } else if (user.avatar) {
-    imageUrl = user.avatar;
-    imageDims = { width: 400, height: 400 };
-  } else {
-    imageUrl = `${BASE}/Images/streamFi.png`;
-  }
 
   const liveBadge = user.is_live && isPublic ? "🔴 LIVE – " : "";
   const titleLabel = `${liveBadge}${streamTitle} – ${user.username} | StreamFi`;
