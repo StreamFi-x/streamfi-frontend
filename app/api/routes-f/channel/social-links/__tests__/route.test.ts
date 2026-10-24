@@ -93,6 +93,50 @@ describe("channel/social-links", () => {
       expect(data.error).toContain("Invalid URL");
     });
 
+    it("rejects a javascript: URI scheme (#1737)", async () => {
+      const res = await PUT(
+        makePutReq({
+          creator_id: "creator_1",
+          links: [
+            { platform: "twitter", url: "javascript:alert(document.cookie)" },
+          ],
+        })
+      );
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toContain("Invalid URL");
+    });
+
+    it("rejects a data: URI scheme (#1737)", async () => {
+      const res = await PUT(
+        makePutReq({
+          creator_id: "creator_1",
+          links: [
+            {
+              platform: "twitter",
+              url: "data:text/html,<script>alert(1)</script>",
+            },
+          ],
+        })
+      );
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toContain("Invalid URL");
+    });
+
+    it("accepts an http(s) URL and a mailto: link (#1737)", async () => {
+      const res = await PUT(
+        makePutReq({
+          creator_id: "creator_1",
+          links: [
+            { platform: "twitter", url: "https://twitter.com/example" },
+            { platform: "email", url: "mailto:creator@example.com" },
+          ],
+        })
+      );
+      expect(res.status).toBe(200);
+    });
+
     it("rejects more than 8 links", async () => {
       const links = Array.from({ length: MAX_SOCIAL_LINKS + 1 }, (_, i) => ({
         platform: `platform_${i}`,
