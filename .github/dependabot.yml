@@ -1,0 +1,45 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    target-branch: "dev"
+    open-pull-requests-limit: 10
+    groups:
+      production-minor-patch:
+        applies-to: version-updates
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      development-minor-patch:
+        applies-to: version-updates
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # Major version bumps are intentionally left ungrouped and unlisted here
+    # so each one still opens its own individual PR for review, rather than
+    # being silently grouped in with routine minor/patch updates.
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+# Security-update pull requests (triggered by a vulnerability disclosed
+# against an installed version, independent of the schedule above) are
+# controlled separately under Settings > Code security > Dependabot security
+# updates, and are not configurable from this file. They open immediately
+# when GitHub's advisory database flags an installed dependency, rather than
+# waiting for the weekly grouped run.
