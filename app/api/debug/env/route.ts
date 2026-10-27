@@ -6,6 +6,12 @@ import { checkDebugSecret } from "@/lib/debug-auth";
  * DEBUG_ENV_SECRET, same pattern as debug/clear-users' CLEAR_USERS_SECRET
  * (#1612: this ran completely unauthenticated before).
  *
+ * #1768: the LIVEPEER_API_KEY preview this route used to leak is gone; the
+ * Livepeer -> Mux migration's library dir, dependency, and env var were
+ * already fully removed. Only DB-column retirement tooling that references
+ * the old column names on purpose remains (lib/maintenance/livepeer-legacy.ts,
+ * scripts/audit-livepeer-legacy.ts, db/migrations/20260925190100_retire_livepeer_columns.sql).
+ *
  * GET /api/debug/env?secret=<DEBUG_ENV_SECRET>
  */
 export async function GET(req: Request) {
