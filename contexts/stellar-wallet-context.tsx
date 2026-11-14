@@ -23,6 +23,51 @@ const network =
     ? WalletNetwork.PUBLIC
     : WalletNetwork.TESTNET;
 
+function formatWalletErrorMessage(err: unknown): string | undefined {
+  if (err === null || err === undefined) {
+    return undefined;
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  if (typeof err === "string") {
+    return err;
+  }
+  if (
+    typeof err === "object" &&
+    "message" in err &&
+    typeof (err as { message: unknown }).message === "string"
+  ) {
+    return (err as { message: string }).message;
+  }
+  return "Unknown wallet error";
+}
+
+const NODE_ENV_KEY = "NODE_ENV";
+
+function isDevelopmentEnvironment(): boolean {
+  if (process.env.NODE_ENV === "production") {
+    return false;
+  }
+  return (
+    typeof process !== "undefined" &&
+    Boolean(process.env) &&
+    process.env[NODE_ENV_KEY] === "development"
+  );
+}
+
+function logWalletDiagnosticInDev(
+  level: "debug" | "warn" | "error",
+  message: string,
+  details?: Record<string, string | undefined>
+): void {
+  if (!isDevelopmentEnvironment()) {
+    return;
+  }
+  // eslint-disable-next-line no-console
+  console[level](message, details);
+}
+
 interface PrivySessionUser {
   id: string;
   privyId: string;
@@ -157,18 +202,25 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
           });
         },
         onClosed: err => {
-          console.log("Modal closed", err);
+          const reason = formatWalletErrorMessage(err);
+          logWalletDiagnosticInDev("debug", "[StellarWallet] Modal closed", {
+            reason,
+          });
           sessionReplay.addBreadcrumb({
             category: "wallet",
             message: "Wallet selection modal closed",
             level: "info",
-            data: { error: err ? String(err) : undefined },
+            data: { error: reason },
           });
           setIsConnecting(false);
         },
       });
     } catch (err) {
-      console.error("Failed to connect Stellar wallet:", err);
+      logWalletDiagnosticInDev(
+        "error",
+        "[StellarWallet] Failed to open wallet modal",
+        { reason: formatWalletErrorMessage(err) }
+      );
       sessionReplay.recordFlowError("wallet", err, { action: "openModal" });
       setError("Failed to connect wallet");
       setIsConnecting(false);
@@ -218,25 +270,23 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         } else {
           throw new Error("No address returned from wallet");
         }
-      } catch (err: any) {
-        console.error("Failed to connect Stellar wallet:", err);
-        console.error("Error details:", {
-          walletId,
-          error: err,
-          message: err?.message,
-          stack: err?.stack,
-        });
+      } catch (err: unknown) {
+        const extractedMessage = formatWalletErrorMessage(err);
+        logWalletDiagnosticInDev(
+          "error",
+          "[StellarWallet] Failed to connect Stellar wallet",
+          {
+            walletId,
+            reason: extractedMessage,
+          }
+        );
 
         sessionReplay.recordFlowError("wallet", err, {
           walletId,
           step: "kit.getAddress",
         });
 
-        const errorMessage =
-          err?.message ||
-          err?.toString() ||
-          String(err) ||
-          "Failed to connect wallet";
+        const errorMessage = extractedMessage || "Failed to connect wallet";
 
         // Check if wallet is not installed
         if (
@@ -319,7 +369,14 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
           }
         } catch (err) {
           if (!cancelled) {
-            console.warn("Stellar auto-connect failed:", err);
+            logWalletDiagnosticInDev(
+              "warn",
+              "[StellarWallet] Auto-connect failed",
+              {
+                walletId: lastWalletId,
+                reason: formatWalletErrorMessage(err),
+              }
+            );
           }
         } finally {
           if (!cancelled) {
