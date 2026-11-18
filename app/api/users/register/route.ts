@@ -28,10 +28,6 @@ async function handler(req: NextRequest) {
     );
   }
 
-  if (req.method !== "POST") {
-    return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
-  }
-
   const requestBody = await req.json();
   const {
     email,
@@ -203,7 +199,14 @@ async function handler(req: NextRequest) {
     await invalidateUserCaches({ username, wallet });
     console.log(`[register] User registered: ${username}`);
 
-    await sendWelcomeRegistrationEmail(email, username);
+    // The account already exists at this point; a mail failure must not turn a
+    // successful registration into a 500 (the client would retry and hit
+    // "Email already exist").
+    try {
+      await sendWelcomeRegistrationEmail(email, username);
+    } catch (emailError) {
+      console.error("[register] Failed to send welcome email:", emailError);
+    }
 
     return NextResponse.json(
       {
@@ -224,4 +227,12 @@ async function handler(req: NextRequest) {
   }
 }
 
-export { handler as POST, handler as GET };
+export { handler as POST };
+
+// Registration mutates state; only POST is allowed.
+export async function GET() {
+  return NextResponse.json(
+    { error: "Method not allowed" },
+    { status: 405, headers: { Allow: "POST" } }
+  );
+}
