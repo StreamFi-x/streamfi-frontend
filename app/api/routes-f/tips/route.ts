@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { z } from "zod";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,7 +38,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ updated: true, tip: rows[0] });
   } catch (error) {
-    console.error("[Tips API] Error updating tip:", error);
+    logger.error("Error updating tip anonymous status", error, {
+      route: "POST /api/routes-f/tips",
+      tipId: tip_id,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

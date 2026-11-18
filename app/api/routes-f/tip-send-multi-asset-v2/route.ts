@@ -19,6 +19,7 @@ import {
 } from "@/lib/stellar/payments";
 import { getStellarNetwork, getNetworkPassphrase } from "@/lib/stellar/config";
 import { sql } from "@vercel/postgres";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +34,10 @@ const tipSendMultiAssetSchema = z.object({
   strict: z.enum(["send", "receive"]).default("send"),
 });
 
-function assetFromSymbol(symbol: "XLM" | "USDC", network: "testnet" | "mainnet"): Asset {
+function assetFromSymbol(
+  symbol: "XLM" | "USDC",
+  network: "testnet" | "mainnet"
+): Asset {
   return symbol === "XLM" ? Asset.native() : getUsdcAsset(network);
 }
 
@@ -49,7 +53,10 @@ async function getRecipientWallet(channelId: string): Promise<string | null> {
     const recipient = rows[0] as any;
     return recipient.stellar_address || recipient.wallet_address || null;
   } catch (error) {
-    console.error("[tip-send-multi-asset-v2] Error:", error);
+    logger.error("Error fetching recipient wallet", error, {
+      route: "POST /api/routes-f/tip-send-multi-asset-v2",
+      channelId,
+    });
     throw error;
   }
 }
@@ -66,7 +73,10 @@ async function getSenderWallet(userId: string): Promise<string | null> {
     const sender = rows[0] as any;
     return sender.stellar_address || sender.wallet_address || null;
   } catch (error) {
-    console.error("[tip-send-multi-asset-v2] Error:", error);
+    logger.error("Error fetching sender wallet", error, {
+      route: "POST /api/routes-f/tip-send-multi-asset-v2",
+      userId,
+    });
     throw error;
   }
 }
@@ -97,10 +107,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const recipientNum = parseFloat(recipientAmount);
 
     if (!Number.isFinite(senderNum) || senderNum <= 0) {
-      return NextResponse.json({ error: "senderAmount must be > 0" }, { status: 400 });
+      return NextResponse.json(
+        { error: "senderAmount must be > 0" },
+        { status: 400 }
+      );
     }
     if (!Number.isFinite(recipientNum) || recipientNum <= 0) {
-      return NextResponse.json({ error: "recipientAmount must be > 0" }, { status: 400 });
+      return NextResponse.json(
+        { error: "recipientAmount must be > 0" },
+        { status: 400 }
+      );
     }
 
     if (senderAsset === recipientAsset) {
@@ -115,20 +131,32 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const senderWallet = await getSenderWallet(session.userId);
     if (!senderWallet || !isValidStellarPublicKey(senderWallet)) {
-      return NextResponse.json({ error: "Sender wallet invalid" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Sender wallet invalid" },
+        { status: 400 }
+      );
     }
 
     const recipientWallet = await getRecipientWallet(recipientChannelId);
     if (!recipientWallet) {
-      return NextResponse.json({ error: "Recipient not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Recipient not found" },
+        { status: 404 }
+      );
     }
 
     if (!isValidStellarPublicKey(recipientWallet)) {
-      return NextResponse.json({ error: "Recipient wallet invalid" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Recipient wallet invalid" },
+        { status: 400 }
+      );
     }
 
     if (senderWallet === recipientWallet) {
-      return NextResponse.json({ error: "Cannot tip yourself" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Cannot tip yourself" },
+        { status: 400 }
+      );
     }
 
     const sendAssetObj = assetFromSymbol(senderAsset, network);
@@ -136,20 +164,34 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // Verify trustlines
     if (!sendAssetObj.isNative()) {
-      const hasSendTrustline = await hasTrustline(senderWallet, sendAssetObj, network);
+      const hasSendTrustline = await hasTrustline(
+        senderWallet,
+        sendAssetObj,
+        network
+      );
       if (!hasSendTrustline) {
         return NextResponse.json(
-          { error: `You don't have ${senderAsset} trustline`, needsTrustline: true },
+          {
+            error: `You don't have ${senderAsset} trustline`,
+            needsTrustline: true,
+          },
           { status: 400 }
         );
       }
     }
 
     if (!receiveAssetObj.isNative()) {
-      const hasReceiveTrustline = await hasTrustline(recipientWallet, receiveAssetObj, network);
+      const hasReceiveTrustline = await hasTrustline(
+        recipientWallet,
+        receiveAssetObj,
+        network
+      );
       if (!hasReceiveTrustline) {
         return NextResponse.json(
-          { error: `Recipient needs ${recipientAsset} trustline`, needsTrustline: true },
+          {
+            error: `Recipient needs ${recipientAsset} trustline`,
+            needsTrustline: true,
+          },
           { status: 400 }
         );
       }
@@ -183,19 +225,31 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       { status: 200 }
     );
   } catch (error) {
-    console.error("[tip-send-multi-asset-v2] Error:", error);
+    logger.error("Error building multi-asset v2 tip transaction", error, {
+      route: "POST /api/routes-f/tip-send-multi-asset-v2",
+      recipientChannelId,
+    });
 
     if (error instanceof Error) {
       const msg = error.message;
       if (msg.includes("trustline")) {
-        return NextResponse.json({ error: msg, needsTrustline: true }, { status: 400 });
+        return NextResponse.json(
+          { error: msg, needsTrustline: true },
+          { status: 400 }
+        );
       }
       if (msg.includes("No payment path")) {
-        return NextResponse.json({ error: "No path found. Try increasing maxSlippage.", noPath: true }, { status: 404 });
+        return NextResponse.json(
+          { error: "No path found. Try increasing maxSlippage.", noPath: true },
+          { status: 404 }
+        );
       }
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    return NextResponse.json({ error: "Failed to build transaction" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to build transaction" },
+      { status: 500 }
+    );
   }
 }

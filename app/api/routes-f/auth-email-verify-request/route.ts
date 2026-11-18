@@ -23,6 +23,8 @@ import { signToken } from "@/lib/auth/sign-token";
 import { hashToken } from "@/lib/sessions/user-sessions";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { sendEmailVerificationLink } from "@/utils/send-email";
+import { executeEmailWithRetryAndDeadLetter } from "@/lib/email/reliable-sender";
+import { logger } from "@/lib/tracing/logger";
 
 // 3 verification emails per hour per account — plenty for legitimate retries
 // (e.g. "I didn't get it, resend"), but not enough to be useful as a spam
@@ -67,9 +69,9 @@ export async function POST(request: NextRequest) {
 
   const secret = process.env.SESSION_SECRET;
   if (!secret) {
-    console.error(
-      "[routes-f auth-email-verify-request] SESSION_SECRET not configured"
-    );
+    logger.error("SESSION_SECRET not configured", {
+      route: "POST /api/routes-f/auth-email-verify-request",
+    });
     return NextResponse.json(
       { error: "Server misconfiguration" },
       { status: 500 }
@@ -116,19 +118,26 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
     const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(rawToken)}`;
 
-    await sendEmailVerificationLink(email, verifyUrl).catch((err: unknown) => {
-      console.error(
-        "[routes-f auth-email-verify-request] Failed to send email:",
-        err
-      );
-    });
+    await executeEmailWithRetryAndDeadLetter(
+      () => sendEmailVerificationLink(email, verifyUrl),
+      {
+        emailType: "email_verification_link",
+        recipientEmail: email,
+        subject: "Verify your StreamFi email address",
+        payload: { userId: session.userId },
+        maxRetries: 1,
+        initialBackoffMs: 50,
+      }
+    );
 
     return NextResponse.json(
       { message: "Verification link sent. Check your inbox." },
       { status: 200 }
     );
   } catch (error) {
-    console.error("[routes-f auth-email-verify-request POST]", error);
+    logger.error("Failed to send verification email", error, {
+      route: "POST /api/routes-f/auth-email-verify-request",
+    });
     return NextResponse.json(
       { error: "Failed to send verification email" },
       { status: 500 }

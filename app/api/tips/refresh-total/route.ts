@@ -12,6 +12,7 @@ import { cacheHeaders } from "@/lib/cache";
 import { markRecentWrite } from "@/lib/db/replica";
 import { acquireLock } from "@/lib/single-flight-lock";
 import { createRateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { logger } from "@/lib/tracing/logger";
 
 export const maxDuration = 30;
 
@@ -230,7 +231,10 @@ export async function POST(request: NextRequest) {
       await lock.release();
     }
   } catch (error) {
-    console.error("Refresh total error:", error);
+    logger.error("Refresh total error", error, {
+      route: "POST /api/tips/refresh-total",
+      username,
+    });
     return NextResponse.json(
       { error: "Failed to refresh tip totals" },
       { status: 500 }
