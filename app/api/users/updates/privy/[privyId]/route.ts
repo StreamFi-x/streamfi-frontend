@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import {
-  uploadImageFromBuffer,
-  deleteImage,
-  extractPublicIdFromUrl,
-} from "@/utils/upload/cloudinary";
+import { uploadImageFromBuffer } from "@/utils/upload/cloudinary";
+import { createImageCleanup } from "@/lib/users/image-cleanup";
 import { JsonbContractError } from "@/lib/db/jsonb-contracts";
 import { parseProfileJsonbFields } from "@/lib/users/profile-form";
 import { validateUserUpdate } from "../../../../../../utils/userValidators";
@@ -86,6 +83,9 @@ export async function PUT(
       }
     }
 
+    // Old images are deleted only after the UPDATE succeeds (see image-cleanup).
+    const imageCleanup = createImageCleanup();
+
     // Handle avatar — file upload (→ Cloudinary) or preset icon URL string
     let avatarUrl = user.avatar;
     const avatarFile = formData.get("avatar");
@@ -95,22 +95,12 @@ export async function PUT(
       const buffer = Buffer.from(await avatarFile.arrayBuffer());
       const uploadResult = await uploadImageFromBuffer(buffer);
       avatarUrl = uploadResult.secure_url;
-
-      if (user.avatar) {
-        const oldPublicId = extractPublicIdFromUrl(user.avatar);
-        if (oldPublicId) {
-          await deleteImage(oldPublicId);
-        }
-      }
+      imageCleanup.trackUpload(uploadResult.public_id);
+      imageCleanup.trackReplaced(user.avatar);
     } else if (typeof avatarUrlField === "string" && avatarUrlField.trim()) {
       avatarUrl = avatarUrlField.trim();
       // Clean up old Cloudinary photo if switching to a preset icon
-      if (user.avatar) {
-        const oldPublicId = extractPublicIdFromUrl(user.avatar);
-        if (oldPublicId) {
-          await deleteImage(oldPublicId);
-        }
-      }
+      imageCleanup.trackReplaced(user.avatar);
     }
 
     // Handle banner — file upload (→ Cloudinary)
@@ -121,32 +111,34 @@ export async function PUT(
       const buffer = Buffer.from(await bannerFile.arrayBuffer());
       const uploadResult = await uploadImageFromBuffer(buffer);
       bannerUrl = uploadResult.secure_url;
-
-      if (user.banner) {
-        const oldPublicId = extractPublicIdFromUrl(user.banner);
-        if (oldPublicId) {
-          await deleteImage(oldPublicId);
-        }
-      }
+      imageCleanup.trackUpload(uploadResult.public_id);
+      imageCleanup.trackReplaced(user.banner);
     }
 
-    const updatedUser = await sql`
-      UPDATE users SET
-        username = ${username},
-        avatar = ${avatarUrl},
-        banner = ${bannerUrl},
-        bio = ${bio},
-        streamkey = ${streamkey},
-        sociallinks = COALESCE(${jsonbFields.socialLinks ? JSON.stringify(jsonbFields.socialLinks) : null}::jsonb, sociallinks),
-        emailverified = ${emailVerified},
-        emailnotifications = ${emailNotifications},
-        creator = COALESCE(${jsonbFields.creator ? JSON.stringify(jsonbFields.creator) : null}::jsonb, creator),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE privy_id = ${privyId} AND deleted_at IS NULL
-      RETURNING id, username, email, streamkey, avatar, banner, bio, sociallinks,
-                emailverified, emailnotifications, creator, privy_id,
-                created_at, updated_at
-    `;
+    let updatedUser: Awaited<ReturnType<typeof sql>>;
+    try {
+      updatedUser = await sql`
+        UPDATE users SET
+          username = ${username},
+          avatar = ${avatarUrl},
+          banner = ${bannerUrl},
+          bio = ${bio},
+          streamkey = ${streamkey},
+          sociallinks = COALESCE(${jsonbFields.socialLinks ? JSON.stringify(jsonbFields.socialLinks) : null}::jsonb, sociallinks),
+          emailverified = ${emailVerified},
+          emailnotifications = ${emailNotifications},
+          creator = COALESCE(${jsonbFields.creator ? JSON.stringify(jsonbFields.creator) : null}::jsonb, creator),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE privy_id = ${privyId} AND deleted_at IS NULL
+        RETURNING id, username, email, streamkey, avatar, banner, bio, sociallinks,
+                  emailverified, emailnotifications, creator, privy_id,
+                  created_at, updated_at
+      `;
+    } catch (updateError) {
+      await imageCleanup.rollback();
+      throw updateError;
+    }
+    await imageCleanup.commit();
     await invalidateUserCaches({
       id: user.id,
       username,
