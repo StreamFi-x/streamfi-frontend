@@ -8,8 +8,9 @@
  *   const { userId, wallet, privyId } = session;
  *
  * Security model:
- * - Privy users: `privy_session` HttpOnly cookie contains the server-verified
- *   Privy user ID (did:privy:xxx). Set by /api/auth/session after JWT verification.
+ * - Privy users: `privy_session` HttpOnly cookie contains an HMAC-SHA256
+ *   signed token with { privyId, iat, exp }. Set by /api/auth/session after
+ *   Privy JWT verification. A bare did:privy:xxx value is rejected (#1858).
  * - Wallet users (new): `wallet_session` HttpOnly cookie contains an HMAC-SHA256
  *   signed JWT with { userId, wallet, exp }. Set by /api/auth/wallet-session.
  * - Wallet users (legacy): raw `wallet` cookie — accepted as fallback while
@@ -89,13 +90,40 @@ export async function verifySession(
   req: NextRequest,
   options: VerifySessionOptions = {}
 ): Promise<VerifiedSession> {
-  const privySessionId = req.cookies.get("privy_session")?.value;
+  const privySessionToken = req.cookies.get("privy_session")?.value;
   const walletSessionToken = req.cookies.get("wallet_session")?.value;
   const legacyWalletCookie = req.cookies.get("wallet")?.value;
 
-  // ── Privy session (preferred — server-verified) ──────────────────────────
-  if (privySessionId) {
-    if (!privySessionId.startsWith("did:privy:")) {
+  // ── Privy session (preferred — HMAC-signed, #1858) ───────────────────────
+  if (privySessionToken) {
+    // Verify the signature before any database access so forged or garbage
+    // cookies are rejected without running a query. A bare `did:privy:` value
+    // is not a valid token and fails here.
+    let keyring;
+    try {
+      keyring = currentKeyring();
+    } catch {
+      console.error(
+        "[verifySession] SESSION_SECRET not configured — privy_session cannot be verified"
+      );
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: "Server misconfiguration" },
+          { status: 500 }
+        ),
+      };
+    }
+
+    const privyPayload = verifyToken<{ privyId: string }>(
+      privySessionToken,
+      keyring
+    );
+    if (
+      !privyPayload ||
+      typeof privyPayload.privyId !== "string" ||
+      !privyPayload.privyId.startsWith("did:privy:")
+    ) {
       return {
         ok: false,
         response: NextResponse.json(
@@ -104,13 +132,14 @@ export async function verifySession(
         ),
       };
     }
+    const privyId = privyPayload.privyId;
 
     try {
       // Check user_sessions table first — catches revoked sessions immediately.
       // Falls back gracefully if the table doesn't exist yet (pre-migration).
       let sessionRow: { id: string; last_seen_at: Date } | null = null;
       try {
-        sessionRow = await findActiveSession(privySessionId);
+        sessionRow = await findActiveSession(privySessionToken);
         if (!sessionRow) {
           // Session was revoked or expired — reject even if the cookie is valid
           return {
@@ -134,7 +163,7 @@ export async function verifySession(
       const { rows } = await sql`
         SELECT id, privy_id, wallet, username, email, deleted_at
         FROM users
-        WHERE privy_id = ${privySessionId}
+        WHERE privy_id = ${privyId}
         LIMIT 1
       `;
 
