@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { deleteMuxAssetIfExists } from "@/lib/mux/server";
+import { logger } from "@/lib/tracing/logger";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -81,7 +82,9 @@ export async function GET(
       recordings: result.rows,
     });
   } catch (error) {
-    console.error("Error fetching recordings:", error);
+    logger.error("Error fetching recordings", error, {
+      route: "GET /api/streams/recordings/[wallet]",
+    });
     return NextResponse.json(
       { success: false, error: "Failed to fetch recordings" },
       { status: 500 }
@@ -130,15 +133,17 @@ export async function DELETE(
     try {
       await deleteMuxAssetIfExists(String(rows[0].mux_asset_id));
     } catch (muxErr) {
-      console.error(
-        `[recordings] DELETE: Mux asset ${rows[0].mux_asset_id} not deleted:`,
-        muxErr instanceof Error ? muxErr.message : muxErr
-      );
+      logger.error("Failed to delete Mux asset for recording", muxErr, {
+        route: "DELETE /api/streams/recordings/[id]",
+        muxAssetId: rows[0].mux_asset_id,
+      });
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[recordings] DELETE error:", error);
+    logger.error("Delete recording error", error, {
+      route: "DELETE /api/streams/recordings/[id]",
+    });
     return NextResponse.json(
       { error: "Failed to delete recording" },
       { status: 500 }
@@ -184,7 +189,9 @@ export async function PATCH(
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[recordings] PATCH error:", error);
+    logger.error("Update recording error", error, {
+      route: "PATCH /api/streams/recordings/[id]",
+    });
     return NextResponse.json(
       { error: "Failed to update recording" },
       { status: 500 }

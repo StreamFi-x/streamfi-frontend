@@ -11,6 +11,7 @@ import {
   prepareSocialLinks,
 } from "@/lib/db/jsonb-contracts";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { logger } from "@/lib/tracing/logger";
 
 // Registration creates a Mux stream + DB write — strict limit to prevent abuse
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 5); // 5 per hour per IP
@@ -156,20 +157,34 @@ async function handler(req: NextRequest) {
     let muxStream: Awaited<ReturnType<typeof createMuxStream>> | null = null;
 
     if (hasMuxCredentials) {
-      console.log(`[register] Creating Mux stream for user: ${username}`);
+      logger.info("Creating Mux stream for user", {
+        route: "POST /api/users/register",
+        username,
+      });
       try {
         muxStream = await createMuxStream({
           name: `${username}'s Stream`,
           record: true,
         });
-        console.log(`[register] Mux stream created: ${muxStream.id}`);
+        logger.info("Mux stream created for user", {
+          route: "POST /api/users/register",
+          username,
+          streamId: muxStream.id,
+        });
       } catch (muxError) {
-        console.error("[register] Failed to create Mux stream:", muxError);
+        logger.error(
+          "Failed to create Mux stream during registration",
+          muxError,
+          {
+            route: "POST /api/users/register",
+            username,
+          }
+        );
       }
     } else {
-      console.warn(
-        "[register] Mux credentials missing. Skipping stream provisioning."
-      );
+      logger.warn("Mux credentials missing. Skipping stream provisioning.", {
+        route: "POST /api/users/register",
+      });
     }
 
     await sql`
@@ -201,7 +216,10 @@ async function handler(req: NextRequest) {
 
     // Profile layouts cache "not found" (unstable_cache); purge it for the new handle.
     await invalidateUserCaches({ username, wallet });
-    console.log(`[register] User registered: ${username}`);
+    logger.info("User registered", {
+      route: "POST /api/users/register",
+      username,
+    });
 
     await sendWelcomeRegistrationEmail(email, username);
 
@@ -216,7 +234,9 @@ async function handler(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Registration error:", error);
+    logger.error("Registration error", error, {
+      route: "POST /api/users/register",
+    });
     return NextResponse.json(
       { error: "Failed to register user" },
       { status: 500 }

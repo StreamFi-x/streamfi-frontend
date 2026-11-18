@@ -7,6 +7,9 @@ const WalletNetwork = {
   TESTNET: "TESTNET",
 };
 
+const FREIGHTER_ID = "freighter";
+const allowAllModules = jest.fn(() => []);
+
 class StellarWalletsKit {
   constructor() {}
   openModal = jest.fn().mockResolvedValue(undefined);
@@ -14,4 +17,9 @@ class StellarWalletsKit {
   getAddress = jest.fn().mockResolvedValue({ address: "" });
 }
 
-module.exports = { WalletNetwork, StellarWalletsKit };
+module.exports = {
+  WalletNetwork,
+  StellarWalletsKit,
+  FREIGHTER_ID,
+  allowAllModules,
+};

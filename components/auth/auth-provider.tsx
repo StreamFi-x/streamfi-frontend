@@ -333,7 +333,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (shouldAutoConnect && lastWalletId && isInitializing) {
       const timeout = setTimeout(() => {
-        console.log("[AuthProvider] Auto-connect timeout - stopping loading");
+        if (process.env.NODE_ENV === "development") {
+          // eslint-disable-next-line no-console
+          console.debug(
+            "[AuthProvider] Auto-connect timeout - stopping loading"
+          );
+        }
         setIsInitializing(false);
         setHasInitialized(true);
       }, 10000);

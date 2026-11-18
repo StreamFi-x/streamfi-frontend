@@ -24,6 +24,7 @@ import {
   CustodialKeyError,
   decryptCustodialSecret,
 } from "@/lib/custodial-keys";
+import { logger } from "@/lib/tracing/logger";
 
 // ─── Rate limiter: 3 exports per 10 minutes per IP (stricter than session) ────
 const isRateLimited = createRateLimiter(10 * 60 * 1000, 3);
@@ -59,8 +60,19 @@ export async function POST(req: NextRequest) {
   }
 
   const challengeId = req.headers.get("x-step-up-challenge");
-  if (!challengeId || !(await consumeStepUp(session.userId, challengeId, "wallet_export", session.userId))) {
-    return NextResponse.json({ error: "Complete two-factor verification before exporting the wallet" }, { status: 403 });
+  if (
+    !challengeId ||
+    !(await consumeStepUp(
+      session.userId,
+      challengeId,
+      "wallet_export",
+      session.userId
+    ))
+  ) {
+    return NextResponse.json(
+      { error: "Complete two-factor verification before exporting the wallet" },
+      { status: 403 }
+    );
   }
 
   // 4. Fetch the encrypted key from DB
@@ -75,7 +87,10 @@ export async function POST(req: NextRequest) {
     `;
     encryptedKey = rows[0]?.encrypted_stellar_key ?? null;
   } catch (err) {
-    console.error("[export-key] DB error:", err);
+    logger.error("Export key database query failed", err, {
+      route: "POST /api/auth/export-key",
+      userId: session.userId,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -97,10 +112,11 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json({ secretKey });
   } catch (err) {
-    console.error(
-      "[export-key] Decryption failed:",
-      err instanceof CustodialKeyError ? err.code : "unexpected_error"
-    );
+    logger.error("Custodial wallet key decryption failed", {
+      route: "POST /api/auth/export-key",
+      userId: session.userId,
+      code: err instanceof CustodialKeyError ? err.code : "unexpected_error",
+    });
     if (err instanceof CustodialKeyError && err.transient) {
       return NextResponse.json(
         { error: "Key service temporarily unavailable — please try again" },

@@ -38,6 +38,7 @@ import {
 } from "@/lib/stellar/payments";
 import { getStellarNetwork, getNetworkPassphrase } from "@/lib/stellar/config";
 import { sql } from "@vercel/postgres";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,7 +46,10 @@ export const dynamic = "force-dynamic";
 const tipSendUsdcSchema = z.object({
   amount: z
     .string()
-    .regex(/^\d+(\.\d{1,7})?$/, "amount must be a valid USDC amount with up to 7 decimals"),
+    .regex(
+      /^\d+(\.\d{1,7})?$/,
+      "amount must be a valid USDC amount with up to 7 decimals"
+    ),
   recipientChannelId: z.string().min(1, "recipientChannelId is required"),
   memo: z.string().max(28, "memo must be 28 characters or less").optional(),
 });
@@ -66,7 +70,10 @@ async function getRecipientWallet(channelId: string): Promise<string | null> {
     const recipient = rows[0] as any;
     return recipient.stellar_address || recipient.wallet_address || null;
   } catch (error) {
-    console.error("[tip-send-usdc] Error fetching recipient wallet:", error);
+    logger.error("Error fetching recipient wallet", error, {
+      route: "POST /api/routes-f/tip-send-usdc",
+      channelId,
+    });
     throw error;
   }
 }
@@ -87,7 +94,10 @@ async function getSenderWallet(userId: string): Promise<string | null> {
     const sender = rows[0] as any;
     return sender.stellar_address || sender.wallet_address || null;
   } catch (error) {
-    console.error("[tip-send-usdc] Error fetching sender wallet:", error);
+    logger.error("Error fetching sender wallet", error, {
+      route: "POST /api/routes-f/tip-send-usdc",
+      userId,
+    });
     throw error;
   }
 }
@@ -173,20 +183,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       { status: 200 }
     );
   } catch (error) {
-    console.error("[tip-send-usdc] Error building transaction:", error);
+    logger.error("Error building USDC tip transaction", error, {
+      route: "POST /api/routes-f/tip-send-usdc",
+      recipientChannelId,
+    });
 
     if (error instanceof Error) {
       if (error.message.includes("Account not found")) {
         return NextResponse.json(
-          { error: "Sender account not found. Please ensure your wallet is funded." },
+          {
+            error:
+              "Sender account not found. Please ensure your wallet is funded.",
+          },
           { status: 400 }
         );
       }
       if (error.message.includes("Recipient")) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: error.message }, { status: 400 });
       }
     }
 

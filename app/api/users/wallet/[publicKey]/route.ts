@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { cacheHeaders } from "@/lib/cache";
 import { verifySession } from "@/lib/auth/verify-session";
+import { logger } from "@/lib/tracing/logger";
 
 // Credential material that no client ever needs, regardless of who is
 // asking. The rest of the row is only returned to the wallet's own owner
@@ -59,7 +60,9 @@ export async function GET(
       { headers: cacheHeaders("privateNoStore") }
     );
   } catch (error) {
-    console.error("API: Fetch user error:", error);
+    logger.error("Failed to fetch user by wallet", error, {
+      route: "GET /api/users/wallet/[publicKey]",
+    });
     return NextResponse.json(
       { error: "Failed to fetch user" },
       { status: 500 }

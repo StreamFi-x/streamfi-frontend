@@ -25,6 +25,7 @@ import {
   sendLargeTipReceivedEmail,
   sendCommentReplyEmail,
 } from "@/lib/email-service";
+import { logger } from "@/lib/tracing/logger";
 
 // Validation schemas
 const newFollowerSchema = z.object({
@@ -137,7 +138,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           );
         }
 
-        const cwlData = validation.data as z.infer<typeof creatorWentLiveSchema>;
+        const cwlData = validation.data as z.infer<
+          typeof creatorWentLiveSchema
+        >;
         result = await sendCreatorWentLiveEmail(cwlData.recipient_email, {
           recipientName: cwlData.data.recipient_name,
           creatorName: cwlData.data.creator_name,
@@ -230,7 +233,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
   } catch (error) {
-    console.error("[Transactional Email API] Unhandled error:", error);
+    logger.error("Transactional Email API unhandled error", error, {
+      route: "POST /api/notifications/send-transactional-email",
+    });
     const message = error instanceof Error ? error.message : "Unknown error";
 
     return NextResponse.json(
@@ -258,7 +263,9 @@ export async function GET(): Promise<NextResponse> {
       status: result.success ? 200 : 500,
     });
   } catch (error) {
-    console.error("[Transactional Email API] Health check failed:", error);
+    logger.error("Transactional Email API health check failed", error, {
+      route: "GET /api/notifications/send-transactional-email",
+    });
     return NextResponse.json(
       {
         success: false,
