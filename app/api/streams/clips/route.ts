@@ -19,6 +19,62 @@ function getIp(req: NextRequest) {
 }
 
 /**
+ * Create a clip via Mux REST API.
+ * When a live stream recording is captured, we can clip from the asset.
+ * For now, clips are created with status 'processing' and a webhook will
+ * mark them ready when the clip asset is ready.
+ */
+async function createMuxClip(
+  liveStreamId: string,
+  startTime: number,
+  endTime: number
+): Promise<{ assetId: string; playbackId: string } | null> {
+  if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
+    console.warn("⚠️ MUX_TOKEN_ID or MUX_TOKEN_SECRET not set");
+    return null;
+  }
+
+  const auth = Buffer.from(
+    `${process.env.MUX_TOKEN_ID}:${process.env.MUX_TOKEN_SECRET}`
+  ).toString("base64");
+
+  try {
+    const response = await fetch("https://api.mux.com/video/v1/assets", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        input: {
+          live_stream_id: liveStreamId,
+          start_time: startTime,
+          end_time: endTime,
+        },
+        playback_policy: ["public"],
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("❌ Mux API error:", error);
+      return null;
+    }
+
+    const asset = await response.json();
+    const playbackId = asset.data?.playback_ids?.[0]?.id ?? null;
+
+    return {
+      assetId: asset.data.id,
+      playbackId: playbackId || "",
+    };
+  } catch (error) {
+    console.error("❌ Failed to create Mux clip:", error);
+    return null;
+  }
+}
+
+/**
  * GET  /api/streams/clips?username=foo&limit=20&cursor=<nextCursor>
  *   → public list of ready clips, newest first, on the shared cursor contract
  *     (docs/api/pagination.md): { items, nextCursor, hasMore }

@@ -5,6 +5,7 @@ import {
   assetHandlers,
   liveStreamHandlers,
   liveStreamLogOnly,
+  clipReadyHandler,
 } from "@/lib/mux/webhook-handlers";
 
 /**
@@ -32,6 +33,7 @@ const handlers = {
   ...liveStreamHandlers,
   ...assetHandlers({ notifyOwner: false }),
   "video.asset.deleted": assetDeletedHandler,
+  "video.clip.ready": clipReadyHandler,
 };
 
 export async function POST(req: Request) {

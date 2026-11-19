@@ -27,8 +27,6 @@ import {
 const isRateLimited = createRateLimiter(60_000, 30);
 // 60 GET requests per minute per IP for polling (1 req/sec × 60 viewers)
 const isGetRateLimited = createRateLimiter(60_000, 60);
-// 30 DELETE requests per minute per IP for moderation
-const isDeleteRateLimited = createRateLimiter(60_000, 30);
 
 // 120 deletes per minute per authenticated user — generous enough for a
 // spam-wave clear (moderator removing ~2 msg/s) but caps worst-case damage
