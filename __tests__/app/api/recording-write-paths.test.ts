@@ -5,6 +5,7 @@
  */
 import { NextRequest } from "next/server";
 import { createSqlMock } from "@/testing/sql-mock";
+import { signedPrivySession } from "@/testing/privy-session";
 
 const mockDb = createSqlMock();
 jest.mock("@vercel/postgres", () => ({
@@ -108,7 +109,9 @@ describe("DELETE /api/streams/recordings/[id]", () => {
   const req = () =>
     new NextRequest(`http://localhost/api/streams/recordings/${RECORDING}`, {
       method: "DELETE",
-      headers: { cookie: "privy_session=did:privy:user" },
+      headers: {
+        cookie: `privy_session=${signedPrivySession("did:privy:user")}`,
+      },
     });
 
   beforeEach(() => {

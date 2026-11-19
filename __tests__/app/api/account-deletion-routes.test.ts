@@ -6,6 +6,7 @@
  */
 import { NextRequest } from "next/server";
 import { createSqlMock } from "@/testing/sql-mock";
+import { signedPrivySession } from "@/testing/privy-session";
 
 const mockDb = createSqlMock();
 jest.mock("@vercel/postgres", () => ({
@@ -112,7 +113,7 @@ function sessionUser(deletedAt: string | null) {
   });
 }
 
-const userCookie = "privy_session=did:privy:user";
+const userCookie = `privy_session=${signedPrivySession("did:privy:user")}`;
 const params = (userId: string) => ({ params: Promise.resolve({ userId }) });
 
 beforeEach(() => {
