@@ -7,6 +7,9 @@ const mockListeners = new Map<string, (payload: unknown) => void>();
 const mockOn = jest.fn((event: string, cb: (payload: unknown) => void) => {
   mockListeners.set(event, cb);
 });
+const mockOff = jest.fn((event: string, _cb?: (payload: unknown) => void) => {
+  mockListeners.delete(event);
+});
 const mockInit = jest.fn();
 const mockClose = jest.fn();
 const mockCleanup = jest.fn();
@@ -21,6 +24,7 @@ jest.mock("@transak/transak-sdk", () => {
   class Transak {
     static EVENTS = EVENTS;
     static on = mockOn;
+    static off = mockOff;
     init = mockInit;
     close = mockClose;
     cleanup = mockCleanup;
@@ -44,6 +48,9 @@ beforeEach(() => {
   mockListeners.clear();
   jest.clearAllMocks();
   mockClose.mockReset().mockImplementation(() => mockListeners.clear());
+  mockOff
+    .mockReset()
+    .mockImplementation((event: string) => mockListeners.delete(event));
   mockInit.mockReset();
 });
 
@@ -238,4 +245,96 @@ it("releases ownership and reports initialization failures", async () => {
   await act(async () => {
     expect(await a.result.current.openTransak()).toBe(true);
   });
+});
+
+it("calls Transak.off for all registered events when unmounting while widget is open", async () => {
+  const { result, unmount } = renderHook(() =>
+    useTransak({ walletAddress: WALLET })
+  );
+  await act(async () => {
+    await result.current.openTransak();
+  });
+  expect(mockOn).toHaveBeenCalled();
+
+  unmount();
+
+  expect(mockOff).toHaveBeenCalledWith(
+    "TRANSAK_ORDER_CREATED",
+    expect.any(Function)
+  );
+  expect(mockOff).toHaveBeenCalledWith(
+    "TRANSAK_ORDER_SUCCESSFUL",
+    expect.any(Function)
+  );
+  expect(mockOff).toHaveBeenCalledWith(
+    "TRANSAK_ORDER_FAILED",
+    expect.any(Function)
+  );
+  expect(mockOff).toHaveBeenCalledWith(
+    "TRANSAK_ORDER_CANCELLED",
+    expect.any(Function)
+  );
+  expect(mockOff).toHaveBeenCalledWith(
+    "TRANSAK_WIDGET_CLOSE",
+    expect.any(Function)
+  );
+});
+
+it("calls Transak.off when widget is closed via closeTransak", async () => {
+  const { result } = renderHook(() => useTransak({ walletAddress: WALLET }));
+  await act(async () => {
+    await result.current.openTransak();
+  });
+  expect(mockOn).toHaveBeenCalled();
+
+  act(() => {
+    result.current.closeTransak();
+  });
+
+  expect(mockOff).toHaveBeenCalledWith(
+    "TRANSAK_ORDER_SUCCESSFUL",
+    expect.any(Function)
+  );
+});
+
+it("verifies only one active listener exists at a time across multiple mounted hook instances", async () => {
+  const first = { onSuccess: jest.fn() };
+  const second = { onSuccess: jest.fn() };
+  const a = renderHook(() => useTransak({ walletAddress: WALLET, ...first }));
+  const b = renderHook(() => useTransak({ walletAddress: WALLET, ...second }));
+
+  // Opening first instance
+  await act(async () => {
+    await a.result.current.openTransak();
+  });
+
+  const successfulListenerCountBefore = mockOn.mock.calls.filter(
+    ([e]) => e === "TRANSAK_ORDER_SUCCESSFUL"
+  ).length;
+  expect(successfulListenerCountBefore).toBe(1);
+
+  // Close first instance
+  act(() => {
+    a.result.current.closeTransak();
+  });
+  expect(mockOff).toHaveBeenCalledWith(
+    "TRANSAK_ORDER_SUCCESSFUL",
+    expect.any(Function)
+  );
+
+  // Open second instance
+  await act(async () => {
+    await b.result.current.openTransak();
+  });
+
+  // Verify only 1 active listener was added for second instance (total calls = 2, but previous was removed via off)
+  const successfulListenerCountAfter = mockOn.mock.calls.filter(
+    ([e]) => e === "TRANSAK_ORDER_SUCCESSFUL"
+  ).length;
+  expect(successfulListenerCountAfter).toBe(2);
+
+  // Trigger event and ensure only second instance receives it
+  emit("TRANSAK_ORDER_SUCCESSFUL");
+  expect(first.onSuccess).not.toHaveBeenCalled();
+  expect(second.onSuccess).toHaveBeenCalledWith(order);
 });
