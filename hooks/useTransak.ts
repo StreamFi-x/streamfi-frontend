@@ -53,6 +53,27 @@ let activeOwner: {
 } | null = null;
 let listenersRegistered = false;
 let openingOwner: object | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cachedTransak: any = null;
+const activeHandlers: Record<string, (payload: unknown) => void> = {};
+
+function removeTransakListeners(sdk?: unknown): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const TransakClass = (sdk || cachedTransak) as any;
+  if (!listenersRegistered || !TransakClass) {
+    return;
+  }
+  if (typeof TransakClass.off === "function") {
+    for (const [event, handler] of Object.entries(activeHandlers)) {
+      try {
+        TransakClass.off(event, handler);
+      } catch {
+        /* Ignore error during unregistration */
+      }
+    }
+  }
+  listenersRegistered = false;
+}
 
 function disposeWidget(widget: WidgetInstance | null): void {
   try {
@@ -62,8 +83,8 @@ function disposeWidget(widget: WidgetInstance | null): void {
       widget?.cleanup();
     }
   } finally {
-    if (widget) {
-      listenersRegistered = false;
+    if (widget || listenersRegistered) {
+      removeTransakListeners(cachedTransak);
     }
   }
 }
@@ -75,30 +96,36 @@ function orderOf(payload: unknown): TransakOrderData | null {
 async function loadTransak() {
   // Dynamic import keeps the SDK out of the SSR bundle.
   const { Transak } = await import("@transak/transak-sdk");
+  cachedTransak = Transak;
   if (!listenersRegistered) {
     const { EVENTS } = Transak;
-    Transak.on(EVENTS.TRANSAK_ORDER_CREATED, payload => {
+    activeHandlers[EVENTS.TRANSAK_ORDER_CREATED] = (payload: unknown) => {
       const order = orderOf(payload);
       if (order) {
         activeOwner?.callbacks.current.onOrderCreated?.(order);
       }
-    });
-    Transak.on(EVENTS.TRANSAK_ORDER_SUCCESSFUL, payload => {
+    };
+    activeHandlers[EVENTS.TRANSAK_ORDER_SUCCESSFUL] = (payload: unknown) => {
       const order = orderOf(payload);
       if (order) {
         activeOwner?.callbacks.current.onSuccess?.(order);
       }
-    });
-    Transak.on(EVENTS.TRANSAK_ORDER_FAILED, payload => {
+    };
+    activeHandlers[EVENTS.TRANSAK_ORDER_FAILED] = (payload: unknown) => {
       activeOwner?.callbacks.current.onOrderFailed?.(orderOf(payload));
-    });
-    Transak.on(EVENTS.TRANSAK_ORDER_CANCELLED, payload => {
+    };
+    activeHandlers[EVENTS.TRANSAK_ORDER_CANCELLED] = (payload: unknown) => {
       activeOwner?.callbacks.current.onOrderCancelled?.(orderOf(payload));
-    });
-    Transak.on(EVENTS.TRANSAK_WIDGET_CLOSE, () => {
+    };
+    activeHandlers[EVENTS.TRANSAK_WIDGET_CLOSE] = () => {
       const onClose = activeOwner?.onClose;
       onClose?.();
-    });
+    };
+
+    for (const [event, handler] of Object.entries(activeHandlers)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      Transak.on(event as any, handler);
+    }
     listenersRegistered = true;
   }
   return Transak;
@@ -158,12 +185,15 @@ export function useTransak({
       if (openingOwner === callbacksRef) {
         openingOwner = null;
       }
-      if (activeOwner?.callbacks === callbacksRef) {
+      const isOwner = activeOwner?.callbacks === callbacksRef;
+      if (isOwner) {
         activeOwner = null;
       }
       const widget = transakRef.current;
       transakRef.current = null;
-      disposeWidget(widget);
+      if (widget || isOwner) {
+        disposeWidget(widget);
+      }
     };
   }, []);
 
@@ -230,7 +260,9 @@ export function useTransak({
 }
 
 export function resetTransakListenersForTests(): void {
+  removeTransakListeners(cachedTransak);
   activeOwner = null;
   listenersRegistered = false;
   openingOwner = null;
+  cachedTransak = null;
 }
