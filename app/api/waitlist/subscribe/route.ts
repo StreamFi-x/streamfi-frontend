@@ -4,7 +4,7 @@ import { validateEmail } from "../../../../utils/validators";
 import { sendWelcomeEmail } from "../../../../utils/send-email";
 
 export async function POST(req: NextRequest) {
-  let body: { email?: string; name?: string };
+  let body: { email?: string; name?: string | null };
   try {
     body = await req.json();
   } catch {
@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const normalizedName =
+    typeof body.name === "string" ? body.name.trim() || null : null;
+
   try {
     const { rows } = await sql`
       SELECT unsubscribed_at FROM subscribers WHERE email = ${body.email}
@@ -40,22 +43,22 @@ export async function POST(req: NextRequest) {
     }
 
     if (existing) {
-      // Resubscribe
+      // Resubscribe — directly update name so an explicit null or empty string clears any previously stored name
       await sql`
         UPDATE subscribers
-        SET name = COALESCE(${body.name ?? null}, name),
+        SET name = ${normalizedName},
             unsubscribed_at = NULL,
             updated_at = CURRENT_TIMESTAMP
         WHERE email = ${body.email}
       `;
     } else {
       await sql`
-        INSERT INTO subscribers (email, name) VALUES (${body.email}, ${body.name ?? null})
+        INSERT INTO subscribers (email, name) VALUES (${body.email}, ${normalizedName})
       `;
     }
 
     // Fire-and-forget — email failure must not fail the subscription
-    sendWelcomeEmail(body.email, body.name ?? "").catch(err =>
+    sendWelcomeEmail(body.email, normalizedName ?? "").catch(err =>
       console.error("[waitlist] Failed to send welcome email:", err)
     );
 

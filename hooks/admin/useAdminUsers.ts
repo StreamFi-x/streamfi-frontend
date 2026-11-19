@@ -14,10 +14,32 @@ export interface AdminUser {
   total_views: number;
 }
 
+export interface AdminDeletionRecord {
+  id: string;
+  user_id: string;
+  username: string;
+  status: "pending" | "cancelled" | "purging" | "failed" | "purged";
+  requested_at: string;
+  requested_by_type: "self" | "admin";
+  requested_by: string | null;
+  reason: string | null;
+  purge_after: string;
+  legal_hold: boolean;
+  legal_hold_reason: string | null;
+  attempts: number;
+  completed_steps: string[];
+  last_error: string | null;
+  purged_at: string | null;
+}
+
 interface AdminUsersResponse {
   users: AdminUser[];
   page: number;
   limit: number;
+}
+
+interface AdminDeletionsResponse {
+  deletions: AdminDeletionRecord[];
 }
 
 const fetcher = async (url: string) => {
@@ -40,5 +62,15 @@ export function useAdminUsers(params: {
     refreshInterval: 60_000,
     revalidateOnFocus: false,
     keepPreviousData: true,
+  });
+}
+
+export function useAdminUserDeletions(status: string | null = null) {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  const url = `/api/admin/users/deletions${query}`;
+
+  return useSWR<AdminDeletionsResponse>(url, fetcher, {
+    refreshInterval: 60_000,
+    revalidateOnFocus: false,
   });
 }
