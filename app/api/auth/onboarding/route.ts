@@ -23,6 +23,7 @@ import {
   encryptCustodialSecret,
 } from "@/lib/custodial-keys";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { checkUsernameReleaseHold } from "@/lib/users/username-history";
 
 // ─── Username validation ───────────────────────────────────────────────────────
 
@@ -84,6 +85,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Username already taken" },
         { status: 409 }
+      );
+    }
+
+    const releaseHold = await checkUsernameReleaseHold({
+      username,
+      requestingUserId: session.userId,
+    });
+    if (releaseHold.held) {
+      return NextResponse.json(
+        {
+          error:
+            "This username was recently released by another account and cannot be registered during the cooldown period",
+          code: "USERNAME_RECENTLY_RELEASED",
+          availableAt: releaseHold.availableAt,
+          retryAfterSeconds: releaseHold.retryAfterSeconds,
+        },
+        {
+          status: 409,
+          headers: {
+            "Retry-After": String(releaseHold.retryAfterSeconds),
+          },
+        }
       );
     }
   } catch (err) {

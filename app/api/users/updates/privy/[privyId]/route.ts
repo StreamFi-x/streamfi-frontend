@@ -7,6 +7,12 @@ import { parseProfileJsonbFields } from "@/lib/users/profile-form";
 import { validateUserUpdate } from "../../../../../../utils/userValidators";
 import { UserUpdateInput } from "../../../../../../types/user";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import {
+  checkUsernameChangeCooldown,
+  checkUsernameReleaseHold,
+  getUsernameCooldownDays,
+  recordUsernameChange,
+} from "@/lib/users/username-history";
 
 export async function PUT(
   req: NextRequest,
@@ -19,7 +25,7 @@ export async function PUT(
     const existingResult = await sql`
       SELECT id, username, email, bio, streamkey, avatar, banner, sociallinks,
              emailverified, emailnotifications, creator, enable_recording,
-             privy_id
+             privy_id, username_changed_at
       FROM users WHERE privy_id = ${privyId} AND deleted_at IS NULL
     `;
     const user = existingResult.rows[0];
@@ -65,20 +71,71 @@ export async function PUT(
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    // Username uniqueness — exclude current user.
+    const isUsernameChanged = Boolean(
+      username &&
+      user.username &&
+      username.toLowerCase() !== String(user.username).toLowerCase()
+    );
+
+    // Username cooldown, uniqueness, and recent-release hold (#1730, #1734)
     // Must explicitly handle NULL privy_id (wallet users) since NULL != x
     // evaluates to NULL in SQL, not TRUE, so they'd be silently excluded.
     if (username && username !== user.username) {
+      if (isUsernameChanged) {
+        const cooldown = await checkUsernameChangeCooldown({
+          userId: user.id,
+          lastChangedAt: user.username_changed_at,
+        });
+        if (!cooldown.allowed) {
+          return NextResponse.json(
+            {
+              error: `Username can only be changed once every ${getUsernameCooldownDays()} days`,
+              code: "USERNAME_CHANGE_COOLDOWN",
+              nextAllowedAt: cooldown.nextAllowedAt,
+              retryAfterSeconds: cooldown.retryAfterSeconds,
+            },
+            {
+              status: 429,
+              headers: {
+                "Retry-After": String(cooldown.retryAfterSeconds),
+              },
+            }
+          );
+        }
+      }
+
       const usernameExists = await sql`
         -- tombstone-aware: identifiers stay reserved until the account is purged
         SELECT id FROM users
-        WHERE username = ${username}
+        WHERE LOWER(username) = LOWER(${username})
           AND (privy_id IS NULL OR privy_id != ${privyId})
       `;
       if (usernameExists.rows.length > 0) {
         return NextResponse.json(
           { error: "Username already in use" },
           { status: 400 }
+        );
+      }
+
+      const hold = await checkUsernameReleaseHold({
+        username,
+        requestingUserId: user.id,
+      });
+      if (hold.held) {
+        return NextResponse.json(
+          {
+            error:
+              "This username was recently released by another account and cannot be registered during the cooldown period",
+            code: "USERNAME_RECENTLY_RELEASED",
+            availableAt: hold.availableAt,
+            retryAfterSeconds: hold.retryAfterSeconds,
+          },
+          {
+            status: 409,
+            headers: {
+              "Retry-After": String(hold.retryAfterSeconds),
+            },
+          }
         );
       }
     }
@@ -139,6 +196,13 @@ export async function PUT(
       throw updateError;
     }
     await imageCleanup.commit();
+    if (isUsernameChanged) {
+      await recordUsernameChange({
+        userId: user.id,
+        previousUsername: user.username,
+        newUsername: username,
+      });
+    }
     await invalidateUserCaches({
       id: user.id,
       username,

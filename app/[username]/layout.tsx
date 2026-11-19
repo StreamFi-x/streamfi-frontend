@@ -4,9 +4,11 @@ import { unstable_cache } from "next/cache";
 import { CACHE_POLICIES, cacheTags } from "@/lib/cache";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { serializeJsonLd } from "@/lib/security/json-ld";
 import UsernameLayoutClient from "./UsernameLayoutClient";
 import { safeJsonLd } from "@/lib/security/json-ld";
+import { resolveUsernameRedirect } from "@/lib/users/username-history";
 
 const BASE = "https://www.streamfi.media";
 
@@ -107,6 +109,13 @@ export default async function UsernameLayout({
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   const { username } = await params;
   const user = await fetchUser(username.toLowerCase());
+
+  if (!user) {
+    const redirectInfo = await resolveUsernameRedirect(username.toLowerCase());
+    if (redirectInfo.shouldRedirect && redirectInfo.targetUsername) {
+      redirect(`/${redirectInfo.targetUsername}`);
+    }
+  }
 
   const personSchema = user
     ? {
