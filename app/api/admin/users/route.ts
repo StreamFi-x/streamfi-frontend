@@ -11,6 +11,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const { searchParams } = new URL(req.url);
   const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
   const limit = 20;
+  const queryLimit = limit + 1;
   const offset = (page - 1) * limit;
   const q = searchParams.get("q") ?? "";
   const filter = searchParams.get("filter") ?? "all"; // all | banned | live
@@ -25,16 +26,16 @@ export async function GET(req: NextRequest): Promise<Response> {
           FROM users
           WHERE is_banned = true
             AND username ILIKE ${"%" + q + "%"}
-          ORDER BY created_at DESC
-          LIMIT ${limit} OFFSET ${offset}
+          ORDER BY created_at DESC, id DESC
+          LIMIT ${queryLimit} OFFSET ${offset}
         `;
       } else {
         result = await sql`
           SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
           WHERE is_banned = true
-          ORDER BY created_at DESC
-          LIMIT ${limit} OFFSET ${offset}
+          ORDER BY created_at DESC, id DESC
+          LIMIT ${queryLimit} OFFSET ${offset}
         `;
       }
     } else if (filter === "live") {
@@ -44,16 +45,16 @@ export async function GET(req: NextRequest): Promise<Response> {
           FROM users
           WHERE is_live = true
             AND username ILIKE ${"%" + q + "%"}
-          ORDER BY created_at DESC
-          LIMIT ${limit} OFFSET ${offset}
+          ORDER BY created_at DESC, id DESC
+          LIMIT ${queryLimit} OFFSET ${offset}
         `;
       } else {
         result = await sql`
           SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
           WHERE is_live = true
-          ORDER BY created_at DESC
-          LIMIT ${limit} OFFSET ${offset}
+          ORDER BY created_at DESC, id DESC
+          LIMIT ${queryLimit} OFFSET ${offset}
         `;
       }
     } else {
@@ -63,20 +64,25 @@ export async function GET(req: NextRequest): Promise<Response> {
           SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
           WHERE username ILIKE ${"%" + q + "%"}
-          ORDER BY created_at DESC
-          LIMIT ${limit} OFFSET ${offset}
+          ORDER BY created_at DESC, id DESC
+          LIMIT ${queryLimit} OFFSET ${offset}
         `;
       } else {
         result = await sql`
           SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
-          ORDER BY created_at DESC
-          LIMIT ${limit} OFFSET ${offset}
+          ORDER BY created_at DESC, id DESC
+          LIMIT ${queryLimit} OFFSET ${offset}
         `;
       }
     }
 
-    return Response.json({ users: result.rows, page, limit });
+    return Response.json({
+      users: result.rows.slice(0, limit),
+      page,
+      limit,
+      hasMore: result.rows.length > limit,
+    });
   } catch (err) {
     console.error("[admin/users] DB error:", err);
     return Response.json({ error: "Internal server error" }, { status: 500 });

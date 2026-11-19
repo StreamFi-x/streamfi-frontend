@@ -18,6 +18,7 @@ interface AdminUsersResponse {
   users: AdminUser[];
   page: number;
   limit: number;
+  hasMore: boolean;
 }
 
 const fetcher = async (url: string) => {
