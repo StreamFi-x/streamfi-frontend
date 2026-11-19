@@ -8,6 +8,7 @@ import { Menu, X } from "lucide-react";
 import ConnectWalletModal from "@/components/connectWallet";
 import { usePrivyAuth } from "@/hooks/usePrivyAuth";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { StellarNetworkBadge } from "@/components/stellar/StellarNetworkBadge";
 
 const navLinks = [
   { name: "Features", href: "#benefits" },
@@ -54,15 +55,18 @@ export default function Navbar() {
       >
         <div className="flex items-center justify-between px-5 py-3.5">
           {/* Logo */}
-          <Link href="/" className="flex items-center flex-shrink-0">
-            <Image
-              src="/Images/streamFiLogo.svg"
-              alt="StreamFi"
-              width={108}
-              height={34}
-              priority
-            />
-          </Link>
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <Link href="/" className="flex items-center flex-shrink-0">
+              <Image
+                src="/Images/streamFiLogo.svg"
+                alt="StreamFi"
+                width={108}
+                height={34}
+                priority
+              />
+            </Link>
+            <StellarNetworkBadge variant="pill" />
+          </div>
 
           {/* Desktop nav links */}
           <ul className="hidden lg:flex items-center gap-1">

@@ -23,6 +23,7 @@ import {
   encryptCustodialSecret,
 } from "@/lib/custodial-keys";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { getReservedUsernameError } from "@/lib/reserved-usernames";
 
 // ─── Username validation ───────────────────────────────────────────────────────
 
@@ -32,8 +33,13 @@ function validateUsername(username: string): string | null {
   if (!username?.trim()) {
     return "Username is required";
   }
-  if (!USERNAME_RE.test(username)) {
+  const trimmed = username.trim();
+  if (!USERNAME_RE.test(trimmed)) {
     return "Username must be 3–30 characters: letters, numbers, underscores only";
+  }
+  const reservedError = getReservedUsernameError(trimmed);
+  if (reservedError) {
+    return reservedError;
   }
   return null;
 }

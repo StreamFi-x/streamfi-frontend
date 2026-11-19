@@ -1,5 +1,6 @@
 // utils/userValidators.ts
 import type { UserRegistrationInput, UserUpdateInput } from "../types/user"; // Make sure these types are correctly defined in types/user.ts
+import { getReservedUsernameError } from "../lib/reserved-usernames";
 
 /**
  * Validates a single social link object (used for array of social links)
@@ -128,6 +129,10 @@ export function validateUserRegistration(input: UserRegistrationInput): {
   if (!input.username) {
     return { isValid: false, error: "Username is required" };
   }
+  const reservedError = getReservedUsernameError(input.username);
+  if (reservedError) {
+    return { isValid: false, error: reservedError };
+  }
   if (!input.wallet) {
     return { isValid: false, error: "Wallet is required" };
   }
@@ -155,6 +160,14 @@ export function validateUserUpdate(input: UserUpdateInput): {
   // Check if at least one field is provided
   if (Object.keys(input).length === 0) {
     return { isValid: false, error: "No update fields provided" };
+  }
+
+  // Reject reserved usernames that collide with static app routes
+  if (input.username !== undefined) {
+    const reservedError = getReservedUsernameError(input.username);
+    if (reservedError) {
+      return { isValid: false, error: reservedError };
+    }
   }
 
   // Validate social links if provided (now expecting Record<string, string> for updates)

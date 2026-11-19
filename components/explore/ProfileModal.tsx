@@ -8,6 +8,7 @@ import { ChevronLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import SimpleLoader from "@/components/ui/loader/simple-loader";
+import { getReservedUsernameError } from "@/lib/reserved-usernames";
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -72,6 +73,12 @@ export default function ProfileModal({
     if (!displayName.trim()) {
       setNameError("Display name is required");
       isValid = false;
+    } else {
+      const reservedError = getReservedUsernameError(displayName);
+      if (reservedError) {
+        setNameError(reservedError);
+        isValid = false;
+      }
     }
 
     // Email required only for wallet-connect users (Privy email comes from Google)

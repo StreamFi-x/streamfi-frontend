@@ -2,12 +2,20 @@
 
 import type React from "react";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ExternalLink, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, ExternalLink, Globe, X } from "lucide-react";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { usePrivyAuth } from "@/hooks/usePrivyAuth";
 import { sessionReplay } from "@/lib/session-replay";
+import { StellarNetworkBadge } from "@/components/stellar/StellarNetworkBadge";
+import {
+  STELLAR_WALLETS,
+  detectAllWalletsSync,
+  detectInstalledWallets,
+  sortWalletsByAvailability,
+  type WalletAvailability,
+} from "@/lib/stellar/wallet-detection";
 
 interface ConnectModalProps {
   isModalOpen: boolean;
@@ -15,58 +23,13 @@ interface ConnectModalProps {
   walletsOnly?: boolean;
 }
 
-interface WalletInfo {
-  id: string;
-  name: string;
-  installUrl?: string;
-  description: string;
-}
-
-const STELLAR_WALLETS: WalletInfo[] = [
-  {
-    id: "freighter",
-    name: "Freighter",
-    description: "Browser extension",
-    installUrl: "https://freighter.app/",
-  },
-  {
-    id: "xbull",
-    name: "xBull",
-    description: "Browser extension + PWA",
-    installUrl: "https://xbull.app/",
-  },
-  {
-    id: "albedo",
-    name: "Albedo",
-    description: "Web-based · no install needed",
-    installUrl: "https://albedo.link/",
-  },
-  {
-    id: "lobstr",
-    name: "Lobstr",
-    description: "Mobile + web",
-    installUrl: "https://lobstr.co/",
-  },
-  {
-    id: "hana",
-    name: "Hana",
-    description: "Browser extension",
-    installUrl: "https://hanawallet.app/",
-  },
-  {
-    id: "hot",
-    name: "Hot Wallet",
-    description: "Browser extension",
-    installUrl: "https://hotwallet.app/",
-  },
-];
-
 export default function ConnectWalletModal({
   isModalOpen,
   setIsModalOpen,
   walletsOnly = false,
 }: ConnectModalProps) {
   const {
+    kit,
     isConnected,
     isLoading,
     isConnecting,
@@ -86,7 +49,34 @@ export default function ConnectWalletModal({
   const [connectingWalletId, setConnectingWalletId] = useState<string | null>(
     null
   );
+  const [walletAvailability, setWalletAvailability] = useState<
+    Record<string, WalletAvailability>
+  >(() => detectAllWalletsSync());
   const hasOpened = useRef(false);
+  const kitRef = useRef(kit);
+  kitRef.current = kit;
+
+  // Proactively detect installed wallets whenever the modal opens
+  useEffect(() => {
+    if (!isModalOpen) {
+      return;
+    }
+    let cancelled = false;
+    setWalletAvailability(detectAllWalletsSync());
+    void detectInstalledWallets(kitRef.current).then(detected => {
+      if (!cancelled) {
+        setWalletAvailability(detected);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isModalOpen]);
+
+  const sortedWallets = useMemo(
+    () => sortWalletsByAvailability(STELLAR_WALLETS, walletAvailability),
+    [walletAvailability]
+  );
 
   useEffect(() => {
     // Auto-close if user is already authenticated (Stellar wallet or Privy Google)
@@ -204,6 +194,9 @@ export default function ConnectWalletModal({
 
         {/* Body */}
         <div className="px-5 pt-4 pb-5 space-y-3">
+          {/* Active Stellar network indicator */}
+          <StellarNetworkBadge variant="banner" />
+
           {/* — Confirm-close screen — */}
           {showConfirm ? (
             <div className="py-2 space-y-4">
@@ -328,34 +321,89 @@ export default function ConnectWalletModal({
 
               {/* Wallet list */}
               {!isConnecting && (
-                <div className="space-y-1.5">
-                  {STELLAR_WALLETS.map(wallet => {
+                <div className="space-y-1.5" data-testid="wallet-list">
+                  {sortedWallets.map(wallet => {
                     const isConnectingThis = connectingWalletId === wallet.id;
+                    const availability =
+                      walletAvailability[wallet.id] ?? "not_installed";
+                    const isInstalled = availability === "installed";
+                    const isWebWallet = availability === "web";
+                    const isNotInstalled = availability === "not_installed";
+
                     return (
-                      <button
+                      <div
                         key={wallet.id}
-                        onClick={() => handleWalletClick(wallet.id)}
-                        disabled={isConnectingThis}
-                        className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.12] transition-all text-left group disabled:cursor-wait"
+                        data-testid={`wallet-option-${wallet.id}`}
+                        data-wallet-status={availability}
+                        className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl border transition-all group ${
+                          isInstalled
+                            ? "bg-white/[0.06] hover:bg-white/[0.10] border-emerald-500/25 hover:border-emerald-500/45"
+                            : isWebWallet
+                              ? "bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.08] hover:border-white/[0.15]"
+                              : "bg-white/[0.02] hover:bg-white/[0.05] border-white/[0.05] hover:border-white/[0.10] opacity-75 hover:opacity-100"
+                        }`}
                       >
-                        {/* Wallet initial avatar */}
-                        <div className="w-9 h-9 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0">
-                          <span className="text-white/70 font-semibold text-sm group-hover:text-white/90 transition-colors">
-                            {wallet.name.charAt(0)}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-white/85 text-sm font-medium leading-none mb-1 group-hover:text-white transition-colors">
-                            {wallet.name}
-                          </p>
-                          <p className="text-white/30 text-xs">
-                            {wallet.description}
-                          </p>
-                        </div>
-                        {isConnectingThis && (
+                        <button
+                          type="button"
+                          onClick={() => handleWalletClick(wallet.id)}
+                          disabled={isConnectingThis}
+                          className="flex-1 flex items-center gap-3 text-left min-w-0 disabled:cursor-wait"
+                        >
+                          {/* Wallet initial avatar */}
+                          <div
+                            className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              isInstalled
+                                ? "bg-emerald-500/15 text-emerald-300"
+                                : "bg-white/[0.07] text-white/70"
+                            }`}
+                          >
+                            <span className="font-semibold text-sm group-hover:text-white transition-colors">
+                              {wallet.name.charAt(0)}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white/85 text-sm font-medium leading-none mb-1 group-hover:text-white transition-colors">
+                              {wallet.name}
+                            </p>
+                            <p className="text-white/35 text-xs truncate">
+                              {wallet.description}
+                            </p>
+                          </div>
+                        </button>
+
+                        {isConnectingThis ? (
                           <div className="w-4 h-4 rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin flex-shrink-0" />
+                        ) : isInstalled ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-medium flex-shrink-0">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Installed
+                          </span>
+                        ) : isWebWallet ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[11px] font-medium flex-shrink-0">
+                            <Globe className="w-3 h-3" />
+                            Web
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className="text-[11px] text-white/35">
+                              Not installed
+                            </span>
+                            {isNotInstalled && wallet.installUrl && (
+                              <a
+                                href={wallet.installUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                aria-label={`Install ${wallet.name}`}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/[0.07] hover:bg-white/[0.14] text-white/75 hover:text-white text-[11px] font-medium transition-colors"
+                              >
+                                Install
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
