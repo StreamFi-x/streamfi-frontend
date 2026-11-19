@@ -33,10 +33,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { verifySession } from "@/lib/auth/verify-session";
+import { markRecentWrite } from "@/lib/db/replica";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
-import { getStellarNetwork, getHorizonUrl } from "@/lib/stellar/config";
+import { getStellarNetwork } from "@/lib/stellar/config";
 import { sql } from "@vercel/postgres";
-import * as StellarSdk from "@stellar/stellar-sdk";
+import { httpStatusOf } from "@/lib/resilience/circuit-breaker";
+import { callHorizon } from "@/lib/stellar/horizon-client";
 import { insertActivityEvent } from "@/app/api/routes-f/activity/_lib/insert";
 
 export const runtime = "nodejs";
@@ -63,25 +65,28 @@ interface TransactionDetails {
   timestamp: string;
 }
 
+class HorizonUnavailableError extends Error {}
+
 /**
- * Verify transaction on Horizon and extract details
+ * Verify transaction on Horizon and extract details. Returns null when the
+ * transaction does not exist or failed; throws HorizonUnavailableError when
+ * Horizon could not answer (through the circuit breaker, #1418).
  */
 async function verifyTransactionOnHorizon(
   tx_hash: string,
   network: "testnet" | "mainnet"
 ): Promise<TransactionDetails | null> {
   try {
-    const horizonUrl = getHorizonUrl(network);
-    const server = new StellarSdk.Horizon.Server(horizonUrl);
-
-    const response = await server.transactions().transaction(tx_hash).call();
+    const response = await callHorizon(server =>
+      server.transactions().transaction(tx_hash).call()
+    );
 
     if (!response || !response.successful) {
       return null;
     }
 
     // Find the payment operation from the transaction's operations
-    const operations = await response.operations();
+    const operations = await callHorizon(() => response.operations());
     const paymentOp = operations.records.find(
       (op: any) => op.type === "payment" || op.type === "path_payment_strict_receive"
     );
@@ -99,8 +104,11 @@ async function verifyTransactionOnHorizon(
       timestamp: response.created_at,
     };
   } catch (error) {
-    console.error("[tip-confirm] Horizon verification error:", error);
-    return null;
+    if (httpStatusOf(error) === 404) {
+      return null;
+    }
+    // Horizon unavailable: not the same as "no such transaction".
+    throw new HorizonUnavailableError();
   }
 }
 
@@ -249,7 +257,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const network = getStellarNetwork();
 
     // Verify transaction on Horizon
-    const txDetails = await verifyTransactionOnHorizon(tx_hash, network);
+    let txDetails: TransactionDetails | null;
+    try {
+      txDetails = await verifyTransactionOnHorizon(tx_hash, network);
+    } catch (error) {
+      if (error instanceof HorizonUnavailableError) {
+        return NextResponse.json(
+          { error: "The Stellar network is not responding; try again shortly" },
+          { status: 503, headers: { "Retry-After": "10" } }
+        );
+      }
+      throw error;
+    }
     if (!txDetails) {
       return NextResponse.json(
         { error: "Transaction not found or failed on Horizon" },
@@ -295,16 +314,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Emit chat event (best-effort)
     await emitTipChatEvent(recipient_id, session.userId, amount, tip_id);
 
-    return NextResponse.json(
-      {
-        tip_id,
-        tx_hash,
-        amount,
-        status: "confirmed",
-        ledger: txDetails.ledger,
-        created_at,
-      },
-      { status: 201 }
+    return markRecentWrite(
+      NextResponse.json(
+        {
+          tip_id,
+          tx_hash,
+          amount,
+          status: "confirmed",
+          ledger: txDetails.ledger,
+          created_at,
+        },
+        { status: 201 }
+      )
     );
   } catch (error) {
     console.error("[tip-confirm] Unexpected error:", error);

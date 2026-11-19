@@ -27,6 +27,7 @@ import { sql } from "@vercel/postgres";
 import { verifyToken } from "@/lib/auth/sign-token";
 import { hashToken } from "@/lib/sessions/user-sessions";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 // 10 attempts per 15 minutes per IP — confirm is guess-resistant already
 // (128-bit signed token) but this keeps automated brute force off the table.
@@ -129,6 +130,7 @@ export async function POST(request: NextRequest) {
       SET emailverified = true, email = ${email}, updated_at = NOW()
       WHERE id = ${userId}
     `;
+    await invalidateUserCaches({ id: userId });
 
     return NextResponse.json(
       { message: "Email address verified successfully.", email },

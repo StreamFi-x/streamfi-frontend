@@ -6,6 +6,7 @@ import { PrivyProvider } from "@privy-io/react-auth";
 import { AuthProvider } from "./auth/auth-provider";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { StellarWalletProvider } from "@/contexts/stellar-wallet-context";
+import { FundingOnboardingProvider } from "@/components/wallet/funding/FundingOnboardingProvider";
 
 const swrCache = new Map();
 
@@ -15,7 +16,9 @@ function InnerProviders({ children }: { children: React.ReactNode }) {
   return (
     <StellarWalletProvider>
       <ThemeProvider>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <FundingOnboardingProvider>{children}</FundingOnboardingProvider>
+        </AuthProvider>
       </ThemeProvider>
     </StellarWalletProvider>
   );

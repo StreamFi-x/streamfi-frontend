@@ -1,31 +1,120 @@
 import { sql } from "@vercel/postgres";
+import { isSubscriptionActive } from "../subscriptions/rpc-client";
 
-export type StreamAccessReason = "password" | "subscription";
+export type StreamAccessReason =
+  | "password"
+  | "subscription"
+  | "not_registered"
+  | "database_error"
+  | "rpc_error";
 
 export type AccessResult =
   | { allowed: true }
-  | { allowed: false; reason: StreamAccessReason };
+  | {
+      allowed: false;
+      reason: StreamAccessReason;
+      isError?: boolean;
+      error?: unknown;
+    };
 
+export type ViewerIdentifier =
+  | string // wallet public key or user id
+  | { userId?: string | null; viewerPublicKey?: string | null };
+
+/**
+ * Check subscription access via Soroban RPC.
+ *
+ * Accepts either:
+ * - viewerPublicKey (wallet string, typically starting with 'G')
+ * - viewerUserId (UUID of registered user)
+ * - an object with `{ userId, viewerPublicKey }` to avoid redundant DB lookups if userId is already known.
+ *
+ * If a wallet address is provided without a resolved userId and does not match any registered user,
+ * it returns `{ allowed: false, reason: "not_registered" }` distinguishing it from an active user
+ * who is merely unsubscribed.
+ *
+ * Fails closed on RPC unavailable (denies access for security).
+ */
 export async function checkSubscriptionAccess(
   streamerId: string,
-  viewerPublicKey: string | null
+  viewer: ViewerIdentifier | null
 ): Promise<AccessResult> {
-  if (!viewerPublicKey) {
+  if (!viewer) {
     return { allowed: false, reason: "subscription" };
   }
 
-  const { rows } = await sql`
-    SELECT id FROM subscriptions
-    WHERE streamer_id = ${streamerId}
-      AND subscriber_id = (
-        SELECT id FROM users WHERE LOWER(wallet) = LOWER(${viewerPublicKey})
-      )
-      AND status = 'active'
-      AND current_period_end > now()
-    LIMIT 1
-  `;
+  let viewerPublicKey: string | null = null;
+  let viewerUserId: string | null = null;
+  let streamerWallet: string;
 
-  return rows.length > 0
-    ? { allowed: true }
-    : { allowed: false, reason: "subscription" };
+  if (typeof viewer === "string") {
+    // If it looks like a Stellar public key (starts with 'G' and 50+ chars)
+    if (viewer.startsWith("G") && viewer.length >= 50) {
+      viewerPublicKey = viewer;
+    } else {
+      viewerUserId = viewer;
+    }
+  } else {
+    viewerUserId = viewer.userId ?? null;
+    viewerPublicKey = viewer.viewerPublicKey ?? null;
+  }
+
+  try {
+    // If a viewerUserId is provided directly without viewerPublicKey, resolve their wallet from DB
+    if (viewerUserId && !viewerPublicKey) {
+      const viewerResult = await sql`
+        SELECT wallet FROM users WHERE id = ${viewerUserId} AND deleted_at IS NULL LIMIT 1
+      `;
+      if (!viewerResult?.rows || viewerResult.rows.length === 0) {
+        return { allowed: false, reason: "not_registered" };
+      }
+      viewerPublicKey = viewerResult.rows[0].wallet as string;
+    }
+
+    if (!viewerPublicKey) {
+      return { allowed: false, reason: "not_registered" };
+    }
+
+    // Get streamer's wallet address
+    const streamerResult = await sql`
+      SELECT wallet FROM users WHERE id = ${streamerId} AND deleted_at IS NULL LIMIT 1
+    `;
+
+    if (!streamerResult?.rows || streamerResult.rows.length === 0) {
+      return { allowed: false, reason: "subscription" };
+    }
+
+    streamerWallet = streamerResult.rows[0].wallet as string;
+  } catch (err) {
+    console.error(
+      "[stream-access] checkSubscriptionAccess database query failed:",
+      err
+    );
+    return {
+      allowed: false,
+      reason: "database_error",
+      isError: true,
+      error: err,
+    };
+  }
+
+  try {
+    // Check on-chain subscription state via Soroban RPC
+    const isActive = await isSubscriptionActive(
+      viewerPublicKey,
+      streamerWallet
+    );
+
+    return isActive
+      ? { allowed: true }
+      : { allowed: false, reason: "subscription" };
+  } catch (err) {
+    console.error("[stream-access] checkSubscriptionAccess RPC failed:", err);
+    return {
+      allowed: false,
+      reason: "rpc_error",
+      isError: true,
+      error: err,
+    };
+  }
 }

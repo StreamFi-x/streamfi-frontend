@@ -11,6 +11,7 @@ const URL_MAPPING = {
   "Stream & Channel Preferences": "/settings/stream-preference",
   Appearance: "/settings/appearance",
   "Connected Accounts": "/settings/connected-accounts",
+  Subscriptions: "/settings/subscriptions",
   Preferences: "/settings/preferences",
 };
 

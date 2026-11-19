@@ -11,6 +11,7 @@ import Chat from "@/components/dashboard/stream-manager/Chat";
 import StreamInfo from "@/components/dashboard/stream-manager/StreamInfo";
 import StreamSettings from "@/components/dashboard/stream-manager/StreamSettings";
 import StreamPasswordSettings from "@/components/dashboard/stream-manager/StreamPasswordSettings";
+import ChatModeSettings from "@/components/dashboard/stream-manager/ChatModeSettings";
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
 import { motion } from "framer-motion";
 import { Users, UserPlus, Coins, Timer } from "lucide-react";
@@ -29,6 +30,8 @@ export default function StreamManagerPage() {
     description: "",
     tags: [] as string[],
     thumbnail: null as string | null,
+    chatSlowModeSeconds: 0,
+    chatSubscriberOnly: false,
   });
   const [isPasswordProtected, setIsPasswordProtected] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -84,6 +87,8 @@ export default function StreamManagerPage() {
             description: creator.description || stream.description || "",
             tags: creator.tags || stream.tags || [],
             thumbnail: creator.thumbnail || stream.thumbnail || null,
+            chatSlowModeSeconds: typeof creator.chatSlowModeSeconds === 'number' ? creator.chatSlowModeSeconds : 0,
+            chatSubscriberOnly: creator.chatSubscriberOnly === true,
           });
           setIsPasswordProtected(!!stream.isPasswordProtected);
         }
@@ -229,6 +234,14 @@ export default function StreamManagerPage() {
               wallet={address}
               isPasswordProtected={isPasswordProtected}
               onUpdate={setIsPasswordProtected}
+            />
+          )}
+          {address && (
+            <ChatModeSettings
+              wallet={address}
+              slowModeSeconds={streamData.chatSlowModeSeconds}
+              subscriberOnly={streamData.chatSubscriberOnly}
+              onUpdate={(patch) => setStreamData(prev => ({ ...prev, ...patch }))}
             />
           )}
           {/* Private stream whitelist */}

@@ -1,7 +1,6 @@
 import { sql } from "@vercel/postgres";
 import nodemailer from "nodemailer";
-import { Horizon } from "@stellar/stellar-sdk";
-import { getHorizonUrl, getStellarNetwork } from "@/lib/stellar/config";
+import { callHorizon } from "@/lib/stellar/horizon-client";
 import { toFixedAmount } from "@/lib/routes-f/format";
 
 export const PAYOUT_METHODS = [
@@ -23,8 +22,9 @@ function createTransporter() {
 }
 
 export async function getUsdcBalance(walletAddress: string): Promise<number> {
-  const server = new Horizon.Server(getHorizonUrl(getStellarNetwork()));
-  const account = await server.loadAccount(walletAddress);
+  const account = await callHorizon(server =>
+    server.loadAccount(walletAddress)
+  );
 
   const usdcBalance = account.balances.find(balance => {
     return (

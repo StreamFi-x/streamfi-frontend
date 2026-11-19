@@ -8,8 +8,9 @@
  *   const { userId, wallet, privyId } = session;
  *
  * Security model:
- * - Privy users: `privy_session` HttpOnly cookie contains the server-verified
- *   Privy user ID (did:privy:xxx). Set by /api/auth/session after JWT verification.
+ * - Privy users: `privy_session` HttpOnly cookie contains an HMAC-SHA256
+ *   signed token with { privyId, iat, exp }. Set by /api/auth/session after
+ *   Privy JWT verification. A bare did:privy:xxx value is rejected (#1858).
  * - Wallet users (new): `wallet_session` HttpOnly cookie contains an HMAC-SHA256
  *   signed JWT with { userId, wallet, exp }. Set by /api/auth/wallet-session.
  * - Wallet users (legacy): raw `wallet` cookie — accepted as fallback while
@@ -17,15 +18,19 @@
  *   have re-authenticated with the new signed cookie.
  *
  * Uses req.cookies (Next.js built-in) instead of manual header parsing.
+ *
+ * Accounts pending deletion (users.deleted_at set) are rejected with 403
+ * ACCOUNT_PENDING_DELETION unless the route opts in with
+ * { allowPendingDeletion: true } — only the endpoints a user needs during the
+ * grace window (cancel deletion, export custodial key) do.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifyToken } from "@/lib/auth/sign-token";
-import {
-  findActiveSession,
-  touchSession,
-} from "@/lib/sessions/user-sessions";
+import { currentKeyring } from "@/lib/security/keyring";
+import { findActiveSession, touchSession } from "@/lib/sessions/user-sessions";
+import { logger } from "@/lib/tracing/logger";
 
 export type VerifiedSession =
   | {
@@ -38,20 +43,87 @@ export type VerifiedSession =
     }
   | { ok: false; response: NextResponse };
 
+/**
+ * Fire-and-forget session touch with rate-limited structured error logging
+ * and telemetry visibility (Issue #782).
+ */
+let lastTouchErrorLogTime = 0;
+let touchErrorCountSinceLastLog = 0;
+const ERROR_LOG_THROTTLE_MS = 10_000;
+
+export function safeTouchSession(
+  sessionId: string,
+  sessionType: "privy" | "wallet" | "legacy" = "privy"
+): void {
+  touchSession(sessionId).catch(err => {
+    const now = Date.now();
+    touchErrorCountSinceLastLog++;
+    if (now - lastTouchErrorLogTime >= ERROR_LOG_THROTTLE_MS) {
+      logger.error("touch_session_failed", {
+        sessionType,
+        sessionId: sessionId.substring(0, 8),
+        error: err instanceof Error ? err.message : String(err),
+        suppressedFailures: touchErrorCountSinceLastLog - 1,
+      });
+      lastTouchErrorLogTime = now;
+      touchErrorCountSinceLastLog = 0;
+    }
+  });
+}
+
 function getSessionSecret(): string | null {
   return process.env.SESSION_SECRET ?? null;
 }
 
+export interface VerifySessionOptions {
+  allowPendingDeletion?: boolean;
+}
+
+function pendingDeletionResponse(): NextResponse {
+  return NextResponse.json(
+    { error: "Account is pending deletion", code: "ACCOUNT_PENDING_DELETION" },
+    { status: 403 }
+  );
+}
+
 export async function verifySession(
-  req: NextRequest
+  req: NextRequest,
+  options: VerifySessionOptions = {}
 ): Promise<VerifiedSession> {
-  const privySessionId = req.cookies.get("privy_session")?.value;
+  const privySessionToken = req.cookies.get("privy_session")?.value;
   const walletSessionToken = req.cookies.get("wallet_session")?.value;
   const legacyWalletCookie = req.cookies.get("wallet")?.value;
 
-  // ── Privy session (preferred — server-verified) ──────────────────────────
-  if (privySessionId) {
-    if (!privySessionId.startsWith("did:privy:")) {
+  // ── Privy session (preferred — HMAC-signed, #1858) ───────────────────────
+  if (privySessionToken) {
+    // Verify the signature before any database access so forged or garbage
+    // cookies are rejected without running a query. A bare `did:privy:` value
+    // is not a valid token and fails here.
+    let keyring;
+    try {
+      keyring = currentKeyring();
+    } catch {
+      console.error(
+        "[verifySession] SESSION_SECRET not configured — privy_session cannot be verified"
+      );
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: "Server misconfiguration" },
+          { status: 500 }
+        ),
+      };
+    }
+
+    const privyPayload = verifyToken<{ privyId: string }>(
+      privySessionToken,
+      keyring
+    );
+    if (
+      !privyPayload ||
+      typeof privyPayload.privyId !== "string" ||
+      !privyPayload.privyId.startsWith("did:privy:")
+    ) {
       return {
         ok: false,
         response: NextResponse.json(
@@ -60,13 +132,14 @@ export async function verifySession(
         ),
       };
     }
+    const privyId = privyPayload.privyId;
 
     try {
       // Check user_sessions table first — catches revoked sessions immediately.
       // Falls back gracefully if the table doesn't exist yet (pre-migration).
       let sessionRow: { id: string; last_seen_at: Date } | null = null;
       try {
-        sessionRow = await findActiveSession(privySessionId);
+        sessionRow = await findActiveSession(privySessionToken);
         if (!sessionRow) {
           // Session was revoked or expired — reject even if the cookie is valid
           return {
@@ -88,9 +161,9 @@ export async function verifySession(
       }
 
       const { rows } = await sql`
-        SELECT id, privy_id, wallet, username, email
+        SELECT id, privy_id, wallet, username, email, deleted_at
         FROM users
-        WHERE privy_id = ${privySessionId}
+        WHERE privy_id = ${privyId}
         LIMIT 1
       `;
 
@@ -104,14 +177,15 @@ export async function verifySession(
         };
       }
 
-      // Touch last_seen_at (debounced — at most once per minute)
+      // Touch last_seen_at (debounced — at most once per minute, with error visibility #782)
       if (sessionRow) {
-        touchSession(sessionRow.id).catch(() => {
-          // Non-critical — ignore errors
-        });
+        safeTouchSession(sessionRow.id, "privy");
       }
 
       const u = rows[0];
+      if (u.deleted_at && !options.allowPendingDeletion) {
+        return { ok: false, response: pendingDeletionResponse() };
+      }
       return {
         ok: true,
         userId: u.id,
@@ -133,8 +207,10 @@ export async function verifySession(
 
   // ── Signed wallet session (new — HMAC-verified) ──────────────────────────
   if (walletSessionToken) {
-    const secret = getSessionSecret();
-    if (!secret) {
+    let keyring;
+    try {
+      keyring = currentKeyring();
+    } catch {
       console.error(
         "[verifySession] SESSION_SECRET not configured — wallet_session cannot be verified"
       );
@@ -149,7 +225,7 @@ export async function verifySession(
 
     const payload = verifyToken<{ userId: string; wallet: string }>(
       walletSessionToken,
-      secret
+      keyring
     );
     if (!payload) {
       return {
@@ -185,7 +261,7 @@ export async function verifySession(
       // Cross-check both userId AND wallet against DB — forged tokens with
       // valid signatures but mismatched fields are rejected here.
       const { rows } = await sql`
-        SELECT id, wallet, username, email, privy_id
+        SELECT id, wallet, username, email, privy_id, deleted_at
         FROM users
         WHERE id = ${payload.userId} AND wallet = ${payload.wallet}
         LIMIT 1
@@ -203,12 +279,13 @@ export async function verifySession(
 
       // Touch last_seen_at (debounced)
       if (sessionRow) {
-        touchSession(sessionRow.id).catch(() => {
-          // Non-critical — ignore errors
-        });
+        safeTouchSession(sessionRow.id, "wallet");
       }
 
       const u = rows[0];
+      if (u.deleted_at && !options.allowPendingDeletion) {
+        return { ok: false, response: pendingDeletionResponse() };
+      }
       return {
         ok: true,
         userId: u.id,
@@ -231,6 +308,7 @@ export async function verifySession(
   // ── Legacy raw wallet cookie (fallback — remove after migration) ──────────
   // Accepted while existing Freighter sessions (set before the wallet_session
   // upgrade) are still live. They expire within 24h of the deployment.
+  // SECURITY (#1385): Now checks user_sessions for revocation like other paths
   if (legacyWalletCookie) {
     if (!/^G[A-Z2-7]{55}$/.test(legacyWalletCookie)) {
       return {
@@ -243,8 +321,28 @@ export async function verifySession(
     }
 
     try {
+      // Check user_sessions table for revocation (#1385)
+      let sessionRow: { id: string; last_seen_at: Date } | null = null;
+      try {
+        sessionRow = await findActiveSession(legacyWalletCookie);
+        if (!sessionRow) {
+          return {
+            ok: false,
+            response: NextResponse.json(
+              { error: "Session revoked or expired" },
+              { status: 401 }
+            ),
+          };
+        }
+      } catch (sessionErr) {
+        console.warn(
+          "[verifySession] user_sessions check failed for legacy wallet (table may not exist yet):",
+          sessionErr
+        );
+      }
+
       const { rows } = await sql`
-        SELECT id, wallet, username, email, privy_id
+        SELECT id, wallet, username, email, privy_id, deleted_at
         FROM users
         WHERE wallet = ${legacyWalletCookie}
         LIMIT 1
@@ -260,7 +358,15 @@ export async function verifySession(
         };
       }
 
+      // Touch last_seen_at (debounced)
+      if (sessionRow) {
+        safeTouchSession(sessionRow.id, "legacy");
+      }
+
       const u = rows[0];
+      if (u.deleted_at && !options.allowPendingDeletion) {
+        return { ok: false, response: pendingDeletionResponse() };
+      }
       return {
         ok: true,
         userId: u.id,

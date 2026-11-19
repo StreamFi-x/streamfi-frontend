@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { uploadImageFromBuffer, deleteImage } from "@/utils/upload/cloudinary";
+import { uploadImageFromBuffer } from "@/utils/upload/cloudinary";
+import { createImageCleanup } from "@/lib/users/image-cleanup";
+import { JsonbContractError } from "@/lib/db/jsonb-contracts";
+import { parseProfileJsonbFields } from "@/lib/users/profile-form";
 import { updateMuxStreamRecording } from "@/lib/mux/server";
 import { validateEmail } from "@/utils/validators";
 import { validateUserUpdate } from "../../../../../utils/userValidators";
 import { UserUpdateInput } from "../../../../../types/user";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { verifySession } from "@/lib/auth/verify-session";
+import { shouldBypassAuth } from "@/lib/dev-mode";
 
 export async function PUT(
   req: NextRequest,
@@ -14,12 +20,28 @@ export async function PUT(
     const { wallet } = await params;
     const normalizedWallet = wallet.toLowerCase();
 
+    // Rewrites profile fields (username, email, avatar, banner, bio,
+    // streamkey) — never let a caller mutate a wallet's record without
+    // proving they ARE that wallet's authenticated user. Compared
+    // case-insensitively (not via assertOwnership's strict ===) since every
+    // query in this route already treats wallet casing as unreliable
+    // (LOWER(wallet) = LOWER(...) below).
+    if (!shouldBypassAuth()) {
+      const session = await verifySession(req);
+      if (!session.ok) {
+        return session.response;
+      }
+      if (session.wallet?.toLowerCase() !== normalizedWallet) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
+
     // Fetching current user data
     const existingResult = await sql`
       SELECT id, username, email, bio, streamkey, avatar, banner, sociallinks,
              emailverified, emailnotifications, creator, enable_recording,
              mux_stream_id, wallet
-      FROM users WHERE LOWER(wallet) = LOWER(${normalizedWallet})
+      FROM users WHERE LOWER(wallet) = LOWER(${normalizedWallet}) AND deleted_at IS NULL
     `;
     const user = existingResult.rows[0];
     if (!user) {
@@ -46,49 +68,17 @@ export async function PUT(
         ? String(latencyModeRaw)
         : user.latency_mode || "low";
 
-    // Social links - Use lowercase column name to match database
-    let processedSocialLinks = user.sociallinks;
-    const socialLinks = formData.get("socialLinks");
-    if (
-      socialLinks &&
-      socialLinks !== "" &&
-      socialLinks !== "null" &&
-      socialLinks !== "undefined"
-    ) {
-      try {
-        const parsedLinks =
-          typeof socialLinks === "string"
-            ? JSON.parse(socialLinks)
-            : socialLinks;
-        processedSocialLinks = JSON.stringify(parsedLinks);
-      } catch (err) {
-        console.error("Invalid socialLinks JSON:", err);
+    let jsonbFields: ReturnType<typeof parseProfileJsonbFields>;
+    try {
+      jsonbFields = parseProfileJsonbFields(formData);
+    } catch (err) {
+      if (err instanceof JsonbContractError) {
         return NextResponse.json(
-          { error: "Invalid socialLinks format" },
+          { error: `Invalid ${err.column} format`, issues: err.issues },
           { status: 400 }
         );
       }
-    }
-
-    const creatorRaw = formData.get("creator");
-    let creator = user.creator;
-
-    if (
-      creatorRaw &&
-      creatorRaw !== "" &&
-      creatorRaw !== "null" &&
-      creatorRaw !== "undefined"
-    ) {
-      try {
-        creator =
-          typeof creatorRaw === "string" ? JSON.parse(creatorRaw) : creatorRaw;
-      } catch (err) {
-        console.error("Invalid creator JSON:", err);
-        return NextResponse.json(
-          { error: "Invalid creator format" },
-          { status: 400 }
-        );
-      }
+      throw err;
     }
 
     // Validate
@@ -100,11 +90,7 @@ export async function PUT(
       bio,
       emailVerified,
       emailNotifications,
-      socialLinks: processedSocialLinks
-        ? typeof processedSocialLinks === "string"
-          ? JSON.parse(processedSocialLinks)
-          : processedSocialLinks
-        : undefined,
+      socialLinks: jsonbFields.socialLinks,
     };
 
     const validation = validateUserUpdate(updateData);
@@ -122,6 +108,7 @@ export async function PUT(
 
     if (email && email !== user.email) {
       const emailExists = await sql`
+        -- tombstone-aware: identifiers stay reserved until the account is purged
         SELECT id FROM users WHERE email = ${email} AND wallet != ${normalizedWallet}
       `;
       if (emailExists.rows.length > 0) {
@@ -135,6 +122,7 @@ export async function PUT(
     // Username uniqueness
     if (username && username !== user.username) {
       const usernameExists = await sql`
+        -- tombstone-aware: identifiers stay reserved until the account is purged
         SELECT id FROM users WHERE username = ${username} AND wallet != ${normalizedWallet}
       `;
       if (usernameExists.rows.length > 0) {
@@ -145,6 +133,9 @@ export async function PUT(
       }
     }
 
+    // Old images are deleted only after the UPDATE succeeds (see image-cleanup).
+    const imageCleanup = createImageCleanup();
+
     // Handle avatar — file upload (→ Cloudinary) or preset icon URL string
     let avatarUrl = user.avatar;
     const avatarFile = formData.get("avatar");
@@ -154,22 +145,12 @@ export async function PUT(
       const buffer = Buffer.from(await avatarFile.arrayBuffer());
       const uploadResult = await uploadImageFromBuffer(buffer);
       avatarUrl = uploadResult.secure_url;
-
-      if (user.avatar) {
-        const oldPublicId = extractPublicIdFromUrl(user.avatar);
-        if (oldPublicId) {
-          await deleteImage(oldPublicId);
-        }
-      }
+      imageCleanup.trackUpload(uploadResult.public_id);
+      imageCleanup.trackReplaced(user.avatar);
     } else if (typeof avatarUrlField === "string" && avatarUrlField.trim()) {
       avatarUrl = avatarUrlField.trim();
       // Clean up old Cloudinary photo if switching to a preset icon
-      if (user.avatar) {
-        const oldPublicId = extractPublicIdFromUrl(user.avatar);
-        if (oldPublicId) {
-          await deleteImage(oldPublicId);
-        }
-      }
+      imageCleanup.trackReplaced(user.avatar);
     }
 
     // Handle banner — file upload (→ Cloudinary)
@@ -180,34 +161,41 @@ export async function PUT(
       const buffer = Buffer.from(await bannerFile.arrayBuffer());
       const uploadResult = await uploadImageFromBuffer(buffer);
       bannerUrl = uploadResult.secure_url;
-
-      if (user.banner) {
-        const oldPublicId = extractPublicIdFromUrl(user.banner);
-        if (oldPublicId) {
-          await deleteImage(oldPublicId);
-        }
-      }
+      imageCleanup.trackUpload(uploadResult.public_id);
+      imageCleanup.trackReplaced(user.banner);
     }
 
     // Prepare SQL update - Use lowercase column name for Postgres
-    const updatedUser = await sql`
-      UPDATE users SET
-        username = ${username},
-        email = ${email},
-        avatar = ${avatarUrl},
-        banner = ${bannerUrl},
-        bio = ${bio},
-        streamkey = ${streamkey},
-        sociallinks = ${processedSocialLinks},
-        emailverified = ${emailVerified},
-        emailnotifications = ${emailNotifications},
-        creator = ${creator ? JSON.stringify(creator) : user.creator},
-        enable_recording = ${enableRecording},
-        latency_mode = ${latencyMode},
-        updated_at = CURRENT_TIMESTAMP
-      WHERE LOWER(wallet) = LOWER(${normalizedWallet})
-      RETURNING id, username, email, streamkey, avatar, banner, bio, sociallinks, emailverified, emailnotifications, creator, wallet, enable_recording, latency_mode, created_at, updated_at
-    `;
+    let updatedUser: Awaited<ReturnType<typeof sql>>;
+    try {
+      updatedUser = await sql`
+        UPDATE users SET
+          username = ${username},
+          email = ${email},
+          avatar = ${avatarUrl},
+          banner = ${bannerUrl},
+          bio = ${bio},
+          streamkey = ${streamkey},
+          sociallinks = COALESCE(${jsonbFields.socialLinks ? JSON.stringify(jsonbFields.socialLinks) : null}::jsonb, sociallinks),
+          emailverified = ${emailVerified},
+          emailnotifications = ${emailNotifications},
+          creator = COALESCE(${jsonbFields.creator ? JSON.stringify(jsonbFields.creator) : null}::jsonb, creator),
+          enable_recording = ${enableRecording},
+          latency_mode = ${latencyMode},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE LOWER(wallet) = LOWER(${normalizedWallet}) AND deleted_at IS NULL
+        RETURNING id, username, email, streamkey, avatar, banner, bio, sociallinks, emailverified, emailnotifications, creator, wallet, enable_recording, latency_mode, created_at, updated_at
+      `;
+    } catch (updateError) {
+      await imageCleanup.rollback();
+      throw updateError;
+    }
+    await imageCleanup.commit();
+    await invalidateUserCaches({
+      id: user.id,
+      username,
+      previousUsername: user.username,
+    });
 
     // Sync recording preference to Mux if it changed and the user has a stream
     const recordingChanged = enableRecording !== user.enable_recording;
@@ -230,23 +218,5 @@ export async function PUT(
       { error: "Internal server error" },
       { status: 500 }
     );
-  }
-}
-
-function extractPublicIdFromUrl(url: string): string | null {
-  try {
-    const urlObj = new URL(url);
-    const parts = urlObj.pathname.split("/");
-    const uploadIndex = parts.indexOf("upload");
-    if (uploadIndex < 0 || uploadIndex + 2 >= parts.length) {
-      return null;
-    }
-    return parts
-      .slice(uploadIndex + 2)
-      .join("/")
-      .replace(/\.[^/.]+$/, "");
-  } catch (err) {
-    console.error("Failed to extract public ID:", err);
-    return null;
   }
 }

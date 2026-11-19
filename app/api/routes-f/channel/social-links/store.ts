@@ -1,4 +1,5 @@
 import type { SocialLink } from "./types";
+import { isSafeLinkUrl } from "@/lib/validation/safe-link";
 
 const socialLinksByCreator = new Map<string, SocialLink[]>();
 
@@ -20,10 +21,5 @@ export function clearAllSocialLinks(): void {
 }
 
 export function isValidUrl(url: string): boolean {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
+  return isSafeLinkUrl(url);
 }

@@ -12,6 +12,8 @@
 
 import { createHash } from "crypto";
 import { sql } from "@vercel/postgres";
+import { publishInvalidationEvent } from "./session-invalidation";
+import { lookupIpLocation } from "@/lib/sessions/geoip";
 
 // ─── Token hashing ────────────────────────────────────────────────────────────
 
@@ -123,6 +125,7 @@ export interface SessionRow {
   created_at: string;
   /** Not stored in DB — computed by the caller based on token_hash match. */
   is_current: boolean;
+  location: string;
 }
 
 // ─── Create session ───────────────────────────────────────────────────────────
@@ -219,7 +222,8 @@ export async function touchSession(sessionId: string): Promise<void> {
  */
 export async function revokeSession(
   sessionId: string,
-  userId: string
+  userId: string,
+  rawToken?: string
 ): Promise<boolean> {
   const { rowCount } = await sql`
     UPDATE user_sessions
@@ -228,6 +232,20 @@ export async function revokeSession(
       AND  user_id = ${userId}
       AND  revoked = false
   `;
+  
+  // Publish invalidation event (#1385)
+  if ((rowCount ?? 0) > 0) {
+    await publishInvalidationEvent({
+      userId,
+      sessionId,
+      rawToken,
+      invalidatedAt: new Date(),
+      reason: "logout",
+    }).catch(err => 
+      console.error("[revokeSession] Failed to publish invalidation event:", err)
+    );
+  }
+  
   return (rowCount ?? 0) > 0;
 }
 
@@ -248,6 +266,19 @@ export async function revokeAllOtherSessions(
       AND  token_hash != ${currentHash}
       AND  revoked    = false
   `;
+  
+  // Publish invalidation event for bulk revocation (#1385)
+  if ((rowCount ?? 0) > 0) {
+    await publishInvalidationEvent({
+      userId,
+      rawToken: currentRawToken, // Current token stays valid, others revoked
+      invalidatedAt: new Date(),
+      reason: "security",
+    }).catch(err => 
+      console.error("[revokeAllOtherSessions] Failed to publish invalidation event:", err)
+    );
+  }
+  
   return rowCount ?? 0;
 }
 
@@ -267,9 +298,21 @@ export async function revokeAllOtherSessions(
 export async function listActiveSessions(
   userId: string,
   currentRawToken: string,
-  ipMode: "mask" | "hash" = "mask"
-): Promise<SessionRow[]> {
+  ipMode: "mask" | "hash" = "mask",
+  cursor?: string | null,
+  limit = 25
+): Promise<{ sessions: SessionRow[]; nextCursor: string | null }> {
   const currentHash = hashToken(currentRawToken);
+  const safeLimit = Math.max(1, Math.min(limit, 50));
+  let cursorValue: { last_seen_at: string; id: string } | null = null;
+  if (cursor) {
+    try {
+      cursorValue = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+      if (!cursorValue?.last_seen_at || !cursorValue?.id) {cursorValue = null;}
+    } catch {
+      cursorValue = null;
+    }
+  }
 
   const { rows } = await sql`
     SELECT
@@ -278,22 +321,36 @@ export async function listActiveSessions(
       ip_address::TEXT AS ip_address,
       last_seen_at,
       created_at,
-      token_hash
+      token_hash,
+      ip_address::TEXT AS raw_ip
     FROM user_sessions
     WHERE  user_id    = ${userId}
       AND  revoked    = false
       AND  expires_at > NOW()
+      AND (${cursorValue?.last_seen_at ?? null}::TIMESTAMPTZ IS NULL OR
+        (last_seen_at, id) < (${cursorValue?.last_seen_at ?? null}::TIMESTAMPTZ, ${cursorValue?.id ?? null}::UUID))
     ORDER BY last_seen_at DESC
+    LIMIT ${safeLimit + 1}
   `;
 
   const redactIp = ipMode === "hash" ? hashIp : maskIp;
-
-  return rows.map(r => ({
+  const hasMore = rows.length > safeLimit;
+  const pageRows = rows.slice(0, safeLimit);
+  const sessions = await Promise.all(pageRows.map(async r => ({
     id: r.id as string,
     device_hint: (r.device_hint as string | null) ?? null,
     ip_address: redactIp(r.ip_address as string | null),
     last_seen_at: (r.last_seen_at as Date).toISOString(),
     created_at: (r.created_at as Date).toISOString(),
     is_current: r.token_hash === currentHash,
-  }));
+    location: await lookupIpLocation(r.raw_ip as string | null),
+  })));
+  const last = pageRows[pageRows.length - 1];
+  const nextCursor = hasMore && last
+    ? Buffer.from(JSON.stringify({
+        last_seen_at: new Date(last.last_seen_at as Date).toISOString(),
+        id: last.id,
+      })).toString("base64url")
+    : null;
+  return { sessions, nextCursor };
 }

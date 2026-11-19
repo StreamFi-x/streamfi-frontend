@@ -18,7 +18,10 @@ export async function sendWelcomeRegistrationEmail(
   const htmlContent = WelcomeUserEmail(name);
 
   const mailOptions = {
-    from: "process.env.EMAIL_USER",
+    from: {
+      name: "StreamFi",
+      address: process.env.EMAIL_USER || "support@streamfi.xyz",
+    },
     to: email,
     subject: "Welcome to Streamfi!",
     html: htmlContent,

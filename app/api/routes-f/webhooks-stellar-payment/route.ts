@@ -23,9 +23,13 @@ import { sql } from "@vercel/postgres";
 import { z } from "zod";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
-import { writeNotification } from "@/lib/notifications";
+import { writeTemplatedNotification } from "@/lib/notifications";
+import { shouldSendInAppNotification } from "@/lib/notifications/preferences";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { createHmac, timingSafeEqual } from "crypto";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { httpStatusOf } from "@/lib/resilience/circuit-breaker";
+import { fetchHorizonJson } from "@/lib/stellar/horizon-client";
 
 // Rate limiter: max 60 requests per minute per IP
 const isRateLimited = createRateLimiter(60 * 1000, 60);
@@ -107,37 +111,21 @@ function verifyWebhookSignature(
 async function verifyTransactionOnHorizon(
   txHash: string,
   payload: PaymentPayload
-): Promise<{ verified: boolean; error?: string }> {
+): Promise<{ verified: boolean; error?: string; unavailable?: boolean }> {
   try {
-    const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK || "testnet";
-    const horizonUrl =
-      network === "mainnet"
-        ? "https://horizon.stellar.org"
-        : "https://horizon-testnet.stellar.org";
-
-    const response = await fetch(`${horizonUrl}/transactions/${txHash}`);
-    
-    if (!response.ok) {
-      if (response.status === 404) {
-        return { verified: false, error: "Transaction not found on network" };
-      }
-      return { verified: false, error: `Horizon API error: ${response.status}` };
-    }
-
-    const txData = await response.json();
+    // Through the Horizon circuit breaker, with a bounded timeout (#1418).
+    const txData = await fetchHorizonJson<any>(
+      `/transactions/${encodeURIComponent(txHash)}`
+    );
 
     // Verify transaction was successful
     if (!txData.successful) {
       return { verified: false, error: "Transaction was not successful" };
     }
 
-    // Fetch operations to verify payment details
-    const opsResponse = await fetch(txData._links.operations.href);
-    if (!opsResponse.ok) {
-      return { verified: false, error: "Failed to fetch transaction operations" };
-    }
-
-    const opsData = await opsResponse.json();
+    // Fetch operations to verify payment details. The link is a URI template
+    // (…/operations{?cursor,limit,order}); fetchHorizonJson strips it.
+    const opsData = await fetchHorizonJson<any>(txData._links.operations.href);
     const paymentOp = opsData._embedded.records.find(
       (op: any) => op.type === "payment" && op.asset_type === "native"
     );
@@ -163,8 +151,17 @@ async function verifyTransactionOnHorizon(
 
     return { verified: true };
   } catch (error) {
+    if (httpStatusOf(error) === 404) {
+      return { verified: false, error: "Transaction not found on network" };
+    }
+    // Horizon slow, failing or its circuit open: the transaction may well be
+    // real, so ask the sender to retry rather than rejecting it.
     console.error("❌ Horizon verification error:", error);
-    return { verified: false, error: "Failed to verify transaction on network" };
+    return {
+      verified: false,
+      unavailable: true,
+      error: "Could not reach the Stellar network to verify the transaction",
+    };
   }
 }
 
@@ -234,6 +231,12 @@ export async function POST(req: NextRequest) {
 
     // Verify transaction exists on Stellar network
     const verification = await verifyTransactionOnHorizon(payload.tx_hash, payload);
+    if (verification.unavailable) {
+      return NextResponse.json(
+        { error: verification.error },
+        { status: 503, headers: { "Retry-After": "30" } }
+      );
+    }
     if (!verification.verified) {
       console.error(`❌ Transaction verification failed: ${verification.error}`);
       return NextResponse.json(
@@ -257,6 +260,7 @@ export async function POST(req: NextRequest) {
 
     // Find creator by wallet address
     const creatorResult = await sql`
+      -- tombstone-aware: a payment to a pending-deletion account is still recorded
       SELECT id, username, wallet FROM users WHERE wallet = ${payload.to}
     `;
 
@@ -275,6 +279,7 @@ export async function POST(req: NextRequest) {
     let supporterUsername = "Anonymous";
     
     const supporterResult = await sql`
+      -- tombstone-aware: financial records keep their supporter link
       SELECT id, username FROM users WHERE wallet = ${payload.from}
     `;
 
@@ -288,8 +293,9 @@ export async function POST(req: NextRequest) {
     const amountXLM = parseFloat(payload.amount);
     const priceUSD = amountXLM * xlmPriceUSD;
 
-    // Insert tip transaction
-    await sql`
+    // Insert tip transaction. The conflict target repeats the partial unique
+    // index predicate so PostgreSQL can match idx_tip_transactions_tx_hash_unique.
+    const inserted = await sql`
       INSERT INTO tip_transactions (
         creator_id,
         supporter_id,
@@ -308,28 +314,74 @@ export async function POST(req: NextRequest) {
         ${payload.memo || null},
         NOW()
       )
-      ON CONFLICT (tx_hash) DO NOTHING
+      ON CONFLICT (tx_hash) WHERE tx_hash IS NOT NULL DO NOTHING
+      RETURNING id
     `;
 
-    // Update creator's tip statistics
+    // A concurrent delivery of the same transaction already credited it.
+    if (inserted.rows.length === 0) {
+      return NextResponse.json({
+        message: "Transaction already processed",
+        tx_hash: payload.tx_hash,
+      });
+    }
+
+    // Update creator's tip statistics. Bumping tip_totals_version makes any
+    // ledger reconciliation that started before this tip discard its result
+    // instead of overwriting the increment (#1400).
     await sql`
       UPDATE users SET
         total_tips_received = COALESCE(total_tips_received, 0) + ${amountXLM},
         total_tips_count = COALESCE(total_tips_count, 0) + 1,
-        last_tip_at = NOW()
+        last_tip_at = NOW(),
+        tip_totals_version = tip_totals_version + 1
       WHERE id = ${creator.id}
     `;
+    await invalidateUserCaches({ id: creator.id });
 
     console.log(`✅ Tip credited: ${amountXLM} XLM ($${priceUSD.toFixed(2)}) to ${creator.username}`);
 
+    // Broadcast real-time tip alert to overlay (non-blocking)
+    try {
+      const broadcastURL = new URL(req.url);
+      broadcastURL.pathname = "/api/routes-f/tip-alerts/broadcast";
+      
+      fetch(broadcastURL.toString(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-secret": process.env.INTERNAL_API_SECRET || "",
+        },
+        body: JSON.stringify({
+          creator_id: creator.id,
+          tipper_name: supporterUsername,
+          amount_xlm: amountXLM.toFixed(7),
+          amount_usd: priceUSD.toFixed(2),
+          tx_hash: payload.tx_hash,
+        }),
+      }).catch((err) => {
+        console.error("Failed to broadcast tip alert:", err);
+      });
+    } catch (alertError) {
+      console.error("Tip alert broadcast error:", alertError);
+    }
+
     // Send notification to creator
     try {
-      await writeNotification(
-        creator.id,
-        "live",
-        "New Tip Received!",
-        `${supporterUsername} tipped you ${amountXLM.toFixed(7)} XLM ($${priceUSD.toFixed(2)})`
-      );
+      // Check if creator has tip notifications enabled
+      const shouldSend = await shouldSendInAppNotification(creator.id, "tip_received", { sql });
+      if (shouldSend) {
+        await writeTemplatedNotification(
+          creator.id,
+          "tip_received",
+          {
+            actor: supporterUsername,
+            amount: amountXLM.toFixed(7),
+            currency: "XLM",
+          },
+          { sql }
+        );
+      }
     } catch (notifError) {
       console.error("Failed to send notification:", notifError);
     }

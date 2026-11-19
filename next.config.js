@@ -75,24 +75,6 @@ const nextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=31536000; includeSubDomains; preload",
           },
-          // Content Security Policy
-          // - Privy loads iframes from auth.privy.io
-          // - Mux player scripts come from cdn.mux.com
-          // - Google fonts are common; tighten if you don't use them
-          {
-            key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://auth.privy.io https://cdn.mux.com",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https://res.cloudinary.com https://lh3.googleusercontent.com https://images.unsplash.com https://picsum.photos https://image.mux.com",
-              "media-src 'self' blob: https://*.mux.com",
-              "frame-src https://*.privy.io https://*.walletconnect.com",
-              "connect-src 'self' https://*.privy.io wss://*.walletconnect.com https://*.walletconnect.com https://*.neon.tech https://*.mux.com https://*.litix.io https://horizon-testnet.stellar.org https://horizon.stellar.org",
-              "worker-src 'self' blob:",
-            ].join("; "),
-          },
           // Prevent cross-origin isolation issues
           { key: "X-DNS-Prefetch-Control", value: "on" },
         ],

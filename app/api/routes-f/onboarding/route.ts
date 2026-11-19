@@ -45,7 +45,7 @@ async function detectCompletedSteps(userId: string): Promise<string[]> {
      FROM users u
      LEFT JOIN creators c ON c.user_id = u.id
      LEFT JOIN onboarding_progress op ON op.user_id = u.id
-     WHERE u.id = $1`,
+     WHERE u.id = $1 AND u.deleted_at IS NULL`,
     [userId]
   );
 

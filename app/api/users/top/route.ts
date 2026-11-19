@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { CACHE_POLICIES } from "@/lib/cache";
 
 /**
  * GET /api/users/top?limit=5
@@ -21,18 +22,22 @@ export async function GET(req: NextRequest) {
              THEN u.is_live ELSE FALSE END AS is_live,
         CASE WHEN COALESCE(u.stream_privacy, 'public') = 'public'
              THEN u.current_viewers ELSE 0 END AS current_viewers,
-        (SELECT COUNT(*)::int FROM user_follows WHERE followee_id = u.id) AS follower_count
+        COALESCE(fc.follower_count, 0)::int AS follower_count
       FROM users u
+      LEFT JOIN (
+        SELECT f.followee_id, COUNT(*)::int AS follower_count
+        FROM user_follows f
+        JOIN users fu ON fu.id = f.follower_id AND fu.deleted_at IS NULL
+        GROUP BY f.followee_id
+      ) fc ON fc.followee_id = u.id
       WHERE u.username IS NOT NULL
+        AND u.deleted_at IS NULL
       ORDER BY follower_count DESC, u.current_viewers DESC
       LIMIT ${limit}
     `;
 
     const res = NextResponse.json({ users: rows });
-    res.headers.set(
-      "Cache-Control",
-      "public, s-maxage=60, stale-while-revalidate=120"
-    );
+    res.headers.set("Cache-Control", CACHE_POLICIES.publicListing.cacheControl);
     return res;
   } catch (error) {
     console.error("[users/top] DB error:", error);

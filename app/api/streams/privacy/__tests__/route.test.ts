@@ -1,8 +1,36 @@
-/**
- * Stream Privacy API route tests.
- */
+jest.mock("@/lib/auth/verify-session", () => ({ verifySession: jest.fn() }));
+jest.mock("@vercel/postgres", () => ({ sql: jest.fn() }));
 
-// Polyfill NextResponse.json for jsdom test environment
+import { NextRequest, NextResponse } from "next/server";
+import { sql } from "@vercel/postgres";
+import { verifySession } from "@/lib/auth/verify-session";
+import { GET, POST } from "../route";
+
+const sqlMock = sql as unknown as jest.Mock;
+const verifyMock = verifySession as jest.Mock;
+
+describe("stream privacy owner authentication", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("rejects unauthenticated privacy reads before querying the requested wallet", async () => {
+    verifyMock.mockResolvedValue({ ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) });
+    const response = await GET(new NextRequest("https://streamfi.media/api/streams/privacy?wallet=GCREATOR"));
+    expect(response.status).toBe(401);
+    expect(sqlMock).not.toHaveBeenCalled();
+  });
+
+  it("scopes privacy updates to the verified user even when another wallet is supplied", async () => {
+    verifyMock.mockResolvedValue({ ok: true, userId: "verified-user", wallet: "GVERIFIED", privyId: null, username: "owner", email: null });
+    sqlMock.mockResolvedValueOnce({ rows: [{ id: "verified-user", stream_privacy: "unlisted", share_token: "old" }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const response = await POST(new NextRequest("https://streamfi.media/api/streams/privacy", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ wallet: "GOTHER", privacy: "public" }),
+    }));
+    expect(response.status).toBe(404);
+    expect(sqlMock.mock.calls[0][1]).toContain("verified-user");
+  });
+});
 jest.mock("next/server", () => ({
   NextResponse: {
     json: (body: unknown, init?: ResponseInit) =>
@@ -21,9 +49,8 @@ jest.mock("@/lib/auth/verify-session", () => ({
   verifySession: jest.fn(),
 }));
 
-import { sql } from "@vercel/postgres";
-import { verifySession } from "@/lib/auth/verify-session";
-import { GET, POST } from "../route";
+const sqlMock = sql as unknown as jest.Mock;
+const verifySessionMock = verifySession as unknown as jest.Mock;
 
 const makeRequest = (method: string, body?: object, search?: string) =>
   new Request(`http://localhost/api/streams/privacy${search ?? ""}`, {
@@ -32,157 +59,119 @@ const makeRequest = (method: string, body?: object, search?: string) =>
     body: body ? JSON.stringify(body) : undefined,
   }) as unknown as import("next/server").NextRequest;
 
-const sqlMock = sql as unknown as jest.Mock;
-const verifySessionMock = verifySession as unknown as jest.Mock;
-
-describe("GET /api/streams/privacy", () => {
+describe("Security Issue #1611: Authenticated stream privacy route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(console, "error").mockImplementation(() => {});
-  });
-
-  it("returns 401 if session is invalid", async () => {
-    verifySessionMock.mockResolvedValueOnce({
-      ok: false,
-      response: new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-      }),
-    });
-
-    const req = makeRequest("GET");
-    const res = await GET(req);
-    expect(res.status).toBe(401);
-  });
-
-  it("returns 403 if requested wallet does not match session wallet", async () => {
-    verifySessionMock.mockResolvedValueOnce({
+    verifySessionMock.mockResolvedValue({
       ok: true,
-      userId: "user-1",
-      wallet: "0xALICE",
+      userId: "user-123",
+      wallet: "0xCREATOR_WALLET",
+      username: "alice",
     });
-
-    const req = makeRequest("GET", undefined, "?wallet=0xBOB");
-    const res = await GET(req);
-    expect(res.status).toBe(403);
-    const body = await res.json();
-    expect(body.error).toMatch(/forbidden/i);
   });
 
-  it("returns 404 if user not found", async () => {
-    verifySessionMock.mockResolvedValueOnce({
-      ok: true,
-      userId: "user-1",
-      wallet: "0xALICE",
-    });
-    sqlMock.mockResolvedValueOnce({ rows: [] });
+  describe("GET /api/streams/privacy", () => {
+    it("returns 401 when unauthenticated", async () => {
+      verifySessionMock.mockResolvedValueOnce({
+        ok: false,
+        response: new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      });
 
-    const req = makeRequest("GET");
-    const res = await GET(req);
-    expect(res.status).toBe(404);
+      const req = makeRequest("GET");
+      const res = await GET(req);
+      expect(res.status).toBe(401);
+    });
+
+    it("returns 403 when requesting another user's wallet privacy", async () => {
+      const req = makeRequest("GET", undefined, "?wallet=0xVICTIM_WALLET");
+      const res = await GET(req);
+      expect(res.status).toBe(403);
+      const data = await res.json();
+      expect(data.error).toBe("Forbidden");
+    });
+
+    it("returns 200 with privacy and share token for authenticated user", async () => {
+      sqlMock.mockResolvedValueOnce({
+        rows: [
+          {
+            id: "user-123",
+            stream_privacy: "subscribers_only",
+            share_token: "token_abc123",
+            wallet: "0xCREATOR_WALLET",
+          },
+        ],
+      });
+
+      const req = makeRequest("GET", undefined, "?wallet=0xCREATOR_WALLET");
+      const res = await GET(req);
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.privacy).toBe("subscribers_only");
+      expect(data.shareToken).toBe("token_abc123");
+    });
   });
 
-  it("returns privacy settings for authenticated user", async () => {
-    verifySessionMock.mockResolvedValueOnce({
-      ok: true,
-      userId: "user-1",
-      wallet: "0xALICE",
-    });
-    sqlMock.mockResolvedValueOnce({
-      rows: [{ id: "user-1", stream_privacy: "unlisted", share_token: "tok_123" }],
-    });
+  describe("POST /api/streams/privacy", () => {
+    it("returns 401 when unauthenticated", async () => {
+      verifySessionMock.mockResolvedValueOnce({
+        ok: false,
+        response: new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      });
 
-    const req = makeRequest("GET");
-    const res = await GET(req);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.privacy).toBe("unlisted");
-    expect(body.shareToken).toBe("tok_123");
-  });
-});
-
-describe("POST /api/streams/privacy", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.spyOn(console, "error").mockImplementation(() => {});
-  });
-
-  it("returns 401 if session is invalid", async () => {
-    verifySessionMock.mockResolvedValueOnce({
-      ok: false,
-      response: new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-      }),
+      const req = makeRequest("POST", { privacy: "subscribers_only" });
+      const res = await POST(req);
+      expect(res.status).toBe(401);
     });
 
-    const req = makeRequest("POST", { privacy: "unlisted" });
-    const res = await POST(req);
-    expect(res.status).toBe(401);
-  });
-
-  it("returns 403 if body wallet does not match session wallet", async () => {
-    verifySessionMock.mockResolvedValueOnce({
-      ok: true,
-      userId: "user-1",
-      wallet: "0xALICE",
+    it("returns 403 when body wallet does not match session wallet", async () => {
+      const req = makeRequest("POST", {
+        wallet: "0xVICTIM_WALLET",
+        privacy: "unlisted",
+        rotate_token: true,
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(403);
+      const data = await res.json();
+      expect(data.error).toBe("Forbidden");
     });
 
-    const req = makeRequest("POST", { wallet: "0xBOB", privacy: "unlisted" });
-    const res = await POST(req);
-    expect(res.status).toBe(403);
-    const body = await res.json();
-    expect(body.error).toMatch(/forbidden/i);
-  });
-
-  it("returns 400 for invalid privacy value", async () => {
-    verifySessionMock.mockResolvedValueOnce({
-      ok: true,
-      userId: "user-1",
-      wallet: "0xALICE",
+    it("returns 400 for invalid privacy value", async () => {
+      const req = makeRequest("POST", { privacy: "invalid_mode" });
+      const res = await POST(req);
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toBe("invalid privacy value");
     });
 
-    const req = makeRequest("POST", { privacy: "invalid_mode" });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
+    it("updates privacy and rotates token when requested by authenticated owner", async () => {
+      sqlMock
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: "user-123",
+              stream_privacy: "public",
+              share_token: "old_token_123",
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [] }); // UPDATE users
 
-  it("updates privacy and generates share token when transitioning to unlisted", async () => {
-    verifySessionMock.mockResolvedValueOnce({
-      ok: true,
-      userId: "user-1",
-      wallet: "0xALICE",
+      const req = makeRequest("POST", {
+        privacy: "subscribers_only",
+        rotate_token: true,
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.privacy).toBe("subscribers_only");
+      expect(data.shareToken).toBeDefined();
+      expect(data.shareToken).not.toBe("old_token_123");
     });
-    sqlMock
-      .mockResolvedValueOnce({
-        rows: [{ id: "user-1", stream_privacy: "public", share_token: null }],
-      })
-      .mockResolvedValueOnce({ rows: [] }); // UPDATE
-
-    const req = makeRequest("POST", { privacy: "unlisted" });
-    const res = await POST(req);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.privacy).toBe("unlisted");
-    expect(body.shareToken).toBeDefined();
-    expect(body.shareToken.length).toBeGreaterThan(0);
-  });
-
-  it("rotates token when rotate_token is true", async () => {
-    verifySessionMock.mockResolvedValueOnce({
-      ok: true,
-      userId: "user-1",
-      wallet: "0xALICE",
-    });
-    sqlMock
-      .mockResolvedValueOnce({
-        rows: [{ id: "user-1", stream_privacy: "unlisted", share_token: "old_tok" }],
-      })
-      .mockResolvedValueOnce({ rows: [] }); // UPDATE
-
-    const req = makeRequest("POST", { rotate_token: true });
-    const res = await POST(req);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.shareToken).toBeDefined();
-    expect(body.shareToken).not.toBe("old_tok");
   });
 });

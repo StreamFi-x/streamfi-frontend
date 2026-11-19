@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 
     // Check if user exists
     const { rows: users } = await sql`
-      SELECT * FROM users WHERE email = ${email}
+      SELECT * FROM users WHERE email = ${email} AND deleted_at IS NULL
     `;
     if (users.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

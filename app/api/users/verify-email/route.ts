@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -27,9 +28,13 @@ export async function POST(req: Request) {
     }
 
     // Step 2: Mark email as verified
-    await sql`
+    const { rows: verifiedUsers } = await sql`
       UPDATE users SET emailVerified = true WHERE email = ${email}
+      RETURNING username, wallet
     `;
+    for (const verified of verifiedUsers) {
+      await invalidateUserCaches(verified);
+    }
 
     // Optional: delete token after use
     await sql`

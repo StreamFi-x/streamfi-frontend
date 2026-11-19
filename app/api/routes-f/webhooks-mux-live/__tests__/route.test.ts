@@ -1,5 +1,8 @@
+/**
+ * @jest-environment node
+ */
 import { createHmac } from "crypto";
-import { sql } from "@vercel/postgres";
+import { fakePostgres as db } from "@/testing/fake-postgres";
 import { POST, GET } from "../route";
 
 jest.mock("next/server", () => ({
@@ -12,15 +15,15 @@ jest.mock("next/server", () => ({
   },
 }));
 
-jest.mock("@vercel/postgres", () => ({
-  sql: jest.fn(),
-}));
+jest.mock(
+  "@vercel/postgres",
+  () => jest.requireActual("@/testing/fake-postgres").vercelPostgresMock
+);
 
 jest.mock("@/lib/rate-limit", () => ({
   createRateLimiter: jest.fn(() => jest.fn().mockResolvedValue(false)),
 }));
 
-const sqlMock = sql as unknown as jest.Mock;
 const STREAM_ID = "mux-stream-abc123";
 const WEBHOOK_SECRET = "test-webhook-secret";
 
@@ -35,11 +38,13 @@ function signedHeader(
   return `t=${timestamp},v1=${sig}`;
 }
 
+let eventSeq = 0;
+
 function postRequest(
-  event: unknown,
+  event: Record<string, unknown>,
   opts?: { secret?: string; header?: string | null }
 ): Request {
-  const rawBody = JSON.stringify(event);
+  const rawBody = JSON.stringify({ id: `evt-${++eventSeq}`, ...event });
   const headers = new Headers();
   headers.set("x-forwarded-for", "127.0.0.1");
 
@@ -61,7 +66,13 @@ describe("POST /api/routes-f/webhooks-mux-live", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...OLD_ENV, MUX_WEBHOOK_SECRET: WEBHOOK_SECRET };
-    sqlMock.mockResolvedValue({ rows: [] });
+    db.reset();
+    db.addUser({
+      id: "user-1",
+      mux_stream_id: STREAM_ID,
+      mux_playback_id: "pb-1",
+      creator: { title: "My Stream" },
+    });
   });
 
   afterAll(() => {
@@ -121,40 +132,34 @@ describe("POST /api/routes-f/webhooks-mux-live", () => {
   });
 
   it("marks the user live and opens a stream session on video.live_stream.active", async () => {
-    sqlMock
-      .mockResolvedValueOnce({ rows: [] }) // UPDATE users is_live = true
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: "user-1",
-            mux_playback_id: "pb-1",
-            creator: { title: "My Stream" },
-          },
-        ],
-      }) // SELECT user
-      .mockResolvedValueOnce({ rows: [] }) // SELECT existing session -> none
-      .mockResolvedValueOnce({ rows: [] }); // INSERT stream_sessions
-
     const res = await POST(
       postRequest({ type: "video.live_stream.active", data: { id: STREAM_ID } })
     );
     expect(res.status).toBe(200);
-    expect(sqlMock).toHaveBeenCalledTimes(4);
+    expect(db.user("user-1").is_live).toBe(true);
+    expect(db.openSessions("user-1")).toEqual([
+      expect.objectContaining({ title: "My Stream", playback_id: "pb-1" }),
+    ]);
   });
 
   it("skips creating a duplicate session when one is already active", async () => {
-    sqlMock
-      .mockResolvedValueOnce({ rows: [] }) // UPDATE users
-      .mockResolvedValueOnce({
-        rows: [{ id: "user-1", mux_playback_id: "pb-1", creator: {} }],
-      })
-      .mockResolvedValueOnce({ rows: [{ id: "existing-session" }] }); // already active
+    db.state.stream_sessions.push({
+      id: "existing-session",
+      user_id: "user-1",
+      title: "earlier",
+      playback_id: "pb-1",
+      mux_session_id: STREAM_ID,
+      started_at: new Date(),
+      ended_at: null,
+    });
 
     const res = await POST(
       postRequest({ type: "video.live_stream.active", data: { id: STREAM_ID } })
     );
     expect(res.status).toBe(200);
-    expect(sqlMock).toHaveBeenCalledTimes(3); // no INSERT
+    expect(db.openSessions("user-1").map(s => s.id)).toEqual([
+      "existing-session",
+    ]);
   });
 
   it("logs and does not touch the DB on video.live_stream.connected", async () => {
@@ -165,7 +170,7 @@ describe("POST /api/routes-f/webhooks-mux-live", () => {
       })
     );
     expect(res.status).toBe(200);
-    expect(sqlMock).not.toHaveBeenCalled();
+    expect(db.statements).toHaveLength(0);
   });
 
   it("logs and does not touch the DB on video.live_stream.disconnected", async () => {
@@ -176,20 +181,20 @@ describe("POST /api/routes-f/webhooks-mux-live", () => {
       })
     );
     expect(res.status).toBe(200);
-    expect(sqlMock).not.toHaveBeenCalled();
+    expect(db.statements).toHaveLength(0);
   });
 
   it("marks the user offline and closes the session on video.live_stream.idle", async () => {
-    sqlMock
-      .mockResolvedValueOnce({ rows: [] }) // UPDATE users is_live = false
-      .mockResolvedValueOnce({ rows: [{ id: "user-1" }] }) // SELECT user
-      .mockResolvedValueOnce({ rows: [] }); // UPDATE stream_sessions ended_at
-
+    await POST(
+      postRequest({ type: "video.live_stream.active", data: { id: STREAM_ID } })
+    );
     const res = await POST(
       postRequest({ type: "video.live_stream.idle", data: { id: STREAM_ID } })
     );
     expect(res.status).toBe(200);
-    expect(sqlMock).toHaveBeenCalledTimes(3);
+    expect(db.user("user-1").is_live).toBe(false);
+    expect(db.openSessions("user-1")).toHaveLength(0);
+    expect(db.state.stream_sessions[0].ended_at).not.toBeNull();
   });
 
   it("returns 200 with received:true for an unrecognized event type", async () => {
@@ -205,7 +210,7 @@ describe("POST /api/routes-f/webhooks-mux-live", () => {
   });
 
   it("returns 500 when an unexpected error occurs", async () => {
-    sqlMock.mockRejectedValueOnce(new Error("db down"));
+    db.failOn(/^UPDATE users/, new Error("db down"));
     const res = await POST(
       postRequest({ type: "video.live_stream.active", data: { id: STREAM_ID } })
     );

@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 const completeSchema = z.object({
   display_name: z.string().min(1).max(50).optional(),
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
   try {
     // Verify user has completed /register first
     const { rows: userRows } = await sql`
-      SELECT id, username FROM users WHERE id = ${session.userId} AND username IS NOT NULL LIMIT 1
+      SELECT id, username FROM users WHERE id = ${session.userId} AND username IS NOT NULL AND deleted_at IS NULL LIMIT 1
     `;
     if (userRows.length === 0) {
       return NextResponse.json(
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
           updated_at   = NOW()
       WHERE id = ${session.userId}
     `;
+    await invalidateUserCaches({ id: session.userId });
 
     // Mark onboarding as completed
     await sql`

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, ExternalLink, X } from "lucide-react";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { usePrivyAuth } from "@/hooks/usePrivyAuth";
+import { sessionReplay } from "@/lib/session-replay";
 
 interface ConnectModalProps {
   isModalOpen: boolean;
@@ -114,6 +115,12 @@ export default function ConnectWalletModal({
   }, [isModalOpen]);
 
   const handleWalletClick = async (walletId: string) => {
+    sessionReplay.addBreadcrumb({
+      category: "wallet",
+      message: `User clicked wallet provider button: ${walletId}`,
+      level: "info",
+      data: { walletId },
+    });
     setDismissed(false);
     setShowConfirm(false);
     setSelectedWallet(walletId);

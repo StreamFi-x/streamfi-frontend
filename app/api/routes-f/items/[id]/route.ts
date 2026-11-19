@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { redis } from "@/lib/redis";
 import { getAuthUser } from "@/lib/auth";
+import { roleCanAccess } from "@/lib/admin-auth";
 
 const CATALOG_CACHE_KEY = "items_catalog";
 
@@ -59,7 +60,7 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   const user = await getAuthUser(req);
-  if (!user || user.role !== "admin") {
+  if (!user || !roleCanAccess(user.role ?? null, "admin")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

@@ -21,7 +21,7 @@ export default async function Image({ params }: Props) {
     const { rows } = await sql`
       SELECT r.playback_id, r.title, u.username, u.avatar
       FROM stream_recordings r
-      JOIN users u ON u.id = r.user_id
+      JOIN users u ON u.id = r.user_id AND u.deleted_at IS NULL
       WHERE r.id = ${id} AND r.status = 'ready'
       LIMIT 1
     `;

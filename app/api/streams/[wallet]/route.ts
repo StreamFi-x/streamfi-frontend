@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
+import { verifySession } from "@/lib/auth/verify-session";
 
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ wallet: string }> }
 ) {
   try {
@@ -37,10 +38,11 @@ export async function GET(
         ss.id as session_id,
         ss.started_at as session_started_at,
         ss.peak_viewers,
+        ss.peak_viewers_verified,
         ss.total_messages
       FROM users u
       LEFT JOIN stream_sessions ss ON u.id = ss.user_id AND ss.ended_at IS NULL
-      WHERE u.wallet = ${wallet}
+      WHERE u.wallet = ${wallet} AND u.deleted_at IS NULL
     `;
 
     if (result.rows.length === 0) {
@@ -48,6 +50,12 @@ export async function GET(
     }
 
     const streamData = result.rows[0];
+
+    // This route is intentionally public (stream viewing pages render it for
+    // any visitor), but the RTMP stream key is a broadcast credential and
+    // must only ever go back to the stream's own owner.
+    const session = await verifySession(req);
+    const isOwner = session.ok && session.wallet === wallet;
 
     // Only fetch Mux health if explicitly requested (skip for fast dashboard loads)
     const url = new URL(req.url);
@@ -75,7 +83,8 @@ export async function GET(
       stream: {
         streamId: streamData.mux_stream_id,
         playbackId: streamData.mux_playback_id,
-        streamKey: streamData.streamkey,
+        // Broadcast credential — only ever returned to the stream's owner.
+        streamKey: isOwner ? streamData.streamkey : null,
 
         isLive: streamData.is_live,
         isConfigured: !!streamData.mux_stream_id,
@@ -90,6 +99,7 @@ export async function GET(
         currentViewers: streamData.current_viewers || 0,
         totalViews: streamData.total_views || 0,
         peakViewers: streamData.peak_viewers || 0,
+        peakViewersVerified: streamData.peak_viewers_verified === true,
 
         avgBitrate: streamData.avg_bitrate,
         resolution: streamData.resolution,
@@ -101,6 +111,7 @@ export async function GET(
             id: streamData.session_id,
             startedAt: streamData.session_started_at,
             peakViewers: streamData.peak_viewers,
+            peakViewersVerified: streamData.peak_viewers_verified === true,
             totalMessages: streamData.total_messages,
           }
         : null,

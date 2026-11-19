@@ -1,18 +1,22 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-
-interface NotificationOptionType {
-  title: string;
-  description: string;
-  enabled: boolean;
-}
+import { usePrivy } from "@privy-io/react-auth";
+import type { NotificationPreferences } from "@/lib/notifications/preferences";
 
 interface ToggleSwitchProps {
   enabled: boolean;
-  onChange: (e: React.MouseEvent) => void;
+  onChange: (enabled: boolean) => void;
+  loading?: boolean;
+}
+
+interface NotificationOptionType {
+  key: keyof NotificationPreferences;
+  title: string;
+  description: string;
+  enabled: boolean;
 }
 
 interface NotificationCategoryProps {
@@ -21,17 +25,22 @@ interface NotificationCategoryProps {
   isOpen: boolean;
   toggleSection: () => void;
   options: NotificationOptionType[];
-  onOptionToggle: (index: number) => void;
+  onOptionToggle: (key: keyof NotificationPreferences, enabled: boolean) => void;
+  loading?: boolean;
 }
 
-const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ enabled, onChange }) => {
+const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ enabled, onChange, loading }) => {
   return (
     <div
-      className={`flex-shrink-0 w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${enabled ? "bg-highlight" : "bg-muted"}`}
-      onClick={onChange}
+      className={`flex-shrink-0 w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${
+        enabled ? "bg-highlight" : "bg-muted"
+      } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+      onClick={() => !loading && onChange(!enabled)}
     >
       <div
-        className={`bg-white w-4 h-4 rounded-full transform transition-transform ${enabled ? "translate-x-6" : "translate-x-0"}`}
+        className={`bg-white w-4 h-4 rounded-full transform transition-transform ${
+          enabled ? "translate-x-6" : "translate-x-0"
+        }`}
       />
     </div>
   );
@@ -44,6 +53,7 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
   toggleSection,
   options,
   onOptionToggle,
+  loading,
 }) => {
   return (
     <div className="bg-card border border-border shadow-sm rounded-lg mb-4 overflow-hidden">
@@ -64,9 +74,9 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
         <div>
           <hr className="border-border m-0 w-[96%] mx-auto" />
           <div>
-            {options.map((option, index) => (
+            {options.map((option) => (
               <div
-                key={index}
+                key={option.key}
                 className="py-5 flex justify-between items-center px-6 pl-24 md:pl-20"
               >
                 <div className="flex-1 pr-4">
@@ -77,10 +87,8 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
                 </div>
                 <ToggleSwitch
                   enabled={option.enabled}
-                  onChange={e => {
-                    e.stopPropagation();
-                    onOptionToggle(index);
-                  }}
+                  onChange={(enabled) => onOptionToggle(option.key, enabled)}
+                  loading={loading}
                 />
               </div>
             ))}
@@ -92,137 +100,257 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
 };
 
 const NotificationSettings: React.FC = () => {
-  const categories = [
-    {
-      id: "email",
-      title: "Email Notifications",
-      description: "Manage notifications sent to your registered email address",
-      options: [
-        {
-          title: "Transaction Alerts",
-          description:
-            "Receive emails when transactions are completed or require attention",
-          enabled: true,
-        },
-        {
-          title: "Security Alerts",
-          description:
-            "Get notified about login attempts and security-related events",
-          enabled: true,
-        },
-        {
-          title: "Platform Updates",
-          description:
-            "Stay informed about new features and platform improvements",
-          enabled: true,
-        },
-        {
-          title: "Creator Updates",
-          description: "Get notified when creators you follow post new content",
-          enabled: true,
-        },
-      ],
-    },
-    {
-      id: "push",
-      title: "Push Notifications",
-      description: "Control notifications sent to your devices",
-      options: [
-        {
-          title: "Transaction Notifications",
-          description: "Receive push alerts for transaction updates",
-          enabled: false,
-        },
-        {
-          title: "Security Notifications",
-          description: "Be alerted about security events on your devices",
-          enabled: true,
-        },
-        {
-          title: "New Content Alerts",
-          description: "Get notified when new content is available",
-          enabled: false,
-        },
-      ],
-    },
-    {
-      id: "inApp",
-      title: "In-app Notifications",
-      description: "Manage alerts that appear within the platform interface",
-      options: [
-        {
-          title: "Activity Feed",
-          description: "Show notifications in your activity feed",
-          enabled: true,
-        },
-        {
-          title: "Popup Alerts",
-          description:
-            "Display important alerts as popups within the interface",
-          enabled: false,
-        },
-        {
-          title: "Sound Notifications",
-          description: "Play sounds for critical notifications",
-          enabled: false,
-        },
-      ],
-    },
-  ];
-
+  const { user, authenticated } = usePrivy();
+  const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    email: false,
-    push: false,
     inApp: false,
+    email: false,
   });
 
-  const [notificationOptions, setNotificationOptions] = useState(categories);
+  // Fetch preferences on mount
+  useEffect(() => {
+    if (!authenticated || !user) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchPreferences = async () => {
+      try {
+        const res = await fetch("/api/routes-f/notification-preferences", {
+          credentials: "include",
+        });
+        if (!res.ok) {
+          throw new Error("Failed to fetch preferences");
+        }
+        const data = await res.json();
+        setPreferences(data);
+        setError(null);
+      } catch (err) {
+        console.error("[NotificationSettings] fetch error:", err);
+        setError("Failed to load notification preferences");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPreferences();
+  }, [authenticated, user]);
 
   const toggleSection = (sectionId: string) => {
-    setOpenSections(prev => ({
+    setOpenSections((prev) => ({
       ...prev,
       [sectionId]: !prev[sectionId],
     }));
   };
 
-  const toggleOption = (categoryIndex: number, optionIndex: number) => {
-    setNotificationOptions(prev => {
-      const newOptions = [...prev];
-      newOptions[categoryIndex].options[optionIndex].enabled =
-        !newOptions[categoryIndex].options[optionIndex].enabled;
-      return newOptions;
-    });
-  };
+  const handleOptionToggle = useCallback(
+    async (key: keyof NotificationPreferences, enabled: boolean) => {
+      if (!preferences) return;
 
-  const saveChanges = () => {
-    console.log("Saving changes...");
-    console.log("Notification options:", notificationOptions);
-    alert("Settings saved successfully!");
-  };
+      // Optimistic update
+      setPreferences((prev) => prev ? { ...prev, [key]: enabled } : null);
+
+      // Save to server
+      setSaving(true);
+      try {
+        const res = await fetch("/api/routes-f/notification-preferences", {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [key]: enabled }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to save preferences");
+        }
+
+        const updated = await res.json();
+        setPreferences(updated);
+        setError(null);
+      } catch (err) {
+        console.error("[handleOptionToggle] error:", err);
+        // Revert optimistic update
+        setPreferences((prev) => prev ? { ...prev, [key]: !enabled } : null);
+        setError("Failed to save preference. Please try again.");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [preferences]
+  );
+
+  if (!authenticated) {
+    return (
+      <div className="bg-secondary text-foreground min-h-screen p-6">
+        <div className="max-w-2xl mx-auto">
+          <p className="text-muted-foreground">Please log in to manage notification preferences.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-secondary text-foreground min-h-screen p-6">
+        <div className="max-w-2xl mx-auto">
+          <p className="text-muted-foreground">Loading preferences...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!preferences) {
+    return (
+      <div className="bg-secondary text-foreground min-h-screen p-6">
+        <div className="max-w-2xl mx-auto">
+          <p className="text-red-500">Failed to load notification preferences.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const inAppOptions: NotificationOptionType[] = [
+    {
+      key: "notify_follow",
+      title: "New Followers",
+      description: "When someone follows your channel",
+      enabled: preferences.notify_follow,
+    },
+    {
+      key: "notify_live",
+      title: "Go Live Alerts",
+      description: "When creators you follow go live",
+      enabled: preferences.notify_live,
+    },
+    {
+      key: "notify_tip_received",
+      title: "Tips Received",
+      description: "When viewers tip you during a stream",
+      enabled: preferences.notify_tip_received,
+    },
+    {
+      key: "notify_new_subscriber",
+      title: "New Subscribers",
+      description: "When someone subscribes to your channel",
+      enabled: preferences.notify_new_subscriber,
+    },
+    {
+      key: "notify_clip_featured",
+      title: "Featured Clips",
+      description: "When your clips are featured",
+      enabled: preferences.notify_clip_featured,
+    },
+    {
+      key: "notify_payment_confirmed",
+      title: "Payment Confirmations",
+      description: "When your payouts are confirmed",
+      enabled: preferences.notify_payment_confirmed,
+    },
+    {
+      key: "notify_system",
+      title: "System Updates",
+      description: "Platform announcements and important updates",
+      enabled: preferences.notify_system,
+    },
+  ];
+
+  const emailOptions: NotificationOptionType[] = [
+    {
+      key: "email_notify_follow",
+      title: "New Followers",
+      description: "Email when someone follows your channel",
+      enabled: preferences.email_notify_follow,
+    },
+    {
+      key: "email_notify_tip_received",
+      title: "Tips Received",
+      description: "Email when viewers tip you",
+      enabled: preferences.email_notify_tip_received,
+    },
+    {
+      key: "email_notify_new_subscriber",
+      title: "New Subscribers",
+      description: "Email when someone subscribes",
+      enabled: preferences.email_notify_new_subscriber,
+    },
+    {
+      key: "email_notify_payment_confirmed",
+      title: "Payment Confirmations",
+      description: "Email when payouts are confirmed",
+      enabled: preferences.email_notify_payment_confirmed,
+    },
+    {
+      key: "email_digest",
+      title: "Weekly Digest",
+      description: "Receive a weekly summary of your activity",
+      enabled: preferences.email_digest,
+    },
+  ];
 
   return (
-    <div className="bg-secondary text-foreground min-h-screen">
-      <div className="max-w-8xl mx-auto">
-        {notificationOptions.map((category, categoryIndex) => (
-          <NotificationCategory
-            key={category.id}
-            title={category.title}
-            description={category.description}
-            isOpen={openSections[category.id]}
-            toggleSection={() => toggleSection(category.id)}
-            options={category.options}
-            onOptionToggle={optionIndex =>
-              toggleOption(categoryIndex, optionIndex)
-            }
-          />
-        ))}
+    <div className="bg-secondary text-foreground min-h-screen p-6">
+      <div className="max-w-2xl mx-auto">
+        {error && (
+          <div className="mb-4 p-4 bg-red-500/10 border border-red-500 rounded-lg text-red-500 text-sm">
+            {error}
+          </div>
+        )}
 
-        <div className="flex justify-end">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Notification Preferences</h1>
+          <p className="text-muted-foreground">
+            Control how and when you receive notifications from StreamFi
+          </p>
+        </div>
+
+        <NotificationCategory
+          title="In-app Notifications"
+          description="Notifications that appear within StreamFi"
+          isOpen={openSections.inApp}
+          toggleSection={() => toggleSection("inApp")}
+          options={inAppOptions}
+          onOptionToggle={handleOptionToggle}
+          loading={saving}
+        />
+
+        <NotificationCategory
+          title="Email Notifications"
+          description="Notifications sent to your email address"
+          isOpen={openSections.email}
+          toggleSection={() => toggleSection("email")}
+          options={emailOptions}
+          onOptionToggle={handleOptionToggle}
+          loading={saving}
+        />
+
+        <div className="mt-8 p-4 bg-muted rounded-lg">
           <button
-            className="bg-highlight hover:bg-highlight/80 text-primary-foreground px-6 py-3 rounded-md"
-            onClick={saveChanges}
+            onClick={async () => {
+              setSaving(true);
+              try {
+                const res = await fetch("/api/routes-f/notification-preferences", {
+                  method: "PUT",
+                  credentials: "include",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ unsubscribed_all: !preferences.unsubscribed_all }),
+                });
+                if (res.ok) {
+                  const updated = await res.json();
+                  setPreferences(updated);
+                }
+              } finally {
+                setSaving(false);
+              }
+            }}
+            disabled={saving}
+            className="text-red-500 hover:text-red-600 font-medium disabled:opacity-50"
           >
-            Save Changes
+            {preferences.unsubscribed_all
+              ? "Re-subscribe to all notifications"
+              : "Unsubscribe from all notifications"}
           </button>
         </div>
       </div>

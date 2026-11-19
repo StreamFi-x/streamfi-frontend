@@ -1,5 +1,6 @@
 import useSWR from "swr";
 import { useCallback } from "react";
+import { fetcher } from "@/lib/fetcher";
 
 export interface UserPreferences {
   user_id: string;
@@ -13,8 +14,6 @@ export interface UserPreferences {
   show_timestamps: boolean;
   updated_at: string;
 }
-
-const fetcher = (url: string) => fetch(url, { credentials: "include" }).then(r => r.json());
 
 export function useUserPreferences() {
   const { data, error, isLoading, mutate } = useSWR<{ preferences: UserPreferences }>(

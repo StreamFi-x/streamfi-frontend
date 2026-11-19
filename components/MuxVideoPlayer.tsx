@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import MuxPlayer from "@mux/mux-player-react";
+import { usePlaybackTelemetry } from "@/lib/telemetry";
 
 interface MuxVideoPlayerProps {
   playbackId: string;
@@ -19,6 +21,15 @@ export default function MuxVideoPlayer({
   videoId,
   viewerUserId,
 }: MuxVideoPlayerProps) {
+  // Initialize telemetry for this playback session
+  const sessionId = `session-${videoId}-${Date.now()}`;
+  const telemetry = usePlaybackTelemetry({
+    streamId: videoId || playbackId,
+    viewerId: viewerUserId || "anonymous",
+    sessionId,
+    enableLogging: false,
+  });
+
   if (!playbackId) {
     return (
       <div className="w-full aspect-video bg-gray-900 rounded-lg flex items-center justify-center text-white">

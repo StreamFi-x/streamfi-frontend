@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
+import { deleteMuxAssetIfExists } from "@/lib/mux/server";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -43,7 +44,7 @@ export async function GET(
           u.bio,
           ss.started_at AS stream_date
         FROM stream_recordings r
-        JOIN users u ON u.id = r.user_id
+        JOIN users u ON u.id = r.user_id AND u.deleted_at IS NULL
         LEFT JOIN stream_sessions ss ON ss.id = r.stream_session_id
         WHERE r.id = ${wallet}
           AND r.status = 'ready'
@@ -69,7 +70,7 @@ export async function GET(
         r.needs_review,
         ss.started_at AS stream_date
       FROM stream_recordings r
-      JOIN users u ON u.id = r.user_id
+      JOIN users u ON u.id = r.user_id AND u.deleted_at IS NULL
       LEFT JOIN stream_sessions ss ON ss.id = r.stream_session_id
       WHERE LOWER(u.wallet) = LOWER(${wallet})
       ORDER BY r.created_at DESC
@@ -90,7 +91,10 @@ export async function GET(
 
 /**
  * DELETE /api/streams/recordings/[id]
- * Auth required. Owner only. Permanently removes the recording from the DB.
+ * Auth required. Owner only. Deletes the Mux asset first (a Mux 404 counts as
+ * already deleted), then removes the DB row. If Mux fails with a real error the
+ * row is kept and a 502 is returned so the delete can be retried; deleting the
+ * row first would orphan a billable asset with no record pointing to it.
  */
 export async function DELETE(
   req: NextRequest,
@@ -111,7 +115,7 @@ export async function DELETE(
     }
 
     const { rows } = await sql`
-      SELECT user_id FROM stream_recordings WHERE id = ${id}
+      SELECT user_id, mux_asset_id FROM stream_recordings WHERE id = ${id}
     `;
 
     if (rows.length === 0) {
@@ -120,6 +124,23 @@ export async function DELETE(
 
     if (rows[0].user_id !== session.userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const assetId = rows[0].mux_asset_id as string | null;
+    if (assetId) {
+      try {
+        // "not_found" means the asset is already gone, which is the goal.
+        await deleteMuxAssetIfExists(String(assetId));
+      } catch (muxErr) {
+        console.error(
+          `[recordings] DELETE: Mux asset ${assetId} not deleted, keeping recording ${id}:`,
+          muxErr instanceof Error ? muxErr.message : muxErr
+        );
+        return NextResponse.json(
+          { error: "Failed to delete recording video. Please try again." },
+          { status: 502 }
+        );
+      }
     }
 
     await sql`DELETE FROM stream_recordings WHERE id = ${id}`;

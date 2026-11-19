@@ -2,7 +2,7 @@
  * Extracts the raw session token string from a Next.js request.
  *
  * Priority order matches verifySession:
- *  1. privy_session cookie  (value IS the raw token — the privy_id string)
+ *  1. privy_session cookie  (value IS the raw token — the signed privy session token)
  *  2. wallet_session cookie (value IS the raw signed JWT)
  *  3. legacy wallet cookie  (value IS the raw wallet address)
  *

@@ -5,6 +5,12 @@ import { sendWelcomeRegistrationEmail } from "@/utils/send-email";
 import { createMuxStream } from "@/lib/mux/server";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { getRandomProfileIcon } from "@/lib/profile-icons";
+import {
+  JsonbContractError,
+  prepareCreator,
+  prepareSocialLinks,
+} from "@/lib/db/jsonb-contracts";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
 
 // Registration creates a Mux stream + DB write — strict limit to prevent abuse
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 5); // 5 per hour per IP
@@ -20,10 +26,6 @@ async function handler(req: NextRequest) {
       { error: "Too many requests" },
       { status: 429, headers: { "Retry-After": "3600" } }
     );
-  }
-
-  if (req.method !== "POST") {
-    return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
   }
 
   const requestBody = await req.json();
@@ -67,6 +69,22 @@ async function handler(req: NextRequest) {
     );
   }
 
+  // Validate JSONB documents before any side effect (Mux stream creation).
+  let socialLinksDocument: ReturnType<typeof prepareSocialLinks>;
+  let creatorDocument: ReturnType<typeof prepareCreator>;
+  try {
+    socialLinksDocument = prepareSocialLinks(socialLinks);
+    creatorDocument = prepareCreator(creator);
+  } catch (error) {
+    if (error instanceof JsonbContractError) {
+      return NextResponse.json(
+        { error: `Invalid ${error.column}`, issues: error.issues },
+        { status: 400 }
+      );
+    }
+    throw error;
+  }
+
   try {
     const userEmailExist = await checkExistingTableDetail(
       "users",
@@ -81,9 +99,30 @@ async function handler(req: NextRequest) {
     // Case-insensitive username check — username is stored lowercase but guard against
     // any legacy mixed-case rows that may exist
     const { rows: usernameRows } = await sql`
+      -- tombstone-aware: identifiers stay reserved until the account is purged
       SELECT id FROM users WHERE LOWER(username) = ${username} LIMIT 1
     `;
     const usernameExist = usernameRows.length > 0;
+
+    if (userEmailExist || userWalletExist) {
+      // A tombstoned account keeps its email/wallet until it is purged; the
+      // owner can cancel the deletion instead of registering again.
+      const { rows: pending } = await sql`
+        SELECT 1 FROM users
+        WHERE deleted_at IS NOT NULL AND (email = ${email} OR wallet = ${wallet})
+        LIMIT 1
+      `;
+      if (pending.length > 0) {
+        return NextResponse.json(
+          {
+            error:
+              "An account with this email or wallet is pending deletion. Sign in and cancel the deletion, or register again after it has been purged.",
+            code: "ACCOUNT_PENDING_DELETION",
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     if (userEmailExist) {
       return NextResponse.json(
@@ -146,9 +185,9 @@ async function handler(req: NextRequest) {
         ${email},
         ${username},
         ${wallet},
-        ${JSON.stringify(socialLinks)},
+        ${JSON.stringify(socialLinksDocument)},
         ${emailNotifications},
-        ${JSON.stringify(creator)},
+        ${JSON.stringify(creatorDocument)},
         ${muxStream?.id ?? null},
         ${muxStream?.playbackId ?? null},
         ${muxStream?.streamKey ?? null},
@@ -156,9 +195,18 @@ async function handler(req: NextRequest) {
       )
     `;
 
+    // Profile layouts cache "not found" (unstable_cache); purge it for the new handle.
+    await invalidateUserCaches({ username, wallet });
     console.log(`[register] User registered: ${username}`);
 
-    await sendWelcomeRegistrationEmail(email, username);
+    // The account already exists at this point; a mail failure must not turn a
+    // successful registration into a 500 (the client would retry and hit
+    // "Email already exist").
+    try {
+      await sendWelcomeRegistrationEmail(email, username);
+    } catch (emailError) {
+      console.error("[register] Failed to send welcome email:", emailError);
+    }
 
     return NextResponse.json(
       {
@@ -179,4 +227,12 @@ async function handler(req: NextRequest) {
   }
 }
 
-export { handler as POST, handler as GET };
+export { handler as POST };
+
+// Registration mutates state; only POST is allowed.
+export async function GET() {
+  return NextResponse.json(
+    { error: "Method not allowed" },
+    { status: 405, headers: { Allow: "POST" } }
+  );
+}

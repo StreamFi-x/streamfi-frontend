@@ -1,76 +1,109 @@
+/**
+ * POST /api/routes-f/subscription-cancel (#1426)
+ *
+ * Cancels auto-renewal for a subscription. This does NOT revoke access or
+ * touch funds: the subscription is a one-time, time-bounded Stellar payment
+ * (see db/migrations/add-stream-privacy-and-subs.sql) with no recurring
+ * on-chain billing to stop — "cancel" means the platform will not create a
+ * new subscription row when this one expires, and the subscriber keeps
+ * access through expires_at exactly as already paid for.
+ *
+ * Idempotent: cancelling an already-cancelled subscription returns the same
+ * success response instead of erroring, so retries/double-clicks/refreshes
+ * never produce contradictory state.
+ */
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { verifySession } from "@/lib/auth/verify-session";
+import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { sql } from "@vercel/postgres";
+import {
+  executeIdempotent,
+  IDEMPOTENT_OPERATIONS,
+} from "@/lib/idempotency/execute";
+import { recordWorkflowEvent } from "@/lib/audit/workflow-events";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const cancelSchema = z.object({
+  subscriptionId: z.string().uuid("subscriptionId must be a valid UUID"),
+});
 
 export async function POST(req: NextRequest) {
   const session = await verifySession(req);
   if (!session.ok) return session.response;
 
-  let body: { subscriptionId?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const bodyResult = await validateBody(req, cancelSchema);
+  if (bodyResult instanceof NextResponse) {
+    return bodyResult;
   }
+  const { subscriptionId } = bodyResult.data;
 
-  const { subscriptionId } = body;
-  if (!subscriptionId || typeof subscriptionId !== "string" || subscriptionId.trim() === "") {
-    return NextResponse.json({ error: "subscriptionId is required" }, { status: 400 });
+  const { rows } = await sql`
+    SELECT id, subscriber_id, expires_at, status, renewal_cancelled_at
+    FROM subscriptions
+    WHERE id = ${subscriptionId}
+    LIMIT 1
+  `;
+  const sub = rows[0];
+
+  if (!sub) {
+    return NextResponse.json(
+      { error: "Subscription not found" },
+      { status: 404 }
+    );
   }
-
-  const cleanSubId = subscriptionId.trim();
-
-  let sub;
-  try {
-    const { rows } = await sql`
-      SELECT id, user_id, subscriber_wallet, status, contract_id
-      FROM subscriptions
-      WHERE id = ${cleanSubId} OR subscription_id = ${cleanSubId}
-      LIMIT 1
-    `;
-    sub = rows[0];
-  } catch {
-    sub = null;
-  }
-
-  if (sub && sub.user_id && sub.user_id !== session.userId && sub.subscriber_wallet !== session.wallet) {
+  if (sub.subscriber_id !== session.userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const contractId =
-    sub?.contract_id ||
-    process.env.NEXT_PUBLIC_SOROBAN_SUBSCRIPTION_CONTRACT_ID ||
-    "CC3V_SOROBAN_SUBSCRIPTION_CONTRACT_ID";
-
-  const unsignedInvocation = {
-    contractId,
-    method: "cancel_subscription",
-    args: [
-      { type: "string", value: cleanSubId },
-      { type: "address", value: session.wallet || session.userId },
-    ],
-    xdr: `AAAAAgAAAAD_UNSIGNED_SOROBAN_CANCEL_XDR_${cleanSubId}`,
-  };
-
-  if (sub) {
-    try {
-      await sql`
-        UPDATE subscriptions
-        SET status = 'canceling', updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${sub.id}
-      `;
-    } catch {
-      // Graceful fallback
-    }
-  }
-
-  return NextResponse.json(
+  return executeIdempotent(
+    req,
     {
-      success: true,
-      subscriptionId: cleanSubId,
-      status: "canceled_pending_tx",
-      unsignedInvocation,
+      userId: session.userId,
+      ...IDEMPOTENT_OPERATIONS.subscriptionCancel,
+      request: { subscriptionId },
     },
-    { status: 200 }
+    async () => {
+      // Already cancelled: report the same outcome instead of erroring, so a
+      // duplicate click, refresh, or retried request is a no-op.
+      if (sub.renewal_cancelled_at || sub.status === "cancelled") {
+        return NextResponse.json({
+          success: true,
+          subscriptionId,
+          status: "renewal_cancelled",
+          accessUntil: sub.expires_at,
+          alreadyCancelled: true,
+        });
+      }
+
+      const { rows: updated } = await sql`
+        UPDATE subscriptions
+        SET renewal_cancelled_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${subscriptionId}
+        RETURNING expires_at
+      `;
+
+      await recordWorkflowEvent({
+        workflow: "subscription",
+        subjectId: subscriptionId,
+        action: "cancel_renewal",
+        actorType: "user",
+        actorId: session.userId,
+        fromState: sub.status,
+        toState: sub.status,
+        metadata: { expires_at: updated[0]?.expires_at ?? sub.expires_at },
+      });
+
+      return NextResponse.json({
+        success: true,
+        subscriptionId,
+        status: "renewal_cancelled",
+        accessUntil: updated[0]?.expires_at ?? sub.expires_at,
+        alreadyCancelled: false,
+      });
+    }
   );
 }

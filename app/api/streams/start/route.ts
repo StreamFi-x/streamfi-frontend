@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
 import { verifySession } from "@/lib/auth/verify-session";
-import { writeNotification } from "@/lib/notifications";
+import { markRecentWrite } from "@/lib/db/replica";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
 import { syncScheduleLiveStatusForCreator } from "@/lib/routes-f/schedule";
+import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { dispatchJob } from "@/lib/jobs/qstash";
+import { liveFanoutJob } from "@/lib/jobs/definitions/live-fanout";
 
 export async function POST(req: NextRequest) {
   // Verify the caller is logged in
@@ -14,10 +17,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    let requestedLatencyMode: string | undefined;
+    try {
+      const body = await req.json();
+      requestedLatencyMode = body.latencyMode;
+    } catch {
+      // No body or invalid JSON, that's fine - will use user default
+    }
     const userResult = await sql`
-      SELECT id, username, mux_stream_id, is_live, mux_playback_id
+      SELECT id, username, mux_stream_id, is_live, mux_playback_id, latency_mode
       FROM users
-      WHERE id = ${session.userId} AND mux_stream_id IS NOT NULL
+      WHERE id = ${session.userId} AND mux_stream_id IS NOT NULL AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -48,54 +58,92 @@ export async function POST(req: NextRequest) {
       console.error("Stream health check failed:", healthError);
     }
 
+    // Conditional on is_live = false so a Mux "live_stream.active" webhook that
+    // marks the creator live between the SELECT above and this UPDATE loses the
+    // race: this UPDATE affects 0 rows and we bail with 409 instead of creating
+    // a duplicate stream session and a second fan-out dispatch. The webhook's
+    // own afterCommit dispatch then covers this go-live (#1138).
     const result = await sql`
       UPDATE users SET
         is_live = true,
         stream_started_at = CURRENT_TIMESTAMP,
         current_viewers = 0,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${user.id}
+      WHERE id = ${user.id} AND is_live = false
       RETURNING id, username, mux_stream_id, mux_playback_id
     `;
 
+    if (result.rows.length === 0) {
+      return NextResponse.json(
+        { error: "Stream is already live" },
+        { status: 409 }
+      );
+    }
+
+    await invalidateUserCaches({ id: user.id });
+
     const updatedUser = result.rows[0];
 
+    let streamSessionId: string | null = null;
     try {
+      // Use requested latency mode if valid, otherwise fall back to user's global preference
+      const effectiveLatencyMode = (
+        requestedLatencyMode === "standard" || requestedLatencyMode === "low"
+          ? requestedLatencyMode
+          : user.latency_mode === "standard"
+            ? "standard"
+            : "low"
+      ) as "low" | "standard";
+
       await sql`
-        INSERT INTO stream_sessions (user_id, mux_session_id, playback_id, started_at)
-        VALUES (${updatedUser.id}, ${updatedUser.mux_stream_id}, ${updatedUser.mux_playback_id}, CURRENT_TIMESTAMP)
+        INSERT INTO stream_sessions (user_id, mux_session_id, playback_id, started_at, latency_mode)
+        VALUES (${updatedUser.id}, ${updatedUser.mux_stream_id}, ${updatedUser.mux_playback_id}, CURRENT_TIMESTAMP, ${effectiveLatencyMode})
       `;
+      streamSessionId = (sessionResult.rows[0]?.id as string) ?? null;
+      await sql`DELETE FROM stream_password_attempts WHERE updated_at < now() - interval '1 day' OR stream_session_id IN (SELECT id FROM stream_sessions WHERE ended_at IS NOT NULL AND ended_at < now() - interval '1 day')`;
       await syncScheduleLiveStatusForCreator(String(updatedUser.id));
     } catch (sessionError) {
       console.error("Failed to create stream session record:", sessionError);
     }
 
-    // Fire-and-forget live notifications to all followers via join table
-    sql`SELECT follower_id FROM user_follows WHERE followee_id = ${updatedUser.id}`
-      .then(({ rows }) => {
-        for (const { follower_id } of rows) {
-          writeNotification(
-            follower_id,
-            "live",
-            `${updatedUser.username} is live!`,
-            `${updatedUser.username} just started streaming`
-          ).catch(() => {});
+    // Enqueue the async fan-out of "go live" notifications to followers (#1138).
+    // Awaited before responding: on Vercel serverless the invocation can be
+    // reaped once the response is flushed, so an un-awaited QStash publish may
+    // never complete. The job pages through the follower graph in batches,
+    // respects per-follower notification preferences, and is idempotent per
+    // (creator, stream-session). A dispatch failure is logged, not thrown, so
+    // the Go Live response still succeeds when QStash is unavailable.
+    try {
+      const dispatchResult = await dispatchJob(
+        liveFanoutJob,
+        { creatorId: updatedUser.id, streamSessionId },
+        {
+          deduplicationId: `live-fanout:${updatedUser.id}:${new Date().toISOString().slice(0, 10)}`,
         }
-      })
-      .catch(() => {});
+      );
+      if (!dispatchResult.dispatched) {
+        console.warn(
+          `[stream-start] live-fanout not dispatched (${dispatchResult.reason})`
+        );
+      }
+    } catch (err) {
+      console.error("[stream-start] live-fanout dispatch error:", err);
+    }
 
-    return NextResponse.json(
-      {
-        message: "Stream started successfully",
-        streamData: {
-          isLive: true,
-          streamId: updatedUser.mux_stream_id,
-          playbackId: updatedUser.mux_playback_id,
-          username: updatedUser.username,
-          startedAt: new Date().toISOString(),
+    return markRecentWrite(
+      NextResponse.json(
+        {
+          message: "Stream started successfully",
+          streamData: {
+            isLive: true,
+            streamId: updatedUser.mux_stream_id,
+            playbackId: updatedUser.mux_playback_id,
+            username: updatedUser.username,
+            startedAt: new Date().toISOString(),
+          },
         },
-      },
-      { status: 200 }
+        { status: 200 }
+      )
     );
   } catch (error) {
     console.error("Stream start error:", error);
@@ -116,7 +164,7 @@ export async function DELETE(req: NextRequest) {
     const userResult = await sql`
       SELECT id, mux_stream_id, is_live
       FROM users
-      WHERE id = ${session.userId}
+      WHERE id = ${session.userId} AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
@@ -140,6 +188,7 @@ export async function DELETE(req: NextRequest) {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${user.id}
     `;
+    await invalidateUserCaches({ id: user.id });
 
     try {
       await sql`
@@ -152,9 +201,11 @@ export async function DELETE(req: NextRequest) {
       console.error("Failed to end stream session:", sessionError);
     }
 
-    return NextResponse.json(
-      { message: "Stream stopped successfully" },
-      { status: 200 }
+    return markRecentWrite(
+      NextResponse.json(
+        { message: "Stream stopped successfully" },
+        { status: 200 }
+      )
     );
   } catch (error) {
     console.error("Stream stop error:", error);

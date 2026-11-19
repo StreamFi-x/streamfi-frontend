@@ -30,7 +30,7 @@
 
 - `db/schema.sql` — Dropped `idx_users_wallet_lower`; `get_user_stream_analytics()` uses exact `wallet` match.
 - `scripts/optimize-database.sql` — Wallet indexes use `wallet` (not `LOWER(wallet)`).
-- API routes: `streams/key`, `streams/delete-get`, `users/updates/[wallet]`, `users/wallet/[wallet]`, `debug/user-stream`, `streams/create` — all use exact `wallet` match.
+- API routes: `streams/key`, `streams/delete-get`, `users/updates/[wallet]`, `users/wallet/[wallet]`, `streams/create` — all use exact `wallet` match.
 - `lib/dev-mode.ts` — Dev test wallet replaced with a Stellar-format public key.
 
 ## One-time migration for existing databases

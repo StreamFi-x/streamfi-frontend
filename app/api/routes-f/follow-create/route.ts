@@ -4,6 +4,7 @@ import { z } from "zod";
 import { verifySession } from "@/lib/auth/verify-session";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { insertActivityEvent } from "@/app/api/routes-f/activity/_lib/insert";
+import { invalidateFollowCaches } from "@/lib/cache/invalidation";
 
 const createFollowSchema = z.object({
   channel_id: z.string().uuid(),
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const { rows: channelRows } = await sql`
       SELECT id, username, avatar, bio
       FROM users
-      WHERE id = ${channel_id}
+      WHERE id = ${channel_id} AND deleted_at IS NULL
       LIMIT 1
     `;
 
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     `;
 
     if ((insertResult.rowCount ?? 0) > 0) {
+      await invalidateFollowCaches(session.userId, channel_id);
       try {
         await insertActivityEvent({
           userId: channel_id,

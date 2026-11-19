@@ -19,13 +19,19 @@ import {
   buildTipTransaction,
   submitTransaction,
   hasInsufficientBalance,
+  checkAccountBalance,
+  AccountNotFundedError,
   getXLMPrice,
   calculateFeeEstimate,
+  getRecommendedFeeStroops,
+  MAX_TIP_AMOUNT_XLM,
+  MIN_TIP_AMOUNT_XLM,
 } from "@/lib/stellar/payments";
 import { TransactionBuilder, Networks } from "@stellar/stellar-sdk";
 import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { TipConfirmation } from "./TipConfirmation";
+import { sessionReplay } from "@/lib/session-replay";
 
 interface TipModalProps {
   isOpen: boolean;
@@ -46,9 +52,16 @@ type TransactionState =
   | "success"
   | "error";
 
+interface Quote {
+  quote_token: string;
+  quoted_rate: number;
+  quoted_xlm_amount: number;
+  expires_at: string;
+}
+
 const PRESET_AMOUNTS = [1, 5, 10, 25];
-const MAX_TIP_AMOUNT = 10000;
-const MIN_TIP_AMOUNT = 0.0000001;
+const MAX_TIP_AMOUNT = MAX_TIP_AMOUNT_XLM;
+const MIN_TIP_AMOUNT = MIN_TIP_AMOUNT_XLM;
 
 export function TipModal({
   isOpen,
@@ -74,16 +87,76 @@ export function TipModal({
     details?: string;
     code?: string;
   } | null>(null);
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [quoteCountdown, setQuoteCountdown] = useState<number>(0);
+  const [isLoadingQuote, setIsLoadingQuote] = useState<boolean>(false);
+  const [quoteFetchFailed, setQuoteFetchFailed] = useState<boolean>(false);
 
   const { kit } = useStellarWallet();
-  const fee = calculateFeeEstimate();
+  const [feeStroops, setFeeStroops] = useState<number | undefined>(undefined);
+  const fee = calculateFeeEstimate(feeStroops);
   const usdEquivalent =
     xlmPrice && amount ? (parseFloat(amount) * xlmPrice).toFixed(2) : "0.00";
+
+  const getQuote = async (amountXlm: string) => {
+    if (!amountXlm || parseFloat(amountXlm) <= 0) {
+      setQuote(null);
+      setQuoteCountdown(0);
+      return;
+    }
+
+    setIsLoadingQuote(true);
+    setQuoteFetchFailed(false);
+
+    try {
+      // Parse amount to get fiat cents
+      const xlmAmount = parseFloat(amountXlm);
+      const currentRate = xlmPrice || 0.08; // Fallback rate
+      const fiatCents = Math.round(xlmAmount * currentRate * 100);
+
+      const response = await fetch("/api/tips/get-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fiat_amount_cents: fiatCents,
+          creator_id: senderPublicKey, // Use sender as a proxy; ideally this comes from context
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("Failed to fetch quote:", response.status);
+        setQuoteFetchFailed(true);
+        setQuote(null);
+        return;
+      }
+
+      const quoteData = (await response.json()) as any;
+      setQuote({
+        quote_token: quoteData.quote_token,
+        quoted_rate: quoteData.quoted_rate,
+        quoted_xlm_amount: quoteData.quoted_xlm_amount,
+        expires_at: quoteData.expires_at,
+      });
+      setQuoteCountdown(300); // 5 minutes
+      setQuoteFetchFailed(false);
+    } catch (err) {
+      console.error("Error fetching quote:", err);
+      setQuoteFetchFailed(true);
+      setQuote(null);
+    } finally {
+      setIsLoadingQuote(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
       setIsLoadingPrice(true);
       setPriceFetchFailed(false);
+      // Cached for 30s in payments.ts and falls back to the network minimum
+      // if Horizon is unreachable, so this never blocks or throws.
+      getRecommendedFeeStroops()
+        .then(setFeeStroops)
+        .catch(() => undefined);
       getXLMPrice()
         .then((price: number) => {
           setXlmPrice(price);
@@ -96,6 +169,25 @@ export function TipModal({
         .finally(() => setIsLoadingPrice(false));
     }
   }, [isOpen]);
+
+  // Countdown timer for quote expiry
+  useEffect(() => {
+    if (quoteCountdown <= 0) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setQuoteCountdown(prev => {
+        if (prev <= 1) {
+          setQuote(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [quoteCountdown]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -110,17 +202,39 @@ export function TipModal({
     setTxHash(null);
     setIsConfirmationOpen(false);
     setStructuredError(null);
+    setQuote(null);
+    setQuoteCountdown(0);
+    setQuoteFetchFailed(false);
   };
 
   const handlePresetClick = (presetAmount: number) => {
+    sessionReplay.addBreadcrumb({
+      category: "tipping",
+      message: `Selected preset tip amount: ${presetAmount} XLM`,
+      level: "info",
+      data: { presetAmount, recipient: recipientUsername },
+    });
     setAmount(presetAmount.toString());
     setError(null);
+    getQuote(presetAmount.toString());
   };
 
   const handleAmountChange = (value: string) => {
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
       setAmount(value);
       setError(null);
+      if (value !== "") {
+        sessionReplay.addBreadcrumb({
+          category: "tipping",
+          message: `Custom tip amount entered: ${value} XLM`,
+          level: "info",
+          data: { amount: value, recipient: recipientUsername },
+        });
+        getQuote(value);
+      } else {
+        setQuote(null);
+        setQuoteCountdown(0);
+      }
     }
   };
 
@@ -162,24 +276,87 @@ export function TipModal({
   };
 
   const handleSubmit = async () => {
+    sessionReplay.addBreadcrumb({
+      category: "tipping",
+      message: `Submitting tip: ${amount} XLM to @${recipientUsername}`,
+      level: "info",
+      data: {
+        amount,
+        recipientUsername,
+        recipientPublicKey: `${recipientPublicKey.slice(0, 4)}...${recipientPublicKey.slice(-4)}`,
+        senderPublicKey: `${senderPublicKey.slice(0, 4)}...${senderPublicKey.slice(-4)}`,
+      },
+    });
+
     if (!validateAmount()) {
+      sessionReplay.addBreadcrumb({
+        category: "tipping",
+        message: "Tip validation failed",
+        level: "warning",
+        data: { amount },
+      });
       return;
     }
 
     setError(null);
+    let stage: TransactionState = "building";
 
     try {
       setTransactionState("building");
-      const insufficientBalance = await hasInsufficientBalance(
-        senderPublicKey,
-        amount
-      );
+      sessionReplay.addBreadcrumb({
+        category: "tipping",
+        message: "Building tip transaction and checking fee",
+        level: "info",
+      });
+      // One fee for both the balance check and the transaction, so they
+      // cannot disagree if the network fee moves in between.
+      const currentFeeStroops = await getRecommendedFeeStroops();
+      setFeeStroops(currentFeeStroops);
+      try {
+        const insufficientBalance = await hasInsufficientBalance(
+          senderPublicKey,
+          amount,
+          currentFeeStroops
+        );
 
-      if (insufficientBalance) {
-        setError("insufficient_balance");
+        if (insufficientBalance) {
+          setError("insufficient_balance");
+          setTransactionState("error");
+          sessionReplay.recordFlowError("tipping", new Error("Insufficient balance"), {
+            amount,
+            feeStroops: currentFeeStroops,
+          });
+          if (onError) {
+            onError("Insufficient balance");
+          }
+          return;
+        }
+      } catch (err: unknown) {
+        if (err instanceof AccountNotFundedError) {
+          setError("sender_not_funded");
+          setTransactionState("error");
+          sessionReplay.recordFlowError("tipping", err, {
+            amount,
+            stage: "sender_funding_check",
+          });
+          if (onError) {
+            onError(err.message);
+          }
+          return;
+        }
+        throw err;
+      }
+
+      // Check recipient account funding status
+      const recipientCheck = await checkAccountBalance(recipientPublicKey, "0");
+      if (recipientCheck.status === "account_not_funded") {
+        setError("recipient_not_funded");
         setTransactionState("error");
+        sessionReplay.recordFlowError("tipping", new Error("Recipient account is not funded"), {
+          recipientPublicKey: `${recipientPublicKey.slice(0, 4)}...${recipientPublicKey.slice(-4)}`,
+        });
         if (onError) {
-          onError("Insufficient balance");
+          onError("Recipient account is not funded on the Stellar network.");
         }
         return;
       }
@@ -193,9 +370,17 @@ export function TipModal({
         destinationPublicKey: recipientPublicKey,
         amount: amount,
         network: network as "testnet" | "mainnet",
+        feeStroops: currentFeeStroops,
       });
 
+      stage = "signing";
       setTransactionState("signing");
+      sessionReplay.addBreadcrumb({
+        category: "tipping",
+        message: "Prompting wallet signature",
+        level: "info",
+        data: { network },
+      });
       const walletNetwork =
         network === "mainnet" ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
       const { signedTxXdr } = await kit.signTransaction(transaction.toXDR(), {
@@ -209,13 +394,25 @@ export function TipModal({
         networkPassphrase
       );
 
+      stage = "submitting";
       setTransactionState("submitting");
+      sessionReplay.addBreadcrumb({
+        category: "tipping",
+        message: "Submitting signed transaction to Stellar network",
+        level: "info",
+      });
       const result = await submitTransaction(
         signedTransaction as any,
         network as "testnet" | "mainnet"
       );
 
       if (result.success) {
+        sessionReplay.addBreadcrumb({
+          category: "tipping",
+          message: `Tip transaction successful: ${result.hash}`,
+          level: "info",
+          data: { txHash: result.hash },
+        });
         setTransactionState("success");
         setTxHash(result.hash ?? null);
         setIsConfirmationOpen(true);
@@ -229,6 +426,12 @@ export function TipModal({
       }
     } catch (err: unknown) {
       console.error("Transaction error:", err);
+
+      sessionReplay.recordFlowError("tipping", err, {
+        amount,
+        recipientUsername,
+        stage,
+      });
 
       let errorMessage = "An unexpected error occurred. Please try again.";
 
@@ -422,6 +625,14 @@ export function TipModal({
                   </span>
                 </div>
               )}
+              {quote && quoteCountdown > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Locked rate</span>
+                  <span className="font-semibold text-highlight">
+                    ${quote.quoted_rate} /XLM
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Network fee</span>
                 <span className="text-muted-foreground">
@@ -434,6 +645,17 @@ export function TipModal({
                   {(parseFloat(amount) + fee).toFixed(7)} XLM
                 </span>
               </div>
+              {quote && quoteCountdown > 0 && (
+                <div className="text-xs text-amber-600 pt-2 border-t border-border">
+                  Quote expires in {Math.floor(quoteCountdown / 60)}:
+                  {String(quoteCountdown % 60).padStart(2, "0")}
+                </div>
+              )}
+              {quoteFetchFailed && (
+                <div className="text-xs text-destructive pt-2 border-t border-border">
+                  Failed to fetch exchange rate quote
+                </div>
+              )}
             </div>
           )}
 
@@ -463,6 +685,25 @@ export function TipModal({
                       className="border-highlight/40 text-highlight hover:bg-highlight/10 h-8 text-xs"
                     />
                   </>
+                ) : error === "sender_not_funded" ? (
+                  <>
+                    <p className="text-sm text-destructive">
+                      Your Stellar account is not yet funded or activated. You
+                      need a minimum balance of 1 XLM to activate it.
+                    </p>
+                    <AddFundsButton
+                      walletAddress={senderPublicKey}
+                      variant="outline"
+                      size="sm"
+                      className="border-highlight/40 text-highlight hover:bg-highlight/10 h-8 text-xs"
+                    />
+                  </>
+                ) : error === "recipient_not_funded" ? (
+                  <p className="text-sm text-destructive">
+                    Recipient&apos;s wallet has not yet been activated on
+                    Stellar. An account requires a minimum balance of 1 XLM
+                    before it can receive standard payment transfers.
+                  </p>
                 ) : (
                   <p className="text-sm text-destructive">{error}</p>
                 )}

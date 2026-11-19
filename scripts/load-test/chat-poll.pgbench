@@ -1,0 +1,11 @@
+-- One chat poll as served by GET /api/streams/chat: session lookup, then the window.
+\set pb random(1, :pbmax)
+SELECT ss.id::text AS sid FROM users u
+JOIN stream_sessions ss ON u.id = ss.user_id AND ss.ended_at IS NULL
+WHERE u.mux_playback_id = 'pb' || :pb
+ORDER BY ss.started_at DESC LIMIT 1 \gset
+SELECT cm.id, cm.content, cm.message_type, cm.created_at, u.username, u.wallet, u.avatar
+FROM chat_messages cm JOIN users u ON cm.user_id = u.id
+WHERE cm.stream_session_id = :sid::uuid AND cm.is_deleted = false
+  AND (NULL::int IS NULL OR cm.id < NULL)
+ORDER BY cm.created_at DESC LIMIT 200;

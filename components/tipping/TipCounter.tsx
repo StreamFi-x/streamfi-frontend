@@ -210,12 +210,27 @@ export function TipCounter({
     setIsRefreshing(true);
     try {
       // Requirements specify POST /api/tips/refresh-total
-      await fetch("/api/tips/refresh-total", {
+      const res = await fetch("/api/tips/refresh-total", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username }),
       });
-      await revalidate();
+      if (res.ok) {
+        // Use the write's own result: a refetch of /stats can be served by
+        // the edge cache from before the refresh.
+        const refreshed = await res.json();
+        await revalidate(
+          (current: Record<string, unknown> | undefined) => ({
+            ...current,
+            totalReceived: refreshed.totalReceived,
+            totalCount: refreshed.totalCount,
+            lastTipAt: refreshed.lastTipAt,
+          }),
+          { revalidate: false }
+        );
+      } else {
+        await revalidate();
+      }
     } catch (err) {
       console.error("Refresh failed", err);
     } finally {

@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
     const userId = consumedRows[0].user_id;
 
     const { rows: userRows } = await sql`
-      SELECT id, wallet FROM users WHERE id = ${userId} LIMIT 1
+      SELECT id, wallet FROM users WHERE id = ${userId} AND deleted_at IS NULL LIMIT 1
     `;
 
     if (userRows.length === 0) {
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
     response.cookies.set("wallet_session", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "strict",
       path: "/",
       maxAge: WALLET_SESSION_TTL_SECONDS,
     });

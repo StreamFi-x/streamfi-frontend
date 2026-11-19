@@ -28,7 +28,7 @@ export async function GET(
       const streamCheck = await sql`
         SELECT id, username, is_live, creator, current_viewers, total_views
         FROM users
-        WHERE mux_playback_id = ${playbackId}
+        WHERE mux_playback_id = ${playbackId} AND deleted_at IS NULL
       `;
 
       if (streamCheck.rows.length > 0) {

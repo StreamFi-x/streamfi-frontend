@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
-import { writeNotification } from "@/lib/notifications";
+import { writeTemplatedNotification } from "@/lib/notifications";
+import { shouldSendInAppNotification } from "@/lib/notifications/preferences";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
+import { invalidateFollowCaches } from "@/lib/cache/invalidation";
 
 // 30 follow/unfollow actions per IP per minute
 const isRateLimited = createRateLimiter(60_000, 30);
@@ -41,8 +43,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const [{ rows: receiverRows }, { rows: callerRows }] = await Promise.all([
-      sql`SELECT id FROM users WHERE LOWER(username) = ${receiverUsername.toLowerCase()}`,
-      sql`SELECT username FROM users WHERE id = ${callerId}`,
+      sql`SELECT id FROM users WHERE LOWER(username) = ${receiverUsername.toLowerCase()} AND deleted_at IS NULL`,
+      sql`SELECT username FROM users WHERE id = ${callerId} AND deleted_at IS NULL`,
     ]);
 
     if (receiverRows.length === 0) {
@@ -61,11 +63,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "follow") {
-      await sql`
+      const followResult = await sql`
         INSERT INTO user_follows (follower_id, followee_id)
         VALUES (${callerId}, ${receiverId})
         ON CONFLICT DO NOTHING
       `;
+      await invalidateFollowCaches(callerId, receiverId);
 
       try {
         await evaluateAndAwardBadges(receiverId);
@@ -73,16 +76,29 @@ export async function POST(req: NextRequest) {
         console.error("[follow] badge evaluation failed:", badgeErr);
       }
 
-      // Write notification — awaited so it completes before response is sent
-      try {
-        await writeNotification(
-          receiverId,
-          "follow",
-          "New follower",
-          `${callerUsername} started following you`
-        );
-      } catch (notifErr) {
-        console.error("[follow] notification write failed:", notifErr);
+      // Write notification only if this follow was newly created (not a retried/duplicate click)
+      if (followResult.rowCount > 0) {
+        try {
+          // Check if user has follow notifications enabled
+          const shouldSend = await shouldSendInAppNotification(
+            receiverId,
+            "follow",
+            { sql }
+          );
+          if (shouldSend) {
+            const idempotencyKey = `follow:${callerId}:${receiverId}:${Math.floor(Date.now() / 60000)}`;
+            await writeTemplatedNotification(
+              receiverId,
+              "follow",
+              { actor: callerUsername },
+              { sql },
+              "en",
+              { idempotencyKey }
+            );
+          }
+        } catch (notifErr) {
+          console.error("[follow] notification write failed:", notifErr);
+        }
       }
 
       return NextResponse.json({ message: "Followed successfully" });
@@ -91,6 +107,7 @@ export async function POST(req: NextRequest) {
         DELETE FROM user_follows
         WHERE follower_id = ${callerId} AND followee_id = ${receiverId}
       `;
+      await invalidateFollowCaches(callerId, receiverId);
 
       return NextResponse.json({ message: "Unfollowed successfully" });
     }

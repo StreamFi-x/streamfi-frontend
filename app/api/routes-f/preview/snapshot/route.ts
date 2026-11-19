@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     const { rows } = await sql`
       SELECT id, username, is_live, mux_playback_id
       FROM users
-      WHERE id = ${session.userId}
+      WHERE id = ${session.userId} AND deleted_at IS NULL
       LIMIT 1
     `;
     const user = rows[0];

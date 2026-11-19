@@ -1,184 +1,245 @@
+import { isIP } from "node:net";
+import { verifySession } from "@/lib/auth/verify-session";
+import {
+  mutateViewerTracking,
+  type ViewerMutation,
+} from "@/lib/stream/viewer-tracking";
+import { getClientIp } from "@/lib/security/client-ip";
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { ipToCountry } from "@/lib/geolocation/ip-to-country";
+import {
+  createViewerSession,
+  verifyViewerSessionToken,
+} from "@/lib/stream/viewer-session-token";
 
-// 60 viewer join/leave events per minute per IP prevents count inflation attacks
-const isRateLimited = createRateLimiter(60_000, 60);
+// The GET handler mints a fresh session per request — it must never be cached
+// or every viewer would receive the same sessionId and collapse into one.
+export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
+// Two limits cooperate here (#725): a coarse per-IP cap bounds abuse from a
+// single origin across any stream, and a per-IP+stream cap bounds how fast one
+// origin can inflate any single stream's counters. Neither is keyed by the
+// client-chosen sessionId (which was the whole problem) — the per-stream key
+// comes from the server-issued viewer token's `pid`.
+const IP_WINDOW_MS = 60_000;
+const IP_MAX_REQUESTS = 120;
+const STREAM_MAX_REQUESTS = 60;
+
+const isIpRateLimited = createRateLimiter(IP_WINDOW_MS, IP_MAX_REQUESTS);
+const isStreamRateLimited = createRateLimiter(
+  IP_WINDOW_MS,
+  STREAM_MAX_REQUESTS
+);
+
+const RATE_LIMITED_RESPONSE = {
+  error: "Too many requests",
+} as const;
+
+function clientIp(req: Request): string {
+  return getClientIp(req.headers);
+}
+
+async function isRateLimited(
+  ip: string,
+  stream?: string | null
+): Promise<boolean> {
+  if (await isIpRateLimited(ip)) {
+    return true;
+  }
+  if (stream && (await isStreamRateLimited(`${ip}|${stream}`))) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Viewer token is accepted either in the JSON body (`token`) or the
+ * `x-viewer-token` header. Body is the primary channel; the header keeps the
+ * heartbeat path (which is a tiny JSON payload) convenient.
+ */
+function extractViewerToken(req: Request, body: unknown): unknown {
+  const header = req.headers.get("x-viewer-token");
+  if (header) {
+    return header;
+  }
+  if (body && typeof body === "object" && "token" in body) {
+    return (body as { token?: unknown }).token;
+  }
+  return undefined;
+}
+
+/**
+ * GET /api/streams/viewers?playbackId=... (#725)
+ *
+ * Mints a viewer session for the stream. The returned `sessionId` is generated
+ * server-side and signed into `token`; the client must present both on every
+ * subsequent POST/PATCH/DELETE. Anonymous callers are allowed — this is not an
+ * auth gate, it makes the session id unforgeable and tieable to one stream.
+ */
+export async function GET(req: NextRequest) {
+  const ip = clientIp(req);
 
   if (await isRateLimited(ip)) {
+    return NextResponse.json(RATE_LIMITED_RESPONSE, {
+      status: 429,
+      headers: { "Retry-After": "60" },
+    });
+  }
+
+  const playbackId = new URL(req.url).searchParams.get("playbackId");
+  if (!playbackId) {
     return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": "60" } }
+      { error: "Playback ID is required" },
+      { status: 400 }
     );
   }
+
   try {
-    const { playbackId, sessionId, userId } = await req.json();
-
-    if (!playbackId || !sessionId) {
-      return NextResponse.json(
-        { error: "Playback ID and session ID are required" },
-        { status: 400 }
-      );
-    }
-
-    // Single query: fetch stream + active session together
     const result = await sql`
-      SELECT
-        u.id,
-        u.username,
-        u.is_live,
-        ss.id AS session_id
-      FROM users u
-      LEFT JOIN stream_sessions ss
-        ON u.id = ss.user_id AND ss.ended_at IS NULL
-      WHERE u.mux_playback_id = ${playbackId}
+      SELECT id
+      FROM users
+      WHERE mux_playback_id = ${playbackId}
+        AND is_live = true
+        AND deleted_at IS NULL
       LIMIT 1
     `;
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ error: "Stream not found" }, { status: 404 });
-    }
-
-    const stream = result.rows[0];
-
-    if (!stream.is_live) {
       return NextResponse.json(
         { error: "Stream is not currently live" },
-        { status: 409 }
+        { status: 404 }
       );
     }
 
-    // --- Deduplicate: check if this viewer session is already counted ---
-    // Wrapped in try/catch so a missing stream_viewers table never blocks the count.
-    const alreadyCounted = false;
-    try {
-      const existingViewer = await sql`
-        SELECT id FROM stream_viewers
-        WHERE session_id = ${sessionId} AND left_at IS NULL
-      `;
-      if (existingViewer.rows.length > 0) {
-        return NextResponse.json(
-          { message: "Already tracking this viewer" },
-          { status: 200 }
-        );
-      }
-    } catch {
-      // stream_viewers table may not exist yet — skip dedup, still count viewer
-    }
-
-    // --- Core: always increment current_viewers on the users row ---
-    const updated = await sql`
-      UPDATE users SET
-        current_viewers = current_viewers + 1,
-        total_views     = total_views + 1,
-        updated_at      = CURRENT_TIMESTAMP
-      WHERE id = ${stream.id}
-      RETURNING current_viewers
-    `;
-    const newViewerCount = updated.rows[0].current_viewers;
-
-    // --- Best-effort session analytics (stream_viewers + stream_sessions) ---
-    // These fail silently if the tables don't exist or session record is missing.
-    if (stream.session_id && !alreadyCounted) {
-      try {
-        await sql`
-          INSERT INTO stream_viewers (stream_session_id, user_id, session_id, joined_at)
-          VALUES (${stream.session_id}, ${userId ?? null}, ${sessionId}, CURRENT_TIMESTAMP)
-        `;
-        await sql`
-          UPDATE stream_sessions SET
-            peak_viewers         = GREATEST(peak_viewers, ${newViewerCount}),
-            total_unique_viewers = total_unique_viewers + 1
-          WHERE id = ${stream.session_id}
-        `;
-      } catch {
-        // Analytics tables missing or schema mismatch — viewer count is already updated above
-      }
-    }
-
-    return NextResponse.json(
-      {
-        message: "Viewer joined successfully",
-        currentViewers: newViewerCount,
-        streamInfo: { username: stream.username, isLive: stream.is_live },
-      },
-      { status: 201 }
-    );
+    const session = createViewerSession(playbackId);
+    return NextResponse.json(session, {
+      status: 200,
+      headers: { "Cache-Control": "private, no-store" },
+    });
   } catch (error) {
-    console.error("Viewer join error:", error);
+    console.error("Viewer session mint error:", error);
     return NextResponse.json(
-      { error: "Failed to join stream" },
+      { error: "Failed to start viewer session" },
       { status: 500 }
     );
   }
 }
 
-export async function DELETE(req: Request) {
+async function mutate(req: NextRequest, action: ViewerMutation) {
+  const ip = clientIp(req);
+  if (await isRateLimited(ip)) {
+    return NextResponse.json(RATE_LIMITED_RESPONSE, {
+      status: 429,
+      headers: { "Retry-After": "60" },
+    });
+  }
+  let body;
   try {
-    const { sessionId, playbackId } = await req.json();
-
-    if (!sessionId) {
-      return NextResponse.json(
-        { error: "Session ID is required" },
-        { status: 400 }
-      );
-    }
-
-    // --- Primary path: stream_viewers record exists ---
-    try {
-      const viewerResult = await sql`
-        UPDATE stream_viewers SET left_at = CURRENT_TIMESTAMP
-        WHERE session_id = ${sessionId} AND left_at IS NULL
-        RETURNING stream_session_id
-      `;
-
-      if (viewerResult.rows.length > 0) {
-        const streamSessionId = viewerResult.rows[0].stream_session_id;
-        const sessionResult = await sql`
-          SELECT user_id FROM stream_sessions WHERE id = ${streamSessionId}
-        `;
-        if (sessionResult.rows.length > 0) {
-          await sql`
-            UPDATE users SET
-              current_viewers = GREATEST(current_viewers - 1, 0),
-              updated_at      = CURRENT_TIMESTAMP
-            WHERE id = ${sessionResult.rows[0].user_id}
-          `;
-        }
-        return NextResponse.json(
-          { message: "Viewer left successfully" },
-          { status: 200 }
-        );
-      }
-    } catch {
-      // stream_viewers or stream_sessions table missing — fall through to playbackId path
-    }
-
-    // --- Fallback path: use playbackId to decrement directly ---
-    if (playbackId) {
-      await sql`
-        UPDATE users SET
-          current_viewers = GREATEST(current_viewers - 1, 0),
-          updated_at      = CURRENT_TIMESTAMP
-        WHERE mux_playback_id = ${playbackId} AND current_viewers > 0
-      `;
-    }
-
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { playbackId, sessionId } = body ?? {};
+  if (
+    typeof sessionId !== "string" ||
+    !sessionId ||
+    (action === "join" && (typeof playbackId !== "string" || !playbackId))
+  ) {
     return NextResponse.json(
-      { message: "Viewer left successfully" },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Viewer leave error:", error);
-    return NextResponse.json(
-      { error: "Failed to leave stream" },
-      { status: 500 }
+      { error: "Playback ID and session ID are required" },
+      { status: 400 }
     );
   }
+  const claims = verifyViewerSessionToken(extractViewerToken(req, body), {
+    sessionId,
+    ...(playbackId ? { playbackId } : {}),
+  });
+  if (!claims) {
+    return NextResponse.json(
+      { error: "A valid viewer session token is required" },
+      { status: 401 }
+    );
+  }
+  if (await isRateLimited(ip, claims.pid)) {
+    return NextResponse.json(RATE_LIMITED_RESPONSE, {
+      status: 429,
+      headers: { "Retry-After": "60" },
+    });
+  }
+  try {
+    let country: string | null = null;
+    let viewerUserId: string | null = null;
+    if (action === "join") {
+      if (
+        req.cookies.get("privy_session")?.value ||
+        req.cookies.get("wallet_session")?.value
+      ) {
+        const viewer = await verifySession(req);
+        if (viewer.ok) {
+          viewerUserId = viewer.userId;
+        }
+      }
+      const header =
+        req.headers.get("cf-ipcountry") ||
+        req.headers.get("x-vercel-ip-country");
+      country =
+        header && /^[a-z]{2}$/i.test(header) && header.toUpperCase() !== "XX"
+          ? header.toUpperCase()
+          : ((await ipToCountry(ip))?.country ?? null);
+    }
+    const snapshot = await mutateViewerTracking({
+      playbackId: claims.pid,
+      sessionId: claims.sid,
+      action,
+      viewerUserId,
+      ip: isIP(ip) ? ip : null,
+      country,
+    });
+    if (!snapshot && action === "join") {
+      return NextResponse.json(
+        { error: "Stream is not currently live or has no active session" },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json(
+      {
+        message:
+          action === "join"
+            ? snapshot?.inserted
+              ? "Viewer joined successfully"
+              : "Already tracking this viewer"
+            : action === "leave"
+              ? "Viewer left successfully"
+              : "Heartbeat recorded",
+        ...(snapshot
+          ? {
+              currentViewers: snapshot.currentViewers,
+              streamInfo: { username: snapshot.username, isLive: true },
+            }
+          : {}),
+      },
+      { status: action === "join" && snapshot?.inserted ? 201 : 200 }
+    );
+  } catch (error) {
+    console.error("Viewer tracking unavailable:", error);
+    return NextResponse.json(
+      { error: "Viewer tracking temporarily unavailable" },
+      {
+        status: 503,
+        headers: { "Retry-After": "5" },
+      }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  return mutate(req, "join");
+}
+export async function PATCH(req: NextRequest) {
+  return mutate(req, "heartbeat");
+}
+export async function DELETE(req: NextRequest) {
+  return mutate(req, "leave");
 }

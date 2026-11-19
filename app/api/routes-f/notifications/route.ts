@@ -13,6 +13,7 @@
  *     items:        Notification[],  // sorted newest → oldest
  *     next_cursor:  string | null,   // id of last item, or null if no more pages
  *     unread_count: number           // total unread across ALL pages for this viewer
+ *     has_more:     boolean          // whether more items exist after current page
  *   }
  *
  * Error responses:
@@ -38,6 +39,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const { viewer_id, limit, cursor } = queryResult.data;
 
   const all = getSeedNotifications(viewer_id);
+  
+  // Track total unread count across ALL notifications (not just current page)
+  // This ensures accurate unread badges even when paginating
   const unread_count = all.filter((n) => !n.read).length;
 
   // Apply cursor: skip items up to and including the cursor id
@@ -50,9 +54,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const page = all.slice(startIndex, startIndex + limit);
-  const next_cursor = page.length === limit && startIndex + limit < all.length
-    ? page[page.length - 1].id
-    : null;
+  const has_more = startIndex + limit < all.length;
+  const next_cursor = has_more ? page[page.length - 1]?.id ?? null : null;
 
-  return NextResponse.json({ items: page, next_cursor, unread_count });
+  return NextResponse.json({ 
+    items: page, 
+    next_cursor, 
+    unread_count,
+    has_more
+  });
 }

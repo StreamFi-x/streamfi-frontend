@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch or lazily create a referral code
   const { rows: userRows } = await db.query(
-    `SELECT id, username, referral_code FROM users WHERE id = $1`,
+    `SELECT id, username, referral_code FROM users WHERE id = $1 AND deleted_at IS NULL`,
     [user.id]
   );
 
@@ -71,6 +71,7 @@ export async function GET(req: NextRequest) {
        COUNT(DISTINCT CASE WHEN u.created_at > NOW() - INTERVAL '30 days' THEN u.id END) AS active_referrals,
        COALESCE(SUM(rr.reward_usdc), 0)                              AS total_earned_usdc,
        COALESCE(SUM(CASE WHEN rr.tx_hash IS NULL THEN rr.reward_usdc END), 0) AS pending_usdc
+     -- tombstone-aware: reward totals include referred accounts pending deletion
      FROM users u
      LEFT JOIN referral_rewards rr ON rr.referrer_id = $1 AND rr.referred_id = u.id
      WHERE u.referred_by = $1`,
@@ -84,7 +85,7 @@ export async function GET(req: NextRequest) {
             COALESCE(SUM(rr.reward_usdc), 0) AS earned_usdc
      FROM users u
      LEFT JOIN referral_rewards rr ON rr.referrer_id = $1 AND rr.referred_id = u.id
-     WHERE u.referred_by = $1
+     WHERE u.referred_by = $1 AND u.deleted_at IS NULL
      GROUP BY u.id, u.username, u.created_at
      ORDER BY u.created_at DESC`,
     [user.id]

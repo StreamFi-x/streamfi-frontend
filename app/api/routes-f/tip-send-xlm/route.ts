@@ -84,7 +84,7 @@ async function getSenderWallet(userId: string): Promise<string | null> {
     const { rows } = await sql`
       SELECT stellar_address, wallet_address 
       FROM users 
-      WHERE id = ${userId} 
+      WHERE id = ${userId} AND deleted_at IS NULL 
       LIMIT 1
     `;
 
@@ -173,8 +173,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Convert transaction to XDR (for client to sign)
     const transactionXdr = transaction.toEnvelope().toXDR("base64");
 
-    // Calculate fee
-    const fee = formatXLMAmount(calculateFeeEstimate());
+    // Report the fee actually baked into the transaction
+    const fee = formatXLMAmount(calculateFeeEstimate(Number(transaction.fee)));
 
     return NextResponse.json(
       {

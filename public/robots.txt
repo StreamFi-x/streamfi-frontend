@@ -1,6 +1,10 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /api/debug/
+Disallow: /api/admin/
+Disallow: /debug/
+Disallow: /admin/
 Disallow: /dashboard/
 Disallow: /settings/
 Disallow: /onboarding/

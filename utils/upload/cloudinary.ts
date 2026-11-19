@@ -185,3 +185,115 @@ export async function deleteImage(publicId: string) {
     throw new Error("Failed to delete image from Cloudinary");
   }
 }
+
+/**
+ * Public ID of an image stored in this app's Cloudinary cloud, or null for
+ * any other URL (preset icons, external images, other clouds). Only such
+ * IDs may be passed to deleteImage: a user-supplied URL must never be able
+ * to name someone else's asset.
+ */
+export function extractPublicIdFromUrl(url: string): string | null {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  if (!cloudName) {
+    return null;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.hostname !== "res.cloudinary.com"
+  ) {
+    return null;
+  }
+  // /<cloud>/image/upload/[v<version>/]<public_id>.<ext>
+  const parts = parsed.pathname.split("/").filter(Boolean);
+  if (parts[0] !== cloudName || parts[1] !== "image" || parts[2] !== "upload") {
+    return null;
+  }
+  const rest = parts.slice(3);
+  if (rest[0] && /^v\d+$/.test(rest[0])) {
+    rest.shift();
+  }
+  if (rest.length === 0) {
+    return null;
+  }
+  return decodeURIComponent(rest.join("/")).replace(/\.[^/.]+$/, "");
+}
+
+export interface RemoteImageRules {
+  folder: string;
+  /** Cloudinary format names, e.g. ["jpg", "png", "webp"]. */
+  allowedFormats: string[];
+  maxBytes: number;
+  minWidth: number;
+  minHeight: number;
+  timeoutMs?: number;
+}
+
+export type RemoteImageImport =
+  | { ok: true; publicId: string; url: string; width: number; height: number }
+  | { ok: false; status: 400 | 502; error: string };
+
+/**
+ * Copies an image from a public URL into Cloudinary and validates it there.
+ * Cloudinary fetches the URL, so this server never downloads user-supplied
+ * URLs itself (no request to internal addresses, no unbounded download),
+ * and the stored image no longer depends on the original host. An image
+ * that fails validation is deleted again.
+ */
+export async function importRemoteImage(
+  url: string,
+  rules: RemoteImageRules
+): Promise<RemoteImageImport> {
+  let result: {
+    public_id: string;
+    secure_url: string;
+    width?: number;
+    height?: number;
+    bytes?: number;
+  };
+  try {
+    result = await cloudinary.uploader.upload(url, {
+      folder: rules.folder,
+      resource_type: "image",
+      allowed_formats: rules.allowedFormats,
+      timeout: rules.timeoutMs ?? 20_000,
+    });
+  } catch (error) {
+    const httpCode = (error as { http_code?: number })?.http_code;
+    if (httpCode === 400) {
+      return {
+        ok: false,
+        status: 400,
+        error: `Image could not be imported: ${(error as { message?: string }).message ?? "invalid image"}`,
+      };
+    }
+    console.error("Cloudinary remote import failed:", error);
+    return { ok: false, status: 502, error: "Image storage is unavailable" };
+  }
+
+  const width = result.width ?? 0;
+  const height = result.height ?? 0;
+  const bytes = result.bytes ?? 0;
+  let problem: string | null = null;
+  if (bytes > rules.maxBytes) {
+    problem = `Image exceeds ${Math.round(rules.maxBytes / (1024 * 1024))}MB limit`;
+  } else if (width < rules.minWidth || height < rules.minHeight) {
+    problem = `Image must be at least ${rules.minWidth}x${rules.minHeight}`;
+  }
+  if (problem) {
+    await deleteImage(result.public_id).catch(() => undefined);
+    return { ok: false, status: 400, error: problem };
+  }
+  return {
+    ok: true,
+    publicId: result.public_id,
+    url: result.secure_url,
+    width,
+    height,
+  };
+}

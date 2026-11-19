@@ -2,9 +2,10 @@
 
 import type React from "react";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { ChevronRight, Send, Smile, GiftIcon, LogIn } from "lucide-react";
 import type { ChatMessage } from "@/types/chat";
+import type { SpikeLevel } from "@/lib/chat-spike";
 import { EMOJI_CATEGORIES, CATEGORY_LABELS } from "@/lib/emoji-categories";
 
 interface ChatSectionProps {
@@ -18,6 +19,18 @@ interface ChatSectionProps {
   isWalletConnected?: boolean;
   isSending?: boolean;
   onLoginClick?: () => void;
+  /** Older history: shows a "Load earlier messages" control when provided */
+  onLoadOlder?: () => void;
+  hasOlder?: boolean;
+  isLoadingOlder?: boolean;
+  /** Current spike level — renders a degradation banner when not 'normal' */
+  spikeLevel?: SpikeLevel;
+  /** Aggregated "who is typing" text; hidden when null/undefined */
+  typingLabel?: string | null;
+  /** Reports every change of the input value (drives outgoing typing events) */
+  onTypingInput?: (value: string) => void;
+  /** Reports that the message was submitted (ends the outgoing typing state) */
+  onTypingStop?: () => void;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -32,6 +45,13 @@ const ChatSection = ({
   isWalletConnected = false,
   isSending = false,
   onLoginClick,
+  onLoadOlder,
+  hasOlder = false,
+  isLoadingOlder = false,
+  spikeLevel,
+  typingLabel,
+  onTypingInput,
+  onTypingStop,
 }: ChatSectionProps) => {
   const [chatMessage, setChatMessage] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -40,13 +60,24 @@ const ChatSection = ({
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
+  // Stick to the bottom when a new message arrives. When older history is
+  // prepended instead, keep the reader's place by offsetting the added height.
+  const newestId = messages[messages.length - 1]?.id;
+  const lastNewestId = useRef<string | undefined>(undefined);
+  const lastScrollHeight = useRef(0);
+  useLayoutEffect(() => {
+    const el = chatContainerRef.current;
+    if (!el) {
+      return;
     }
-  }, [messages]);
+    if (newestId !== lastNewestId.current) {
+      el.scrollTop = el.scrollHeight;
+    } else if (el.scrollHeight > lastScrollHeight.current) {
+      el.scrollTop += el.scrollHeight - lastScrollHeight.current;
+    }
+    lastNewestId.current = newestId;
+    lastScrollHeight.current = el.scrollHeight;
+  }, [messages, newestId]);
 
   // Close emoji picker on outside click
   useEffect(() => {
@@ -67,6 +98,7 @@ const ChatSection = ({
       return;
     }
     onSendMessage(chatMessage);
+    onTypingStop?.();
     setChatMessage("");
     setShowEmojiPicker(false);
     if (chatContainerRef.current) {
@@ -86,7 +118,9 @@ const ChatSection = ({
   };
 
   const handleEmojiClick = (emoji: string) => {
-    setChatMessage(prev => prev + emoji);
+    const next = chatMessage + emoji;
+    setChatMessage(next);
+    onTypingInput?.(next);
   };
 
   if (!showChat) {
@@ -109,6 +143,17 @@ const ChatSection = ({
         )}
       </div>
 
+      {/* Degradation banner — shown when chat is under heavy load */}
+      {spikeLevel && spikeLevel !== "normal" && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="text-xs text-center px-2 py-1 bg-amber-500/20 text-amber-400 border-b border-amber-500/30 flex-shrink-0"
+        >
+          ⚡ Chat is experiencing high traffic — messages may be slower than usual
+        </div>
+      )}
+
       {/* Chat messages — absolute inset-0 fills exactly the space between header and input */}
       <div className="text-foreground bg-background relative flex-1 min-h-0">
         {/* Gradient overlay at top */}
@@ -122,6 +167,18 @@ const ChatSection = ({
           ref={chatContainerRef}
           className="absolute inset-0 overflow-y-auto scrollbar-hide p-3 space-y-4 pt-8 pb-4"
         >
+          {onLoadOlder && hasOlder && messages.length > 0 && (
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={onLoadOlder}
+                disabled={isLoadingOlder}
+                className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                {isLoadingOlder ? "Loading…" : "Load earlier messages"}
+              </button>
+            </div>
+          )}
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-4">
               <p className="text-sm font-semibold mb-2 text-foreground">
@@ -165,6 +222,15 @@ const ChatSection = ({
 
       {/* Chat input — always pinned at bottom */}
       <div className="border border-border p-3 border-t flex-shrink-0 relative">
+        {/* Fixed-height line so the list does not jump when the label appears */}
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="typing-indicator"
+          className="h-4 mb-1 text-xs text-muted-foreground truncate"
+        >
+          {typingLabel ?? ""}
+        </div>
         {/* Emoji picker */}
         {showEmojiPicker && isWalletConnected && (
           <div
@@ -209,7 +275,10 @@ const ChatSection = ({
             <input
               type="text"
               value={chatMessage}
-              onChange={e => setChatMessage(e.target.value)}
+              onChange={e => {
+                setChatMessage(e.target.value);
+                onTypingInput?.(e.target.value);
+              }}
               onKeyDown={handleKeyDown}
               placeholder="Send a message"
               disabled={isSending}

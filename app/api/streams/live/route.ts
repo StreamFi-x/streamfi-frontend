@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { CACHE_POLICIES } from "@/lib/cache";
 
 const STREAMS_PER_PAGE = 50;
 
@@ -21,6 +22,7 @@ export async function GET(req: Request) {
         stream_started_at, creator
       FROM users
       WHERE is_live = true
+        AND deleted_at IS NULL
         AND COALESCE(stream_privacy, 'public') = 'public'
       ORDER BY current_viewers DESC
       LIMIT ${fetchLimit} OFFSET ${offset}
@@ -31,7 +33,7 @@ export async function GET(req: Request) {
         { streams: [], hasMore: false, nextOffset: null },
         {
           headers: {
-            "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30",
+            "Cache-Control": CACHE_POLICIES.liveState.cacheControl,
           },
         }
       );
@@ -43,7 +45,7 @@ export async function GET(req: Request) {
       const { rows: followRows } = await sql`
         SELECT uf.followee_id
         FROM   user_follows uf
-        JOIN   users v ON v.id = uf.follower_id
+        JOIN   users v ON v.id = uf.follower_id AND v.deleted_at IS NULL
         WHERE  LOWER(v.wallet) = LOWER(${viewerWallet})
       `;
       viewerFollowing = followRows.map(r => r.followee_id as string);
@@ -86,7 +88,7 @@ export async function GET(req: Request) {
       { streams: page, hasMore, nextOffset },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30",
+          "Cache-Control": CACHE_POLICIES.liveState.cacheControl,
         },
       }
     );

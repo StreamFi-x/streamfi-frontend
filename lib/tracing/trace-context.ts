@@ -9,28 +9,52 @@ export interface TraceContext {
   timestamp: number;
 }
 
-// Safely obtain AsyncLocalStorage only in server-side environments so browser bundles succeed
-interface LocalStorageLike<T> {
+type ALS<T> = {
   run<R>(store: T, callback: () => R): R;
   getStore(): T | undefined;
+};
+
+class FallbackAsyncLocalStorage<T> implements ALS<T> {
+  private current: T | undefined = undefined;
+  run<R>(store: T, callback: () => R): R {
+    const prev = this.current;
+    this.current = store;
+    try {
+      return callback();
+    } finally {
+      this.current = prev;
+    }
+  }
+  getStore(): T | undefined {
+    return this.current;
+  }
 }
 
-let asyncLocalStorage: LocalStorageLike<TraceContext> | null = null;
-if (typeof window === "undefined") {
+function createALS<T>(): ALS<T> {
+  if (typeof (globalThis as unknown as { AsyncLocalStorage?: new () => ALS<T> }).AsyncLocalStorage !== 'undefined') {
+    const G = (globalThis as unknown as { AsyncLocalStorage: new () => ALS<T> });
+    return new G.AsyncLocalStorage();
+  }
   try {
+    // Use dynamic require so bundlers do not attempt to bundle async_hooks in browser/edge
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { AsyncLocalStorage } = require("async_hooks");
-    asyncLocalStorage = new AsyncLocalStorage();
+    const nodeHooks = require('async_hooks');
+    if (nodeHooks?.AsyncLocalStorage) {
+      return new nodeHooks.AsyncLocalStorage();
+    }
   } catch {
-    // Environment does not support async_hooks
+    // Browser / Edge fallback
   }
+  return new FallbackAsyncLocalStorage<T>();
 }
 
-function getUuid(): string {
-  if (typeof globalThis.crypto !== "undefined" && typeof globalThis.crypto.randomUUID === "function") {
-    return globalThis.crypto.randomUUID();
+const asyncLocalStorage = createALS<TraceContext>();
+
+function safeUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
   }
-  return Math.random().toString(36).substring(2, 15);
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
 /**
@@ -41,8 +65,8 @@ export function createTraceContext(
   parentSpanId?: string
 ): TraceContext {
   return {
-    traceId: traceId || `trace-${getUuid()}`,
-    spanId: `span-${getUuid()}`,
+    traceId: traceId || `trace-${safeUUID()}`,
+    spanId: `span-${safeUUID()}`,
     parentSpanId,
     timestamp: Date.now(),
   };
@@ -89,7 +113,7 @@ export function getCurrentTraceContext(): TraceContext | undefined {
  */
 export function getTraceId(): string {
   const context = getCurrentTraceContext();
-  return context?.traceId || `trace-${getUuid()}`;
+  return context?.traceId || `trace-${safeUUID()}`;
 }
 
 /**
@@ -99,7 +123,7 @@ export function getTraceHeaders(): Record<string, string> {
   const context = getCurrentTraceContext();
   if (!context) {
     return {
-      "x-request-id": `trace-${getUuid()}`,
+      'x-request-id': `trace-${safeUUID()}`,
     };
   }
 

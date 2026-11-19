@@ -76,7 +76,7 @@ async function getSenderWallet(userId: string): Promise<string | null> {
     const { rows } = await sql`
       SELECT stellar_address, wallet_address
       FROM users
-      WHERE id = ${userId}
+      WHERE id = ${userId} AND deleted_at IS NULL
       LIMIT 1
     `;
 
@@ -167,7 +167,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         assetCode: "USDC",
         assetIssuer,
         memo: memo ?? null,
-        fee: String(calculateFeeEstimate()),
+        fee: String(calculateFeeEstimate(Number(transaction.fee))),
         network,
       },
       { status: 200 }

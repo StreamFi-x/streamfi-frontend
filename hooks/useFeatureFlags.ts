@@ -1,6 +1,5 @@
 import useSWR from "swr";
-
-const fetcher = (url: string) => fetch(url, { credentials: "include" }).then(r => r.json());
+import { fetcher } from "@/lib/fetcher";
 
 /**
  * Returns resolved feature flag states for the current user.

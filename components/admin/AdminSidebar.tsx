@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   LayoutGrid,
   ArrowLeftToLine,
+  History,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -32,6 +33,11 @@ const navItems = [
     name: "Categories",
     icon: <LayoutGrid size={24} />,
     path: "/admin/categories",
+  },
+  {
+    name: "Session Replays",
+    icon: <History size={24} />,
+    path: "/admin/replays",
   },
 ];
 

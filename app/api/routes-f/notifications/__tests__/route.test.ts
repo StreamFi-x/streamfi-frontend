@@ -79,6 +79,7 @@ describe("GET /api/routes-f/notifications — viewer_001 (12 notifications, 3 un
     const body = await res.json();
     expect(body.items).toHaveLength(12);
     expect(body.next_cursor).toBeNull();
+    expect(body.has_more).toBe(false);
     expect(body.unread_count).toBe(3);
   });
 
@@ -96,6 +97,7 @@ describe("GET /api/routes-f/notifications — viewer_001 (12 notifications, 3 un
     const body = await res.json();
     expect(body.items).toHaveLength(5);
     expect(body.next_cursor).toBe("n_005"); // last item on page 1
+    expect(body.has_more).toBe(true);
     expect(body.unread_count).toBe(3);
   });
 
@@ -112,6 +114,7 @@ describe("GET /api/routes-f/notifications — viewer_001 (12 notifications, 3 un
     expect(body2.items).toHaveLength(5);
     expect(body2.items[0].id).toBe("n_006");
     expect(body2.next_cursor).toBe("n_010");
+    expect(body2.has_more).toBe(true);
     expect(body2.unread_count).toBe(3); // always the full-viewer total
   });
 
@@ -125,6 +128,7 @@ describe("GET /api/routes-f/notifications — viewer_001 (12 notifications, 3 un
     const body3 = await r3.json();
     expect(body3.items).toHaveLength(2); // n_011, n_012
     expect(body3.next_cursor).toBeNull();
+    expect(body3.has_more).toBe(false);
     expect(body3.unread_count).toBe(3);
   });
 
@@ -133,6 +137,7 @@ describe("GET /api/routes-f/notifications — viewer_001 (12 notifications, 3 un
     const res = await GET(makeRequest("?viewer_id=viewer_001&limit=1"));
     const body = await res.json();
     expect(body.items).toHaveLength(1);
+    expect(body.has_more).toBe(true);
     expect(body.unread_count).toBe(3);
   });
 
@@ -153,6 +158,7 @@ describe("GET /api/routes-f/notifications — viewer_002 (3 notifications, 2 unr
     const body = await res.json();
     expect(body.items).toHaveLength(3);
     expect(body.next_cursor).toBeNull();
+    expect(body.has_more).toBe(false);
     expect(body.unread_count).toBe(2);
   });
 
@@ -169,6 +175,7 @@ describe("GET /api/routes-f/notifications — viewer_002 (3 notifications, 2 unr
     const body = await res.json();
     expect(body.items).toHaveLength(0);
     expect(body.next_cursor).toBeNull();
+    expect(body.has_more).toBe(false);
     expect(body.unread_count).toBe(2);
   });
 });

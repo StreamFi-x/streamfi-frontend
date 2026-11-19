@@ -250,4 +250,38 @@ describe("ChatSection", () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  describe("typing indicator", () => {
+    it("renders an empty status line when nobody is typing", () => {
+      render(<ChatSection {...defaultProps} />);
+      expect(screen.getByTestId("typing-indicator")).toHaveTextContent("");
+    });
+
+    it("renders the aggregated typing label", () => {
+      render(<ChatSection {...defaultProps} typingLabel="3 people are typing…" />);
+      expect(screen.getByTestId("typing-indicator")).toHaveTextContent(
+        "3 people are typing…"
+      );
+    });
+
+    it("reports input changes and submission", async () => {
+      const onTypingInput = jest.fn();
+      const onTypingStop = jest.fn();
+      const user = userEvent.setup();
+      render(
+        <ChatSection
+          {...defaultProps}
+          onTypingInput={onTypingInput}
+          onTypingStop={onTypingStop}
+        />
+      );
+      const input = screen.getByPlaceholderText("Send a message");
+      await user.type(input, "hi");
+      expect(onTypingInput).toHaveBeenLastCalledWith("hi");
+
+      await user.type(input, "{Enter}");
+      expect(defaultProps.onSendMessage).toHaveBeenCalledWith("hi");
+      expect(onTypingStop).toHaveBeenCalledTimes(1);
+    });
+  });
 });

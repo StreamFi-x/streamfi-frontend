@@ -1,9 +1,12 @@
 import React from "react";
 import { sql } from "@vercel/postgres";
 import { unstable_cache } from "next/cache";
+import { CACHE_POLICIES, cacheTags } from "@/lib/cache";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { serializeJsonLd } from "@/lib/security/json-ld";
 import UsernameLayoutClient from "./UsernameLayoutClient";
-import { safeJsonLdStringify } from "@/lib/utils/safe-json-ld";
+import { safeJsonLd } from "@/lib/security/json-ld";
 
 const BASE = "https://www.streamfi.media";
 
@@ -23,24 +26,29 @@ type UserRow = {
 };
 
 // unstable_cache deduplicates the DB query so generateMetadata and the layout
-// render share one result per request. revalidate: 60 keeps live status fresh.
-const fetchUser = unstable_cache(
-  async (slug: string): Promise<UserRow | null> => {
-    try {
-      const { rows } = await sql`
-        SELECT username, avatar, bio, is_live, creator, mux_playback_id, stream_started_at
-        FROM users
-        WHERE LOWER(username) = ${slug}
-        LIMIT 1
-      `;
-      return (rows[0] as UserRow) ?? null;
-    } catch {
-      return null;
+// render share one result per request. The TTL bounds live-status staleness;
+// the per-user tag lets profile writes purge it (lib/cache/invalidation.ts).
+const fetchUser = (slug: string): Promise<UserRow | null> =>
+  unstable_cache(
+    async (): Promise<UserRow | null> => {
+      try {
+        const { rows } = await sql`
+          SELECT username, avatar, bio, is_live, creator, mux_playback_id, stream_started_at
+          FROM users
+          WHERE LOWER(username) = ${slug} AND deleted_at IS NULL
+          LIMIT 1
+        `;
+        return (rows[0] as UserRow) ?? null;
+      } catch {
+        return null;
+      }
+    },
+    ["user-profile", slug],
+    {
+      revalidate: CACHE_POLICIES.publicProfile.appTtlSeconds,
+      tags: [cacheTags.userByName(slug)],
     }
-  },
-  ["user-profile"],
-  { revalidate: 60 }
-);
+  )();
 
 export async function generateMetadata({
   params,
@@ -60,16 +68,17 @@ export async function generateMetadata({
       ? `${name} is LIVE – ${streamTitle}`
       : `${name} – StreamFi`;
 
-  const ogImage = user.avatar
-    ? [{ url: user.avatar, width: 400, height: 400, alt: name }]
-    : [
-        {
-          url: `${BASE}/Images/streamFi.png`,
-          width: 1200,
-          height: 630,
-          alt: "StreamFi",
-        },
-      ];
+  // Serve the per-creator generated image (app/[username]/opengraph-image.tsx)
+  // so shared links render creator-specific art — avatar, bio, follower count,
+  // LIVE badge — instead of a raw avatar or the site-wide default.
+  const ogImage = [
+    {
+      url: `${BASE}/${name}/opengraph-image`,
+      width: 1200,
+      height: 630,
+      alt: `${name} on StreamFi`,
+    },
+  ];
 
   return {
     title,
@@ -95,6 +104,7 @@ export default async function UsernameLayout({
   children,
   params,
 }: UsernameLayoutProps) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   const { username } = await params;
   const user = await fetchUser(username.toLowerCase());
 
@@ -127,18 +137,16 @@ export default async function UsernameLayout({
     <>
       {personSchema && (
         <script
+          nonce={nonce}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: safeJsonLdStringify(personSchema),
-          }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(personSchema) }}
         />
       )}
       {videoSchema && (
         <script
+          nonce={nonce}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: safeJsonLdStringify(videoSchema),
-          }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(videoSchema) }}
         />
       )}
       <UsernameLayoutClient username={username}>

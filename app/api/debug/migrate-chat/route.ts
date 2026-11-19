@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { checkDebugSecret } from "@/lib/debug-auth";
 
 /**
  * One-time migration to bring chat_messages and stream_sessions up to the
@@ -7,9 +8,17 @@ import { sql } from "@vercel/postgres";
  *
  * Safe to run multiple times — every operation uses IF (NOT) EXISTS / DO NOTHING.
  *
- * Hit GET /api/debug/migrate-chat to run.
+ * Guarded by MIGRATE_CHAT_SECRET, same pattern as debug/clear-users'
+ * CLEAR_USERS_SECRET (#1612: this ran completely unauthenticated before).
+ *
+ * Hit GET /api/debug/migrate-chat?secret=<MIGRATE_CHAT_SECRET> to run.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const forbidden = checkDebugSecret(req, "MIGRATE_CHAT_SECRET");
+  if (forbidden) {
+    return forbidden;
+  }
+
   const done: string[] = [];
   const skipped: string[] = [];
 

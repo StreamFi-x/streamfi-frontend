@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { verifySession } from "@/lib/auth/verify-session";
+import { CACHE_POLICIES, cacheHeaders } from "@/lib/cache";
+import { createCache, createMemoryBackend } from "@/lib/cache/store";
+import { getUpstashRedis } from "@/lib/upstash-redis";
+import {
+  buildPage,
+  decodeCursor,
+  encodeCursor,
+  keysetBounds,
+  readPageParams,
+  type KeysetRow,
+  type PageParams,
+} from "@/lib/pagination/cursor";
+import { publishRealtimeMessage } from "@/lib/realtime/pubsub";
+import {
+  recordAndGetSpikeLevel,
+  getSpikeLevelForStream,
+  recordConnectionRate,
+  getEffectiveSlowMode,
+  getPollIntervalSeconds,
+} from "@/lib/chat-spike";
 
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
@@ -10,19 +30,27 @@ const isGetRateLimited = createRateLimiter(60_000, 60);
 // 30 DELETE requests per minute per IP for moderation
 const isDeleteRateLimited = createRateLimiter(60_000, 30);
 
+// 120 deletes per minute per authenticated user — generous enough for a
+// spam-wave clear (moderator removing ~2 msg/s) but caps worst-case damage
+// if credentials are compromised (#763). Keyed on userId, not IP, so the
+// limit tracks the moderator identity rather than a shared proxy address.
+const isDeleteRateLimited = createRateLimiter(60_000, 120);
+
+const DEFAULT_LIMIT = 50;
+/** The live chat view polls the newest 200 messages; keep that possible. */
+const MAX_LIMIT = 200;
+
+// Every viewer of a stream polls the same window once a second. The edge
+// (chatWindow policy) collapses those per region; this per-instance cache
+// collapses whatever reaches one instance into one query per second per
+// stream. It is deliberately not Redis: at one command per poll the Redis bill
+// would scale with viewers, which is the cost we are trying to remove.
+// docs/postgres-pooling-and-chat-load.md has the measurements.
+const chatWindowCache = createCache(createMemoryBackend());
+const chatTag = (playbackId: string) => `chat:${playbackId}`;
+
 export async function POST(req: NextRequest) {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
-
-  if (await isRateLimited(ip)) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": "60" } }
-    );
-  }
-
+  // Verify caller identity server-side via session
   const session = await verifySession(req);
   if (!session.ok) {
     return session.response;
@@ -44,10 +72,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Prevent wallet spoofing: verify body wallet matches authenticated session
-    if (wallet && session.wallet && session.wallet.toLowerCase() !== wallet.toLowerCase()) {
+    // Never trust client-supplied wallet if it contradicts the verified session
+    if (
+      wallet &&
+      session.wallet &&
+      session.wallet.toLowerCase() !== wallet.toLowerCase()
+    ) {
       return NextResponse.json(
-        { error: "Forbidden: wallet does not match authenticated session" },
+        { error: "Forbidden: wallet mismatch" },
         { status: 403 }
       );
     }
@@ -66,15 +98,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Combined query: look up sender + stream + active session in one round-trip
-    // Acting sender identity is derived from verified session (session.userId)
+    // Derive sender strictly from verified session user
     const result = await sql`
       SELECT
         sender.id AS sender_id,
         sender.username AS sender_username,
         sender.wallet AS sender_wallet,
+        sender.role AS sender_role,
         streamer.id AS streamer_id,
         streamer.is_live,
+        streamer.creator->>'chatSlowModeSeconds' AS chat_slow_mode_seconds,
+        streamer.creator->>'chatSubscriberOnly'  AS chat_subscriber_only,
         (
           SELECT ss.id FROM stream_sessions ss
           WHERE ss.user_id = streamer.id AND ss.ended_at IS NULL
@@ -93,7 +127,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { sender_id, sender_username, sender_wallet, is_live, session_id } = result.rows[0];
+    const { sender_id, sender_username, sender_wallet, is_live, session_id, streamer_id, chat_slow_mode_seconds, chat_subscriber_only, sender_role } =
+      result.rows[0];
 
     if (!is_live) {
       return NextResponse.json(
@@ -109,44 +144,59 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Single atomic statement: the INSERT and the counter increment are in the
+    // same implicit transaction, so a crash or connection drop between them
+    // can never leave total_messages permanently out of sync (#764).
     const messageResult = await sql`
-      INSERT INTO chat_messages (
-        user_id,
-        username,
-        stream_session_id,
-        content,
-        message_type,
-        created_at
+      WITH new_msg AS (
+        INSERT INTO chat_messages (
+          user_id,
+          username,
+          stream_session_id,
+          content,
+          message_type,
+          created_at
+        )
+        VALUES (${sender_id}, ${sender_username}, ${session_id}, ${content}, ${messageType}, CURRENT_TIMESTAMP)
+        RETURNING id, created_at, stream_session_id
+      ),
+      _counter AS (
+        UPDATE stream_sessions
+        SET total_messages = total_messages + 1
+        WHERE id = (SELECT stream_session_id FROM new_msg)
       )
-      VALUES (${sender_id}, ${sender_username}, ${session_id}, ${content}, ${messageType}, CURRENT_TIMESTAMP)
-      RETURNING id, created_at
+      SELECT id, created_at FROM new_msg
     `;
 
     const newMessage = messageResult.rows[0];
+    await chatWindowCache.invalidate([chatTag(playbackId)]);
 
-    await sql`
-      UPDATE stream_sessions SET
-        total_messages = total_messages + 1
-      WHERE id = ${session_id}
-    `;
+    const formattedMessage = {
+      id: newMessage.id,
+      content,
+      messageType,
+      user: {
+        username: sender_username,
+        wallet: wallet,
+      },
+      createdAt: newMessage.created_at,
+    };
+
+    // Publish to Realtime Pub/Sub channel for instantaneous push delivery (#1450)
+    publishRealtimeMessage(
+      `stream:${playbackId}:chat`,
+      "chat:message",
+      formattedMessage
+    ).catch(e => console.error("[chat] Realtime publish error:", e));
 
     const userWallet = sender_wallet || session.wallet || wallet;
 
     return NextResponse.json(
       {
         message: "Message sent successfully",
-        chatMessage: {
-          id: newMessage.id,
-          content,
-          messageType,
-          user: {
-            username: sender_username,
-            wallet: userWallet,
-          },
-          createdAt: newMessage.created_at,
-        },
+        chatMessage: formattedMessage,
       },
-      { status: 201 }
+      { status: 201, headers: { "X-Chat-Spike": spikeLevel } }
     );
   } catch (error) {
     console.error("Chat message error:", error);
@@ -157,6 +207,77 @@ export async function POST(req: NextRequest) {
   }
 }
 
+interface ChatRow extends KeysetRow {
+  content: string;
+  message_type: string;
+  created_at: string;
+  username: string;
+  wallet: string;
+  avatar: string | null;
+}
+
+async function loadChatPage(playbackId: string, page: PageParams) {
+  const streamResult = await sql`
+    SELECT ss.id as session_id
+    FROM users u
+    JOIN stream_sessions ss ON u.id = ss.user_id AND ss.ended_at IS NULL
+    WHERE u.mux_playback_id = ${playbackId}
+    ORDER BY ss.started_at DESC
+    LIMIT 1
+  `;
+
+  if (streamResult.rows.length === 0) {
+    return { items: [], nextCursor: null, hasMore: false };
+  }
+
+  // Kept as a second statement on purpose: with the session id bound as a
+  // parameter the planner sees how busy this stream is and walks
+  // idx_chat_messages_session_window backwards. Folded into one statement it
+  // assumes an average-sized chat and sorts every message of a busy stream
+  // (5x slower in scripts/load-test; see docs/postgres-pooling-and-chat-load.md).
+  // The (created_at, id) row comparison becomes an index condition on
+  // created_at, so a deep history page costs the same as the first one
+  // (docs/database/query-performance.md).
+  const sessionId = streamResult.rows[0].session_id;
+  const bound = keysetBounds(page.after);
+  const messagesResult = await sql<ChatRow>`
+    SELECT
+      cm.id,
+      cm.content,
+      cm.message_type,
+      cm.created_at,
+      to_char(cm.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts,
+      COALESCE(u.username, 'deleted user') AS username,
+      COALESCE(u.wallet, '') AS wallet,
+      u.avatar
+    FROM chat_messages cm
+    LEFT JOIN users u ON cm.user_id = u.id
+    WHERE cm.stream_session_id = ${sessionId}
+      AND cm.is_deleted = false
+      AND (cm.created_at, cm.id) < (${bound.ts}::timestamptz, ${bound.id}::uuid)
+    ORDER BY cm.created_at DESC, cm.id DESC
+    LIMIT ${page.limit + 1}
+  `;
+
+  return buildPage(messagesResult.rows, page.limit, msg => ({
+    id: msg.id,
+    content: msg.content,
+    messageType: msg.message_type,
+    createdAt: msg.created_at,
+    user: {
+      username: msg.username,
+      wallet: msg.wallet,
+      avatar: msg.avatar,
+    },
+  }));
+}
+
+/**
+ * Chat history, newest first, on the shared cursor contract
+ * (docs/api/pagination.md): `?playbackId&limit&cursor` →
+ * `{ items, nextCursor, hasMore }`. Polling clients request the first page;
+ * `nextCursor` walks back through older history.
+ */
 export async function GET(req: Request) {
   const ip = 
     (req.headers instanceof Headers ? 
@@ -174,8 +295,6 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const playbackId = searchParams.get("playbackId");
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const before = searchParams.get("before");
 
     if (!playbackId) {
       return NextResponse.json(
@@ -184,54 +303,100 @@ export async function GET(req: Request) {
       );
     }
 
-    const streamResult = await sql`
-      SELECT ss.id as session_id
-      FROM users u
-      JOIN stream_sessions ss ON u.id = ss.user_id AND ss.ended_at IS NULL
-      WHERE u.mux_playback_id = ${playbackId}
-      ORDER BY ss.started_at DESC
-      LIMIT 1
-    `;
-
-    if (streamResult.rows.length === 0) {
-      return NextResponse.json({ messages: [] }, { status: 200 });
+    if (searchParams.has("before") && !searchParams.has("cursor")) {
+      const beforeVal = searchParams.get("before")!;
+      try {
+        decodeCursor(beforeVal);
+        searchParams.set("cursor", beforeVal);
+        searchParams.delete("before");
+      } catch {
+        if (
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            beforeVal
+          )
+        ) {
+          const msgLookup = await sql`
+            SELECT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts
+            FROM chat_messages
+            WHERE id = ${beforeVal}::uuid
+            LIMIT 1
+          `;
+          if (msgLookup.rows.length > 0) {
+            searchParams.set(
+              "cursor",
+              encodeCursor({
+                ts: msgLookup.rows[0].cursor_ts,
+                id: beforeVal.toLowerCase(),
+              })
+            );
+            searchParams.delete("before");
+          } else {
+            return NextResponse.json(
+              { error: "Message specified in before cursor not found" },
+              { status: 404 }
+            );
+          }
+        } else {
+          return NextResponse.json(
+            { error: "Invalid before cursor format; provide a valid UUID or cursor" },
+            { status: 400 }
+          );
+        }
+      }
     }
 
-    const sessionId = streamResult.rows[0].session_id;
+    const params = readPageParams(searchParams, {
+      defaultLimit: DEFAULT_LIMIT,
+      maxLimit: MAX_LIMIT,
+    });
+    if (!params.ok) {
+      return params.response;
+    }
+    const { page } = params;
 
-    // Single query handles both cursor-based and initial fetch
-    const beforeId = before ? parseInt(before) : null;
-    const messagesResult = await sql`
-      SELECT
-        cm.id,
-        cm.content,
-        cm.message_type,
-        cm.created_at,
-        u.username,
-        u.wallet,
-        u.avatar
-      FROM chat_messages cm
-      JOIN users u ON cm.user_id = u.id
-      WHERE cm.stream_session_id = ${sessionId}
-        AND cm.is_deleted = false
-        AND (${beforeId}::int IS NULL OR cm.id < ${beforeId})
-      ORDER BY cm.created_at DESC
-      LIMIT ${limit}
-    `;
-
-    const messages = messagesResult.rows.map(msg => ({
-      id: msg.id,
-      content: msg.content,
-      messageType: msg.message_type,
-      createdAt: msg.created_at,
-      user: {
-        username: msg.username,
-        wallet: msg.wallet,
-        avatar: msg.avatar,
+    const result = await chatWindowCache.getOrLoad(
+      {
+        key: `chat:${playbackId}:${page.limit}:${searchParams.get("cursor") ?? "live"}`,
+        tags: [chatTag(playbackId)],
+        ttlSeconds: CACHE_POLICIES.chatWindow.appTtlSeconds,
       },
-    }));
+      () => loadChatPage(playbackId, page)
+    );
 
-    return NextResponse.json({ messages: messages.reverse() }, { status: 200 });
+    // Resolve streamerId for spike-level signals. A missing/failed lookup is
+    // non-fatal: we simply omit the spike headers rather than erroring.
+    let spikeHeaders: Record<string, string> = {};
+    try {
+      const streamerRow = await sql`
+        SELECT id FROM users WHERE mux_playback_id = ${playbackId} LIMIT 1
+      `;
+      if (streamerRow.rows.length > 0) {
+        const streamerId: string = streamerRow.rows[0].id;
+        // Record connection rate (leading indicator of load) without touching
+        // the message-rate counter — GET is a read path.
+        const connLevel = await recordConnectionRate(streamerId);
+        // Read persisted spike level (written by POST handler on each message).
+        const msgLevel = await getSpikeLevelForStream(streamerId);
+        // Use the higher of the two levels.
+        const effectiveLevel =
+          connLevel === "critical" || msgLevel === "critical"
+            ? "critical"
+            : connLevel === "degraded" || msgLevel === "degraded"
+              ? "degraded"
+              : "normal";
+        spikeHeaders = {
+          "X-Chat-Spike": effectiveLevel,
+          "X-Poll-Interval": String(getPollIntervalSeconds(effectiveLevel)),
+        };
+      }
+    } catch {
+      // Non-fatal: spike headers are best-effort.
+    }
+
+    return NextResponse.json(result, {
+      status: 200,
+      headers: { ...cacheHeaders("chatWindow"), ...spikeHeaders },
+    });
   } catch (error) {
     console.error("Get chat messages error:", error);
     return NextResponse.json(
@@ -242,26 +407,21 @@ export async function GET(req: Request) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
-
-  if (await isDeleteRateLimited(ip)) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": "60" } }
-    );
-  }
-
-  const session = await verifySession(req);
-  if (!session.ok) {
-    return session.response;
-  }
-
   try {
-    const body = await req.json().catch(() => ({}));
-    const { messageId, moderatorWallet } = body;
+    // Authenticate moderator via verified server session
+    const session = await verifySession(req);
+    if (!session.ok) {
+      return session.response;
+    }
+
+    if (await isDeleteRateLimited(session.userId)) {
+      return NextResponse.json(
+        { error: "Too many delete requests" },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
+
+    const { messageId, moderatorWallet } = await req.json();
 
     if (!messageId) {
       return NextResponse.json(
@@ -270,20 +430,24 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    if (moderatorWallet && session.wallet && session.wallet.toLowerCase() !== moderatorWallet.toLowerCase()) {
-      return NextResponse.json(
-        { error: "Forbidden: moderator wallet does not match authenticated session" },
-        { status: 403 }
-      );
+    // Prevent spoofing moderator wallet
+    if (
+      moderatorWallet &&
+      session.wallet &&
+      session.wallet.toLowerCase() !== moderatorWallet.toLowerCase()
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const messageResult = await sql`
       SELECT 
         cm.id,
         cm.user_id as message_user_id,
-        ss.user_id as stream_owner_id
+        ss.user_id as stream_owner_id,
+        owner.mux_playback_id
       FROM chat_messages cm
       JOIN stream_sessions ss ON cm.stream_session_id = ss.id
+      JOIN users owner ON owner.id = ss.user_id
       WHERE cm.id = ${messageId} AND cm.is_deleted = false
     `;
 
@@ -293,25 +457,11 @@ export async function DELETE(req: NextRequest) {
 
     const message = messageResult.rows[0];
 
-    // Check if acting user is stream owner or message author
-    let isAllowed =
-      String(session.userId) === String(message.stream_owner_id) ||
-      String(session.userId) === String(message.message_user_id);
+    // Check permissions against verified session.userId
+    const isOwner = session.userId === message.stream_owner_id;
+    const isAuthor = session.userId === message.message_user_id;
 
-    // If neither, verify moderator status in DB
-    if (!isAllowed) {
-      const userCheck = await sql`
-        SELECT role, is_moderator FROM users WHERE id = ${session.userId}
-      `;
-      if (userCheck.rows.length > 0) {
-        const u = userCheck.rows[0];
-        if (u.is_moderator || u.role === "admin" || u.role === "moderator") {
-          isAllowed = true;
-        }
-      }
-    }
-
-    if (!isAllowed) {
+    if (!isOwner && !isAuthor) {
       return NextResponse.json(
         { error: "Insufficient permissions to delete this message" },
         { status: 403 }
@@ -325,6 +475,9 @@ export async function DELETE(req: NextRequest) {
         moderated_by = ${session.userId}
       WHERE id = ${messageId}
     `;
+    if (message.mux_playback_id) {
+      await chatWindowCache.invalidate([chatTag(message.mux_playback_id)]);
+    }
 
     return NextResponse.json(
       { message: "Message deleted successfully" },

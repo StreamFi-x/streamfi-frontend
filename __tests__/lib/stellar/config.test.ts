@@ -32,6 +32,12 @@ describe("Stellar Network Configuration", () => {
       expect(console.warn).not.toHaveBeenCalled();
     });
 
+    it("returns mainnet for pubnet alias", () => {
+      process.env.NEXT_PUBLIC_STELLAR_NETWORK = "pubnet";
+      expect(getStellarNetwork()).toBe("mainnet");
+      expect(console.warn).not.toHaveBeenCalled();
+    });
+
     it("defaults to testnet and warns for invalid value", () => {
       process.env.NEXT_PUBLIC_STELLAR_NETWORK = "invalid-network";
       expect(getStellarNetwork()).toBe("testnet");
@@ -40,12 +46,9 @@ describe("Stellar Network Configuration", () => {
       );
     });
 
-    it("defaults to testnet and warns for missing value", () => {
+    it("defaults to testnet without warning for missing value", () => {
       delete process.env.NEXT_PUBLIC_STELLAR_NETWORK;
       expect(getStellarNetwork()).toBe("testnet");
-      expect(console.warn).toHaveBeenCalledWith(
-        "Invalid STELLAR_NETWORK: undefined. Defaulting to testnet."
-      );
     });
   });
 

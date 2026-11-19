@@ -78,7 +78,7 @@ async function fetchTipTransactions(
     const result = await sql`
       SELECT tt.id, tt.amount_xlm, tt.created_at, u.username AS supporter_username
       FROM tip_transactions tt
-      LEFT JOIN users u ON u.id = tt.supporter_id
+      LEFT JOIN users u ON u.id = tt.supporter_id AND u.deleted_at IS NULL
       WHERE tt.creator_id = ${creatorId}
         AND tt.created_at BETWEEN ${from.toISOString()} AND ${to.toISOString()}
       ORDER BY tt.created_at DESC
@@ -89,7 +89,7 @@ async function fetchTipTransactions(
   const result = await sql`
     SELECT tt.id, tt.amount_xlm, tt.created_at, u.username AS supporter_username
     FROM tip_transactions tt
-    LEFT JOIN users u ON u.id = tt.supporter_id
+    LEFT JOIN users u ON u.id = tt.supporter_id AND u.deleted_at IS NULL
     WHERE tt.creator_id = ${creatorId}
     ORDER BY tt.created_at DESC
   `;
@@ -105,7 +105,7 @@ async function fetchGiftTransactions(
     const result = await sql`
       SELECT gt.id, gt.amount_usdc, gt.created_at, u.username AS supporter_username
       FROM gift_transactions gt
-      LEFT JOIN users u ON u.id = gt.supporter_id
+      LEFT JOIN users u ON u.id = gt.supporter_id AND u.deleted_at IS NULL
       WHERE gt.creator_id = ${creatorId}
         AND gt.created_at BETWEEN ${from.toISOString()} AND ${to.toISOString()}
       ORDER BY gt.created_at DESC
@@ -116,7 +116,7 @@ async function fetchGiftTransactions(
   const result = await sql`
     SELECT gt.id, gt.amount_usdc, gt.created_at, u.username AS supporter_username
     FROM gift_transactions gt
-    LEFT JOIN users u ON u.id = gt.supporter_id
+    LEFT JOIN users u ON u.id = gt.supporter_id AND u.deleted_at IS NULL
     WHERE gt.creator_id = ${creatorId}
     ORDER BY gt.created_at DESC
   `;
@@ -133,7 +133,7 @@ async function fetchSubscriptionTransactions(
       SELECT s.id, s.amount_usdc, COALESCE(s.last_charged_at, s.created_at) AS created_at,
              u.username AS supporter_username
       FROM subscriptions s
-      LEFT JOIN users u ON u.id = s.supporter_id
+      LEFT JOIN users u ON u.id = s.supporter_id AND u.deleted_at IS NULL
       WHERE s.creator_id = ${creatorId}
         AND COALESCE(s.last_charged_at, s.created_at)
           BETWEEN ${from.toISOString()} AND ${to.toISOString()}
@@ -147,7 +147,7 @@ async function fetchSubscriptionTransactions(
     SELECT s.id, s.amount_usdc, COALESCE(s.last_charged_at, s.created_at) AS created_at,
            u.username AS supporter_username
     FROM subscriptions s
-    LEFT JOIN users u ON u.id = s.supporter_id
+    LEFT JOIN users u ON u.id = s.supporter_id AND u.deleted_at IS NULL
     WHERE s.creator_id = ${creatorId}
       AND s.status IN ('active', 'completed', 'cancelled')
     ORDER BY COALESCE(s.last_charged_at, s.created_at) DESC
@@ -358,7 +358,7 @@ async function getTopSupporters(
              SUM(tt.amount_xlm::numeric * ${xlmUsdPrice}) AS total_usd,
              MAX(tt.created_at) AS last_at
       FROM tip_transactions tt
-      LEFT JOIN users u ON u.id = tt.supporter_id
+      LEFT JOIN users u ON u.id = tt.supporter_id AND u.deleted_at IS NULL
       WHERE tt.creator_id = ${creatorId}
       GROUP BY tt.supporter_id, u.username
 
@@ -369,7 +369,7 @@ async function getTopSupporters(
              SUM(gt.amount_usdc::numeric) AS total_usd,
              MAX(gt.created_at) AS last_at
       FROM gift_transactions gt
-      LEFT JOIN users u ON u.id = gt.supporter_id
+      LEFT JOIN users u ON u.id = gt.supporter_id AND u.deleted_at IS NULL
       WHERE gt.creator_id = ${creatorId}
       GROUP BY gt.supporter_id, u.username
 
@@ -380,7 +380,7 @@ async function getTopSupporters(
              SUM(s.amount_usdc::numeric) AS total_usd,
              MAX(COALESCE(s.last_charged_at, s.created_at)) AS last_at
       FROM subscriptions s
-      LEFT JOIN users u ON u.id = s.supporter_id
+      LEFT JOIN users u ON u.id = s.supporter_id AND u.deleted_at IS NULL
       WHERE s.creator_id = ${creatorId}
         AND s.status IN ('active', 'completed', 'cancelled')
       GROUP BY s.supporter_id, u.username

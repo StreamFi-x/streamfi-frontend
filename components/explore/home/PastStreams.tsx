@@ -47,7 +47,7 @@ export function PastStreams() {
     dedupingInterval: 60_000,
   });
 
-  const recordings: Recording[] = data?.recordings ?? [];
+  const recordings: Recording[] = data?.items ?? [];
 
   if (isLoading) {
     return (
