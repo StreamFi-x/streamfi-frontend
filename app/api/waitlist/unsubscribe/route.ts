@@ -1,83 +1,45 @@
-// /* eslint-disable @typescript-eslint/no-explicit-any */
-// import { rateLimit } from "../../../../utils/rate-limit";
-// import { validateEmail } from "../../../../utils/validators";
-// import { sql } from '@vercel/postgres';
-
-// // Rate limiter: 5 requests per minute so as not to abuse it
-// const limiter = rateLimit({
-//   interval: 60 * 1000,
-// //   uniqueTokenPerInterval: 500,
-// //   max: 5,
-// });
-
-//  async function handler(req: any, res: any) {
-//   if (req.method !== "POST") {
-//     return res.status(405).json({ error: "Method not allowed" });
-//   }
-
-//   try {
-//     await limiter.check(res, 5, "UNSUBSCRIBE_RATE_LIMIT");
-//   } catch {
-//     return res.status(429).json({ error: "Rate limit exceeded" });
-//   }
-
-//   const { email } = req.body;
-
-//   if (!email) {
-//     return res.status(400).json({ error: "Email is required" });
-//   }
-
-//   if (!validateEmail(email)) {
-//     return res.status(400).json({ error: "Invalid email format" });
-//   }
-
-//   try {
-//     const checkExisting = await sql`
-//       SELECT * FROM waitlist
-//       WHERE email = ${email} AND unsubscribed_at IS NULL
-//     `;
-
-//     if (checkExisting.rows.length === 0) {
-//       return res.status(404).json({ error: "Email not found or already unsubscribed" });
-//     }
-
-//     await sql`
-//       UPDATE waitlist
-//       SET unsubscribed_at = NOW(), updated_at = NOW()
-//       WHERE email = ${email}
-//     `;
-
-//     return res.status(200).json({ message: "Successfully unsubscribed" });
-//   } catch (error) {
-//     console.error("Unsubscribe error:", error);
-//     return res.status(500).json({ error: "Failed to process unsubscription" });
-//   }
-// }
-
-// export {handler as POST, handler as GET};
-
+import { timingSafeEqual } from "crypto";
+import { NextResponse } from "next/server";
+import { sql } from "@vercel/postgres";
 import { rateLimit } from "../../../../utils/rate-limit";
 import { validateEmail } from "../../../../utils/validators";
-import { sql } from "@vercel/postgres";
 
 const limiter = rateLimit({
   interval: 60 * 1000,
 });
 
-export async function POST(req: Request) {
-  const body = await req.json();
-  const email = body.email;
+function tokensMatch(expected: string, provided: string): boolean {
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(provided);
+  if (expectedBuf.length !== providedBuf.length) {
+    return false;
+  }
+  return timingSafeEqual(expectedBuf, providedBuf);
+}
 
-  if (!email) {
-    return new Response(JSON.stringify({ error: "Email is required" }), {
-      status: 400,
-    });
+async function processUnsubscribe(
+  emailRaw: string | null | undefined,
+  tokenRaw: string | null | undefined
+) {
+  if (!emailRaw) {
+    return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
 
+  const email = emailRaw.trim().toLowerCase();
+
   if (!validateEmail(email)) {
-    return new Response(JSON.stringify({ error: "Invalid email format" }), {
-      status: 400,
-    });
+    return NextResponse.json(
+      { error: "Invalid email format" },
+      { status: 400 }
+    );
+  }
+
+  const token = tokenRaw?.trim();
+  if (!token) {
+    return NextResponse.json(
+      { error: "Unsubscribe verification token is required" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -90,45 +52,72 @@ export async function POST(req: Request) {
       email
     );
   } catch {
-    return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-      status: 429,
-    });
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
   try {
     const checkExisting = await sql`
-      SELECT * FROM subscribers 
+      SELECT unsubscribe_token
+      FROM subscribers
       WHERE email = ${email} AND unsubscribed_at IS NULL
     `;
 
     if (checkExisting.rows.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Email not found or already unsubscribed" }),
-        {
-          status: 404,
-        }
+      return NextResponse.json(
+        { error: "Email not found or already unsubscribed" },
+        { status: 404 }
+      );
+    }
+
+    const row = checkExisting.rows[0] as {
+      unsubscribe_token?: string | null;
+    };
+
+    if (!row.unsubscribe_token || !tokensMatch(row.unsubscribe_token, token)) {
+      return NextResponse.json(
+        { error: "Invalid unsubscribe verification token" },
+        { status: 403 }
       );
     }
 
     await sql`
-      UPDATE subscribers 
-      SET unsubscribed_at = NOW(), updated_at = NOW() 
+      UPDATE subscribers
+      SET unsubscribed_at = NOW(),
+          confirmation_token = NULL,
+          updated_at = NOW()
       WHERE email = ${email}
     `;
 
-    return new Response(
-      JSON.stringify({ message: "Successfully unsubscribed" }),
-      {
-        status: 200,
-      }
+    return NextResponse.json(
+      { message: "Successfully unsubscribed" },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Unsubscribe error:", error);
-    return new Response(
-      JSON.stringify({ error: "Failed to process unsubscription" }),
-      {
-        status: 500,
-      }
+    return NextResponse.json(
+      { error: "Failed to process unsubscription" },
+      { status: 500 }
     );
   }
+}
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  return processUnsubscribe(
+    searchParams.get("email"),
+    searchParams.get("token")
+  );
+}
+
+export async function POST(req: Request) {
+  let body: { email?: string; token?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid request format" },
+      { status: 400 }
+    );
+  }
+  return processUnsubscribe(body.email, body.token);
 }
