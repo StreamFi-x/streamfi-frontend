@@ -5,6 +5,10 @@ import { verifySession } from "@/lib/auth/verify-session";
 
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
+// 60 GET requests per minute per IP for polling (1 req/sec × 60 viewers)
+const isGetRateLimited = createRateLimiter(60_000, 60);
+// 30 DELETE requests per minute per IP for moderation
+const isDeleteRateLimited = createRateLimiter(60_000, 30);
 
 export async function POST(req: NextRequest) {
   const ip =
@@ -154,6 +158,19 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: Request) {
+  const ip = 
+    (req.headers instanceof Headers ? 
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? 
+      req.headers.get("x-real-ip") 
+      : null) ?? "unknown";
+
+  if (await isGetRateLimited(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": "60" } }
+    );
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const playbackId = searchParams.get("playbackId");
@@ -225,6 +242,18 @@ export async function GET(req: Request) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+
+  if (await isDeleteRateLimited(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": "60" } }
+    );
+  }
+
   const session = await verifySession(req);
   if (!session.ok) {
     return session.response;

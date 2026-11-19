@@ -307,6 +307,54 @@ export async function POST(req: Request) {
         break;
       }
 
+      case "video.clip.ready": {
+        const clipAssetId = event.data?.id;
+        const clipPlaybackIds = event.data?.playback_ids as
+          | Array<{ id?: string }>
+          | undefined;
+        const clipPlaybackId = Array.isArray(clipPlaybackIds)
+          ? clipPlaybackIds[0]?.id
+          : undefined;
+
+        if (!clipAssetId || !clipPlaybackId) {
+          console.error(
+            "❌ video.clip.ready missing asset id or playback_id",
+            event.data
+          );
+          break;
+        }
+
+        try {
+          // Find and update the clip record by mux_asset_id
+          const clipResult = await sql`
+            SELECT id, streamer_id FROM stream_clips WHERE mux_asset_id = ${clipAssetId}
+          `;
+
+          if (clipResult.rows.length === 0) {
+            console.warn(
+              "⚠️ video.clip.ready: clip record not found for asset",
+              clipAssetId
+            );
+            break;
+          }
+
+          const clip = clipResult.rows[0];
+
+          await sql`
+            UPDATE stream_clips SET
+              playback_id = ${clipPlaybackId},
+              status = 'ready',
+              updated_at = CURRENT_TIMESTAMP
+            WHERE mux_asset_id = ${clipAssetId}
+          `;
+
+          console.log(`✅ Clip ready and playback enabled: ${clipAssetId}`);
+        } catch (clipErr) {
+          console.error("❌ Failed to update clip status:", clipErr);
+        }
+        break;
+      }
+
       case "video.asset.errored": {
         const erroredAssetId = event.data?.id;
         if (erroredAssetId) {
@@ -348,6 +396,8 @@ export async function GET() {
       "video.live_stream.disconnected",
       "video.live_stream.created",
       "video.live_stream.deleted",
+      "video.asset.ready",
+      "video.clip.ready",
     ],
   });
 }

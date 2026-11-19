@@ -10,6 +10,62 @@ function getIp(req: NextRequest) {
 }
 
 /**
+ * Create a clip via Mux REST API.
+ * When a live stream recording is captured, we can clip from the asset.
+ * For now, clips are created with status 'processing' and a webhook will
+ * mark them ready when the clip asset is ready.
+ */
+async function createMuxClip(
+  liveStreamId: string,
+  startTime: number,
+  endTime: number
+): Promise<{ assetId: string; playbackId: string } | null> {
+  if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
+    console.warn("⚠️ MUX_TOKEN_ID or MUX_TOKEN_SECRET not set");
+    return null;
+  }
+
+  const auth = Buffer.from(
+    `${process.env.MUX_TOKEN_ID}:${process.env.MUX_TOKEN_SECRET}`
+  ).toString("base64");
+
+  try {
+    const response = await fetch("https://api.mux.com/video/v1/assets", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        input: {
+          live_stream_id: liveStreamId,
+          start_time: startTime,
+          end_time: endTime,
+        },
+        playback_policy: ["public"],
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("❌ Mux API error:", error);
+      return null;
+    }
+
+    const asset = await response.json();
+    const playbackId = asset.data?.playback_ids?.[0]?.id ?? null;
+
+    return {
+      assetId: asset.data.id,
+      playbackId: playbackId || "",
+    };
+  } catch (error) {
+    console.error("❌ Failed to create Mux clip:", error);
+    return null;
+  }
+}
+
+/**
  * GET  /api/streams/clips?username=foo&limit=20&offset=0
  *   → public list of ready clips for a streamer
  *
@@ -103,7 +159,7 @@ export async function POST(req: NextRequest) {
 
   // Resolve streamer
   const { rows: streamerRows } = await sql`
-    SELECT id, mux_playback_id, is_live FROM users
+    SELECT id, mux_stream_id, is_live FROM users
     WHERE LOWER(username) = LOWER(${streamer_username})
     LIMIT 1
   `;
@@ -113,6 +169,10 @@ export async function POST(req: NextRequest) {
   const streamer = streamerRows[0];
   if (!streamer.is_live) {
     return NextResponse.json({ error: "Stream is not currently live" }, { status: 409 });
+  }
+
+  if (!streamer.mux_stream_id) {
+    return NextResponse.json({ error: "Streamer's Mux stream not found" }, { status: 500 });
   }
 
   // Get current stream session
@@ -125,11 +185,28 @@ export async function POST(req: NextRequest) {
 
   try {
     const clipTitle = title?.trim() || `Clip by ${session.username ?? "viewer"}`;
+
+    // Call Mux API to create a clip asset
+    let muxAssetId: string | null = null;
+    let muxPlaybackId: string | null = null;
+
+    const clipResult = await createMuxClip(
+      streamer.mux_stream_id,
+      start_offset,
+      start_offset + clipDuration
+    );
+
+    if (clipResult) {
+      muxAssetId = clipResult.assetId;
+      muxPlaybackId = clipResult.playbackId;
+      console.log(`✅ Mux clip created: ${muxAssetId}`);
+    }
+
     const { rows } = await sql`
       INSERT INTO stream_clips
-        (stream_session_id, clipped_by, streamer_id, title, start_offset, duration, status)
+        (stream_session_id, clipped_by, streamer_id, title, start_offset, duration, mux_asset_id, playback_id, status)
       VALUES
-        (${streamSessionId}, ${session.userId}, ${streamer.id}, ${clipTitle}, ${start_offset}, ${clipDuration}, 'processing')
+        (${streamSessionId}, ${session.userId}, ${streamer.id}, ${clipTitle}, ${start_offset}, ${clipDuration}, ${muxAssetId}, ${muxPlaybackId}, 'processing')
       RETURNING id, title, start_offset, duration, status, created_at
     `;
     return NextResponse.json({ clip: rows[0] }, { status: 201 });
