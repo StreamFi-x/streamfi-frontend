@@ -11,6 +11,8 @@ import {
   ChevronDown,
   ChevronUp,
   Share2,
+  Loader2,
+  Clock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -23,14 +25,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getStellarExplorerUrl } from "@/lib/stellar/config";
+import type { TransactionConfirmationProgress } from "@/lib/stellar/tx-confirmation";
 
 interface TipConfirmationProps {
   isOpen: boolean;
   onClose: () => void;
-  state: "success" | "error";
+  state: "confirming" | "success" | "error";
   amount?: string;
   recipientUsername?: string;
   txHash?: string;
+  confirmationProgress?: TransactionConfirmationProgress | null;
   error?: {
     message: string;
     details?: string;
@@ -47,6 +51,7 @@ export function TipConfirmation({
   amount,
   recipientUsername,
   txHash,
+  confirmationProgress,
   error,
   onRetry,
   onSendAnother,
@@ -54,8 +59,15 @@ export function TipConfirmation({
   const [copied, setCopied] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
+  const isConfirming = state === "confirming";
   const isSuccess = state === "success";
   const explorerUrl = txHash ? getStellarExplorerUrl("tx", txHash) : null;
+  const attempt = confirmationProgress?.attempt ?? 0;
+  const maxAttempts = confirmationProgress?.maxAttempts ?? 30;
+  const progressPercent =
+    attempt > 0
+      ? Math.min(95, Math.max(15, Math.round((attempt / maxAttempts) * 100)))
+      : 15;
 
   const handleCopyHash = () => {
     if (txHash) {
@@ -75,10 +87,120 @@ export function TipConfirmation({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={open => {
+        if (!open && !isConfirming) {
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-[425px] overflow-hidden">
         <AnimatePresence mode="wait">
-          {isSuccess ? (
+          {isConfirming ? (
+            <motion.div
+              key="confirming"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6"
+              data-testid="tip-confirmation-pending"
+            >
+              <DialogHeader>
+                <DialogTitle className="text-center text-2xl font-bold flex flex-col items-center gap-4">
+                  <div className="relative flex items-center justify-center w-20 h-20 rounded-full bg-highlight/10 border border-highlight/30">
+                    <Loader2 className="w-10 h-10 text-highlight animate-spin" />
+                  </div>
+                  Confirming on Stellar...
+                </DialogTitle>
+                <DialogDescription className="text-center text-base">
+                  Your tip of <strong>{amount} XLM</strong> to{" "}
+                  <strong>@{recipientUsername}</strong> has been submitted.
+                  Waiting for ledger confirmation.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-1">
+                {/* Step indicator */}
+                <div className="flex items-center justify-between text-xs px-1">
+                  <span className="flex items-center gap-1 text-green-500 font-medium">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Submitted
+                  </span>
+                  <span className="flex items-center gap-1 text-highlight font-medium">
+                    <Clock className="w-3.5 h-3.5" />
+                    Confirming
+                  </span>
+                  <span className="text-muted-foreground">Confirmed</span>
+                </div>
+
+                {/* Progress bar */}
+                <div
+                  className="w-full h-2 bg-muted rounded-full overflow-hidden"
+                  role="progressbar"
+                  aria-valuenow={progressPercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Transaction confirmation progress"
+                >
+                  <div
+                    className="h-full bg-highlight transition-all duration-500 rounded-full"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+
+                <p className="text-xs text-center text-muted-foreground">
+                  {attempt > 0
+                    ? `Checking Stellar ledger (attempt ${attempt} of ${maxAttempts})...`
+                    : "Broadcasting transaction to Stellar Horizon..."}
+                </p>
+
+                {txHash && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Transaction Hash
+                    </p>
+                    <div className="flex items-center gap-2 p-2.5 bg-muted rounded-lg">
+                      <code className="flex-1 text-xs truncate font-mono text-muted-foreground">
+                        {txHash}
+                      </code>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 hover:bg-background"
+                        onClick={handleCopyHash}
+                        aria-label="Copy transaction hash"
+                      >
+                        {copied ? (
+                          <Check className="h-3.5 w-3.5 text-green-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                      {explorerUrl && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 hover:bg-background"
+                          asChild
+                        >
+                          <a
+                            href={explorerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="View on Stellar Explorer"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          ) : isSuccess ? (
             <motion.div
               key="success"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -196,6 +318,47 @@ export function TipConfirmation({
                     "Something went wrong while processing your tip."}
                 </DialogDescription>
               </DialogHeader>
+
+              {txHash && explorerUrl && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Transaction Hash
+                  </p>
+                  <div className="flex items-center gap-2 p-2.5 bg-muted rounded-lg">
+                    <code className="flex-1 text-xs truncate font-mono text-muted-foreground">
+                      {txHash}
+                    </code>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 hover:bg-background"
+                      onClick={handleCopyHash}
+                      aria-label="Copy transaction hash"
+                    >
+                      {copied ? (
+                        <Check className="h-3.5 w-3.5 text-green-500" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 hover:bg-background"
+                      asChild
+                    >
+                      <a
+                        href={explorerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="View on Stellar Explorer"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {error?.details && (
                 <div className="space-y-2 border border-border rounded-lg overflow-hidden">

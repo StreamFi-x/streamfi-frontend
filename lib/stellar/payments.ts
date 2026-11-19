@@ -13,6 +13,13 @@ import {
 import { logger } from "@/lib/tracing/logger";
 import { getTraceHeaders } from "@/lib/tracing/trace-context";
 import { calculateSpendableBalance } from "./reserve";
+export {
+  pollTransactionConfirmation,
+  type TransactionConfirmationStatus,
+  type TransactionConfirmationProgress,
+  type PollTransactionOptions,
+  type PollTransactionResult,
+} from "./tx-confirmation";
 
 const Server = Horizon.Server;
 
