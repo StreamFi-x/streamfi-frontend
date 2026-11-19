@@ -70,14 +70,14 @@ export async function POST(req: NextRequest) {
       `;
       await invalidateFollowCaches(callerId, receiverId);
 
-      try {
-        await evaluateAndAwardBadges(receiverId);
-      } catch (badgeErr) {
-        console.error("[follow] badge evaluation failed:", badgeErr);
-      }
-
-      // Write notification only if this follow was newly created (not a retried/duplicate click)
+      // Run follow side effects only when this relationship was newly created.
       if (followResult.rowCount > 0) {
+        try {
+          await evaluateAndAwardBadges(receiverId);
+        } catch (badgeErr) {
+          console.error("[follow] badge evaluation failed:", badgeErr);
+        }
+
         try {
           // Check if user has follow notifications enabled
           const shouldSend = await shouldSendInAppNotification(
