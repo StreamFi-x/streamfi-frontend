@@ -121,17 +121,53 @@ describe("DELETE /api/streams/recordings/[id]", () => {
     mockDb.on(/DELETE FROM stream_recordings/, { rowCount: 1 });
   });
 
-  it("deletes the row and then the Mux asset", async () => {
+  it("deletes the Mux asset and then the row", async () => {
+    const order: string[] = [];
+    (deleteMuxAssetIfExists as jest.Mock).mockImplementationOnce(async () => {
+      order.push("mux");
+      return "deleted";
+    });
+    mockDb.once(/DELETE FROM stream_recordings/, () => {
+      order.push("db");
+      return { rowCount: 1 };
+    });
     const res = await deleteRecording(req(), params);
     expect(res.status).toBe(200);
     expect(deleteMuxAssetIfExists).toHaveBeenCalledWith("asset-9");
+    expect(order).toEqual(["mux", "db"]);
   });
 
-  it("still succeeds when Mux is unavailable (the sweep reports the orphan)", async () => {
+  it("treats a Mux not_found as already deleted and removes the row", async () => {
+    (deleteMuxAssetIfExists as jest.Mock).mockResolvedValueOnce("not_found");
+    const res = await deleteRecording(req(), params);
+    expect(res.status).toBe(200);
+    expect(mockDb.callsMatching(/DELETE FROM stream_recordings/)).toHaveLength(
+      1
+    );
+  });
+
+  it("keeps the row, logs, and returns an error when Mux fails", async () => {
     (deleteMuxAssetIfExists as jest.Mock).mockRejectedValueOnce(
       new Error("mux down")
     );
     const res = await deleteRecording(req(), params);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(502);
+    expect(mockDb.callsMatching(/DELETE FROM stream_recordings/)).toHaveLength(
+      0
+    );
+    expect(console.error).toHaveBeenCalled();
+  });
+
+  it("does not call Mux for a recording owned by someone else", async () => {
+    mockDb.reset();
+    mockDb.on(/FROM users\s+WHERE privy_id =/, {
+      rows: [{ id: USER, privy_id: "did:privy:user", deleted_at: null }],
+    });
+    mockDb.on(/SELECT user_id, mux_asset_id FROM stream_recordings/, {
+      rows: [{ user_id: "other-user", mux_asset_id: "asset-9" }],
+    });
+    const res = await deleteRecording(req(), params);
+    expect(res.status).toBe(403);
+    expect(deleteMuxAssetIfExists).not.toHaveBeenCalled();
   });
 });
