@@ -111,13 +111,7 @@ export default function NotificationBell() {
   }, [mutate]);
 
   const handleOpen = () => {
-    setOpen(prev => {
-      const next = !prev;
-      if (next && unreadCount > 0) {
-        void markAllRead();
-      }
-      return next;
-    });
+    setOpen(prev => !prev);
   };
 
   const badgeLabel = unreadCount > 9 ? "9+" : String(unreadCount);

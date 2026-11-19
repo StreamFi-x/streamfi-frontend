@@ -122,7 +122,7 @@ describe("POST /api/streams/chat", () => {
   });
 
   it("returns 404 when user or stream not found", async () => {
-    sqlMock.mockResolvedValueOnce({ rows: [] }); // combined query returns nothing
+    sqlMock.mockResolvedValueOnce({ rows: [] });
     const req = makeRequest("POST", {
       wallet: "0xABC",
       playbackId: "pb1",
@@ -594,6 +594,11 @@ describe("DELETE /api/streams/chat", () => {
   });
 
   it("allows stream owner to delete any message", async () => {
+    verifySessionMock.mockResolvedValueOnce({
+      ok: true,
+      userId: 20,
+      wallet: "0xSTREAMOWNER",
+    });
     sqlMock
       .mockResolvedValueOnce({
         rows: [{ id: 42, message_user_id: "random-user", stream_owner_id: "stream-owner-id" }],
