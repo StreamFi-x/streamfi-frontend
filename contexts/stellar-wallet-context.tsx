@@ -15,13 +15,12 @@ import {
   allowAllModules,
   FREIGHTER_ID,
 } from "@creit.tech/stellar-wallets-kit";
-import { getStellarNetwork } from "@/lib/stellar/config";
+import { type StellarNetwork } from "@/lib/stellar/config";
+import {
+  getStellarNetworkGuardState,
+  type StellarNetworkGuardState,
+} from "@/lib/stellar/network-guard";
 import { sessionReplay } from "@/lib/session-replay";
-
-const network =
-  getStellarNetwork() === "mainnet"
-    ? WalletNetwork.PUBLIC
-    : WalletNetwork.TESTNET;
 
 interface PrivySessionUser {
   id: string;
@@ -47,11 +46,16 @@ interface StellarWalletContextType {
   error: string | null;
   /** Privy-authenticated user (Google login). Null if signed in via Stellar wallet only. */
   privyWallet: PrivySessionUser | null;
+  network: StellarNetwork;
+  networkGuard: StellarNetworkGuardState;
+  isMainnetBlocked: boolean;
 }
 
 const StellarWalletContext = createContext<
   StellarWalletContextType | undefined
 >(undefined);
+
+export const useOptionalStellarWallet = () => useContext(StellarWalletContext);
 
 export const useStellarWallet = () => {
   const context = useContext(StellarWalletContext);
@@ -64,6 +68,14 @@ export const useStellarWallet = () => {
 };
 
 export function StellarWalletProvider({ children }: { children: ReactNode }) {
+  // SSR-safe initial guard evaluation; refined with window.location.hostname on mount.
+  const [networkGuard, setNetworkGuard] = useState<StellarNetworkGuardState>(
+    () => getStellarNetworkGuardState({ hostname: "" })
+  );
+  const activeNetwork = networkGuard.network;
+  const walletNetwork =
+    activeNetwork === "mainnet" ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
+
   // Restore the address immediately from localStorage so all wallet types
   // (including Lobstr/WalletConnect) appear connected on page reload without
   // waiting for the async wallet SDK to re-establish its session.
@@ -79,6 +91,23 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [privyWallet, setPrivyWallet] = useState<PrivySessionUser | null>(null);
   const hasAttemptedAutoConnect = useRef(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setNetworkGuard(
+        getStellarNetworkGuardState({ hostname: window.location.hostname })
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (networkGuard.isUnsafeMainnetConfig) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[MainnetSafetyGuard] ${networkGuard.reason ?? "Stellar mainnet configured in a non-production deployment."}`
+      );
+    }
+  }, [networkGuard.isUnsafeMainnetConfig, networkGuard.reason]);
 
   // Listen for successful Privy session creation (dispatched by auth-provider)
   useEffect(() => {
@@ -109,7 +138,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     }
     return new StellarWalletsKit({
       selectedWalletId: FREIGHTER_ID,
-      network,
+      network: walletNetwork,
       modules: allowAllModules(),
     });
   });
@@ -352,6 +381,9 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         isConnecting,
         error,
         privyWallet,
+        network: activeNetwork,
+        networkGuard,
+        isMainnetBlocked: networkGuard.isTransactionBlocked,
       }}
     >
       {children}

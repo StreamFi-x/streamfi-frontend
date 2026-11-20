@@ -30,6 +30,7 @@ import {
 import { TransactionBuilder, Networks } from "@stellar/stellar-sdk";
 import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { getStellarNetwork } from "@/lib/stellar/config";
 import { TipConfirmation } from "./TipConfirmation";
 import { sessionReplay } from "@/lib/session-replay";
 
@@ -45,12 +46,7 @@ interface TipModalProps {
 }
 
 type TransactionState =
-  | "idle"
-  | "building"
-  | "signing"
-  | "submitting"
-  | "success"
-  | "error";
+  "idle" | "building" | "signing" | "submitting" | "success" | "error";
 
 interface Quote {
   quote_token: string;
@@ -92,7 +88,7 @@ export function TipModal({
   const [isLoadingQuote, setIsLoadingQuote] = useState<boolean>(false);
   const [quoteFetchFailed, setQuoteFetchFailed] = useState<boolean>(false);
 
-  const { kit } = useStellarWallet();
+  const { kit, isMainnetBlocked, networkGuard } = useStellarWallet();
   const [feeStroops, setFeeStroops] = useState<number | undefined>(undefined);
   const fee = calculateFeeEstimate(feeStroops);
   const usdEquivalent =
@@ -288,6 +284,22 @@ export function TipModal({
       },
     });
 
+    if (isMainnetBlocked) {
+      const blockedMessage =
+        networkGuard.reason ||
+        "Stellar mainnet tipping is blocked in non-production deployments.";
+      setError(blockedMessage);
+      setTransactionState("error");
+      sessionReplay.recordFlowError("tipping", new Error(blockedMessage), {
+        stage: "mainnet_safety_guard",
+        deploymentContext: networkGuard.deploymentContext,
+      });
+      if (onError) {
+        onError(blockedMessage);
+      }
+      return;
+    }
+
     if (!validateAmount()) {
       sessionReplay.addBreadcrumb({
         category: "tipping",
@@ -322,10 +334,14 @@ export function TipModal({
         if (insufficientBalance) {
           setError("insufficient_balance");
           setTransactionState("error");
-          sessionReplay.recordFlowError("tipping", new Error("Insufficient balance"), {
-            amount,
-            feeStroops: currentFeeStroops,
-          });
+          sessionReplay.recordFlowError(
+            "tipping",
+            new Error("Insufficient balance"),
+            {
+              amount,
+              feeStroops: currentFeeStroops,
+            }
+          );
           if (onError) {
             onError("Insufficient balance");
           }
@@ -352,19 +368,20 @@ export function TipModal({
       if (recipientCheck.status === "account_not_funded") {
         setError("recipient_not_funded");
         setTransactionState("error");
-        sessionReplay.recordFlowError("tipping", new Error("Recipient account is not funded"), {
-          recipientPublicKey: `${recipientPublicKey.slice(0, 4)}...${recipientPublicKey.slice(-4)}`,
-        });
+        sessionReplay.recordFlowError(
+          "tipping",
+          new Error("Recipient account is not funded"),
+          {
+            recipientPublicKey: `${recipientPublicKey.slice(0, 4)}...${recipientPublicKey.slice(-4)}`,
+          }
+        );
         if (onError) {
           onError("Recipient account is not funded on the Stellar network.");
         }
         return;
       }
 
-      const network =
-        process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet"
-          ? "mainnet"
-          : "testnet";
+      const network = getStellarNetwork();
       const transaction = await buildTipTransaction({
         sourcePublicKey: senderPublicKey,
         destinationPublicKey: recipientPublicKey,
@@ -511,7 +528,8 @@ export function TipModal({
     transactionState === "signing" ||
     transactionState === "submitting";
 
-  const canSubmit = amount !== "" && transactionState === "idle";
+  const canSubmit =
+    amount !== "" && transactionState === "idle" && !isMainnetBlocked;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -547,6 +565,23 @@ export function TipModal({
             </div>
           </div>
 
+          {/* Mainnet non-production guard alert */}
+          {isMainnetBlocked && (
+            <div
+              role="alert"
+              data-testid="tip-modal-mainnet-blocked"
+              className="flex items-start gap-2.5 p-3 bg-red-600/15 border border-red-500/40 rounded-xl"
+            >
+              <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-red-500 space-y-1">
+                <p className="font-semibold">
+                  Mainnet Tipping Blocked ({networkGuard.deploymentContext})
+                </p>
+                <p>{networkGuard.reason}</p>
+              </div>
+            </div>
+          )}
+
           {/* XLM price warning */}
           {priceFetchFailed && !isLoadingPrice && (
             <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
@@ -568,7 +603,7 @@ export function TipModal({
                   key={presetAmount}
                   variant="outline"
                   onClick={() => handlePresetClick(presetAmount)}
-                  disabled={isProcessing}
+                  disabled={isProcessing || isMainnetBlocked}
                   className={
                     amount === presetAmount.toString()
                       ? "border-highlight bg-highlight/10 text-highlight hover:bg-highlight/20 font-bold"
@@ -596,7 +631,7 @@ export function TipModal({
                 placeholder="0.00"
                 value={amount}
                 onChange={e => handleAmountChange(e.target.value)}
-                disabled={isProcessing}
+                disabled={isProcessing || isMainnetBlocked}
                 className="pr-14 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-highlight/60"
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">

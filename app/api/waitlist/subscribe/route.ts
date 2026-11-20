@@ -1,28 +1,28 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { validateEmail } from "../../../../utils/validators";
 import { sendWelcomeEmail } from "../../../../utils/send-email";
+import {
+  apiBadRequest,
+  apiCreated,
+  apiInternalError,
+  apiSuccess,
+} from "@/lib/api";
 
 export async function POST(req: NextRequest) {
   let body: { email?: string; name?: string };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid request format" },
-      { status: 400 }
-    );
+    return apiBadRequest("Invalid request format");
   }
 
   if (!body.email) {
-    return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    return apiBadRequest("Email is required");
   }
 
   if (!validateEmail(body.email)) {
-    return NextResponse.json(
-      { error: "Invalid email format" },
-      { status: 400 }
-    );
+    return apiBadRequest("Invalid email format");
   }
 
   try {
@@ -33,10 +33,10 @@ export async function POST(req: NextRequest) {
     const existing = rows[0];
 
     if (existing && !existing.unsubscribed_at) {
-      return NextResponse.json({
-        message: "Already subscribed",
-        alreadySubscribed: true,
-      });
+      return apiSuccess(
+        { alreadySubscribed: true },
+        { message: "Already subscribed", legacyFlat: true }
+      );
     }
 
     if (existing) {
@@ -56,18 +56,17 @@ export async function POST(req: NextRequest) {
 
     // Fire-and-forget — email failure must not fail the subscription
     sendWelcomeEmail(body.email, body.name ?? "").catch(err =>
+      // eslint-disable-next-line no-console
       console.error("[waitlist] Failed to send welcome email:", err)
     );
 
-    return NextResponse.json(
-      { success: true, message: "Successfully subscribed to waitlist" },
-      { status: 201 }
+    return apiCreated(
+      { alreadySubscribed: false },
+      { message: "Successfully subscribed to waitlist", legacyFlat: true }
     );
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error("[waitlist] DB error:", err);
-    return NextResponse.json(
-      { error: "Database operation failed" },
-      { status: 500 }
-    );
+    return apiInternalError("Database operation failed");
   }
 }

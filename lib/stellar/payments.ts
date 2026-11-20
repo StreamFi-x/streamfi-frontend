@@ -13,6 +13,11 @@ import {
 import { logger } from "@/lib/tracing/logger";
 import { getTraceHeaders } from "@/lib/tracing/trace-context";
 import { calculateSpendableBalance } from "./reserve";
+import { getStellarNetwork } from "./config";
+import {
+  assertMainnetAllowedForTransaction,
+  MainnetBlockedError,
+} from "./network-guard";
 
 const Server = Horizon.Server;
 
@@ -200,6 +205,7 @@ export async function buildTipTransaction(
     memo,
     feeStroops,
   } = params;
+  assertMainnetAllowedForTransaction(network);
   const startTime = Date.now();
 
   try {
@@ -213,7 +219,10 @@ export async function buildTipTransaction(
     const networkPassphrase = getNetworkPassphrase(network);
 
     const normalizedAmount = Number(amount);
-    if (!Number.isFinite(normalizedAmount) || normalizedAmount < MIN_TIP_AMOUNT_XLM) {
+    if (
+      !Number.isFinite(normalizedAmount) ||
+      normalizedAmount < MIN_TIP_AMOUNT_XLM
+    ) {
       throw new Error(`Amount must be at least ${MIN_TIP_AMOUNT_XLM} XLM`);
     }
     if (normalizedAmount > MAX_TIP_AMOUNT_XLM) {
@@ -278,6 +287,7 @@ export async function buildUsdcTipTransaction(
     memo,
     feeStroops,
   } = params;
+  assertMainnetAllowedForTransaction(network);
   const startTime = Date.now();
 
   try {
@@ -365,6 +375,7 @@ export async function buildPathPaymentTipTransaction(
     memo,
     strict = "send",
   } = params;
+  assertMainnetAllowedForTransaction(network);
   const startTime = Date.now();
 
   try {
@@ -532,6 +543,8 @@ export async function submitTransaction(
   const startTime = Date.now();
 
   try {
+    assertMainnetAllowedForTransaction(network);
+
     logger.info("Submitting transaction to Stellar", {
       operation: "submitTransaction",
       network,
@@ -555,6 +568,14 @@ export async function submitTransaction(
       ledger: response.ledger,
     };
   } catch (error) {
+    if (error instanceof MainnetBlockedError) {
+      return {
+        success: false,
+        error: error.message,
+        resultCode: error.code,
+      };
+    }
+
     const durationMs = Date.now() - startTime;
     logger.error("Transaction submission failed", {
       operation: "submitTransaction",
@@ -615,8 +636,7 @@ export async function submitTransaction(
  * Defaults to testnet if not set
  */
 export function getCurrentNetwork(): "testnet" | "mainnet" {
-  const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK;
-  return network === "mainnet" ? "mainnet" : "testnet";
+  return getStellarNetwork();
 }
 
 /**
@@ -815,9 +835,7 @@ export class AccountNotFundedError extends Error {
 }
 
 export type BalanceCheckStatus =
-  | "ok"
-  | "insufficient_balance"
-  | "account_not_funded";
+  "ok" | "insufficient_balance" | "account_not_funded";
 
 export interface BalanceCheckResult {
   insufficient: boolean;
@@ -913,14 +931,14 @@ export async function hasInsufficientBalance(
 
 /**
  * Build a ChangeTrust transaction to establish a trustline to a non-native asset
- * 
+ *
  * @param publicKey - Account public key establishing the trustline
  * @param asset - Asset object (e.g., USDC) to create trustline for
  * @param network - "testnet" or "mainnet"
  * @param memo - Optional transaction memo
  * @param feeStroops - Optional custom fee in stroops (uses network default if omitted)
  * @returns Unsigned Stellar transaction ready for client signing
- * 
+ *
  * Trustlines lock up 0.5 XLM of account minimum balance reserve.
  * The sending account must have enough XLM to cover this reserve increase.
  */
@@ -931,6 +949,7 @@ export async function buildChangeTrustTransaction(
   memo?: string,
   feeStroops?: number
 ): Promise<Transaction> {
+  assertMainnetAllowedForTransaction(network);
   const startTime = Date.now();
 
   try {
@@ -994,7 +1013,9 @@ export async function buildChangeTrustTransaction(
           `Source account not found: ${publicKey}. Account must be funded before establishing a trustline.`
         );
       }
-      throw new Error(`Failed to build trustline transaction: ${error.message}`);
+      throw new Error(
+        `Failed to build trustline transaction: ${error.message}`
+      );
     }
     throw new Error("Failed to build trustline transaction: Unknown error");
   }

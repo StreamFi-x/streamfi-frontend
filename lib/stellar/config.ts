@@ -48,3 +48,14 @@ export function getStellarExplorerUrl(
 
   return `${baseUrl}/${type}/${value}`;
 }
+
+export {
+  type DeploymentContext,
+  type StellarNetworkGuardState,
+  type NetworkGuardOptions,
+  MainnetBlockedError,
+  getDeploymentContext,
+  isNonProductionDeployment,
+  getStellarNetworkGuardState,
+  assertMainnetAllowedForTransaction,
+} from "./network-guard";
