@@ -8,7 +8,8 @@ import {
   isMergeableCreator,
   prepareCreatorPatch,
 } from "@/lib/db/jsonb-contracts";
-import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { createSanitizedErrorResponse } from '@/lib/api/error-response';
+import { invalidateUserCaches } from '@/lib/cache/invalidation';
 import { verifySession } from "@/lib/auth/verify-session";
 import { shouldBypassAuth } from "@/lib/dev-mode";
 
@@ -220,11 +221,7 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json(
-        {
-          error: "Failed to create Mux stream",
-          details:
-            muxError instanceof Error ? muxError.message : "Unknown Mux error",
-        },
+        { error: "Failed to create stream. Please try again later." },
         { status: 500 }
       );
     }
@@ -267,9 +264,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         {
-          error: "Failed to save stream data to database",
-          details:
-            dbError instanceof Error ? dbError.message : "Database error",
+          error: "Failed to create stream. Please try again later.",
         },
         { status: 500 }
       );
@@ -293,17 +288,6 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error("❌ Stream creation error:", error);
-
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    const errorStack = error instanceof Error ? error.stack : "";
-
-    console.log("Error details:", {
-      message: errorMessage,
-      stack: errorStack,
-      timestamp: new Date().toISOString(),
-    });
-
     if (error instanceof Error) {
       if (error.message.includes("Mux")) {
         return NextResponse.json(
@@ -311,21 +295,16 @@ export async function POST(req: NextRequest) {
           { status: 503 }
         );
       }
-
       if (error.message.includes("database") || error.message.includes("sql")) {
         return NextResponse.json(
-          { error: "Database error. Please try again later." },
+          { error: "Service temporarily unavailable. Please try again later." },
           { status: 503 }
         );
       }
     }
-
-    return NextResponse.json(
-      {
-        error: "Failed to create stream",
-        details: errorMessage,
-      },
-      { status: 500 }
-    );
+    return createSanitizedErrorResponse(error, {
+      context: 'streams/create POST',
+      publicMessage: 'Failed to create stream',
+    });
   }
 }

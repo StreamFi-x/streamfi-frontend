@@ -203,7 +203,7 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
       dbError = error instanceof Error ? error : new Error(String(error));
       logDbQuery('SELECT user wallet', query, dbError);
       return NextResponse.json(
-        { error: 'Database error' },
+        { error: 'Unable to process tip request. Please try again later.' },
         { status: 500, headers: { 'x-request-id': traceId || '' } }
       );
     }

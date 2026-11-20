@@ -4,6 +4,7 @@ import { sql } from "@vercel/postgres";
 import { withAdminAudit } from "@/lib/audit/admin-events";
 import { cacheHeaders, cacheTags } from "@/lib/cache";
 import { invalidateCategoryCaches } from "@/lib/cache/invalidation";
+import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 import {
   findCategoryByTitle,
   getAllCategories,
@@ -93,25 +94,8 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Unhandled category creation error:", error);
-
-    const message = error instanceof Error ? error.message : "Unknown error";
-    const stack = error instanceof Error ? error.stack : "";
-
-    console.log("Error details:", {
-      message,
-      stack,
-      timestamp: new Date().toISOString(),
-    });
-
-    return NextResponse.json(
-      {
-        error: "Failed to create category",
-        details: message,
-      },
-      { status: 500 }
-    );
-  }
+  return createSanitizedErrorResponse(error, { context: 'category POST', publicMessage: 'Failed to create category' });
+}
 }
 
 function summary({ id, title, tags, imageurl }: StreamCategory) {

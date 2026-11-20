@@ -28,6 +28,7 @@ import { verifyToken } from "@/lib/auth/sign-token";
 import { hashToken } from "@/lib/sessions/user-sessions";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { createSanitizedErrorResponse } from "@/lib/api/error-response";
 
 // 10 attempts per 15 minutes per IP — confirm is guess-resistant already
 // (128-bit signed token) but this keeps automated brute force off the table.
@@ -127,7 +128,12 @@ export async function POST(request: NextRequest) {
 
     await sql`
       UPDATE users
-      SET emailverified = true, email = ${email}, updated_at = NOW()
+      SET emailverified = true,
+          email = ${email},
+          pending_email = NULL,
+          email_change_status = 'none',
+          email_change_failure_reason = NULL,
+          updated_at = NOW()
       WHERE id = ${userId}
     `;
     await invalidateUserCaches({ id: userId });
@@ -138,9 +144,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("[routes-f auth-email-verify-confirm POST]", error);
-    return NextResponse.json(
-      { error: "Failed to verify email" },
-      { status: 500 }
-    );
+    return createSanitizedErrorResponse(error, "Failed to verify email");
   }
 }
