@@ -12,6 +12,12 @@ class StellarWalletsKit {
   openModal = jest.fn().mockResolvedValue(undefined);
   setWallet = jest.fn();
   getAddress = jest.fn().mockResolvedValue({ address: "" });
+  getSupportedWallets = jest.fn().mockResolvedValue([]);
 }
 
-module.exports = { WalletNetwork, StellarWalletsKit };
+module.exports = {
+  WalletNetwork,
+  StellarWalletsKit,
+  FREIGHTER_ID: "freighter",
+  allowAllModules: () => [],
+};

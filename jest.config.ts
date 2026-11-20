@@ -29,6 +29,7 @@ const config = {
   // An array of glob patterns indicating a set of files for which coverage information should be collected
   collectCoverageFrom: [
     "components/**/*.{js,jsx,ts,tsx}",
+    "contexts/**/*.{js,jsx,ts,tsx}",
     "app/**/*.{js,jsx,ts,tsx}",
     "lib/**/*.{js,jsx,ts,tsx}",
     "hooks/**/*.{js,jsx,ts,tsx}",
@@ -61,12 +62,9 @@ const config = {
 
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
-    global: {
-      branches: 0,
-      functions: 0,
-      lines: 0,
-      statements: 0,
-    },
+    "./contexts/stellar-wallet-context.tsx": { statements: 60 },
+    "./components/tipping/TipModal.tsx": { statements: 60 },
+    "./app/api/tips/get-quote/route.ts": { statements: 75 },
   },
 
   // Test file patterns
