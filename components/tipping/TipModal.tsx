@@ -511,7 +511,18 @@ export function TipModal({
     transactionState === "signing" ||
     transactionState === "submitting";
 
-  const canSubmit = amount !== "" && transactionState === "idle";
+  const parsedAmount = parseFloat(amount);
+  const isAmountValid =
+    !isNaN(parsedAmount) &&
+    parsedAmount > 0 &&
+    parsedAmount >= MIN_TIP_AMOUNT &&
+    parsedAmount <= MAX_TIP_AMOUNT;
+
+  const canSubmit =
+    isAmountValid &&
+    isValidStellarPublicKey(recipientPublicKey) &&
+    isValidStellarPublicKey(senderPublicKey) &&
+    transactionState === "idle";
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
