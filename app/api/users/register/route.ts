@@ -4,7 +4,7 @@ import { sql } from "@vercel/postgres";
 import { sendWelcomeRegistrationEmail } from "@/utils/send-email";
 import { createMuxStream } from "@/lib/mux/server";
 import { createRateLimiter } from "@/lib/rate-limit";
-import { getRandomProfileIcon } from "@/lib/profile-icons";
+import { getRandomProfileIcon, isPresetIcon } from "@/lib/profile-icons";
 import {
   JsonbContractError,
   prepareCreator,
@@ -191,7 +191,12 @@ async function handler(req: NextRequest) {
         ${muxStream?.id ?? null},
         ${muxStream?.playbackId ?? null},
         ${muxStream?.streamKey ?? null},
-        ${getRandomProfileIcon()}
+        ${
+          typeof requestBody.avatar === "string" &&
+          isPresetIcon(requestBody.avatar)
+            ? requestBody.avatar
+            : getRandomProfileIcon()
+        }
       )
     `;
 

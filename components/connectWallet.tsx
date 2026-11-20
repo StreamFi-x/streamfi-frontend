@@ -4,10 +4,11 @@ import type React from "react";
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ExternalLink, X } from "lucide-react";
+import { AlertCircle, ExternalLink, QrCode, Smartphone, X } from "lucide-react";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { usePrivyAuth } from "@/hooks/usePrivyAuth";
 import { sessionReplay } from "@/lib/session-replay";
+import { WALLET_CONNECT_ID } from "@/lib/stellar/walletconnect";
 
 interface ConnectModalProps {
   isModalOpen: boolean;
@@ -20,9 +21,16 @@ interface WalletInfo {
   name: string;
   installUrl?: string;
   description: string;
+  isMobileQr?: boolean;
 }
 
 const STELLAR_WALLETS: WalletInfo[] = [
+  {
+    id: WALLET_CONNECT_ID,
+    name: "Mobile Wallet (QR Code)",
+    description: "Scan QR with Lobstr, xBull, or Freighter mobile",
+    isMobileQr: true,
+  },
   {
     id: "freighter",
     name: "Freighter",
@@ -44,7 +52,7 @@ const STELLAR_WALLETS: WalletInfo[] = [
   {
     id: "lobstr",
     name: "Lobstr",
-    description: "Mobile + web",
+    description: "Browser extension · use QR above for mobile app",
     installUrl: "https://lobstr.co/",
   },
   {
@@ -72,6 +80,8 @@ export default function ConnectWalletModal({
     isConnecting,
     connectWallet,
     error: walletError,
+    isWalletConnectAvailable,
+    pendingWalletSwitch,
   } = useStellarWallet();
   const {
     signInWithGoogle,
@@ -89,12 +99,26 @@ export default function ConnectWalletModal({
   const hasOpened = useRef(false);
 
   useEffect(() => {
-    // Auto-close if user is already authenticated (Stellar wallet or Privy Google)
-    if (isModalOpen && (isConnected || privyAuthenticated)) {
+    // Auto-close if user is already authenticated (Stellar wallet or Privy Google),
+    // unless a Privy-to-wallet switch confirmation is currently pending or we are
+    // in walletsOnly mode for a Privy user connecting an external wallet.
+    if (
+      isModalOpen &&
+      !pendingWalletSwitch &&
+      (isConnected || (!walletsOnly && privyAuthenticated))
+    ) {
       setIsModalOpen(false);
       router.push("/explore");
     }
-  }, [isConnected, privyAuthenticated, isModalOpen, setIsModalOpen, router]);
+  }, [
+    isConnected,
+    privyAuthenticated,
+    isModalOpen,
+    pendingWalletSwitch,
+    walletsOnly,
+    setIsModalOpen,
+    router,
+  ]);
 
   useEffect(() => {
     if (hasOpened.current && !isLoading && !isConnecting && !isConnected) {
@@ -285,11 +309,19 @@ export default function ConnectWalletModal({
 
               {/* Connecting state */}
               {isConnecting && (
-                <div className="flex flex-col items-center gap-3 py-4">
+                <div className="flex flex-col items-center gap-3 py-4 text-center">
                   <div className="w-10 h-10 rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin" />
-                  <p className="text-white/50 text-sm">
-                    Approve the connection in your wallet
+                  <p className="text-white/70 text-sm font-medium">
+                    {selectedWallet === WALLET_CONNECT_ID
+                      ? "Scan the QR code with your mobile Stellar wallet"
+                      : "Approve the connection in your wallet"}
                   </p>
+                  {selectedWallet === WALLET_CONNECT_ID && (
+                    <p className="text-white/40 text-xs max-w-xs">
+                      Open Lobstr, xBull, or Freighter on your phone and scan
+                      the WalletConnect QR code to establish a session.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -331,25 +363,51 @@ export default function ConnectWalletModal({
                 <div className="space-y-1.5">
                   {STELLAR_WALLETS.map(wallet => {
                     const isConnectingThis = connectingWalletId === wallet.id;
+                    const isQrUnavailable =
+                      wallet.isMobileQr && !isWalletConnectAvailable;
                     return (
                       <button
                         key={wallet.id}
                         onClick={() => handleWalletClick(wallet.id)}
                         disabled={isConnectingThis}
-                        className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.12] transition-all text-left group disabled:cursor-wait"
+                        className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl border transition-all text-left group disabled:cursor-wait ${
+                          wallet.isMobileQr
+                            ? "bg-purple-500/[0.08] hover:bg-purple-500/[0.14] border-purple-500/25 hover:border-purple-500/40"
+                            : "bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.06] hover:border-white/[0.12]"
+                        }`}
                       >
-                        {/* Wallet initial avatar */}
-                        <div className="w-9 h-9 rounded-lg bg-white/[0.07] flex items-center justify-center flex-shrink-0">
-                          <span className="text-white/70 font-semibold text-sm group-hover:text-white/90 transition-colors">
-                            {wallet.name.charAt(0)}
-                          </span>
+                        {/* Wallet icon / initial avatar */}
+                        <div
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                            wallet.isMobileQr
+                              ? "bg-purple-500/20 text-purple-300"
+                              : "bg-white/[0.07]"
+                          }`}
+                        >
+                          {wallet.isMobileQr ? (
+                            <QrCode className="w-4 h-4" />
+                          ) : (
+                            <span className="text-white/70 font-semibold text-sm group-hover:text-white/90 transition-colors">
+                              {wallet.name.charAt(0)}
+                            </span>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-white/85 text-sm font-medium leading-none mb-1 group-hover:text-white transition-colors">
-                            {wallet.name}
-                          </p>
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-white/85 text-sm font-medium leading-none group-hover:text-white transition-colors">
+                              {wallet.name}
+                            </p>
+                            {wallet.isMobileQr && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">
+                                <Smartphone className="w-2.5 h-2.5" />
+                                QR
+                              </span>
+                            )}
+                          </div>
                           <p className="text-white/30 text-xs">
-                            {wallet.description}
+                            {isQrUnavailable
+                              ? "Requires WalletConnect project ID configuration"
+                              : wallet.description}
                           </p>
                         </div>
                         {isConnectingThis && (
