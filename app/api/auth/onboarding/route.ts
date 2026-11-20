@@ -23,6 +23,11 @@ import {
   encryptCustodialSecret,
 } from "@/lib/custodial-keys";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { prepareUsername } from "@/lib/validation/username";
+import {
+  LOOKALIKE_USERNAME_MESSAGE,
+  findUsernameConflict,
+} from "@/lib/users/username-conflict";
 
 // ─── Username validation ───────────────────────────────────────────────────────
 
@@ -70,19 +75,22 @@ export async function POST(req: NextRequest) {
 
   // Normalize to lowercase — all usernames stored as lowercase to prevent
   // case-variant duplicates (e.g. "DumDumboi" vs "dumdumboi")
-  const username = body.username!.trim().toLowerCase();
+  const prepared = prepareUsername(body.username!);
+  const username = prepared.username;
   const bio = body.bio?.trim() ?? null;
 
   // 3. Check username isn't already taken (case-insensitive via stored lowercase)
   try {
-    const { rows: existing } = await sql`
-      -- tombstone-aware: identifiers stay reserved until the account is purged
-      SELECT id FROM users WHERE username = ${username} AND id != ${session.userId}
-      LIMIT 1
-    `;
-    if (existing.length > 0) {
+    const conflict = await findUsernameConflict(prepared, session.userId);
+    if (conflict === "exact") {
       return NextResponse.json(
         { error: "Username already taken" },
+        { status: 409 }
+      );
+    }
+    if (conflict === "lookalike") {
+      return NextResponse.json(
+        { error: LOOKALIKE_USERNAME_MESSAGE, code: "USERNAME_LOOKALIKE" },
         { status: 409 }
       );
     }
@@ -133,6 +141,7 @@ export async function POST(req: NextRequest) {
         UPDATE users
         SET
           username              = ${username},
+          username_skeleton     = ${prepared.skeleton},
           wallet                = ${walletPublicKey},
           encrypted_stellar_key = ${encryptedSecret},
           auth_type             = 'privy',
@@ -146,6 +155,7 @@ export async function POST(req: NextRequest) {
         UPDATE users
         SET
           username   = ${username},
+          username_skeleton = ${prepared.skeleton},
           auth_type  = 'privy',
           bio        = COALESCE(${bio}, bio),
           updated_at = NOW()

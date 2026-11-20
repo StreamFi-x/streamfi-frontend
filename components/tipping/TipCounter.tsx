@@ -1,5 +1,6 @@
 "use client";
 
+import { tipFlowHeaders } from "@/lib/tracing/tip-flow";
 import React, { useState, useEffect, useCallback } from "react";
 import useSWR from "swr";
 import {
@@ -212,7 +213,7 @@ export function TipCounter({
       // Requirements specify POST /api/tips/refresh-total
       const res = await fetch("/api/tips/refresh-total", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: tipFlowHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ username }),
       });
       if (res.ok) {

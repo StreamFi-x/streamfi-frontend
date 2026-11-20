@@ -3,6 +3,7 @@
 ## Overview
 
 This codebase implements **correlation-ID-based distributed tracing** across all service boundaries:
+
 - Next.js API route handlers
 - Neon Postgres database queries
 - Stellar/Horizon blockchain API
@@ -15,6 +16,7 @@ All requests are tagged with a unique `x-request-id` (trace ID) that flows throu
 **Chosen: Lightweight Correlation ID scheme**
 
 **Rationale:**
+
 - **Simpler to adopt**: Minimal instrumentation footprint; no backend tracing platform required
 - **Lower overhead**: No span collection/export; just headers + structured logs
 - **Fits current stack**: Works with existing console logging; no new dependencies
@@ -29,22 +31,25 @@ All requests are tagged with a unique `x-request-id` (trace ID) that flows throu
 **Purpose:** AsyncLocalStorage-based request-scoped context that flows through async call chains.
 
 **Key Exports:**
+
 - `createTraceContext(traceId?, parentSpanId?)` — Create a new trace context or extract from incoming headers
 - `withTraceContextAsync(context, fn)` — Execute function within trace context
 - `getTraceHeaders()` — Get propagation headers for outbound requests
 - `formatTraceContext()` — Get trace context object for logging
 
 **Data Structure:**
+
 ```typescript
 interface TraceContext {
-  traceId: string;              // e.g., "trace-550e8400-e29b-41d4-a716-446655440000"
-  spanId: string;               // e.g., "span-6ba7b810-9dad-11d1-80b4-00c04fd430c8"
-  parentSpanId?: string;        // For nested operations
-  timestamp: number;            // Request start time (ms)
+  traceId: string; // e.g., "trace-550e8400-e29b-41d4-a716-446655440000"
+  spanId: string; // e.g., "span-6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+  parentSpanId?: string; // For nested operations
+  timestamp: number; // Request start time (ms)
 }
 ```
 
 **How It Works:**
+
 - Each incoming request creates a `TraceContext` in the middleware
 - `AsyncLocalStorage` ensures all nested async calls in that request see the same context
 - No explicit passing required — functions call `getCurrentTraceContext()` to access it
@@ -54,6 +59,7 @@ interface TraceContext {
 **Purpose:** JSON-based structured logging that automatically injects trace context into every log line.
 
 **Interface:**
+
 ```typescript
 logger.info(message, data?);
 logger.warn(message, data?);
@@ -62,6 +68,7 @@ logger.debug(message, data?);
 ```
 
 **Output Format:**
+
 ```json
 {
   "timestamp": "2026-09-24T14:23:45.123Z",
@@ -81,6 +88,7 @@ All log lines from a single request automatically include the same `traceId`, ma
 **Purpose:** Generate or extract trace ID for every incoming request; propagate through response headers.
 
 **Flow:**
+
 1. Extract incoming `x-request-id` / `x-trace-id` from request headers (or generate new one)
 2. Create trace context from extracted/generated ID
 3. Run all downstream logic within that context
@@ -93,6 +101,7 @@ All log lines from a single request automatically include the same `traceId`, ma
 **Purpose:** Higher-order function that wraps individual route handlers with automatic tracing.
 
 **Usage:**
+
 ```typescript
 const handler = async (req: NextRequest) => {
   // Your route logic here
@@ -102,6 +111,7 @@ export const POST = withTracing(handler);
 ```
 
 **Provides:**
+
 - Automatic trace context setup per route
 - Request start/end logging with duration
 - Error logging with full error context
@@ -112,18 +122,20 @@ export const POST = withTracing(handler);
 **Purpose:** Wrapper around `fetch()` that automatically propagates trace headers to external APIs.
 
 **Usage:**
+
 ```typescript
-import { tracedFetch } from '@/lib/tracing/fetch-tracer';
+import { tracedFetch } from "@/lib/tracing/fetch-tracer";
 
 const data = await tracedFetch(muxApiUrl, {
-  method: 'POST',
+  method: "POST",
   body: JSON.stringify(payload),
-  serviceName: 'mux',
-  operation: 'createStream',
+  serviceName: "mux",
+  operation: "createStream",
 });
 ```
 
 **Provides:**
+
 - Automatic trace header injection (`x-request-id`, `x-trace-id`, `x-span-id`)
 - Structured logging of outbound request (service, operation, duration, status)
 - Error tracking with trace context
@@ -133,17 +145,19 @@ const data = await tracedFetch(muxApiUrl, {
 **Purpose:** Inject trace context into SQL queries as comments (for database-level debugging).
 
 **Usage:**
+
 ```typescript
-import { addTraceComment, logDbQuery } from '@/lib/tracing/db-tracer';
+import { addTraceComment, logDbQuery } from "@/lib/tracing/db-tracer";
 
 const query = addTraceComment(`SELECT * FROM users WHERE id = $1`);
 // Query becomes: "SELECT * FROM users WHERE id = $1 /* trace_id=... span_id=... */"
 
 // Log the operation
-logDbQuery('SELECT user', query);
+logDbQuery("SELECT user", query);
 ```
 
 **Provides:**
+
 - SQL comment injection for DB query analysis
 - Structured logging of database operations
 - Error tracking for failed queries
@@ -210,11 +224,13 @@ Complete trace through the system for `POST /api/tips/send`:
 To debug why a specific tip was slow or failed:
 
 **Step 1:** Get the trace ID from the response or client request
+
 ```
 requestId: "trace-550e8400-e29b-41d4-a716-446655440000"
 ```
 
 **Step 2:** Search all logs for that trace ID
+
 ```bash
 # Next.js application logs
 grep "trace-550e8400-e29b-41d4-a716-446655440000" /var/log/app.log | jq .
@@ -230,6 +246,7 @@ grep "trace-550e8400-e29b-41d4-a716-446655440000" /var/log/app.log | jq .
 ```
 
 **Step 3:** Cross-reference with external services
+
 ```bash
 # Mux logs (if integrated)
 curl "https://api.mux.com/logs?trace_id=trace-550e8400-e29b-41d4-a716-446655440000"
@@ -246,6 +263,7 @@ SELECT * FROM pg_stat_statements WHERE query LIKE '%trace_id=trace-550e8400%';
 ## Files Changed
 
 ### New Files Created
+
 - `lib/tracing/trace-context.ts` — Core trace context management
 - `lib/tracing/logger.ts` — Structured logging with trace injection
 - `lib/tracing/api-route-wrapper.ts` — Route handler wrapper
@@ -255,6 +273,7 @@ SELECT * FROM pg_stat_statements WHERE query LIKE '%trace_id=trace-550e8400%';
 - `app/api/tips/send/route.ts` — Example end-to-end traced endpoint
 
 ### Modified Files
+
 - `_middleware.ts` → Deprecated (functionality moved to `middleware.ts`)
 - `lib/mux/server.ts` — Updated to use structured logger
 - `lib/stellar/horizon.ts` — Updated to use structured logger
@@ -265,8 +284,9 @@ SELECT * FROM pg_stat_statements WHERE query LIKE '%trace_id=trace-550e8400%';
 To add tracing to additional endpoints or services:
 
 ### For Route Handlers
+
 ```typescript
-import { withTracing } from '@/lib/tracing/api-route-wrapper';
+import { withTracing } from "@/lib/tracing/api-route-wrapper";
 
 const handler = async (req: NextRequest) => {
   // Your logic here
@@ -276,41 +296,44 @@ export const POST = withTracing(handler);
 ```
 
 ### For External API Calls
+
 ```typescript
-import { tracedFetch } from '@/lib/tracing/fetch-tracer';
+import { tracedFetch } from "@/lib/tracing/fetch-tracer";
 
 const result = await tracedFetch(url, {
-  method: 'POST',
+  method: "POST",
   body: JSON.stringify(payload),
-  serviceName: 'external-service',
-  operation: 'operationName',
+  serviceName: "external-service",
+  operation: "operationName",
 });
 ```
 
 ### For Database Queries
+
 ```typescript
-import { logger } from '@/lib/tracing/logger';
-import { addTraceComment, logDbQuery } from '@/lib/tracing/db-tracer';
+import { logger } from "@/lib/tracing/logger";
+import { addTraceComment, logDbQuery } from "@/lib/tracing/db-tracer";
 
 const query = addTraceComment(`SELECT * FROM table WHERE id = $1`);
 try {
   const result = await sql`SELECT * FROM table WHERE id = ${id}`;
-  logDbQuery('SELECT record', query);
+  logDbQuery("SELECT record", query);
 } catch (error) {
-  logDbQuery('SELECT record', query, error);
+  logDbQuery("SELECT record", query, error);
 }
 ```
 
 ### For Structured Logging
-```typescript
-import { logger } from '@/lib/tracing/logger';
 
-logger.info('Operation successful', {
+```typescript
+import { logger } from "@/lib/tracing/logger";
+
+logger.info("Operation successful", {
   userId: user.id,
   duration: Date.now() - startTime,
 });
 
-logger.error('Operation failed', error);
+logger.error("Operation failed", error);
 ```
 
 ## Log Aggregation / Export
@@ -318,6 +341,7 @@ logger.error('Operation failed', error);
 Current implementation logs to stdout in JSON format. To integrate with log aggregation platforms:
 
 ### Datadog
+
 ```bash
 # Kubernetes pod annotation
 datadog.ad.io/logs: |
@@ -332,6 +356,7 @@ datadog.ad.io/logs: |
 ```
 
 ### Honeycomb
+
 ```typescript
 // Add to logger.ts to send traces
 fetch('https://api.honeycomb.io/v1/traces', {
@@ -342,6 +367,7 @@ fetch('https://api.honeycomb.io/v1/traces', {
 ```
 
 ### Elasticsearch / ELK Stack
+
 ```bash
 # Logstash configuration to parse JSON logs
 input {
@@ -362,6 +388,7 @@ output {
 To verify tracing is working end-to-end:
 
 1. **Call the traced endpoint:**
+
    ```bash
    curl -X POST http://localhost:3000/api/tips/send \
      -H "Content-Type: application/json" \
@@ -369,11 +396,13 @@ To verify tracing is working end-to-end:
    ```
 
 2. **Capture the `x-request-id` from response headers:**
+
    ```
    x-request-id: trace-550e8400-e29b-41d4-a716-446655440000
    ```
 
 3. **Search application logs for that trace ID:**
+
    ```bash
    grep "trace-550e8400-e29b-41d4-a716-446655440000" /var/log/app.log | jq . | head -20
    ```
@@ -393,3 +422,34 @@ To verify tracing is working end-to-end:
 3. **Automatic Database Tracing:** Hook `@vercel/postgres` to auto-inject trace context
 4. **Mux API Headers:** Configure Mux SDK to accept custom headers for trace propagation
 5. **Performance Metrics:** Add p95/p99 latency tracking per service hop
+
+## Correlation IDs
+
+A trace ID identifies one request. A correlation ID identifies one user action
+that spans several requests, so a single value finds the whole sequence in the
+logs.
+
+- The client creates one ID per action (`lib/tracing/correlation.ts`) and sends
+  it as the `x-correlation-id` header.
+- `withTracing` accepts it only if it matches `[A-Za-z0-9_-]{8,64}` (anything
+  else is dropped, so clients cannot inject text into logs), stores it in the
+  trace context, and echoes it in the response header.
+- The structured logger adds `correlationId` to every log line written during
+  the request, and `getTraceHeaders()` forwards it on outbound calls.
+
+### Tipping flow
+
+`lib/tracing/tip-flow.ts` starts a flow when the tip modal opens. The quote
+request (`POST /api/tips/get-quote`) and the totals refresh
+(`POST /api/tips/refresh-total`, from `TipCounter` and `TipHistory`) send the
+flow's ID. After the modal closes the ID stays valid for 60 seconds so the
+follow-up refresh joins the same action; with no flow, a refresh gets its own
+fresh ID. `POST /api/tips/send` reads the header the same way. All three routes
+run under `withTracing`.
+
+To reconstruct one tip, search the logs for the ID shown in the
+`x-correlation-id` response header:
+
+```
+grep '"correlationId":"corr-..."' app.log
+```
