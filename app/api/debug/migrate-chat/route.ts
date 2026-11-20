@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { checkDebugSecret } from "@/lib/debug-auth";
+import { createSanitizedErrorResponse } from '@/lib/api/error-response';
+import { checkDebugSecret } from '@/lib/debug-auth';
 
 /**
  * One-time migration to bring chat_messages and stream_sessions up to the
@@ -147,13 +148,10 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     console.error("❌ Migration error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        changes_so_far: done,
-      },
-      { status: 500 }
-    );
+    return createSanitizedErrorResponse(error, {
+      context: 'debug/migrate-chat',
+      publicMessage: 'Migration failed',
+      extra: { success: false, changes_so_far: done },
+    });
   }
 }

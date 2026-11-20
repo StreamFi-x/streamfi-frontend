@@ -18,6 +18,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 import { z } from "zod";
 import {
   sendNewFollowerEmail,
@@ -220,27 +221,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         { status: 200 }
       );
     } else {
+      console.error('[Transactional Email API] Sending email failed:', result.error);
       return NextResponse.json(
-        {
-          success: false,
-          error: "Failed to send email",
-          details: result.error,
-        },
-        { status: 500 }
+        { success: false, error: 'Failed to send email' },
+        { status: 500 },
       );
     }
   } catch (error) {
-    console.error("[Transactional Email API] Unhandled error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Internal server error",
-        details: message,
-      },
-      { status: 500 }
-    );
+    // Use sanitized error response for unexpected errors
+    return createSanitizedErrorResponse(error, {
+      context: 'send-transactional-email POST',
+      publicMessage: 'Internal server error',
+      extra: { success: false },
+    });
   }
 }
 

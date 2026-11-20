@@ -671,9 +671,18 @@ const MAX_FEE_STROOPS = 100_000;
 interface CachedFee {
   stroops: number;
   fetchedAt: number;
+  isFallback: boolean;
+}
+
+export interface FeeEstimateDetails {
+  stroops: number;
+  xlm: number;
+  baseFeeStroops: number;
+  isSurgePricing: boolean;
+  isFallback: boolean;
 }
 const feeCache = new Map<string, CachedFee>();
-const feeInFlight = new Map<string, Promise<number>>();
+const feeInFlight = new Map<string, Promise<CachedFee>>();
 
 export function resetFeeCacheForTests(): void {
   feeCache.clear();
@@ -715,35 +724,55 @@ async function fetchFeeStroops(
  * callers. If Horizon's feeStats cannot be read, the last known value is used,
  * else the network minimum.
  */
-export async function getRecommendedFeeStroops(
-  network: "testnet" | "mainnet" = getCurrentNetwork()
-): Promise<number> {
+// Internal cached fee fetcher
+async function getCachedFee(network: "testnet" | "mainnet" = getCurrentNetwork()): Promise<CachedFee> {
   const cached = feeCache.get(network);
   if (cached && Date.now() - cached.fetchedAt < FEE_CACHE_TTL_MS) {
-    return cached.stroops;
+    return cached;
   }
   let pending = feeInFlight.get(network);
   if (!pending) {
     pending = fetchFeeStroops(network)
       .then(stroops => {
-        feeCache.set(network, { stroops, fetchedAt: Date.now() });
-        return stroops;
+        const entry: CachedFee = { stroops, fetchedAt: Date.now(), isFallback: false };
+        feeCache.set(network, entry);
+        return entry;
       })
       .catch(error => {
         logger.warn("Stellar fee stats unavailable, using fallback fee", {
-          operation: "getRecommendedFeeStroops",
+          operation: "getCachedFee",
           network,
           errorMessage: error instanceof Error ? error.message : String(error),
         });
-        // Remember the fallback briefly too, so an outage is not retried per call.
         const stroops = cached?.stroops ?? BASE_FEE_STROOPS;
-        feeCache.set(network, { stroops, fetchedAt: Date.now() });
-        return stroops;
+        const entry: CachedFee = { stroops, fetchedAt: Date.now(), isFallback: true };
+        feeCache.set(network, entry);
+        return entry;
       })
       .finally(() => feeInFlight.delete(network));
     feeInFlight.set(network, pending);
   }
   return pending;
+}
+
+export async function getRecommendedFeeStroops(
+  network: "testnet" | "mainnet" = getCurrentNetwork()
+): Promise<number> {
+  const cached = await getCachedFee(network);
+  return cached.stroops;
+}
+
+export async function getFeeEstimateDetails(
+  network: "testnet" | "mainnet" = getCurrentNetwork()
+): Promise<FeeEstimateDetails> {
+  const entry = await getCachedFee(network);
+  return {
+    stroops: entry.stroops,
+    xlm: calculateFeeEstimate(entry.stroops),
+    baseFeeStroops: BASE_FEE_STROOPS,
+    isSurgePricing: entry.stroops > BASE_FEE_STROOPS,
+    isFallback: entry.isFallback,
+  };
 }
 
 /**

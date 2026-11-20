@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 import { verifySession } from "@/lib/auth/verify-session";
 import {
   listApiKeys,
@@ -71,11 +72,13 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("[developer/keys] POST error:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to create API key";
-    const status = message.includes("limit reached") ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    if (error instanceof Error && error.message.includes('limit reached')) {
+      return NextResponse.json({ error: 'API key limit reached' }, { status: 400 });
+    }
+    return createSanitizedErrorResponse(error, {
+      context: 'developer/keys POST',
+      publicMessage: 'Failed to create API key',
+    });
   }
 }
 
@@ -115,10 +118,12 @@ export async function DELETE(req: NextRequest) {
       apiKey: revokedKey,
     });
   } catch (error) {
-    console.error("[developer/keys] DELETE error:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to revoke API key";
-    const status = message.includes("not found") ? 404 : 500;
-    return NextResponse.json({ error: message }, { status });
+    if (error instanceof Error && error.message.includes('not found')) {
+      return NextResponse.json({ error: 'API key not found' }, { status: 404 });
+    }
+    return createSanitizedErrorResponse(error, {
+      context: 'developer/keys DELETE',
+      publicMessage: 'Failed to revoke API key',
+    });
   }
 }

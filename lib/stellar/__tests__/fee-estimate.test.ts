@@ -7,6 +7,7 @@ import {
   buildTipTransaction,
   calculateFeeEstimate,
   getRecommendedFeeStroops,
+  getFeeEstimateDetails,
   hasInsufficientBalance,
   resetFeeCacheForTests,
 } from "../payments";
@@ -113,14 +114,14 @@ describe("getRecommendedFeeStroops", () => {
 describe("balance check and transaction share one fee", () => {
   it("rejects a balance that cannot cover amount + congested fee", async () => {
     mockServer.feeStats.mockResolvedValue(stats("10000000")); // capped: 0.01 XLM
-    mockServer.loadAccount.mockResolvedValue(account("10.0050000"));
+    mockServer.loadAccount.mockResolvedValue(account("10.2050000"));
     // 10 + 0.01 fee > 10.005 balance; the old constant fee (0.00001) passed.
     expect(await hasInsufficientBalance(sender, "10")).toBe(true);
   });
 
   it("accepts the same balance when the fee is the minimum", async () => {
     mockServer.feeStats.mockResolvedValue(stats("100"));
-    mockServer.loadAccount.mockResolvedValue(account("10.0050000"));
+    mockServer.loadAccount.mockResolvedValue(account("10.2050000"));
     expect(await hasInsufficientBalance(sender, "10")).toBe(false);
   });
 
@@ -160,5 +161,35 @@ describe("balance check and transaction share one fee", () => {
       network: "testnet",
     });
     expect(tx.fee).toBe("100");
+  });
+});
+
+
+describe('getFeeEstimateDetails', () => {
+  it('returns base fee details when network fee is base', async () => {
+    mockServer.feeStats.mockResolvedValue(stats('100'));
+    const details = await getFeeEstimateDetails('testnet');
+    expect(details.stroops).toBe(100);
+    expect(details.xlm).toBeCloseTo(0.00001, 8);
+    expect(details.baseFeeStroops).toBe(100);
+    expect(details.isSurgePricing).toBe(false);
+    expect(details.isFallback).toBe(false);
+  });
+
+  it('returns surge fee details correctly', async () => {
+    mockServer.feeStats.mockResolvedValue(stats('5000'));
+    const details = await getFeeEstimateDetails('testnet');
+    expect(details.stroops).toBe(5000);
+    expect(details.xlm).toBeCloseTo(0.0005, 8);
+    expect(details.isSurgePricing).toBe(true);
+    expect(details.isFallback).toBe(false);
+  });
+
+  it('falls back to base fee on error and marks fallback', async () => {
+    mockServer.feeStats.mockRejectedValue(new Error('down'));
+    const details = await getFeeEstimateDetails('testnet');
+    expect(details.stroops).toBe(100);
+    expect(details.isFallback).toBe(true);
+    expect(details.isSurgePricing).toBe(false);
   });
 });

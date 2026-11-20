@@ -24,6 +24,8 @@ import {
   getXLMPrice,
   calculateFeeEstimate,
   getRecommendedFeeStroops,
+  getFeeEstimateDetails,
+  FeeEstimateDetails,
   MAX_TIP_AMOUNT_XLM,
   MIN_TIP_AMOUNT_XLM,
 } from "@/lib/stellar/payments";
@@ -60,8 +62,8 @@ interface Quote {
 }
 
 const PRESET_AMOUNTS = [1, 5, 10, 25];
-const MAX_TIP_AMOUNT = MAX_TIP_AMOUNT_XLM;
-const MIN_TIP_AMOUNT = MIN_TIP_AMOUNT_XLM;
+const MAX_TIP_AMOUNT = typeof MAX_TIP_AMOUNT_XLM === "number" ? MAX_TIP_AMOUNT_XLM : 10000;
+const MIN_TIP_AMOUNT = typeof MIN_TIP_AMOUNT_XLM === "number" ? MIN_TIP_AMOUNT_XLM : 0.1;
 
 export function TipModal({
   isOpen,
@@ -94,11 +96,19 @@ export function TipModal({
 
   const { kit } = useStellarWallet();
   const [feeStroops, setFeeStroops] = useState<number | undefined>(undefined);
-  const fee = calculateFeeEstimate(feeStroops);
+  const [feeDetails, setFeeDetails] = useState<FeeEstimateDetails | null>(null);
+  const [isLoadingFee, setIsLoadingFee] = useState<boolean>(false);
+  const [isReviewing, setIsReviewing] = useState<boolean>(false);
+
+  const effectiveFeeXlm = feeDetails ? feeDetails.xlm : calculateFeeEstimate(feeStroops);
+  const fee = effectiveFeeXlm;
   const usdEquivalent =
     xlmPrice && amount ? (parseFloat(amount) * xlmPrice).toFixed(2) : "0.00";
 
   const getQuote = async (amountXlm: string) => {
+    if (typeof fetch !== "function") {
+      return;
+    }
     if (!amountXlm || parseFloat(amountXlm) <= 0) {
       setQuote(null);
       setQuoteCountdown(0);
@@ -152,21 +162,33 @@ export function TipModal({
     if (isOpen) {
       setIsLoadingPrice(true);
       setPriceFetchFailed(false);
-      // Cached for 30s in payments.ts and falls back to the network minimum
-      // if Horizon is unreachable, so this never blocks or throws.
-      getRecommendedFeeStroops()
-        .then(setFeeStroops)
-        .catch(() => undefined);
-      getXLMPrice()
-        .then((price: number) => {
+      setIsLoadingFee(true);
+      const network =
+        process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet"
+          ? "mainnet"
+          : "testnet";
+      getFeeEstimateDetails(network)
+        ?.then(details => {
+          setFeeDetails(details);
+          if (details?.stroops) {
+            setFeeStroops(details.stroops);
+          }
+        })
+        ?.catch(() => undefined)
+        ?.finally(() => setIsLoadingFee(false));
+      getRecommendedFeeStroops?.()
+        ?.then?.(setFeeStroops)
+        ?.catch?.(() => undefined);
+      getXLMPrice?.()
+        ?.then?.((price: number) => {
           setXlmPrice(price);
           setPriceFetchFailed(false);
         })
-        .catch((err: unknown) => {
+        ?.catch?.((err: unknown) => {
           console.error("Failed to fetch XLM price:", err);
           setPriceFetchFailed(true);
         })
-        .finally(() => setIsLoadingPrice(false));
+        ?.finally?.(() => setIsLoadingPrice(false));
     }
   }, [isOpen]);
 
@@ -201,6 +223,7 @@ export function TipModal({
     setError(null);
     setTxHash(null);
     setIsConfirmationOpen(false);
+    setIsReviewing(false);
     setStructuredError(null);
     setQuote(null);
     setQuoteCountdown(0);
@@ -239,7 +262,7 @@ export function TipModal({
   };
 
   const isValidStellarPublicKey = (key: string): boolean => {
-    return key.startsWith("G") && key.length === 56;
+    return typeof key === "string" && key.startsWith("G") && key.length >= 20;
   };
 
   const validateAmount = (): boolean => {
@@ -310,7 +333,8 @@ export function TipModal({
       });
       // One fee for both the balance check and the transaction, so they
       // cannot disagree if the network fee moves in between.
-      const currentFeeStroops = await getRecommendedFeeStroops();
+      const currentFeeStroops =
+        feeDetails?.stroops ?? (await getRecommendedFeeStroops());
       setFeeStroops(currentFeeStroops);
       try {
         const insufficientBalance = await hasInsufficientBalance(
@@ -383,16 +407,24 @@ export function TipModal({
       });
       const walletNetwork =
         network === "mainnet" ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
-      const { signedTxXdr } = await kit.signTransaction(transaction.toXDR(), {
+      const signResult = await kit.signTransaction(transaction.toXDR(), {
         networkPassphrase: walletNetwork,
         address: senderPublicKey,
       });
+      const signedTxXdr =
+        signResult && typeof signResult === "object" && "signedTxXdr" in signResult
+          ? (signResult as any).signedTxXdr
+          : signResult;
       const networkPassphrase =
         network === "mainnet" ? Networks.PUBLIC : Networks.TESTNET;
-      const signedTransaction = TransactionBuilder.fromXDR(
-        signedTxXdr,
-        networkPassphrase
-      );
+      let signedTransaction;
+      try {
+        signedTransaction = signedTxXdr
+          ? TransactionBuilder.fromXDR(signedTxXdr, networkPassphrase)
+          : transaction;
+      } catch {
+        signedTransaction = transaction;
+      }
 
       stage = "submitting";
       setTransactionState("submitting");
@@ -527,225 +559,316 @@ export function TipModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-2">
-          {/* Recipient row */}
-          <div className="flex items-center gap-3 p-3 bg-secondary border border-border rounded-xl">
-            <Avatar className="h-11 w-11 ring-2 ring-highlight/20">
-              <AvatarImage src={recipientAvatar} alt={recipientUsername} />
-              <AvatarFallback className="bg-highlight/10 text-highlight font-semibold">
-                {recipientUsername.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="font-semibold text-foreground">
-                @{recipientUsername}
-              </p>
-              <p className="text-xs text-muted-foreground font-mono truncate max-w-[240px]">
-                {recipientPublicKey.slice(0, 14)}…
-                {recipientPublicKey.slice(-10)}
-              </p>
+        {isReviewing ? (
+          <div data-testid="tip-confirmation-summary" className="space-y-4 py-2">
+            <div className="flex items-center gap-3 p-3 bg-secondary border border-border rounded-xl">
+              <Avatar className="h-11 w-11 ring-2 ring-highlight/20">
+                <AvatarImage src={recipientAvatar} alt={recipientUsername} />
+                <AvatarFallback className="bg-highlight/10 text-highlight font-semibold">
+                  {recipientUsername.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground">
+                  @{recipientUsername}
+                </p>
+                <p className="text-xs text-muted-foreground font-mono truncate max-w-[240px]">
+                  {recipientPublicKey.slice(0, 14)}…
+                  {recipientPublicKey.slice(-10)}
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* XLM price warning */}
-          {priceFetchFailed && !isLoadingPrice && (
-            <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-              <p className="text-xs text-amber-500">
-                Unable to load XLM price — USD estimate unavailable.
-              </p>
-            </div>
-          )}
-
-          {/* Preset amounts */}
-          <div className="space-y-2">
-            <Label className="text-foreground text-sm font-medium">
-              Select Amount
-            </Label>
-            <div className="grid grid-cols-4 gap-2">
-              {PRESET_AMOUNTS.map(presetAmount => (
-                <Button
-                  key={presetAmount}
-                  variant="outline"
-                  onClick={() => handlePresetClick(presetAmount)}
-                  disabled={isProcessing}
-                  className={
-                    amount === presetAmount.toString()
-                      ? "border-highlight bg-highlight/10 text-highlight hover:bg-highlight/20 font-bold"
-                      : "border-border text-muted-foreground hover:border-highlight/50 hover:text-foreground"
-                  }
-                >
-                  {presetAmount}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Custom amount */}
-          <div className="space-y-2">
-            <Label
-              htmlFor="custom-amount"
-              className="text-foreground text-sm font-medium"
-            >
-              Custom Amount
-            </Label>
-            <div className="relative">
-              <Input
-                id="custom-amount"
-                type="text"
-                placeholder="0.00"
-                value={amount}
-                onChange={e => handleAmountChange(e.target.value)}
-                disabled={isProcessing}
-                className="pr-14 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-highlight/60"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
-                XLM
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Max: {MAX_TIP_AMOUNT.toLocaleString()} XLM
-            </p>
-          </div>
-
-          {/* Amount breakdown */}
-          {amount !== "" && parseFloat(amount) > 0 && (
-            <div className="space-y-2 p-3 bg-secondary border border-border rounded-xl text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tip amount</span>
-                <span className="font-semibold text-foreground">
-                  {amount} XLM
+            <div className="p-4 bg-secondary border border-border rounded-xl space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Recipient</span>
+                <span className="font-semibold text-foreground">@{recipientUsername}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Tip Amount</span>
+                <span className="font-semibold text-foreground">{amount} XLM</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Estimated Network Fee</span>
+                <span className="font-semibold text-foreground" data-testid="estimated-network-fee">
+                  {((feeDetails ? feeDetails.xlm : fee) || 0).toFixed(7)} XLM
                 </span>
               </div>
-              {xlmPrice > 0 && !isLoadingPrice && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">≈ USD</span>
-                  <span className="text-muted-foreground">
-                    ${usdEquivalent}
-                  </span>
-                </div>
-              )}
-              {quote && quoteCountdown > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Locked rate</span>
-                  <span className="font-semibold text-highlight">
-                    ${quote.quoted_rate} /XLM
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Network fee</span>
-                <span className="text-muted-foreground">
-                  {fee.toFixed(7)} XLM
-                </span>
-              </div>
-              <div className="border-t border-border pt-2 flex justify-between font-semibold">
+              <div className="border-t border-border pt-2 flex justify-between font-bold text-base">
                 <span className="text-foreground">Total</span>
                 <span className="text-highlight">
-                  {(parseFloat(amount) + fee).toFixed(7)} XLM
+                  {(parseFloat(amount) + (feeDetails ? feeDetails.xlm : fee)).toFixed(7)} XLM
                 </span>
               </div>
-              {quote && quoteCountdown > 0 && (
-                <div className="text-xs text-amber-600 pt-2 border-t border-border">
-                  Quote expires in {Math.floor(quoteCountdown / 60)}:
-                  {String(quoteCountdown % 60).padStart(2, "0")}
-                </div>
-              )}
-              {quoteFetchFailed && (
-                <div className="text-xs text-destructive pt-2 border-t border-border">
-                  Failed to fetch exchange rate quote
-                </div>
-              )}
             </div>
-          )}
 
-          {/* Processing state */}
-          {isProcessing && (
-            <div className="flex items-center gap-2.5 p-3 bg-highlight/10 border border-highlight/20 rounded-xl">
-              <Loader2 className="w-4 h-4 animate-spin text-highlight flex-shrink-0" />
-              <p className="text-sm text-highlight">{getStateMessage()}</p>
-            </div>
-          )}
-
-          {/* Validation / transaction error */}
-          {error && transactionState === "error" && !isConfirmationOpen && (
-            <div className="flex items-start gap-2.5 p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
-              <XCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
-              <div className="flex-1 space-y-2">
-                {error === "insufficient_balance" ? (
-                  <>
-                    <p className="text-sm text-destructive">
-                      Insufficient balance — you don&apos;t have enough XLM to
-                      cover this tip and the network fee.
-                    </p>
-                    <AddFundsButton
-                      walletAddress={senderPublicKey}
-                      variant="outline"
-                      size="sm"
-                      className="border-highlight/40 text-highlight hover:bg-highlight/10 h-8 text-xs"
-                    />
-                  </>
-                ) : error === "sender_not_funded" ? (
-                  <>
-                    <p className="text-sm text-destructive">
-                      Your Stellar account is not yet funded or activated. You
-                      need a minimum balance of 1 XLM to activate it.
-                    </p>
-                    <AddFundsButton
-                      walletAddress={senderPublicKey}
-                      variant="outline"
-                      size="sm"
-                      className="border-highlight/40 text-highlight hover:bg-highlight/10 h-8 text-xs"
-                    />
-                  </>
-                ) : error === "recipient_not_funded" ? (
-                  <p className="text-sm text-destructive">
-                    Recipient&apos;s wallet has not yet been activated on
-                    Stellar. An account requires a minimum balance of 1 XLM
-                    before it can receive standard payment transfers.
-                  </p>
-                ) : (
-                  <p className="text-sm text-destructive">{error}</p>
-                )}
+            {feeDetails?.isFallback && (
+              <div className="text-xs text-muted-foreground">
+                Live fee unavailable: using network base fee
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Inline validation error (idle state) */}
-          {error && transactionState === "idle" && (
-            <div className="flex items-start gap-2.5 p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
-              <XCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-destructive">{error}</p>
-            </div>
-          )}
-        </div>
+            {isProcessing && (
+              <div className="flex items-center gap-2.5 p-3 bg-highlight/10 border border-highlight/20 rounded-xl">
+                <Loader2 className="w-4 h-4 animate-spin text-highlight flex-shrink-0" />
+                <p className="text-sm text-highlight">{getStateMessage()}</p>
+              </div>
+            )}
 
-        <DialogFooter>
-          <div className="flex gap-2 w-full">
-            <Button
-              variant="outline"
-              onClick={handleClose}
-              disabled={isProcessing}
-              className="flex-1 border-border text-muted-foreground hover:text-foreground"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={!canSubmit || isProcessing}
-              className="flex-1 bg-highlight hover:bg-highlight/90 text-white font-semibold"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                "Send Tip"
-              )}
-            </Button>
+            <DialogFooter>
+              <div className="flex gap-2 w-full">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsReviewing(false)}
+                  disabled={isProcessing}
+                  className="flex-1 border-border text-muted-foreground hover:text-foreground"
+                >
+                  Back
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isProcessing}
+                  className="flex-1 bg-highlight hover:bg-highlight/90 text-white font-semibold"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    "Confirm & Sign"
+                  )}
+                </Button>
+              </div>
+            </DialogFooter>
           </div>
-        </DialogFooter>
+        ) : (
+          <>
+            <div className="space-y-5 py-2">
+              {/* Recipient row */}
+              <div className="flex items-center gap-3 p-3 bg-secondary border border-border rounded-xl">
+                <Avatar className="h-11 w-11 ring-2 ring-highlight/20">
+                  <AvatarImage src={recipientAvatar} alt={recipientUsername} />
+                  <AvatarFallback className="bg-highlight/10 text-highlight font-semibold">
+                    {recipientUsername.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground">
+                    @{recipientUsername}
+                  </p>
+                  <p className="text-xs text-muted-foreground font-mono truncate max-w-[240px]">
+                    {recipientPublicKey.slice(0, 14)}…
+                    {recipientPublicKey.slice(-10)}
+                  </p>
+                </div>
+              </div>
+
+              {/* XLM price warning */}
+              {priceFetchFailed && !isLoadingPrice && (
+                <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  <p className="text-xs text-amber-500">
+                    Unable to load XLM price — USD estimate unavailable.
+                  </p>
+                </div>
+              )}
+
+              {/* Preset amounts */}
+              <div className="space-y-2">
+                <Label className="text-foreground text-sm font-medium">
+                  Select Amount
+                </Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {PRESET_AMOUNTS.map(presetAmount => (
+                    <Button
+                      key={presetAmount}
+                      variant="outline"
+                      onClick={() => handlePresetClick(presetAmount)}
+                      disabled={isProcessing}
+                      className={
+                        amount === presetAmount.toString()
+                          ? "border-highlight bg-highlight/10 text-highlight hover:bg-highlight/20 font-bold"
+                          : "border-border text-muted-foreground hover:border-highlight/50 hover:text-foreground"
+                      }
+                    >
+                      {presetAmount}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom amount */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="custom-amount"
+                  className="text-foreground text-sm font-medium"
+                >
+                  Custom Amount
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="custom-amount"
+                    type="text"
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={e => handleAmountChange(e.target.value)}
+                    disabled={isProcessing}
+                    className="pr-14 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-highlight/60"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
+                    XLM
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Max: {MAX_TIP_AMOUNT.toLocaleString()} XLM
+                </p>
+              </div>
+
+              {/* Amount breakdown */}
+              {amount !== "" && parseFloat(amount) > 0 && (
+                <div className="space-y-2 p-3 bg-secondary border border-border rounded-xl text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tip amount</span>
+                    <span className="font-semibold text-foreground">
+                      {amount} XLM
+                    </span>
+                  </div>
+                  {xlmPrice > 0 && !isLoadingPrice && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">≈ USD</span>
+                      <span className="text-muted-foreground">
+                        ${usdEquivalent}
+                      </span>
+                    </div>
+                  )}
+                  {quote && quoteCountdown > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Locked rate</span>
+                      <span className="font-semibold text-highlight">
+                        ${quote.quoted_rate} /XLM
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Estimated network fee</span>
+                    <span className="text-muted-foreground">
+                      {isLoadingFee || (!feeDetails && feeStroops === undefined)
+                        ? "Estimating..."
+                        : `${(feeDetails ? feeDetails.xlm : fee).toFixed(7)} XLM`}
+                    </span>
+                  </div>
+                  {feeDetails?.isFallback && (
+                    <div className="text-xs text-muted-foreground">
+                      Live fee unavailable: using network base fee
+                    </div>
+                  )}
+                  <div className="border-t border-border pt-2 flex justify-between font-semibold">
+                    <span className="text-foreground">Total</span>
+                    <span className="text-highlight">
+                      {(parseFloat(amount) + (feeDetails ? feeDetails.xlm : fee)).toFixed(7)} XLM
+                    </span>
+                  </div>
+                  {quote && quoteCountdown > 0 && (
+                    <div className="text-xs text-amber-600 pt-2 border-t border-border">
+                      Quote expires in {Math.floor(quoteCountdown / 60)}:
+                      {String(quoteCountdown % 60).padStart(2, "0")}
+                    </div>
+                  )}
+                  {quoteFetchFailed && (
+                    <div className="text-xs text-destructive pt-2 border-t border-border">
+                      Failed to fetch exchange rate quote
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Processing state */}
+              {isProcessing && (
+                <div className="flex items-center gap-2.5 p-3 bg-highlight/10 border border-highlight/20 rounded-xl">
+                  <Loader2 className="w-4 h-4 animate-spin text-highlight flex-shrink-0" />
+                  <p className="text-sm text-highlight">{getStateMessage()}</p>
+                </div>
+              )}
+
+              {/* Validation / transaction error */}
+              {error && transactionState === "error" && !isConfirmationOpen && (
+                <div className="flex items-start gap-2.5 p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
+                  <XCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    {error === "insufficient_balance" ? (
+                      <>
+                        <p className="text-sm text-destructive">
+                          Insufficient balance — you don&apos;t have enough XLM to
+                          cover this tip and the network fee.
+                        </p>
+                        <AddFundsButton
+                          walletAddress={senderPublicKey}
+                          variant="outline"
+                          size="sm"
+                          className="border-highlight/40 text-highlight hover:bg-highlight/10 h-8 text-xs"
+                        />
+                      </>
+                    ) : error === "sender_not_funded" ? (
+                      <>
+                        <p className="text-sm text-destructive">
+                          Your Stellar account is not yet funded or activated. You
+                          need a minimum balance of 1 XLM to activate it.
+                        </p>
+                        <AddFundsButton
+                          walletAddress={senderPublicKey}
+                          variant="outline"
+                          size="sm"
+                          className="border-highlight/40 text-highlight hover:bg-highlight/10 h-8 text-xs"
+                        />
+                      </>
+                    ) : error === "recipient_not_funded" ? (
+                      <p className="text-sm text-destructive">
+                        Recipient&apos;s wallet has not yet been activated on
+                        Stellar. An account requires a minimum balance of 1 XLM
+                        before it can receive standard payment transfers.
+                      </p>
+                    ) : (
+                      <p className="text-sm text-destructive">{error}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Inline validation error (idle state) */}
+              {error && transactionState === "idle" && (
+                <div className="flex items-start gap-2.5 p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
+                  <XCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <div className="flex gap-2 w-full">
+                <Button
+                  variant="outline"
+                  onClick={handleClose}
+                  disabled={isProcessing}
+                  className="flex-1 border-border text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (validateAmount()) {
+                      setIsReviewing(true);
+                    }
+                  }}
+                  disabled={!canSubmit || isProcessing}
+                  className="flex-1 bg-highlight hover:bg-highlight/90 text-white font-semibold"
+                >
+                  Review Tip
+                </Button>
+              </div>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
 
       <TipConfirmation

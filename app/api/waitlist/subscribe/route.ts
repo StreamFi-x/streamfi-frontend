@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 import { sql } from "@vercel/postgres";
 import { validateEmail } from "../../../../utils/validators";
 import { sendWelcomeEmail } from "../../../../utils/send-email";
@@ -64,10 +65,10 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err) {
-    console.error("[waitlist] DB error:", err);
-    return NextResponse.json(
-      { error: "Database operation failed" },
-      { status: 500 }
-    );
+    return createSanitizedErrorResponse(err, {
+      context: "waitlist subscription",
+      publicMessage: "Unable to process your subscription right now. Please try again later.",
+      status: 500,
+    });
   }
 }
