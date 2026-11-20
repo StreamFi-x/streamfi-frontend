@@ -597,13 +597,24 @@ export function TipModal({
                 value={amount}
                 onChange={e => handleAmountChange(e.target.value)}
                 disabled={isProcessing}
+                aria-label="Custom tip amount in XLM"
+                aria-invalid={Boolean(error && transactionState === "idle")}
+                aria-describedby={
+                  error && transactionState === "idle"
+                    ? "custom-amount-max-helper custom-amount-error"
+                    : "custom-amount-max-helper"
+                }
                 className="pr-14 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:border-highlight/60"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
+              <span
+                id="custom-amount-unit"
+                aria-hidden="true"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium"
+              >
                 XLM
               </span>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p id="custom-amount-max-helper" className="text-xs text-muted-foreground">
               Max: {MAX_TIP_AMOUNT.toLocaleString()} XLM
             </p>
           </div>
@@ -713,7 +724,12 @@ export function TipModal({
 
           {/* Inline validation error (idle state) */}
           {error && transactionState === "idle" && (
-            <div className="flex items-start gap-2.5 p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
+            <div
+              id="custom-amount-error"
+              role="alert"
+              aria-live="polite"
+              className="flex items-start gap-2.5 p-3 bg-destructive/10 border border-destructive/20 rounded-xl"
+            >
               <XCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
               <p className="text-sm text-destructive">{error}</p>
             </div>
