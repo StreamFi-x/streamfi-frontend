@@ -1,5 +1,5 @@
 /**
- * Trace context stored in AsyncLocalStorage.
+ * Trace context stored in AsyncLocalStorage (on Node/server environments).
  * Provides request-scoped correlation ID and trace metadata.
  */
 export interface TraceContext {
@@ -79,7 +79,10 @@ export function withTraceContext<T>(
   context: TraceContext,
   fn: () => T
 ): T {
-  return asyncLocalStorage.run(context, fn);
+  if (asyncLocalStorage) {
+    return asyncLocalStorage.run(context, fn);
+  }
+  return fn();
 }
 
 /**
@@ -89,14 +92,20 @@ export async function withTraceContextAsync<T>(
   context: TraceContext,
   fn: () => Promise<T>
 ): Promise<T> {
-  return asyncLocalStorage.run(context, fn);
+  if (asyncLocalStorage) {
+    return asyncLocalStorage.run(context, fn);
+  }
+  return fn();
 }
 
 /**
  * Get current trace context (returns undefined if not in a traced context)
  */
 export function getCurrentTraceContext(): TraceContext | undefined {
-  return asyncLocalStorage.getStore();
+  if (asyncLocalStorage) {
+    return asyncLocalStorage.getStore();
+  }
+  return undefined;
 }
 
 /**
@@ -119,10 +128,10 @@ export function getTraceHeaders(): Record<string, string> {
   }
 
   return {
-    'x-request-id': context.traceId,
-    'x-trace-id': context.traceId,
-    'x-span-id': context.spanId,
-    'x-parent-span-id': context.parentSpanId || context.spanId,
+    "x-request-id": context.traceId,
+    "x-trace-id": context.traceId,
+    "x-span-id": context.spanId,
+    "x-parent-span-id": context.parentSpanId || context.spanId,
   };
 }
 
