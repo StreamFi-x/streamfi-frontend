@@ -64,17 +64,9 @@ export const useStellarWallet = () => {
 };
 
 export function StellarWalletProvider({ children }: { children: ReactNode }) {
-  // Restore the address immediately from localStorage so all wallet types
-  // (including Lobstr/WalletConnect) appear connected on page reload without
-  // waiting for the async wallet SDK to re-establish its session.
-  const [publicKey, setPublicKey] = useState<string | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-    const autoConnect = localStorage.getItem("stellar_auto_connect") === "true";
-    const cachedAddress = localStorage.getItem("stellar_address");
-    return autoConnect && cachedAddress ? cachedAddress : null;
-  });
+  // Render the same disconnected state on the server and during hydration.
+  // A returning user briefly sees it until the browser restores the session.
+  const [publicKey, setPublicKey] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [privyWallet, setPrivyWallet] = useState<PrivySessionUser | null>(null);
@@ -294,6 +286,13 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
 
     const autoConnect = localStorage.getItem("stellar_auto_connect") === "true";
     const lastWalletId = localStorage.getItem("stellar_last_wallet");
+    const cachedAddress = localStorage.getItem("stellar_address");
+
+    if (autoConnect && cachedAddress) {
+      hasAttemptedAutoConnect.current = true;
+      setPublicKey(cachedAddress);
+      return;
+    }
 
     if (!autoConnect || !lastWalletId) {
       return;
