@@ -244,6 +244,52 @@ export const assetDeletedHandler: MuxEventHandler = async (tx, event) => {
   console.log(`✅ Recording removed from database: ${assetId}`);
 };
 
+/**
+ * Handle video.clip.ready webhook event - marks clips as ready for playback
+ */
+export const clipReadyHandler: MuxEventHandler = async (tx, event) => {
+  const clipAssetId = event.data.id as string;
+  const clipPlaybackIds = event.data.playback_ids as
+    | Array<{ id?: string }>
+    | undefined;
+  const clipPlaybackId = Array.isArray(clipPlaybackIds)
+    ? clipPlaybackIds[0]?.id
+    : undefined;
+
+  if (!clipPlaybackId) {
+    console.error(
+      `❌ video.clip.ready missing playback_id for asset: ${clipAssetId}`
+    );
+    return;
+  }
+
+  try {
+    // Find and update the clip record by mux_asset_id
+    const clipResult = await tx.sql`
+      SELECT id, streamer_id FROM stream_clips WHERE mux_asset_id = ${clipAssetId}
+    `;
+
+    if (clipResult.rows.length === 0) {
+      console.warn(
+        `⚠️ video.clip.ready: clip record not found for asset ${clipAssetId}`
+      );
+      return;
+    }
+
+    await tx.sql`
+      UPDATE stream_clips SET
+        playback_id = ${clipPlaybackId},
+        status = 'ready',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE mux_asset_id = ${clipAssetId}
+    `;
+
+    console.log(`✅ Clip ready and playback enabled: ${clipAssetId}`);
+  } catch (clipErr) {
+    console.error("❌ Failed to update clip status:", clipErr);
+  }
+};
+
 export const assetLogOnly: MuxLogOnlyEvents = {
   "video.asset.created": event =>
     console.log(`📹 Asset creation started: ${event.data.id}`),

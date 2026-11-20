@@ -14,6 +14,8 @@ import {
   Twitter,
   Users,
   Flag,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -39,6 +41,7 @@ import ChatSection from "./chat-section";
 import { ViewStreamSkeleton } from "../skeletons/ViewStreamSkeleton";
 import MuxPlayer from "@/components/MuxPlayerLazy";
 import ReportLiveStreamModal from "../modals/ReportLiveStreamModal";
+import ErrorBoundary from "@/components/error/ErrorBoundary";
 import { useChat } from "@/hooks/useChat";
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { TipButton, TipModalContainer } from "@/components/tipping";
@@ -286,6 +289,8 @@ const ViewStream = ({
   const [streamPassword, setStreamPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Use custom hooks for Stellar wallet and tip modal state
   const { publicKey, privyWallet } = useStellarWallet();
@@ -314,11 +319,36 @@ const ViewStream = ({
     enabled: !!address && isLive && !shedTypingIndicators,
   });
 
-  // Stable refs so the native keydown listener always reads current values
-  const chatOverlayMessageRef = useRef(chatOverlayMessage);
-  chatOverlayMessageRef.current = chatOverlayMessage;
-  const isSendingRef = useRef(isSending);
-  isSendingRef.current = isSending;
+  /**
+   * Handle Mux player errors - surface visible error state with retry action
+   */
+  const handlePlayerError = (error: any) => {
+    const errorCode = error?.code || "UNKNOWN";
+    const errorMessage = error?.message || "Playback error occurred";
+
+    console.error("[MuxPlayer] Playback error:", { code: errorCode, message: errorMessage });
+
+    // Map Mux error codes to user-friendly messages
+    let displayMessage = "Stream playback encountered an error";
+    if (errorCode === "ERR_INVALID_TOKEN") {
+      displayMessage = "Playback token expired - please refresh the page";
+    } else if (errorCode === "ERR_AUTHENTICATION_ERROR") {
+      displayMessage = "Not authorized to view this stream";
+    } else if (errorCode === "ERR_GEO_BLOCKED") {
+      displayMessage = "This stream is not available in your region";
+    } else if (errorCode === "ERR_NOT_FOUND") {
+      displayMessage = "Stream not found or has been deleted";
+    } else if (errorCode === "ERR_TIMEOUT") {
+      displayMessage = "Connection timeout - please check your internet";
+    }
+
+    setPlaybackError(displayMessage);
+  };
+
+  const handleRetry = () => {
+    setPlaybackError(null);
+    setRetryCount(prev => prev + 1);
+  };
 
   // Use userData from props if available, otherwise fetch it
   useEffect(() => {
@@ -663,8 +693,9 @@ const ViewStream = ({
                   const playerReady =
                     !isPrivate || !!playbackOverride?.playbackId;
 
-                  return isLive && effectivePlaybackId && playerReady ? (
+                  return isLive && effectivePlaybackId && playerReady && !playbackError ? (
                     <MuxPlayer
+                      key={`player-${retryCount}`}
                       playbackId={effectivePlaybackId}
                       streamType={
                         userData.latencyMode === "standard" ? "live:dvr" : "live"
@@ -684,9 +715,31 @@ const ViewStream = ({
                         video_title: streamData.title || `${username}'s Stream`,
                         viewer_user_id: "anonymous",
                       }}
+                      onError={handlePlayerError}
                       primaryColor="#ac39f2"
                       className="w-full h-full"
                     />
+                  ) : playbackError ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-card">
+                      <div className="text-foreground text-center max-w-sm px-4">
+                        <div className="mb-4">
+                          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto" />
+                        </div>
+                        <p className="text-lg font-semibold mb-2">
+                          Playback Error
+                        </p>
+                        <p className="text-sm text-muted-foreground mb-6">
+                          {playbackError}
+                        </p>
+                        <button
+                          onClick={handleRetry}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          Retry Stream
+                        </button>
+                      </div>
+                    </div>
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center bg-card">
                       <div className="text-foreground text-center">
