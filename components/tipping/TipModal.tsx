@@ -32,6 +32,11 @@ import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { TipConfirmation } from "./TipConfirmation";
 import { sessionReplay } from "@/lib/session-replay";
+import {
+  beginTipFlow,
+  completeTipFlow,
+  tipFlowHeaders,
+} from "@/lib/tracing/tip-flow";
 
 interface TipModalProps {
   isOpen: boolean;
@@ -45,12 +50,7 @@ interface TipModalProps {
 }
 
 type TransactionState =
-  | "idle"
-  | "building"
-  | "signing"
-  | "submitting"
-  | "success"
-  | "error";
+  "idle" | "building" | "signing" | "submitting" | "success" | "error";
 
 interface Quote {
   quote_token: string;
@@ -98,6 +98,16 @@ export function TipModal({
   const usdEquivalent =
     xlmPrice && amount ? (parseFloat(amount) * xlmPrice).toFixed(2) : "0.00";
 
+  // One correlation ID per tip: every API call made while the modal is open
+  // (quote now, totals refresh after) is tied together in the server logs.
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    beginTipFlow();
+    return () => completeTipFlow();
+  }, [isOpen]);
+
   const getQuote = async (amountXlm: string) => {
     if (!amountXlm || parseFloat(amountXlm) <= 0) {
       setQuote(null);
@@ -116,7 +126,7 @@ export function TipModal({
 
       const response = await fetch("/api/tips/get-quote", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: tipFlowHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           fiat_amount_cents: fiatCents,
           creator_id: senderPublicKey, // Use sender as a proxy; ideally this comes from context
@@ -322,10 +332,14 @@ export function TipModal({
         if (insufficientBalance) {
           setError("insufficient_balance");
           setTransactionState("error");
-          sessionReplay.recordFlowError("tipping", new Error("Insufficient balance"), {
-            amount,
-            feeStroops: currentFeeStroops,
-          });
+          sessionReplay.recordFlowError(
+            "tipping",
+            new Error("Insufficient balance"),
+            {
+              amount,
+              feeStroops: currentFeeStroops,
+            }
+          );
           if (onError) {
             onError("Insufficient balance");
           }
@@ -352,9 +366,13 @@ export function TipModal({
       if (recipientCheck.status === "account_not_funded") {
         setError("recipient_not_funded");
         setTransactionState("error");
-        sessionReplay.recordFlowError("tipping", new Error("Recipient account is not funded"), {
-          recipientPublicKey: `${recipientPublicKey.slice(0, 4)}...${recipientPublicKey.slice(-4)}`,
-        });
+        sessionReplay.recordFlowError(
+          "tipping",
+          new Error("Recipient account is not funded"),
+          {
+            recipientPublicKey: `${recipientPublicKey.slice(0, 4)}...${recipientPublicKey.slice(-4)}`,
+          }
+        );
         if (onError) {
           onError("Recipient account is not funded on the Stellar network.");
         }

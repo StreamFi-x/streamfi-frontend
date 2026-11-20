@@ -119,10 +119,10 @@ function isValidCursorTimestamp(ts: string): boolean {
  * - `offset` is rejected so callers of the old contract fail loudly instead of
  *   silently receiving the first page forever.
  */
-export function parsePageParams(
+export function parseLimit(
   searchParams: URLSearchParams,
   options: PageParamsOptions = {}
-): PageParams {
+): number {
   const maxLimit = options.maxLimit ?? MAX_PAGE_SIZE;
   const defaultLimit = Math.min(
     options.defaultLimit ?? DEFAULT_PAGE_SIZE,
@@ -135,19 +135,21 @@ export function parsePageParams(
     );
   }
 
-  let limit = defaultLimit;
   const rawLimit = searchParams.get("limit");
-  if (rawLimit !== null) {
-    if (!/^\d+$/.test(rawLimit)) {
-      throw new PaginationError("limit must be a positive integer");
-    }
-    const parsed = Number(rawLimit);
-    if (parsed < 1) {
-      throw new PaginationError("limit must be a positive integer");
-    }
-    limit = Math.min(parsed, maxLimit);
+  if (rawLimit === null) {
+    return defaultLimit;
   }
+  if (!/^\d+$/.test(rawLimit) || Number(rawLimit) < 1) {
+    throw new PaginationError("limit must be a positive integer");
+  }
+  return Math.min(Number(rawLimit), maxLimit);
+}
 
+export function parsePageParams(
+  searchParams: URLSearchParams,
+  options: PageParamsOptions = {}
+): PageParams {
+  const limit = parseLimit(searchParams, options);
   const rawCursor = searchParams.get("cursor");
   const after = rawCursor === null ? null : decodeCursor(rawCursor);
 

@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createTraceContext, withTraceContextAsync } from './trace-context';
-import { logger } from './logger';
+import { NextRequest, NextResponse } from "next/server";
+import { createTraceContext, withTraceContextAsync } from "./trace-context";
+import { logger } from "./logger";
+import { CORRELATION_HEADER, readCorrelationId } from "./correlation";
 
 /**
  * High-order function that wraps API route handlers with tracing
@@ -13,20 +14,25 @@ export function withTracing(
   return async (req: NextRequest) => {
     // Extract incoming trace ID or generate new one
     const incomingTraceId =
-      req.headers.get('x-request-id') ||
-      req.headers.get('x-trace-id') ||
+      req.headers.get("x-request-id") ||
+      req.headers.get("x-trace-id") ||
       undefined;
 
-    const traceContext = createTraceContext(incomingTraceId);
+    const correlationId = readCorrelationId(req.headers);
+    const traceContext = createTraceContext(
+      incomingTraceId,
+      undefined,
+      correlationId
+    );
 
     return withTraceContextAsync(traceContext, async () => {
       const startTime = Date.now();
 
       try {
-        logger.info('API request started', {
+        logger.info("API request started", {
           method: req.method,
           pathname: req.nextUrl.pathname,
-          userAgent: req.headers.get('user-agent'),
+          userAgent: req.headers.get("user-agent"),
         });
 
         const response = await handler(req);
@@ -35,14 +41,14 @@ export function withTracing(
         const status = response.status;
 
         if (status >= 400) {
-          logger.warn('API request failed', {
+          logger.warn("API request failed", {
             method: req.method,
             pathname: req.nextUrl.pathname,
             status,
             durationMs,
           });
         } else {
-          logger.info('API request completed', {
+          logger.info("API request completed", {
             method: req.method,
             pathname: req.nextUrl.pathname,
             status,
@@ -51,13 +57,16 @@ export function withTracing(
         }
 
         // Always add trace ID to response headers
-        response.headers.set('x-request-id', traceContext.traceId);
+        response.headers.set("x-request-id", traceContext.traceId);
+        if (correlationId) {
+          response.headers.set(CORRELATION_HEADER, correlationId);
+        }
 
         return response;
       } catch (error) {
         const durationMs = Date.now() - startTime;
 
-        logger.error('API request error', {
+        logger.error("API request error", {
           method: req.method,
           pathname: req.nextUrl.pathname,
           durationMs,
@@ -67,12 +76,16 @@ export function withTracing(
         // Return error response with trace ID
         const errorResponse = NextResponse.json(
           {
-            error: 'Internal server error',
+            error: "Internal server error",
             requestId: traceContext.traceId,
+            ...(correlationId && { correlationId }),
           },
           { status: 500 }
         );
-        errorResponse.headers.set('x-request-id', traceContext.traceId);
+        errorResponse.headers.set("x-request-id", traceContext.traceId);
+        if (correlationId) {
+          errorResponse.headers.set(CORRELATION_HEADER, correlationId);
+        }
 
         return errorResponse;
       }

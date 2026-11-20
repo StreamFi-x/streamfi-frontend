@@ -12,6 +12,8 @@ import { cacheHeaders } from "@/lib/cache";
 import { markRecentWrite } from "@/lib/db/replica";
 import { acquireLock } from "@/lib/single-flight-lock";
 import { createRateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { logger } from "@/lib/tracing/logger";
+import { withTracing } from "@/lib/tracing/api-route-wrapper";
 
 export const maxDuration = 30;
 
@@ -83,7 +85,11 @@ function ledgerUnavailable(error: unknown): NextResponse {
   );
 }
 
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
+  logger.info("Tip total refresh requested", {
+    endpoint: "POST /api/tips/refresh-total",
+  });
+
   const session = await verifySession(request);
   if (!session.ok) {
     return session.response;
@@ -230,10 +236,14 @@ export async function POST(request: NextRequest) {
       await lock.release();
     }
   } catch (error) {
-    console.error("Refresh total error:", error);
+    logger.error("Refresh total error", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json(
       { error: "Failed to refresh tip totals" },
       { status: 500 }
     );
   }
 }
+
+export const POST = withTracing(handler);
