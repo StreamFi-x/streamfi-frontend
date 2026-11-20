@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { CACHE_POLICIES } from "@/lib/cache";
+import { apiInternalError, apiSuccess } from "@/lib/api";
 
 /**
  * GET /api/users/top?limit=5
@@ -36,14 +37,16 @@ export async function GET(req: NextRequest) {
       LIMIT ${limit}
     `;
 
-    const res = NextResponse.json({ users: rows });
-    res.headers.set("Cache-Control", CACHE_POLICIES.publicListing.cacheControl);
-    return res;
-  } catch (error) {
-    console.error("[users/top] DB error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch top users" },
-      { status: 500 }
+    return apiSuccess(
+      { users: rows },
+      {
+        headers: { "Cache-Control": CACHE_POLICIES.publicListing.cacheControl },
+        legacyFlat: true,
+      }
     );
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("[users/top] DB error:", error);
+    return apiInternalError("Failed to fetch top users");
   }
 }

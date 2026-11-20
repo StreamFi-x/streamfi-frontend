@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { checkDebugSecret } from "@/lib/debug-auth";
+import { apiInternalError, apiSuccess } from "@/lib/api";
 
 /**
  * DEV ONLY — reports which required env vars are configured. Guarded by
@@ -26,18 +26,13 @@ export async function GET(req: Request) {
       NODE_ENV: process.env.NODE_ENV,
     };
 
-    return NextResponse.json({
-      success: true,
-      environment: envCheck,
-      message: "Environment check completed",
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Failed to check environment",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
+    return apiSuccess(
+      { environment: envCheck },
+      { message: "Environment check completed", legacyFlat: true }
     );
+  } catch (error) {
+    return apiInternalError("Failed to check environment", {
+      details: error instanceof Error ? error.message : "Unknown error",
+    });
   }
 }

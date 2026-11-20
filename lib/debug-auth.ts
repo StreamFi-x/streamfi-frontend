@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiForbidden } from "@/lib/api";
 
 /**
  * Shared secret gate for debug/maintenance endpoints (#1612).
@@ -14,15 +15,12 @@ export function checkDebugSecret(
 ): NextResponse | null {
   const secret = process.env[envVarName];
   if (!secret) {
-    return NextResponse.json(
-      { error: `${envVarName} not configured` },
-      { status: 403 }
-    );
+    return apiForbidden(`${envVarName} not configured`);
   }
 
   const { searchParams } = new URL(req.url);
   if (searchParams.get("secret") !== secret) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return apiForbidden("Forbidden");
   }
 
   return null; // authorized

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
@@ -6,6 +6,13 @@ import { writeTemplatedNotification } from "@/lib/notifications";
 import { shouldSendInAppNotification } from "@/lib/notifications/preferences";
 import { evaluateAndAwardBadges } from "@/lib/routes-f/badges";
 import { invalidateFollowCaches } from "@/lib/cache/invalidation";
+import {
+  apiBadRequest,
+  apiInternalError,
+  apiNotFound,
+  apiRateLimited,
+  apiSuccess,
+} from "@/lib/api";
 
 // 30 follow/unfollow actions per IP per minute
 const isRateLimited = createRateLimiter(60_000, 30);
@@ -17,10 +24,7 @@ export async function POST(req: NextRequest) {
     "unknown";
 
   if (await isRateLimited(ip)) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": "60" } }
-    );
+    return apiRateLimited("Too many requests", { retryAfterSeconds: 60 });
   }
 
   // Determine caller from server-side session — never trust client-supplied identity.
@@ -33,10 +37,7 @@ export async function POST(req: NextRequest) {
   const { receiverUsername, action } = await req.json();
 
   if (!receiverUsername || !["follow", "unfollow"].includes(action)) {
-    return NextResponse.json(
-      { error: "receiverUsername and valid action are required" },
-      { status: 400 }
-    );
+    return apiBadRequest("receiverUsername and valid action are required");
   }
 
   const callerId = session.userId;
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
     ]);
 
     if (receiverRows.length === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return apiNotFound("User not found");
     }
 
     const receiverId = receiverRows[0].id;
@@ -56,10 +57,7 @@ export async function POST(req: NextRequest) {
 
     // UUID-level self-follow guard — unambiguous regardless of username casing
     if (callerId === receiverId) {
-      return NextResponse.json(
-        { error: "You cannot follow or unfollow yourself." },
-        { status: 400 }
-      );
+      return apiBadRequest("You cannot follow or unfollow yourself.");
     }
 
     if (action === "follow") {
@@ -73,6 +71,7 @@ export async function POST(req: NextRequest) {
       try {
         await evaluateAndAwardBadges(receiverId);
       } catch (badgeErr) {
+        // eslint-disable-next-line no-console
         console.error("[follow] badge evaluation failed:", badgeErr);
       }
 
@@ -97,11 +96,15 @@ export async function POST(req: NextRequest) {
             );
           }
         } catch (notifErr) {
+          // eslint-disable-next-line no-console
           console.error("[follow] notification write failed:", notifErr);
         }
       }
 
-      return NextResponse.json({ message: "Followed successfully" });
+      return apiSuccess(
+        { action: "follow" },
+        { message: "Followed successfully", legacyFlat: true }
+      );
     } else {
       await sql`
         DELETE FROM user_follows
@@ -109,13 +112,14 @@ export async function POST(req: NextRequest) {
       `;
       await invalidateFollowCaches(callerId, receiverId);
 
-      return NextResponse.json({ message: "Unfollowed successfully" });
+      return apiSuccess(
+        { action: "unfollow" },
+        { message: "Unfollowed successfully", legacyFlat: true }
+      );
     }
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("Follow/Unfollow error:", error);
-    return NextResponse.json(
-      { error: "Failed to process follow/unfollow" },
-      { status: 500 }
-    );
+    return apiInternalError("Failed to process follow/unfollow");
   }
 }

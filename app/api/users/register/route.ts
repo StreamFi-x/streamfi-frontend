@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { checkExistingTableDetail, validateEmail } from "@/utils/validators";
 import { sql } from "@vercel/postgres";
 import { sendWelcomeRegistrationEmail } from "@/utils/send-email";
@@ -11,6 +11,15 @@ import {
   prepareSocialLinks,
 } from "@/lib/db/jsonb-contracts";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import {
+  apiBadRequest,
+  apiConflict,
+  apiInternalError,
+  apiMethodNotAllowed,
+  apiRateLimited,
+  apiSuccess,
+  apiValidationError,
+} from "@/lib/api";
 
 // Registration creates a Mux stream + DB write — strict limit to prevent abuse
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 5); // 5 per hour per IP
@@ -22,10 +31,7 @@ async function handler(req: NextRequest) {
     "unknown";
 
   if (await isRateLimited(ip)) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": "3600" } }
-    );
+    return apiRateLimited("Too many requests", { retryAfterSeconds: 3600 });
   }
 
   const requestBody = await req.json();
@@ -48,25 +54,19 @@ async function handler(req: NextRequest) {
   const username = rawUsername ? String(rawUsername).trim().toLowerCase() : "";
 
   if (!username) {
-    return NextResponse.json(
-      { error: "Username is required" },
-      { status: 400 }
-    );
+    return apiBadRequest("Username is required");
   }
 
   if (!wallet) {
-    return NextResponse.json({ error: "Wallet is required" }, { status: 400 });
+    return apiBadRequest("Wallet is required");
   }
 
   if (!email) {
-    return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    return apiBadRequest("Email is required");
   }
 
   if (!validateEmail(email)) {
-    return NextResponse.json(
-      { error: "Invalid email format" },
-      { status: 400 }
-    );
+    return apiBadRequest("Invalid email format");
   }
 
   // Validate JSONB documents before any side effect (Mux stream creation).
@@ -77,10 +77,9 @@ async function handler(req: NextRequest) {
     creatorDocument = prepareCreator(creator);
   } catch (error) {
     if (error instanceof JsonbContractError) {
-      return NextResponse.json(
-        { error: `Invalid ${error.column}`, issues: error.issues },
-        { status: 400 }
-      );
+      return apiValidationError(`Invalid ${error.column}`, error.issues, {
+        legacyExtra: { issues: error.issues },
+      });
     }
     throw error;
   }
@@ -113,36 +112,23 @@ async function handler(req: NextRequest) {
         LIMIT 1
       `;
       if (pending.length > 0) {
-        return NextResponse.json(
-          {
-            error:
-              "An account with this email or wallet is pending deletion. Sign in and cancel the deletion, or register again after it has been purged.",
-            code: "ACCOUNT_PENDING_DELETION",
-          },
-          { status: 409 }
+        return apiConflict(
+          "An account with this email or wallet is pending deletion. Sign in and cancel the deletion, or register again after it has been purged.",
+          { code: "ACCOUNT_PENDING_DELETION" }
         );
       }
     }
 
     if (userEmailExist) {
-      return NextResponse.json(
-        { error: "Email already exist" },
-        { status: 400 }
-      );
+      return apiBadRequest("Email already exist");
     }
 
     if (usernameExist) {
-      return NextResponse.json(
-        { error: "Username already exist" },
-        { status: 400 }
-      );
+      return apiBadRequest("Username already exist");
     }
 
     if (userWalletExist) {
-      return NextResponse.json(
-        { error: "Wallet address already exist" },
-        { status: 400 }
-      );
+      return apiBadRequest("Wallet address already exist");
     }
 
     // Try to provision Mux stream, but do not block registration if unavailable.
@@ -152,17 +138,17 @@ async function handler(req: NextRequest) {
     let muxStream: Awaited<ReturnType<typeof createMuxStream>> | null = null;
 
     if (hasMuxCredentials) {
-      console.log(`[register] Creating Mux stream for user: ${username}`);
       try {
         muxStream = await createMuxStream({
           name: `${username}'s Stream`,
           record: true,
         });
-        console.log(`[register] Mux stream created: ${muxStream.id}`);
       } catch (muxError) {
+        // eslint-disable-next-line no-console
         console.error("[register] Failed to create Mux stream:", muxError);
       }
     } else {
+      // eslint-disable-next-line no-console
       console.warn(
         "[register] Mux credentials missing. Skipping stream provisioning."
       );
@@ -197,7 +183,6 @@ async function handler(req: NextRequest) {
 
     // Profile layouts cache "not found" (unstable_cache); purge it for the new handle.
     await invalidateUserCaches({ username, wallet });
-    console.log(`[register] User registered: ${username}`);
 
     // The account already exists at this point; a mail failure must not turn a
     // successful registration into a 500 (the client would retry and hit
@@ -205,25 +190,23 @@ async function handler(req: NextRequest) {
     try {
       await sendWelcomeRegistrationEmail(email, username);
     } catch (emailError) {
+      // eslint-disable-next-line no-console
       console.error("[register] Failed to send welcome email:", emailError);
     }
 
-    return NextResponse.json(
+    return apiSuccess(
       {
-        message: "User registration success",
         streamCreated: !!muxStream,
         streamData: {
           rtmpUrl: muxStream?.rtmpUrl ?? null,
         },
       },
-      { status: 200 }
+      { message: "User registration success", legacyFlat: true }
     );
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("Registration error:", error);
-    return NextResponse.json(
-      { error: "Failed to register user" },
-      { status: 500 }
-    );
+    return apiInternalError("Failed to register user");
   }
 }
 
@@ -231,8 +214,5 @@ export { handler as POST };
 
 // Registration mutates state; only POST is allowed.
 export async function GET() {
-  return NextResponse.json(
-    { error: "Method not allowed" },
-    { status: 405, headers: { Allow: "POST" } }
-  );
+  return apiMethodNotAllowed("POST");
 }
