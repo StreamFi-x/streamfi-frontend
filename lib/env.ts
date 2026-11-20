@@ -5,6 +5,17 @@ import { z } from "zod";
 const optional = z.string().optional();
 
 export const envSchema = z.object({
+  NEXT_PUBLIC_SENTRY_DSN: optional,
+  SENTRY_DSN: optional,
+  SENTRY_ORG: optional,
+  SENTRY_PROJECT: optional,
+  SENTRY_AUTH_TOKEN: optional,
+  CI: optional,
+  LOAD_STAGING_ORIGIN: optional,
+  LOAD_PLAYBACK_ID: optional,
+  LOAD_CHAT_COOKIE: optional,
+  LOAD_CONCURRENCY: optional,
+  LOAD_BATCHES: optional,
   ACCOUNT_DELETION_GRACE_DAYS: optional,
   ADMIN_EMAIL: optional,
   ADMIN_PRIVY_IDS: optional,
@@ -93,7 +104,9 @@ export type Env = z.infer<typeof envSchema>;
 export function validateEnvironment(values: Record<string, unknown>): Env {
   const result = envSchema.safeParse(values);
   if (!result.success) {
-    throw new Error(`Invalid environment settings: ${result.error.issues.map(issue => issue.path.join(".")).join(", ")}`);
+    throw new Error(
+      `Invalid environment settings: ${result.error.issues.map(issue => issue.path.join(".")).join(", ")}`
+    );
   }
   return result.data;
 }
