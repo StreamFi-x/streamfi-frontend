@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-import { rateLimit } from "../../../../utils/rate-limit";
+import { createRateLimit } from "@/lib/rate-limit";
 import { validateEmail } from "../../../../utils/validators";
 import { sql } from "@vercel/postgres";
 
-const limiter = rateLimit({
-  interval: 60 * 1000,
+const limiter = createRateLimit({
+  namespace: "waitlist:unsubscribe",
+  limit: 5,
+  windowMs: 60 * 1000,
 });
 
 export async function POST(req: Request) {
@@ -24,18 +26,13 @@ export async function POST(req: Request) {
     });
   }
 
-  try {
-    // Use email as token for rate-limiting
-    await limiter.check(
-      {
-        setHeader: () => {},
-      },
-      5,
-      email
-    );
-  } catch {
+  const result = await limiter.check(email);
+  if (!result.success) {
     return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
       status: 429,
+      headers: {
+        "Retry-After": String(result.retryAfterSeconds),
+      },
     });
   }
 
