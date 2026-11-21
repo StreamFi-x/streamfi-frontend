@@ -45,6 +45,7 @@ interface StellarWalletContextType {
   isLoading: boolean;
   isConnecting: boolean;
   error: string | null;
+  unavailableWalletId: string | null;
   /** Privy-authenticated user (Google login). Null if signed in via Stellar wallet only. */
   privyWallet: PrivySessionUser | null;
 }
@@ -64,19 +65,12 @@ export const useStellarWallet = () => {
 };
 
 export function StellarWalletProvider({ children }: { children: ReactNode }) {
-  // Restore the address immediately from localStorage so all wallet types
-  // (including Lobstr/WalletConnect) appear connected on page reload without
-  // waiting for the async wallet SDK to re-establish its session.
-  const [publicKey, setPublicKey] = useState<string | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-    const autoConnect = localStorage.getItem("stellar_auto_connect") === "true";
-    const cachedAddress = localStorage.getItem("stellar_address");
-    return autoConnect && cachedAddress ? cachedAddress : null;
-  });
+  // Render the same disconnected state on the server and during hydration.
+  // A returning user briefly sees it until the browser restores the session.
+  const [publicKey, setPublicKey] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unavailableWalletId, setUnavailableWalletId] = useState<string | null>(null);
   const [privyWallet, setPrivyWallet] = useState<PrivySessionUser | null>(null);
   const hasAttemptedAutoConnect = useRef(false);
 
@@ -185,6 +179,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
       });
       setIsConnecting(true);
       setError(null);
+      setUnavailableWalletId(null);
       try {
         // Set the wallet first - this initializes the wallet module
         kit.setWallet(walletId);
@@ -238,17 +233,12 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
           String(err) ||
           "Failed to connect wallet";
 
-        // Check if wallet is not installed
-        if (
-          errorMessage.includes("not installed") ||
-          errorMessage.includes("not found") ||
-          errorMessage.includes("extension") ||
-          errorMessage.includes("Extension not found") ||
-          errorMessage.includes("Wallet not found") ||
-          errorMessage.toLowerCase().includes("no provider") ||
-          errorMessage.toLowerCase().includes("not available") ||
-          errorMessage.toLowerCase().includes("unavailable")
-        ) {
+        const supportedWallets = await kit.getSupportedWallets().catch(() => []);
+        const unavailable = supportedWallets.some(
+          (wallet) => wallet.id === walletId && wallet.isAvailable === false,
+        );
+        if (unavailable) {
+          setUnavailableWalletId(walletId);
           setError(
             `${walletId.charAt(0).toUpperCase() + walletId.slice(1)} wallet is not installed. Please install the extension first.`
           );
@@ -294,6 +284,13 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
 
     const autoConnect = localStorage.getItem("stellar_auto_connect") === "true";
     const lastWalletId = localStorage.getItem("stellar_last_wallet");
+    const cachedAddress = localStorage.getItem("stellar_address");
+
+    if (autoConnect && cachedAddress) {
+      hasAttemptedAutoConnect.current = true;
+      setPublicKey(cachedAddress);
+      return;
+    }
 
     if (!autoConnect || !lastWalletId) {
       return;
@@ -351,6 +348,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         isLoading: isConnecting,
         isConnecting,
         error,
+        unavailableWalletId,
         privyWallet,
       }}
     >

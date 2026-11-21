@@ -72,6 +72,7 @@ export default function ConnectWalletModal({
     isConnecting,
     connectWallet,
     error: walletError,
+    unavailableWalletId,
   } = useStellarWallet();
   const {
     signInWithGoogle,
@@ -157,9 +158,7 @@ export default function ConnectWalletModal({
   const selectedWalletInfo = STELLAR_WALLETS.find(w => w.id === selectedWallet);
   const showInstallLink =
     walletError &&
-    (walletError.includes("not installed") ||
-      walletError.includes("not found") ||
-      walletError.includes("extension")) &&
+    unavailableWalletId === selectedWallet &&
     selectedWalletInfo?.installUrl;
 
   if (!isModalOpen) {

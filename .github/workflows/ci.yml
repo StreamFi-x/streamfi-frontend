@@ -35,6 +35,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Reject committed backup files
+        run: |
+          backups="$(git ls-files -- '*.bak' '*.backup')"
+          if [ -n "$backups" ]; then
+            printf '%s\n' "$backups"
+            exit 1
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
