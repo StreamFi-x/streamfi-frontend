@@ -122,11 +122,32 @@ const WatchPage = ({ params }: PageProps) => {
     return () => clearInterval(interval);
   }, [username, loggedInUsername]);
 
-  // Register viewer once when stream goes live; guard against re-registration on every poll
+  // Register viewer when stream goes live and deregister when it ends (#1853)
   useEffect(() => {
-    if (!userData?.mux_playback_id || !userData?.is_live) {
+    // If stream transitions to offline while viewer was registered, decrement and reset session
+    if (!userData?.is_live || !userData?.mux_playback_id) {
+      if (viewerRegistered.current && viewerSessionId.current) {
+        const sid = viewerSessionId.current;
+        const pid = viewerPlaybackId.current;
+        const tok = viewerSessionToken.current;
+        viewerRegistered.current = false;
+        viewerSessionId.current = null;
+        viewerSessionToken.current = null;
+        viewerPlaybackId.current = null;
+        fetch("/api/streams/viewers", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: sid,
+            playbackId: pid,
+            token: tok,
+          }),
+          keepalive: true,
+        }).catch(() => {});
+      }
       return;
     }
+
     if (viewerRegistered.current) {
       return;
     }
@@ -143,6 +164,7 @@ const WatchPage = ({ params }: PageProps) => {
           )}`
         );
         if (!mintRes.ok) {
+          viewerRegistered.current = false;
           return;
         }
         const session = (await mintRes.json()) as {
@@ -164,7 +186,7 @@ const WatchPage = ({ params }: PageProps) => {
           }),
         });
       } catch {
-        // Best-effort — a dropped viewer event must never break the watch page.
+        viewerRegistered.current = false;
       }
     };
 
