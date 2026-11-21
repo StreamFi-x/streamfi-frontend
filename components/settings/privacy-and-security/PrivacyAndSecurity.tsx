@@ -6,6 +6,7 @@ import { Check, ChevronDown, X, AlertTriangle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import TwoFactorManager from "./two-factor-manager";
+import ChangePasswordModal from "./change-password-modal";
 import StepUpDialog, { type ProtectedAction } from "./step-up-dialog";
 
 interface ToggleSwitchProps {
@@ -546,6 +547,7 @@ const PrivacySecurityPage: React.FC = () => {
 
   // Modal states
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error" | "warning";
     title: string;
@@ -683,14 +685,7 @@ const PrivacySecurityPage: React.FC = () => {
   };
 
   const handleChangePassword = () => {
-    // TODO: Replace with actual password change flow
-    // Example: navigate to change password page or show modal
-
-    showFeedback(
-      "success",
-      "Redirecting",
-      "Taking you to the password change page..."
-    );
+    setShowPasswordModal(true);
   };
 
   // Update the handleVerifyEmail function to always show the modal
@@ -957,6 +952,18 @@ const PrivacySecurityPage: React.FC = () => {
         onClose={() => setShowVerifyModal(false)}
         email={userEmail}
         onSuccess={handleEmailVerified}
+      />
+
+      <ChangePasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onSuccess={() =>
+          showFeedback(
+            "success",
+            "Password Updated",
+            "Your account password has been updated successfully!"
+          )
+        }
       />
 
       <FeedbackModal
