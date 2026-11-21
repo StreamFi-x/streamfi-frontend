@@ -36,7 +36,7 @@
     "@creit.tech/stellar-wallets-kit": "^1.9.5",
     "@fontsource/inter": "^5.1.1",
     "@hookform/resolvers": "^5.1.1",
-    "@mux/mux-node": "^12.8.1",
+    "@mux/mux-node": "^15.5.0",
     "@mux/mux-player-react": "^3.11.4",
     "@neondatabase/serverless": "^1.1.0",
     "@privy-io/react-auth": "^3.16.0",
