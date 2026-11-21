@@ -221,6 +221,7 @@ export async function POST(request: NextRequest) {
             totalCount: result.totals.totalCount,
             lastTipAt: result.totals.lastTipAt,
             refreshed: true,
+            batched: true,
             refreshedAt: new Date().toISOString(),
           },
           { headers: cacheHeaders("privateNoStore") }

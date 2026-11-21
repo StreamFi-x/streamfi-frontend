@@ -82,9 +82,20 @@ export function TipHistory({ username }: TipHistoryProps) {
       const response = await fetch("/api/tips/refresh-total", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ username }),
       });
 
+      if (response.status === 401 || response.status === 403) {
+        toast.error(
+          "You must be signed in as this creator to refresh tip totals"
+        );
+        return;
+      }
+      if (response.status === 429) {
+        toast.error("Too many refresh requests; please try again shortly");
+        return;
+      }
       if (response.status === 202) {
         toast.info(
           "Your full tip history is still being counted; totals will update shortly"

@@ -24,7 +24,7 @@ export async function GET(req: Request) {
       WHERE is_live = true
         AND deleted_at IS NULL
         AND COALESCE(stream_privacy, 'public') = 'public'
-      ORDER BY current_viewers DESC
+      ORDER BY current_viewers DESC, stream_started_at DESC NULLS LAST, id ASC
       LIMIT ${fetchLimit} OFFSET ${offset}
     `;
 
@@ -71,18 +71,31 @@ export async function GET(req: Request) {
     });
 
     // Followed streams bubble to top; within each group sort by viewer count
+    // with deterministic tiebreakers (streamStartedAt DESC, id ASC).
     if (viewerWallet) {
       streams.sort((a, b) => {
         if (a.isFollowing !== b.isFollowing) {
           return a.isFollowing ? -1 : 1;
         }
-        return b.viewerCount - a.viewerCount;
+        if (b.viewerCount !== a.viewerCount) {
+          return b.viewerCount - a.viewerCount;
+        }
+        const aStarted = a.streamStartedAt
+          ? new Date(a.streamStartedAt).getTime()
+          : 0;
+        const bStarted = b.streamStartedAt
+          ? new Date(b.streamStartedAt).getTime()
+          : 0;
+        if (bStarted !== aStarted) {
+          return bStarted - aStarted;
+        }
+        return String(a.id).localeCompare(String(b.id));
       });
     }
 
-    const page = streams.slice(0, STREAMS_PER_PAGE);
+    const page = streams.slice(0, fetchLimit);
     const hasMore = liveStreamsResult.rows.length === fetchLimit;
-    const nextOffset = hasMore ? offset + STREAMS_PER_PAGE : null;
+    const nextOffset = hasMore ? offset + fetchLimit : null;
 
     return NextResponse.json(
       { streams: page, hasMore, nextOffset },
