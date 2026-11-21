@@ -33,6 +33,7 @@ export default function Navbar({}: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const latestSearchQueryRef = useRef("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { publicKey, isConnected, disconnect, privyWallet } =
     useStellarWallet();
@@ -155,17 +156,20 @@ export default function Navbar({}: NavbarProps) {
 
   // Search results fetch with debounce — categories + users in parallel
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    const trimmedQuery = searchQuery.trim();
+    latestSearchQueryRef.current = trimmedQuery;
+    if (!trimmedQuery) {
       setSearchResults([]);
       return;
     }
 
+    const controller = new AbortController();
     const timeout = setTimeout(async () => {
       try {
-        const q = encodeURIComponent(searchQuery);
+        const q = encodeURIComponent(trimmedQuery);
         const [catRes, userRes] = await Promise.all([
-          fetch(`/api/category?title=${q}`),
-          fetch(`/api/search-username?q=${q}`),
+          fetch(`/api/category?title=${q}`, { signal: controller.signal }),
+          fetch(`/api/search-username?q=${q}`, { signal: controller.signal }),
         ]);
 
         const [catData, userData] = await Promise.all([
@@ -191,13 +195,28 @@ export default function Navbar({}: NavbarProps) {
           })
         );
 
+        if (
+          controller.signal.aborted ||
+          latestSearchQueryRef.current !== trimmedQuery
+        ) {
+          return;
+        }
         setSearchResults([...users, ...categories]);
       } catch {
+        if (
+          controller.signal.aborted ||
+          latestSearchQueryRef.current !== trimmedQuery
+        ) {
+          return;
+        }
         setSearchResults([]);
       }
     }, 300);
 
-    return () => clearTimeout(timeout);
+      return () => {
+        clearTimeout(timeout);
+        controller.abort();
+      };
   }, [searchQuery]);
 
   const handleConnectWallet = () => {

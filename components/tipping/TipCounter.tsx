@@ -213,6 +213,7 @@ export function TipCounter({
       const res = await fetch("/api/tips/refresh-total", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ username }),
       });
       if (res.ok) {
