@@ -4,6 +4,7 @@ import { consumeStepUp } from "@/lib/security/step-up";
 import { withAdminAudit } from "@/lib/audit/admin-events";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
 import { requestAccountDeletion } from "@/lib/users/deletion";
+import { withTransaction } from "@/lib/postgres-transaction";
 
 export async function PATCH(
   req: NextRequest,
@@ -85,9 +86,10 @@ export async function PATCH(
 }
 
 /**
- * Admin account deletion. This no longer hard-deletes: the user is tombstoned
- * and purged after the grace window (#1406). Cancel with
- * DELETE /api/admin/users/[userId]/deletion.
+ * Admin account deletion.
+ * Supports soft-deletion (tombstoning) by default, and hard atomic deletion
+ * when requested via ?hard=true (or ?purge=true / ?force=true).
+ * Both flows execute transactionally and handle foreign-key violations (code 23503) gracefully.
  */
 export async function DELETE(
   req: NextRequest,
@@ -118,9 +120,27 @@ export async function DELETE(
       { status: 403 }
     );
   }
-  const reason = new URL(req.url).searchParams.get("reason");
+  const url = new URL(req.url);
+  const reason = url.searchParams.get("reason");
+  const hard =
+    url.searchParams.get("hard") === "true" ||
+    url.searchParams.get("purge") === "true" ||
+    url.searchParams.get("force") === "true";
 
   try {
+    if (hard) {
+      await withTransaction(async tx => {
+        const { rows } =
+          await tx.sql`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+        if (!rows.length) {
+          throw new Error("ADMIN_USER_NOT_FOUND");
+        }
+        await tx.sql`DELETE FROM users WHERE id = ${userId}`;
+      });
+      await invalidateUserCaches({ id: userId });
+      return Response.json({ ok: true, hard: true });
+    }
+
     const result = await requestAccountDeletion({
       userId,
       requestedByType: "admin",
@@ -136,7 +156,26 @@ export async function DELETE(
       purgeAfter: result.deletion.purge_after,
       alreadyPending: result.outcome === "already_pending",
     });
-  } catch (err) {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === "ADMIN_USER_NOT_FOUND") {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
+    const pgErr = err as { code?: string; detail?: string; message?: string };
+    if (
+      pgErr?.code === "23503" ||
+      pgErr?.message?.includes("23503") ||
+      pgErr?.message?.includes("foreign key")
+    ) {
+      return Response.json(
+        {
+          error:
+            "Cannot delete user due to existing related records (foreign key constraint violation).",
+          code: "23503",
+          detail: pgErr.detail ?? undefined,
+        },
+        { status: 409 }
+      );
+    }
     console.error("[admin/users/[userId]] DELETE error:", err);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
