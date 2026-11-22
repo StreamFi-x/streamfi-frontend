@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
 import { verifySession } from "@/lib/auth/verify-session";
+import { logger } from "@/lib/tracing/logger";
 
 export async function GET(
   req: NextRequest,
@@ -66,7 +67,10 @@ export async function GET(
       try {
         muxHealth = await getMuxStreamHealth(streamData.mux_stream_id);
       } catch (healthError) {
-        console.error("Failed to get Mux health:", healthError);
+        logger.error("Failed to get Mux health", healthError, {
+          route: "GET /api/streams/[wallet]",
+          muxStreamId: streamData.mux_stream_id,
+        });
       }
     }
 
@@ -125,7 +129,9 @@ export async function GET(
       }
     );
   } catch (error) {
-    console.error("Get stream error:", error);
+    logger.error("Get stream error", error, {
+      route: "GET /api/streams/[wallet]",
+    });
     return NextResponse.json(
       { error: "Failed to get stream data" },
       { status: 500 }

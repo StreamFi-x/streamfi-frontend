@@ -7,6 +7,9 @@ const WalletNetwork = {
   TESTNET: "TESTNET",
 };
 
+const FREIGHTER_ID = "freighter";
+const allowAllModules = jest.fn(() => []);
+
 class StellarWalletsKit {
   constructor() {}
   openModal = jest.fn().mockResolvedValue(undefined);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { logger } from "@/lib/tracing/logger";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -46,7 +47,9 @@ export async function POST(req: Request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Email verification error:", error);
+    logger.error("Email verification error", error, {
+      route: "POST /api/users/verify-email",
+    });
     return NextResponse.json(
       { error: "Failed to verify email" },
       { status: 500 }

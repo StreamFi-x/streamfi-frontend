@@ -17,6 +17,7 @@ import {
   getUsernameCooldownDays,
   recordUsernameChange,
 } from "@/lib/users/username-history";
+import { logger } from "@/lib/tracing/logger";
 import { normalizeSocialLinksRecord } from "@/lib/users/profile-partial-update";
 import { createSanitizedErrorResponse } from "@/lib/api/error-response";
 
@@ -318,7 +319,11 @@ export async function PUT(
         await updateMuxStreamRecording(user.mux_stream_id, enableRecording);
       } catch (muxErr) {
         // Log but don't fail the settings save — user preference is stored in DB
-        console.error("Failed to sync recording preference to Mux:", muxErr);
+        logger.error("Failed to sync recording preference to Mux", muxErr, {
+          route: "PUT /api/users/updates/[wallet]",
+          userId: user.id,
+          muxStreamId: user.mux_stream_id,
+        });
       }
     }
 
@@ -327,7 +332,9 @@ export async function PUT(
       user: updatedUser.rows[0],
     });
   } catch (err) {
-    console.error("Update error:", err);
+    logger.error("User profile update error", err, {
+      route: "PUT /api/users/updates/[wallet]",
+    });
     return createSanitizedErrorResponse(err, "Internal server error");
   }
 }

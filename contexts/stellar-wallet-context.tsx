@@ -18,6 +18,8 @@ import {
 import { getStellarNetwork } from "@/lib/stellar/config";
 import { sessionReplay } from "@/lib/session-replay";
 
+const isDev = process.env.NODE_ENV === "development";
+
 const network =
   getStellarNetwork() === "mainnet"
     ? WalletNetwork.PUBLIC
@@ -151,7 +153,13 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
           });
         },
         onClosed: err => {
-          console.log("Modal closed", err);
+          if (isDev) {
+            // eslint-disable-next-line no-console
+            console.debug(
+              "[StellarWallet] Modal closed",
+              err ? String(err) : ""
+            );
+          }
           sessionReplay.addBreadcrumb({
             category: "wallet",
             message: "Wallet selection modal closed",
@@ -162,7 +170,10 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         },
       });
     } catch (err) {
-      console.error("Failed to connect Stellar wallet:", err);
+      if (isDev) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to connect Stellar wallet:", err);
+      }
       sessionReplay.recordFlowError("wallet", err, { action: "openModal" });
       setError("Failed to connect wallet");
       setIsConnecting(false);
@@ -214,13 +225,13 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
           throw new Error("No address returned from wallet");
         }
       } catch (err: any) {
-        console.error("Failed to connect Stellar wallet:", err);
-        console.error("Error details:", {
-          walletId,
-          error: err,
-          message: err?.message,
-          stack: err?.stack,
-        });
+        if (isDev) {
+          // eslint-disable-next-line no-console
+          console.error("Failed to connect Stellar wallet:", {
+            walletId,
+            message: err?.message,
+          });
+        }
 
         sessionReplay.recordFlowError("wallet", err, {
           walletId,
@@ -315,8 +326,12 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
             localStorage.setItem("stellar_auto_connect", "true");
           }
         } catch (err) {
-          if (!cancelled) {
-            console.warn("Stellar auto-connect failed:", err);
+          if (!cancelled && isDev) {
+            // eslint-disable-next-line no-console
+            console.warn(
+              "Stellar auto-connect failed:",
+              err instanceof Error ? err.message : String(err)
+            );
           }
         } finally {
           if (!cancelled) {

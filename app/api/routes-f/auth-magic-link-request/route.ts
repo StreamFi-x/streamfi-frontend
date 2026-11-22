@@ -35,6 +35,8 @@ import { signToken } from "@/lib/auth/sign-token";
 import { hashToken } from "@/lib/sessions/user-sessions";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { sendMagicLinkEmail } from "@/utils/send-email";
+import { executeEmailWithRetryAndDeadLetter } from "@/lib/email/reliable-sender";
+import { logger } from "@/lib/tracing/logger";
 
 // 5 requests per 15 minutes per IP, and independently per account — same
 // budget as auth-password-reset-request. Generous for a legitimate user
@@ -99,9 +101,9 @@ export async function POST(request: NextRequest) {
 
   const secret = process.env.SESSION_SECRET;
   if (!secret) {
-    console.error(
-      "[routes-f auth-magic-link-request] SESSION_SECRET not configured"
-    );
+    logger.error("SESSION_SECRET not configured", {
+      route: "POST /api/routes-f/auth-magic-link-request",
+    });
     return NextResponse.json(
       { error: "Server misconfiguration" },
       { status: 500 }
@@ -148,18 +150,23 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
     const magicLinkUrl = `${baseUrl}/login/magic?token=${encodeURIComponent(rawToken)}`;
 
-    await sendMagicLinkEmail(user.email, magicLinkUrl).catch((err: unknown) => {
-      // Do not fail the request just because the email provider hiccuped —
-      // log it, but keep the response generic either way.
-      console.error(
-        "[routes-f auth-magic-link-request] Failed to send email:",
-        err
-      );
-    });
+    await executeEmailWithRetryAndDeadLetter(
+      () => sendMagicLinkEmail(user.email, magicLinkUrl),
+      {
+        emailType: "magic_link",
+        recipientEmail: user.email,
+        subject: "Your StreamFi sign-in link",
+        payload: { userId: user.id },
+        maxRetries: 1,
+        initialBackoffMs: 50,
+      }
+    );
 
     return NextResponse.json(GENERIC_RESPONSE, { status: 200 });
   } catch (error) {
-    console.error("[routes-f auth-magic-link-request POST]", error);
+    logger.error("Failed to process sign-in link request", error, {
+      route: "POST /api/routes-f/auth-magic-link-request",
+    });
     return NextResponse.json(
       { error: "Failed to process sign-in link request" },
       { status: 500 }

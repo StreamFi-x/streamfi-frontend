@@ -264,7 +264,10 @@ export async function getPlaybackUrl(playbackId: string) {
     // Mux HLS playback URL format
     return `https://stream.mux.com/${playbackId}.m3u8`;
   } catch (error) {
-    console.error("Mux playback URL error:", error);
+    logger.error("Mux playback URL error", error, {
+      operation: "getPlaybackUrl",
+      playbackId,
+    });
     throw new Error("Failed to get playback URL");
   }
 }
@@ -339,7 +342,10 @@ export async function enableMuxStreamRecording(streamId: string) {
       streamId: liveStream.id,
     };
   } catch (error) {
-    console.error("Mux recording check error:", error);
+    logger.error("Mux recording check error", error, {
+      operation: "enableMuxStreamRecording",
+      streamId,
+    });
     throw new Error("Failed to check recording status");
   }
 }
@@ -369,7 +375,11 @@ export async function createMuxSignedUrl(
 
     return `${baseUrl}?token=${token}`;
   } catch (error) {
-    console.error("Mux signed URL error:", error);
+    logger.error("Mux signed URL error", error, {
+      operation: "createMuxSignedUrl",
+      playbackId,
+      type,
+    });
     throw error instanceof Error
       ? error
       : new Error("Failed to create signed URL");
@@ -392,7 +402,10 @@ export async function getMuxAsset(assetId: string) {
       isErrored: asset.status === "errored",
     };
   } catch (error) {
-    console.error("Mux asset retrieval error:", error);
+    logger.error("Mux asset retrieval error", error, {
+      operation: "getMuxAsset",
+      assetId,
+    });
     throw new Error("Failed to retrieve Mux asset");
   }
 }
@@ -402,7 +415,10 @@ export async function disableMuxStream(streamId: string) {
     await muxCall(options => mux.video.liveStreams.disable(streamId, options));
     return { success: true, streamId };
   } catch (error) {
-    console.error("Mux stream disable error:", error);
+    logger.error("Mux stream disable error", error, {
+      operation: "disableMuxStream",
+      streamId,
+    });
     throw new Error("Failed to disable Mux stream");
   }
 }
@@ -412,7 +428,10 @@ export async function enableMuxStream(streamId: string) {
     await muxCall(options => mux.video.liveStreams.enable(streamId, options));
     return { success: true, streamId };
   } catch (error) {
-    console.error("Mux stream enable error:", error);
+    logger.error("Mux stream enable error", error, {
+      operation: "enableMuxStream",
+      streamId,
+    });
     throw new Error("Failed to enable Mux stream");
   }
 }
@@ -437,7 +456,10 @@ export async function getMuxStreamHealth(streamId: string) {
       createdAt: liveStream.created_at ?? null,
     };
   } catch (error) {
-    console.error("Mux stream health error:", error);
+    logger.error("Mux stream health error", error, {
+      operation: "getMuxStreamHealth",
+      streamId,
+    });
     throw new Error("Failed to get stream health");
   }
 }
