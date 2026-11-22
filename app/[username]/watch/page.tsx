@@ -30,6 +30,9 @@ interface UserData {
   stream_access_type: "public" | "password" | "subscription" | null;
   subscription_price_usdc: number | null;
   latency_mode: string | null;
+  recently_reregistered?: boolean;
+  ownership_change_notice?: string | null;
+  previous_owner_released_at?: string | null;
 }
 
 const WatchPage = ({ params }: PageProps) => {
@@ -94,6 +97,17 @@ const WatchPage = ({ params }: PageProps) => {
           return;
         }
 
+        if (response.status === 307 || response.status === 308) {
+          const redirectData = await response.json().catch(() => null);
+          const target =
+            redirectData?.targetUsername ||
+            response.headers.get("X-Redirect-Username");
+          if (target) {
+            window.location.replace(`/${target}/watch`);
+            return;
+          }
+        }
+
         if (!response.ok) {
           if (isInitialLoad) {
             toast.error("Failed to load stream");
@@ -102,6 +116,10 @@ const WatchPage = ({ params }: PageProps) => {
         }
 
         const data = await response.json();
+        if (data?.redirect && data?.targetUsername) {
+          window.location.replace(`/${data.targetUsername}/watch`);
+          return;
+        }
         setUserData(data.user);
         setIsFollowing(!!data.user.is_following);
       } catch (error) {

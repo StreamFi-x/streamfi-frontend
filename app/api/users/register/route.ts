@@ -11,6 +11,7 @@ import {
   prepareSocialLinks,
 } from "@/lib/db/jsonb-contracts";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { checkUsernameReleaseHold } from "@/lib/users/username-history";
 import { getReservedUsernameError } from "@/lib/reserved-usernames";
 
 // Registration creates a Mux stream + DB write — strict limit to prevent abuse
@@ -144,6 +145,25 @@ async function handler(req: NextRequest) {
       return NextResponse.json(
         { error: "Username already exist" },
         { status: 400 }
+      );
+    }
+
+    const releaseHold = await checkUsernameReleaseHold({ username });
+    if (releaseHold.held) {
+      return NextResponse.json(
+        {
+          error:
+            "This username was recently released by another account and cannot be registered during the cooldown period",
+          code: "USERNAME_RECENTLY_RELEASED",
+          availableAt: releaseHold.availableAt,
+          retryAfterSeconds: releaseHold.retryAfterSeconds,
+        },
+        {
+          status: 409,
+          headers: {
+            "Retry-After": String(releaseHold.retryAfterSeconds),
+          },
+        }
       );
     }
 
