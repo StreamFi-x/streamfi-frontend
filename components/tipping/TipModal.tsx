@@ -30,6 +30,7 @@ import {
 import { TransactionBuilder, Networks } from "@stellar/stellar-sdk";
 import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { getMainnetGuardState } from "@/lib/stellar/network-guard";
 import { TipConfirmation } from "./TipConfirmation";
 import { sessionReplay } from "@/lib/session-replay";
 
@@ -45,12 +46,7 @@ interface TipModalProps {
 }
 
 type TransactionState =
-  | "idle"
-  | "building"
-  | "signing"
-  | "submitting"
-  | "success"
-  | "error";
+  "idle" | "building" | "signing" | "submitting" | "success" | "error";
 
 interface Quote {
   quote_token: string;
@@ -93,6 +89,7 @@ export function TipModal({
   const [quoteFetchFailed, setQuoteFetchFailed] = useState<boolean>(false);
 
   const { kit } = useStellarWallet();
+  const mainnetGuard = getMainnetGuardState();
   const [feeStroops, setFeeStroops] = useState<number | undefined>(undefined);
   const fee = calculateFeeEstimate(feeStroops);
   const usdEquivalent =
@@ -276,6 +273,18 @@ export function TipModal({
   };
 
   const handleSubmit = async () => {
+    if (mainnetGuard.isBlocked) {
+      const blockedMessage =
+        mainnetGuard.warningMessage ??
+        "Stellar mainnet transactions are blocked in non-production environments.";
+      setError(blockedMessage);
+      setTransactionState("error");
+      if (onError) {
+        onError(blockedMessage);
+      }
+      return;
+    }
+
     sessionReplay.addBreadcrumb({
       category: "tipping",
       message: `Submitting tip: ${amount} XLM to @${recipientUsername}`,
@@ -322,10 +331,14 @@ export function TipModal({
         if (insufficientBalance) {
           setError("insufficient_balance");
           setTransactionState("error");
-          sessionReplay.recordFlowError("tipping", new Error("Insufficient balance"), {
-            amount,
-            feeStroops: currentFeeStroops,
-          });
+          sessionReplay.recordFlowError(
+            "tipping",
+            new Error("Insufficient balance"),
+            {
+              amount,
+              feeStroops: currentFeeStroops,
+            }
+          );
           if (onError) {
             onError("Insufficient balance");
           }
@@ -352,9 +365,13 @@ export function TipModal({
       if (recipientCheck.status === "account_not_funded") {
         setError("recipient_not_funded");
         setTransactionState("error");
-        sessionReplay.recordFlowError("tipping", new Error("Recipient account is not funded"), {
-          recipientPublicKey: `${recipientPublicKey.slice(0, 4)}...${recipientPublicKey.slice(-4)}`,
-        });
+        sessionReplay.recordFlowError(
+          "tipping",
+          new Error("Recipient account is not funded"),
+          {
+            recipientPublicKey: `${recipientPublicKey.slice(0, 4)}...${recipientPublicKey.slice(-4)}`,
+          }
+        );
         if (onError) {
           onError("Recipient account is not funded on the Stellar network.");
         }
@@ -511,7 +528,8 @@ export function TipModal({
     transactionState === "signing" ||
     transactionState === "submitting";
 
-  const canSubmit = amount !== "" && transactionState === "idle";
+  const canSubmit =
+    amount !== "" && transactionState === "idle" && !mainnetGuard.isBlocked;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -546,6 +564,20 @@ export function TipModal({
               </p>
             </div>
           </div>
+
+          {/* Mainnet non-production safety block */}
+          {mainnetGuard.isBlocked && (
+            <div
+              role="alert"
+              data-testid="tip-modal-mainnet-blocked"
+              className="flex items-start gap-2.5 p-3 bg-red-600/15 border border-red-500/40 rounded-xl"
+            >
+              <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-red-500 font-medium">
+                {mainnetGuard.warningMessage}
+              </p>
+            </div>
+          )}
 
           {/* XLM price warning */}
           {priceFetchFailed && !isLoadingPrice && (

@@ -16,6 +16,10 @@ import {
   FREIGHTER_ID,
 } from "@creit.tech/stellar-wallets-kit";
 import { getStellarNetwork } from "@/lib/stellar/config";
+import {
+  getMainnetGuardState,
+  type MainnetGuardState,
+} from "@/lib/stellar/network-guard";
 import { sessionReplay } from "@/lib/session-replay";
 
 const network =
@@ -47,6 +51,8 @@ interface StellarWalletContextType {
   error: string | null;
   /** Privy-authenticated user (Google login). Null if signed in via Stellar wallet only. */
   privyWallet: PrivySessionUser | null;
+  /** Runtime guard state for detecting Stellar mainnet in non-production environments. */
+  mainnetGuard: MainnetGuardState;
 }
 
 const StellarWalletContext = createContext<
@@ -79,6 +85,13 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [privyWallet, setPrivyWallet] = useState<PrivySessionUser | null>(null);
   const hasAttemptedAutoConnect = useRef(false);
+  const mainnetGuard = getMainnetGuardState();
+
+  useEffect(() => {
+    if (mainnetGuard.isMainnetInNonProd && mainnetGuard.warningMessage) {
+      console.error(`[StellarMainnetGuard] ${mainnetGuard.warningMessage}`);
+    }
+  }, [mainnetGuard.isMainnetInNonProd, mainnetGuard.warningMessage]);
 
   // Listen for successful Privy session creation (dispatched by auth-provider)
   useEffect(() => {
@@ -352,6 +365,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         isConnecting,
         error,
         privyWallet,
+        mainnetGuard,
       }}
     >
       {children}

@@ -13,6 +13,7 @@ import {
 import { logger } from "@/lib/tracing/logger";
 import { getTraceHeaders } from "@/lib/tracing/trace-context";
 import { calculateSpendableBalance } from "./reserve";
+import { assertMainnetAllowedForTransaction } from "./network-guard";
 
 const Server = Horizon.Server;
 
@@ -213,7 +214,10 @@ export async function buildTipTransaction(
     const networkPassphrase = getNetworkPassphrase(network);
 
     const normalizedAmount = Number(amount);
-    if (!Number.isFinite(normalizedAmount) || normalizedAmount < MIN_TIP_AMOUNT_XLM) {
+    if (
+      !Number.isFinite(normalizedAmount) ||
+      normalizedAmount < MIN_TIP_AMOUNT_XLM
+    ) {
       throw new Error(`Amount must be at least ${MIN_TIP_AMOUNT_XLM} XLM`);
     }
     if (normalizedAmount > MAX_TIP_AMOUNT_XLM) {
@@ -529,6 +533,7 @@ export async function submitTransaction(
   transaction: Transaction,
   network: "testnet" | "mainnet"
 ): Promise<SubmitTransactionResult> {
+  assertMainnetAllowedForTransaction(network);
   const startTime = Date.now();
 
   try {
@@ -815,9 +820,7 @@ export class AccountNotFundedError extends Error {
 }
 
 export type BalanceCheckStatus =
-  | "ok"
-  | "insufficient_balance"
-  | "account_not_funded";
+  "ok" | "insufficient_balance" | "account_not_funded";
 
 export interface BalanceCheckResult {
   insufficient: boolean;
@@ -913,14 +916,14 @@ export async function hasInsufficientBalance(
 
 /**
  * Build a ChangeTrust transaction to establish a trustline to a non-native asset
- * 
+ *
  * @param publicKey - Account public key establishing the trustline
  * @param asset - Asset object (e.g., USDC) to create trustline for
  * @param network - "testnet" or "mainnet"
  * @param memo - Optional transaction memo
  * @param feeStroops - Optional custom fee in stroops (uses network default if omitted)
  * @returns Unsigned Stellar transaction ready for client signing
- * 
+ *
  * Trustlines lock up 0.5 XLM of account minimum balance reserve.
  * The sending account must have enough XLM to cover this reserve increase.
  */
@@ -994,7 +997,9 @@ export async function buildChangeTrustTransaction(
           `Source account not found: ${publicKey}. Account must be funded before establishing a trustline.`
         );
       }
-      throw new Error(`Failed to build trustline transaction: ${error.message}`);
+      throw new Error(
+        `Failed to build trustline transaction: ${error.message}`
+      );
     }
     throw new Error("Failed to build trustline transaction: Unknown error");
   }

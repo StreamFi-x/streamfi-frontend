@@ -7,6 +7,7 @@ import { AuthProvider } from "./auth/auth-provider";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { StellarWalletProvider } from "@/contexts/stellar-wallet-context";
 import { FundingOnboardingProvider } from "@/components/wallet/funding/FundingOnboardingProvider";
+import { MainnetSafetyBanner } from "@/components/wallet/MainnetSafetyBanner";
 
 const swrCache = new Map();
 
@@ -17,7 +18,10 @@ function InnerProviders({ children }: { children: React.ReactNode }) {
     <StellarWalletProvider>
       <ThemeProvider>
         <AuthProvider>
-          <FundingOnboardingProvider>{children}</FundingOnboardingProvider>
+          <FundingOnboardingProvider>
+            <MainnetSafetyBanner />
+            {children}
+          </FundingOnboardingProvider>
         </AuthProvider>
       </ThemeProvider>
     </StellarWalletProvider>
