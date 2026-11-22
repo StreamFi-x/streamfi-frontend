@@ -7,6 +7,7 @@ import { tabs } from "@/data/settings";
 const URL_MAPPING = {
   Profile: "/settings/profile",
   "Privacy & Security": "/settings/privacy",
+  "Account & Data": "/settings/account",
   Notifications: "/settings/notifications",
   "Stream & Channel Preferences": "/settings/stream-preference",
   Appearance: "/settings/appearance",
