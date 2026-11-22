@@ -10,6 +10,21 @@ import { parseProfileJsonbFields } from "@/lib/users/profile-form";
 import { validateUserUpdate } from "../../../../../../utils/userValidators";
 import { UserUpdateInput } from "../../../../../../types/user";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { verifySession } from "@/lib/auth/verify-session";
+import { shouldBypassAuth } from "@/lib/dev-mode";
+
+function stripControlCharacters(value: string): string {
+  return value.replace(/[\u0000-\u001F\u007F]/g, "");
+}
+
+function isValidImageUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return url.startsWith("/") && !url.startsWith("//");
+  }
+}
 
 export async function PUT(
   req: NextRequest,
@@ -17,6 +32,29 @@ export async function PUT(
 ) {
   try {
     const { privyId } = await params;
+
+    // Strict authentication and ownership authorization guard (#1857):
+    // Never allow an unauthenticated caller or a different user to mutate
+    // another user's profile by guessing or supplying their privy_id.
+    if (!shouldBypassAuth()) {
+      const session = await verifySession(req);
+      if (!session.ok) {
+        return session.response;
+      }
+
+      // Allow if caller is the resource owner matching privyId
+      const isOwner = session.privyId === privyId;
+      if (!isOwner) {
+        // Allow if caller has admin or moderator privileges
+        const roleResult = await sql`
+          SELECT role FROM users WHERE id = ${session.userId} AND deleted_at IS NULL LIMIT 1
+        `;
+        const role = roleResult.rows[0]?.role;
+        if (role !== "super_admin" && role !== "moderator") {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+      }
+    }
 
     // Fetch current user record by privy_id
     const existingResult = await sql`
@@ -30,26 +68,88 @@ export async function PUT(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const formData = await req.formData();
+    let username: string = user.username;
+    let bio: string = user.bio;
+    let streamkey: string = user.streamkey;
+    let emailVerified = user.emailverified;
+    let emailNotifications = user.emailnotifications;
+    let avatarUrlField: string | undefined;
+    let avatarFile: Blob | null = null;
+    let bannerFile: Blob | null = null;
+    let jsonbFields: ReturnType<typeof parseProfileJsonbFields> = {
+      socialLinks: null,
+      creator: null,
+    };
 
-    const username = (formData.get("username") as string) ?? user.username;
-    const bio = (formData.get("bio") as string) ?? user.bio;
-    const streamkey = (formData.get("streamkey") as string) ?? user.streamkey;
-    const emailVerified = formData.get("emailVerified") ?? user.emailverified;
-    const emailNotifications =
-      formData.get("emailNotifications") ?? user.emailnotifications;
+    const contentType = req.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const body = await req.json();
+      if (body.username !== undefined) username = String(body.username);
+      if (body.bio !== undefined) bio = String(body.bio);
+      if (body.streamkey !== undefined) streamkey = String(body.streamkey);
+      if (body.emailVerified !== undefined) emailVerified = body.emailVerified;
+      if (body.emailNotifications !== undefined)
+        emailNotifications = body.emailNotifications;
+      if (typeof body.avatarUrl === "string") avatarUrlField = body.avatarUrl;
+      else if (typeof body.avatar === "string") avatarUrlField = body.avatar;
 
-    let jsonbFields: ReturnType<typeof parseProfileJsonbFields>;
-    try {
-      jsonbFields = parseProfileJsonbFields(formData);
-    } catch (err) {
-      if (err instanceof JsonbContractError) {
+      if (body.socialLinks || body.sociallinks) {
+        jsonbFields = {
+          socialLinks: body.socialLinks || body.sociallinks,
+          creator: body.creator ?? null,
+        };
+      }
+    } else {
+      const formData = await req.formData();
+
+      if (formData.has("username"))
+        username = (formData.get("username") as string) ?? user.username;
+      if (formData.has("bio"))
+        bio = (formData.get("bio") as string) ?? user.bio;
+      if (formData.has("streamkey"))
+        streamkey = (formData.get("streamkey") as string) ?? user.streamkey;
+      if (formData.has("emailVerified"))
+        emailVerified = formData.get("emailVerified") ?? user.emailverified;
+      if (formData.has("emailNotifications"))
+        emailNotifications =
+          formData.get("emailNotifications") ?? user.emailnotifications;
+      if (formData.has("avatarUrl"))
+        avatarUrlField = formData.get("avatarUrl") as string;
+
+      const rawAvatar = formData.get("avatar");
+      if (rawAvatar instanceof Blob) {
+        avatarFile = rawAvatar;
+      } else if (typeof rawAvatar === "string" && rawAvatar.trim()) {
+        avatarUrlField = rawAvatar.trim();
+      }
+
+      const rawBanner = formData.get("banner");
+      if (rawBanner instanceof Blob) {
+        bannerFile = rawBanner;
+      }
+
+      try {
+        jsonbFields = parseProfileJsonbFields(formData);
+      } catch (err) {
+        if (err instanceof JsonbContractError) {
+          return NextResponse.json(
+            { error: `Invalid ${err.column} format`, issues: err.issues },
+            { status: 400 }
+          );
+        }
+        throw err;
+      }
+    }
+
+    // Sanitize bio: strip control characters, enforce max length
+    if (bio !== undefined && bio !== null) {
+      bio = stripControlCharacters(String(bio)).trim();
+      if (bio.length > 500) {
         return NextResponse.json(
-          { error: `Invalid ${err.column} format`, issues: err.issues },
+          { error: "bio must be 500 characters or fewer" },
           { status: 400 }
         );
       }
-      throw err;
     }
 
     // Validate
@@ -88,10 +188,13 @@ export async function PUT(
 
     // Handle avatar — file upload (→ Cloudinary) or preset icon URL string
     let avatarUrl = user.avatar;
-    const avatarFile = formData.get("avatar");
-    const avatarUrlField = formData.get("avatarUrl");
-
     if (avatarFile instanceof Blob) {
+      if (avatarFile.type && !avatarFile.type.startsWith("image/")) {
+        return NextResponse.json(
+          { error: "Invalid avatar file type" },
+          { status: 400 }
+        );
+      }
       const buffer = Buffer.from(await avatarFile.arrayBuffer());
       const uploadResult = await uploadImageFromBuffer(buffer);
       avatarUrl = uploadResult.secure_url;
@@ -103,7 +206,14 @@ export async function PUT(
         }
       }
     } else if (typeof avatarUrlField === "string" && avatarUrlField.trim()) {
-      avatarUrl = avatarUrlField.trim();
+      const trimmedUrl = avatarUrlField.trim();
+      if (!isValidImageUrl(trimmedUrl)) {
+        return NextResponse.json(
+          { error: "Invalid avatar URL format" },
+          { status: 400 }
+        );
+      }
+      avatarUrl = trimmedUrl;
       // Clean up old Cloudinary photo if switching to a preset icon
       if (user.avatar) {
         const oldPublicId = extractPublicIdFromUrl(user.avatar);
@@ -115,9 +225,13 @@ export async function PUT(
 
     // Handle banner — file upload (→ Cloudinary)
     let bannerUrl = user.banner;
-    const bannerFile = formData.get("banner");
-
     if (bannerFile instanceof Blob) {
+      if (bannerFile.type && !bannerFile.type.startsWith("image/")) {
+        return NextResponse.json(
+          { error: "Invalid banner file type" },
+          { status: 400 }
+        );
+      }
       const buffer = Buffer.from(await bannerFile.arrayBuffer());
       const uploadResult = await uploadImageFromBuffer(buffer);
       bannerUrl = uploadResult.secure_url;
