@@ -12,6 +12,15 @@ import {
 } from "@/lib/db/jsonb-contracts";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
 import {
+  UsernameValidationError,
+  prepareUsername,
+  type PreparedUsername,
+} from "@/lib/validation/username";
+import {
+  LOOKALIKE_USERNAME_MESSAGE,
+  findUsernameConflict,
+} from "@/lib/users/username-conflict";
+import {
   apiBadRequest,
   apiConflict,
   apiInternalError,
@@ -53,12 +62,19 @@ async function handler(req: NextRequest) {
     },
   } = requestBody;
 
-  // Normalize to lowercase — prevents case-variant duplicates across auth methods
-  const username = rawUsername ? String(rawUsername).trim().toLowerCase() : "";
-
-  if (!username) {
-    return apiBadRequest("Username is required");
+  // Normalize (NFKC, trim, lowercase) and reject mixed-script or invisible
+  // characters. The skeleton catches look-alike names such as a Cyrillic "a"
+  // standing in for a Latin one.
+  let prepared: PreparedUsername;
+  try {
+    prepared = prepareUsername(rawUsername ? String(rawUsername) : "");
+  } catch (error) {
+    if (error instanceof UsernameValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    throw error;
   }
+  const username = prepared.value;
 
   const reservedUsernameError = getReservedUsernameError(username);
   if (reservedUsernameError) {
@@ -67,6 +83,8 @@ async function handler(req: NextRequest) {
       { status: 400 }
     );
   }
+  }
+  const username = prepared.username;
 
   if (!wallet) {
     return apiBadRequest("Wallet is required");
@@ -108,11 +126,8 @@ async function handler(req: NextRequest) {
     );
     // Case-insensitive username check — username is stored lowercase but guard against
     // any legacy mixed-case rows that may exist
-    const { rows: usernameRows } = await sql`
-      -- tombstone-aware: identifiers stay reserved until the account is purged
-      SELECT id FROM users WHERE LOWER(username) = ${username} LIMIT 1
-    `;
-    const usernameExist = usernameRows.length > 0;
+    const usernameConflict = await findUsernameConflict(prepared);
+    const usernameExist = usernameConflict === "exact";
 
     if (userEmailExist || userWalletExist) {
       // A tombstoned account keeps its email/wallet until it is purged; the
@@ -154,6 +169,13 @@ async function handler(req: NextRequest) {
             "Retry-After": String(releaseHold.retryAfterSeconds),
           },
         }
+      );
+    }
+
+    if (usernameConflict === "lookalike") {
+      return NextResponse.json(
+        { error: LOOKALIKE_USERNAME_MESSAGE, code: "USERNAME_LOOKALIKE" },
+        { status: 400 }
       );
     }
 
@@ -202,6 +224,7 @@ async function handler(req: NextRequest) {
       INSERT INTO users (
         email,
         username,
+        username_skeleton,
         wallet,
         socialLinks,
         emailNotifications,
@@ -214,6 +237,7 @@ async function handler(req: NextRequest) {
       VALUES (
         ${email},
         ${username},
+        ${prepared.skeleton},
         ${wallet},
         ${JSON.stringify(socialLinksDocument)},
         ${emailNotifications},

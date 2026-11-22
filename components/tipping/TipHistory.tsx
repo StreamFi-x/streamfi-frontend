@@ -1,5 +1,6 @@
 "use client";
 
+import { tipFlowHeaders } from "@/lib/tracing/tip-flow";
 import { useState, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -81,7 +82,7 @@ export function TipHistory({ username }: TipHistoryProps) {
     try {
       const response = await fetch("/api/tips/refresh-total", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: tipFlowHeaders({ "Content-Type": "application/json" }),
         credentials: "include",
         body: JSON.stringify({ username }),
       });
