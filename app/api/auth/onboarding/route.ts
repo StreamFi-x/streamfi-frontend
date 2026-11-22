@@ -23,6 +23,7 @@ import {
   encryptCustodialSecret,
 } from "@/lib/custodial-keys";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { isPresetIcon } from "@/lib/profile-icons";
 import { checkUsernameReleaseHold } from "@/lib/users/username-history";
 import { logger } from "@/lib/tracing/logger";
 import { getReservedUsernameError } from "@/lib/reserved-usernames";
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Parse and validate request body
-  let body: { username?: string; bio?: string };
+  let body: { username?: string; bio?: string; avatar?: string };
   try {
     body = await req.json();
   } catch {
@@ -80,6 +81,10 @@ export async function POST(req: NextRequest) {
   // case-variant duplicates (e.g. "DumDumboi" vs "dumdumboi")
   const username = body.username!.trim().toLowerCase();
   const bio = body.bio?.trim() ?? null;
+  const avatar =
+    typeof body.avatar === "string" && isPresetIcon(body.avatar)
+      ? body.avatar
+      : null;
 
   // 3. Check username isn't already taken (case-insensitive via stored lowercase)
   try {
@@ -171,6 +176,7 @@ export async function POST(req: NextRequest) {
           encrypted_stellar_key = ${encryptedSecret},
           auth_type             = 'privy',
           bio                   = COALESCE(${bio}, bio),
+          avatar                = COALESCE(${avatar}, avatar),
           updated_at            = NOW()
         WHERE id = ${session.userId}
       `;
@@ -182,6 +188,7 @@ export async function POST(req: NextRequest) {
           username   = ${username},
           auth_type  = 'privy',
           bio        = COALESCE(${bio}, bio),
+          avatar     = COALESCE(${avatar}, avatar),
           updated_at = NOW()
         WHERE id = ${session.userId}
       `;

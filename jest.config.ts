@@ -100,6 +100,8 @@ const config = {
     "^lucide-react$": "<rootDir>/__mocks__/lucide-react.js",
     // Point ESM-only packages to their CJS builds so Jest can load them
     "^uncrypto$": "<rootDir>/node_modules/uncrypto/dist/crypto.node.cjs",
+    "^@creit.tech/stellar-wallets-kit/modules/walletconnect.module$":
+      "<rootDir>/__mocks__/@creit.tech/stellar-wallets-kit/modules/walletconnect.module.js",
     "^@creit.tech/stellar-wallets-kit$":
       "<rootDir>/__mocks__/@creit.tech/stellar-wallets-kit.js",
   },
