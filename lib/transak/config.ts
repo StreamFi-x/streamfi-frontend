@@ -1,3 +1,5 @@
+import { getStellarNetwork } from "@/lib/stellar/config";
+import { assertMainnetAllowedForTransaction } from "@/lib/stellar/network-guard";
 import type {
   TransakConfig,
   TransakEnvironment,
@@ -12,9 +14,7 @@ const TRANSAK_WIDGET_URLS: Record<TransakEnvironment, string> = {
 
 // Mirror Stellar network setting — testnet → STAGING, mainnet → PRODUCTION
 export const TRANSAK_ENVIRONMENT: TransakEnvironment =
-  process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet"
-    ? "PRODUCTION"
-    : "STAGING";
+  getStellarNetwork() === "mainnet" ? "PRODUCTION" : "STAGING";
 
 /**
  * Build a Transak v4 config for StreamFi.
@@ -29,6 +29,9 @@ export function buildTransakConfig(
   walletAddress: string,
   paramOverrides: Partial<TransakWidgetParams> = {}
 ): TransakConfig {
+  const stellarNetwork = getStellarNetwork();
+  assertMainnetAllowedForTransaction(stellarNetwork);
+
   const apiKey = process.env.NEXT_PUBLIC_TRANSAK_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -37,7 +40,8 @@ export function buildTransakConfig(
     );
   }
 
-  const environment = TRANSAK_ENVIRONMENT;
+  const environment: TransakEnvironment =
+    stellarNetwork === "mainnet" ? "PRODUCTION" : "STAGING";
   const baseUrl = TRANSAK_WIDGET_URLS[environment];
 
   const params: TransakWidgetParams = {

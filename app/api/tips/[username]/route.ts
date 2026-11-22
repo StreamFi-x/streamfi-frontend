@@ -1,5 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
+import {
+  apiBadRequest,
+  apiInternalError,
+  apiNotFound,
+  apiSuccess,
+} from "@/lib/api";
 import { logger } from "@/lib/tracing/logger";
 
 interface RouteContext {
@@ -12,10 +18,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const username = resolvedParams?.username?.trim();
 
     if (!username) {
-      return NextResponse.json(
-        { error: "Username is required" },
-        { status: 400 }
-      );
+      return apiBadRequest("Username is required");
     }
 
     const { searchParams } = new URL(req.url);
@@ -29,12 +32,12 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const userResult = await sql`
       SELECT id, username, wallet, total_tips_received, total_tips_count
       FROM users
-      WHERE LOWER(username) = LOWER(${username})
+      WHERE LOWER(username) = LOWER(${username}) AND deleted_at IS NULL
       LIMIT 1
     `;
 
     if (userResult.rows.length === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return apiNotFound("User not found");
     }
 
     const user = userResult.rows[0];
@@ -63,7 +66,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
               COALESCE(u.wallet, '') AS sender_wallet,
               u.username AS sender_username
             FROM tip_transactions tt
-            LEFT JOIN users u ON tt.supporter_id = u.id
+            LEFT JOIN users u ON tt.supporter_id = u.id AND u.deleted_at IS NULL
             WHERE tt.creator_id = ${user.id}
               AND tt.created_at < (SELECT created_at FROM tip_transactions WHERE id = ${cursor} LIMIT 1)
             ORDER BY tt.created_at DESC
@@ -78,7 +81,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
               COALESCE(u.wallet, '') AS sender_wallet,
               u.username AS sender_username
             FROM tip_transactions tt
-            LEFT JOIN users u ON tt.supporter_id = u.id
+            LEFT JOIN users u ON tt.supporter_id = u.id AND u.deleted_at IS NULL
             WHERE tt.creator_id = ${user.id}
             ORDER BY tt.created_at DESC
             LIMIT ${fetchLimit}
@@ -112,23 +115,23 @@ export async function GET(req: NextRequest, context: RouteContext) {
       // Return empty tips list with user totals intact
     }
 
-    return NextResponse.json({
-      tips,
-      pagination: {
-        nextCursor,
+    return apiSuccess(
+      {
+        tips,
+        pagination: {
+          nextCursor,
+        },
+        total: {
+          received: String(user.total_tips_received ?? "0"),
+          count: Number(user.total_tips_count ?? 0),
+        },
       },
-      total: {
-        received: String(user.total_tips_received ?? "0"),
-        count: Number(user.total_tips_count ?? 0),
-      },
-    });
+      { legacyFlat: true }
+    );
   } catch (error) {
     logger.error("Failed to fetch tip history", error, {
       route: "GET /api/tips/[username]",
     });
-    return NextResponse.json(
-      { error: "Failed to fetch tip history" },
-      { status: 500 }
-    );
+    return apiInternalError("Failed to fetch tip history");
   }
 }
