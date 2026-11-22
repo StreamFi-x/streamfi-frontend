@@ -1,25 +1,19 @@
 import { NextResponse } from "next/server";
 import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 import { sql } from "@vercel/postgres";
+import { checkDebugSecret } from "@/lib/debug-auth";
 
 /**
  * DEV ONLY — clears all users and dependent data so you can start fresh.
- * Guarded by CLEAR_USERS_SECRET env var to prevent accidental use.
+ * Guarded by CLEAR_USERS_SECRET env var to prevent accidental use, and
+ * excluded in production via checkDebugSecret (#1720).
  *
  * GET /api/debug/clear-users?secret=<CLEAR_USERS_SECRET>
  */
 export async function GET(req: Request) {
-  const secret = process.env.CLEAR_USERS_SECRET;
-  if (!secret) {
-    return NextResponse.json(
-      { error: "CLEAR_USERS_SECRET not configured" },
-      { status: 403 }
-    );
-  }
-
-  const { searchParams } = new URL(req.url);
-  if (searchParams.get("secret") !== secret) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const forbidden = checkDebugSecret(req, "CLEAR_USERS_SECRET");
+  if (forbidden) {
+    return forbidden;
   }
 
   try {

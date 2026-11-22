@@ -132,7 +132,7 @@ paths:
       tags:
         - Waitlist
       summary: Subscribe to Waitlist
-      description: Subscribe a user to the waitlist
+      description: Request a waitlist subscription and send a double opt-in confirmation link
       requestBody:
         required: true
         content:
@@ -140,7 +140,6 @@ paths:
             schema:
               type: object
               required:
-                - name
                 - email
               properties:
                 name:
@@ -151,19 +150,43 @@ paths:
                   format: email
                   example: "new@example.com"
       responses:
+        "201":
+          description: Confirmation link sent to email
         "200":
-          description: Successfully subscribed to waitlist
+          description: Email already confirmed and subscribed
         "400":
           description: Bad request - invalid input data
-        "409":
-          description: Email already subscribed
+
+  /api/waitlist/confirm:
+    get:
+      tags:
+        - Waitlist
+      summary: Confirm Waitlist Subscription
+      description: Confirm a pending waitlist subscription via the verification token sent to the subscriber
+      parameters:
+        - in: query
+          name: email
+          required: true
+          schema:
+            type: string
+            format: email
+        - in: query
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Waitlist subscription confirmed
+        "400":
+          description: Invalid or expired confirmation token
 
   /api/waitlist/unsubscribe:
     post:
       tags:
         - Waitlist
       summary: Unsubscribe from Waitlist
-      description: Unsubscribe a user from the waitlist
+      description: Unsubscribe a user from the waitlist using their unique unsubscribe token
       requestBody:
         required: true
         content:
@@ -171,21 +194,23 @@ paths:
             schema:
               type: object
               required:
-                - name
                 - email
+                - token
               properties:
-                name:
-                  type: string
-                  example: "user's name"
                 email:
                   type: string
                   format: email
                   example: "new@example.com"
+                token:
+                  type: string
+                  example: "subscriber-unsubscribe-token"
       responses:
         "200":
           description: Successfully unsubscribed from waitlist
         "400":
-          description: Bad request - invalid input data
+          description: Bad request - invalid input data or missing token
+        "403":
+          description: Invalid unsubscribe verification token
         "404":
           description: Email not found in waitlist
 
