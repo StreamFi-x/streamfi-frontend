@@ -19,6 +19,8 @@ import { signToken } from "@/lib/auth/sign-token";
 import { hashToken } from "@/lib/sessions/user-sessions";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { sendEmailVerificationLink } from "@/utils/send-email";
+import { executeEmailWithRetryAndDeadLetter } from "@/lib/email/reliable-sender";
+import { logger } from "@/lib/tracing/logger";
 
 // 3 verification emails per hour per account — plenty for legitimate retries
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 3);
@@ -62,9 +64,9 @@ export async function POST(request: NextRequest) {
 
   const secret = process.env.SESSION_SECRET;
   if (!secret) {
-    console.error(
-      "[routes-f auth-email-verify-request] SESSION_SECRET not configured"
-    );
+    logger.error("SESSION_SECRET not configured", {
+      route: "POST /api/routes-f/auth-email-verify-request",
+    });
     return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
   }
 
@@ -153,10 +155,23 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
     const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(rawToken)}`;
 
-    // 8. Send verification email with delivery‑bounce handling
+    // Send verification email with retry/dead-letter handling and delivery-bounce handling
     try {
-      await sendEmailVerificationLink(email, verifyUrl);
+      await executeEmailWithRetryAndDeadLetter(
+        () => sendEmailVerificationLink(email, verifyUrl),
+        {
+          emailType: "email_verification_link",
+          recipientEmail: email,
+          subject: "Verify your StreamFi email address",
+          payload: { userId: session.userId },
+          maxRetries: 1,
+          initialBackoffMs: 50,
+        }
+      );
     } catch (err) {
+      logger.error("Failed to send verification email after retries", err, {
+        route: "POST /api/routes-f/auth-email-verify-request",
+      });
       console.error(
         "[routes-f auth-email-verify-request] Failed to send email:",
         err
@@ -189,10 +204,9 @@ export async function POST(request: NextRequest) {
           { status: 200 }
         );
       }
-      // For unverified users we simply log the error (already logged above)
     }
 
-    // 9. Invalidate caches before returning success
+    // Invalidate caches before returning success
     await invalidateUserCaches({ id: session.userId });
 
     return NextResponse.json(
@@ -200,6 +214,9 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    logger.error("Failed to send verification email", error, {
+      route: "POST /api/routes-f/auth-email-verify-request",
+    });
     return createSanitizedErrorResponse(error, {
       context: "routes-f auth-email-verify-request POST",
       publicMessage: "Failed to send verification email",

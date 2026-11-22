@@ -3,6 +3,8 @@ import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 import { sql } from "@vercel/postgres";
 import { validateEmail } from "../../../../utils/validators";
 import { sendWelcomeEmail } from "../../../../utils/send-email";
+import { executeEmailWithRetryAndDeadLetter } from "@/lib/email/reliable-sender";
+import { logger } from "@/lib/tracing/logger";
 
 export async function POST(req: NextRequest) {
   let body: { email?: string; name?: string | null };
@@ -58,9 +60,22 @@ export async function POST(req: NextRequest) {
       `;
     }
 
-    // Fire-and-forget — email failure must not fail the subscription
-    sendWelcomeEmail(body.email, normalizedName ?? "").catch(err =>
-      console.error("[waitlist] Failed to send welcome email:", err)
+    // Fire-and-forget — email failure must not fail the subscription,
+    // but transient failures are retried with backoff and persistent failures
+    // are recorded in transactional_email_dead_letters for review (#1748).
+    const subscriberEmail = body.email;
+    const subscriberName = body.name ?? "";
+    void executeEmailWithRetryAndDeadLetter(
+      () =>
+        sendWelcomeEmail(subscriberEmail, subscriberName, { maxRetries: 0 }),
+      {
+        emailType: "waitlist_welcome",
+        recipientEmail: subscriberEmail,
+        subject: "Your StreamFi Waitlist Confirmation",
+        payload: { name: subscriberName },
+        maxRetries: 2,
+        initialBackoffMs: 250,
+      }
     );
 
     return NextResponse.json(
@@ -68,6 +83,9 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err) {
+    logger.error("Waitlist subscription database error", err, {
+      route: "POST /api/waitlist/subscribe",
+    });
     return createSanitizedErrorResponse(err, {
       context: "waitlist subscription",
       publicMessage: "Unable to process your subscription right now. Please try again later.",

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { z } from "zod";
 import { validateQuery } from "@/app/api/routes-f/_lib/validate";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,10 +69,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     `;
 
     if (tipRows.length === 0) {
-      return NextResponse.json(
-        { error: "Tip not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Tip not found" }, { status: 404 });
     }
 
     const tip = tipRows[0];
@@ -112,7 +110,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       headers: { "Cache-Control": "public, max-age=3600" },
     });
   } catch (error) {
-    console.error("[routes-f tip-recap GET]", error);
+    logger.error("Failed to fetch tip recap", error, {
+      route: "GET /api/routes-f/tip-recap",
+      tipId: tip_id,
+    });
     return NextResponse.json(
       { error: "Failed to fetch tip recap" },
       { status: 500 }

@@ -5,6 +5,7 @@ import { currentKeyring } from "@/lib/security/keyring";
 import { recordLoginAndCheckTravel } from "@/lib/security/login-anomaly";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { createSession } from "@/lib/sessions/user-sessions";
+import { logger } from "@/lib/tracing/logger";
 
 const isRateLimited = createRateLimiter(60_000, 20); // 20 requests/min per IP
 
@@ -72,7 +73,10 @@ export async function POST(req: NextRequest) {
     try {
       await recordLoginAndCheckTravel(u.id, getIp(req));
     } catch (anomalyError) {
-      console.error("[wallet-session] Login anomaly processing failed:", anomalyError);
+      logger.error("Login anomaly processing failed", anomalyError, {
+        route: "POST /api/auth/wallet-session",
+        userId: u.id,
+      });
     }
 
     const isProduction = process.env.NODE_ENV === "production";
@@ -99,13 +103,18 @@ export async function POST(req: NextRequest) {
       ipAddress: rawIp === "unknown" ? null : rawIp,
       userAgent: req.headers.get("user-agent") ?? null,
       ttlSeconds: COOKIE_MAX_AGE,
-    }).catch((err) =>
-      console.error("[wallet-session] Failed to record user_session row:", err)
+    }).catch(err =>
+      logger.error("Failed to record user_session row", err, {
+        route: "POST /api/auth/wallet-session",
+        userId: u.id,
+      })
     );
 
     return res;
   } catch (err) {
-    console.error("[wallet-session] DB error:", err);
+    logger.error("Wallet session database error", err, {
+      route: "POST /api/auth/wallet-session",
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

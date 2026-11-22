@@ -24,6 +24,7 @@ import {
 } from "@/lib/custodial-keys";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
 import { checkUsernameReleaseHold } from "@/lib/users/username-history";
+import { logger } from "@/lib/tracing/logger";
 import { getReservedUsernameError } from "@/lib/reserved-usernames";
 
 // ─── Username validation ───────────────────────────────────────────────────────
@@ -116,7 +117,10 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (err) {
-    console.error("[onboarding] Username check failed:", err);
+    logger.error("Onboarding username availability check failed", err, {
+      route: "POST /api/auth/onboarding",
+      userId: session.userId,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -138,10 +142,11 @@ export async function POST(req: NextRequest) {
         keypair.secret()
       );
     } catch (err) {
-      console.error(
-        "[onboarding] Encryption failed:",
-        err instanceof CustodialKeyError ? err.code : "unexpected_error"
-      );
+      logger.error("Custodial wallet encryption failed during onboarding", {
+        route: "POST /api/auth/onboarding",
+        userId: session.userId,
+        code: err instanceof CustodialKeyError ? err.code : "unexpected_error",
+      });
       const transient = err instanceof CustodialKeyError && err.transient;
       return NextResponse.json(
         {
@@ -182,7 +187,10 @@ export async function POST(req: NextRequest) {
       `;
     }
   } catch (err: unknown) {
-    console.error("[onboarding] DB update failed:", err);
+    logger.error("Onboarding database update failed", err, {
+      route: "POST /api/auth/onboarding",
+      userId: session.userId,
+    });
     // Unique constraint on wallet (another user has this key — extremely unlikely but guard it)
     if (
       typeof err === "object" &&

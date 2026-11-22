@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { logger } from "@/lib/tracing/logger";
 
 interface RouteContext {
   params: Promise<{ username: string }> | { username: string };
@@ -103,10 +104,11 @@ export async function GET(req: NextRequest, context: RouteContext) {
         nextCursor = String(pageRows[pageRows.length - 1].id);
       }
     } catch (dbError) {
-      console.warn(
-        `[tips/${username}] tip_transactions lookup failed or table empty:`,
-        dbError
-      );
+      logger.warn("tip_transactions lookup failed or table empty", {
+        route: "GET /api/tips/[username]",
+        username,
+        error: dbError instanceof Error ? dbError.message : String(dbError),
+      });
       // Return empty tips list with user totals intact
     }
 
@@ -121,7 +123,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
       },
     });
   } catch (error) {
-    console.error("[tips/[username]] GET error:", error);
+    logger.error("Failed to fetch tip history", error, {
+      route: "GET /api/tips/[username]",
+    });
     return NextResponse.json(
       { error: "Failed to fetch tip history" },
       { status: 500 }

@@ -54,6 +54,7 @@ import {
 } from "@/lib/stellar/payments";
 import { getStellarNetwork, getNetworkPassphrase } from "@/lib/stellar/config";
 import { sql } from "@vercel/postgres";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -90,7 +91,10 @@ type TipSendMultiAssetRequest = z.infer<typeof tipSendMultiAssetSchema>;
 /**
  * Convert asset symbol to Stellar Asset object
  */
-function assetFromSymbol(symbol: "XLM" | "USDC", network: "testnet" | "mainnet"): Asset {
+function assetFromSymbol(
+  symbol: "XLM" | "USDC",
+  network: "testnet" | "mainnet"
+): Asset {
   if (symbol === "XLM") {
     return Asset.native();
   }
@@ -116,7 +120,10 @@ async function getRecipientWallet(channelId: string): Promise<string | null> {
     const recipient = rows[0] as any;
     return recipient.stellar_address || recipient.wallet_address || null;
   } catch (error) {
-    console.error("[tip-send-multi-asset] Error fetching recipient wallet:", error);
+    logger.error("Error fetching recipient wallet", error, {
+      route: "POST /api/routes-f/tip-send-multi-asset",
+      channelId,
+    });
     throw error;
   }
 }
@@ -140,7 +147,10 @@ async function getSenderWallet(userId: string): Promise<string | null> {
     const sender = rows[0] as any;
     return sender.stellar_address || sender.wallet_address || null;
   } catch (error) {
-    console.error("[tip-send-multi-asset] Error fetching sender wallet:", error);
+    logger.error("Error fetching sender wallet", error, {
+      route: "POST /api/routes-f/tip-send-multi-asset",
+      userId,
+    });
     throw error;
   }
 }
@@ -236,7 +246,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // Verify sender has trustline to send asset (if not native)
     if (!sendAssetObj.isNative()) {
-      const hasSendTrustline = await hasTrustline(senderWallet, sendAssetObj, network);
+      const hasSendTrustline = await hasTrustline(
+        senderWallet,
+        sendAssetObj,
+        network
+      );
       if (!hasSendTrustline) {
         return NextResponse.json(
           {
@@ -305,14 +319,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       { status: 200 }
     );
   } catch (error) {
-    console.error("[tip-send-multi-asset] Error building transaction:", error);
+    logger.error("Error building multi-asset tip transaction", error, {
+      route: "POST /api/routes-f/tip-send-multi-asset",
+      recipientChannelId,
+    });
 
     if (error instanceof Error) {
       const msg = error.message;
 
       if (msg.includes("Account not found")) {
         return NextResponse.json(
-          { error: "Sender account not found. Please ensure your wallet is funded." },
+          {
+            error:
+              "Sender account not found. Please ensure your wallet is funded.",
+          },
           { status: 400 }
         );
       }
