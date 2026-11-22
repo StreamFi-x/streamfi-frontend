@@ -3,14 +3,8 @@ import { z } from "zod";
 import { randomBytes } from "crypto";
 import { sql } from "@vercel/postgres";
 import { logger } from "@/lib/tracing/logger";
+import { withTracing } from "@/lib/tracing/api-route-wrapper";
 import { getCurrentTraceContext } from "@/lib/tracing/trace-context";
-import {
-  apiBadRequest,
-  apiInternalError,
-  apiMethodNotAllowed,
-  apiSuccess,
-  apiValidationError,
-} from "@/lib/api";
 
 const bodySchema = z.object({
   fiat_amount_cents: z
@@ -22,10 +16,9 @@ const bodySchema = z.object({
 
 const QUOTE_TTL_SECONDS = 300; // 5 minutes
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+async function handler(req: NextRequest): Promise<NextResponse> {
   const traceContext = getCurrentTraceContext();
   const traceId = traceContext?.traceId;
-  const traceHeaders = { "x-request-id": traceId || "" };
 
   try {
     logger.info("Quote request received", {
@@ -40,7 +33,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       logger.warn("Invalid JSON body", {
         endpoint: "POST /api/tips/get-quote",
       });
-      return apiBadRequest("Invalid JSON body", { headers: traceHeaders });
+      return NextResponse.json(
+        { error: "Invalid JSON body" },
+        { status: 400, headers: { "x-request-id": traceId || "" } }
+      );
     }
 
     const validation = bodySchema.safeParse(body);
@@ -51,13 +47,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           message: i.message,
         })),
       });
-      return apiValidationError(
-        "Invalid request body",
-        validation.error.issues.map(i => ({
-          field: i.path.join("."),
-          message: i.message,
-        })),
-        { headers: traceHeaders }
+      return NextResponse.json(
+        {
+          error: "Invalid request body",
+          details: validation.error.issues.map(i => ({
+            field: i.path.join("."),
+            message: i.message,
+          })),
+        },
+        { status: 400, headers: { "x-request-id": traceId || "" } }
       );
     }
 
@@ -73,6 +71,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     let xlmRate: number;
     try {
+      // Call the internal prices endpoint to get the current rate
       const pricesResponse = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/prices/xlm`,
         { headers: { Accept: "application/json" } }
@@ -100,9 +99,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       logger.error("Failed to fetch XLM/USD rate", {
         errorMessage: error instanceof Error ? error.message : String(error),
       });
-      return apiInternalError("Failed to fetch exchange rate", {
-        headers: traceHeaders,
-      });
+      return NextResponse.json(
+        { error: "Failed to fetch exchange rate" },
+        { status: 500, headers: { "x-request-id": traceId || "" } }
+      );
     }
 
     // 3. Compute quoted XLM amount: fiat_cents / 100 / rate, rounded to 7 decimals
@@ -170,14 +170,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       logger.error("Failed to insert quote into database", {
         errorMessage: error instanceof Error ? error.message : String(error),
       });
-      return apiInternalError("Failed to create quote", {
-        headers: traceHeaders,
-      });
+      return NextResponse.json(
+        { error: "Failed to create quote" },
+        { status: 500, headers: { "x-request-id": traceId || "" } }
+      );
     }
 
     // 7. Return the quote response
-    return apiSuccess(
+    const response = NextResponse.json(
       {
+        success: true,
         quote_token: quoteToken,
         quote_id: quoteId,
         quoted_rate: xlmRate,
@@ -187,29 +189,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ttl_seconds: QUOTE_TTL_SECONDS,
         requestId: traceId,
       },
-      {
-        meta: traceId ? { requestId: traceId } : undefined,
-        headers: {
-          ...traceHeaders,
-          "Cache-Control": "private, no-store",
-        },
-        legacyFlat: true,
-      }
+      { status: 200 }
     );
+
+    response.headers.set("x-request-id", traceId || "");
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
   } catch (error) {
     logger.error("Unhandled error in get-quote endpoint", {
       errorMessage: error instanceof Error ? error.message : String(error),
     });
 
-    return apiInternalError("Internal server error", {
-      meta: traceId ? { requestId: traceId } : undefined,
-      legacyExtra: traceId ? { requestId: traceId } : undefined,
-      headers: traceHeaders,
-    });
+    const errorResponse = NextResponse.json(
+      { error: "Internal server error", requestId: traceId },
+      { status: 500 }
+    );
+    errorResponse.headers.set("x-request-id", traceId || "");
+    return errorResponse;
   }
 }
 
+export const POST = withTracing(handler);
+
 // Only POST is supported
 export async function GET() {
-  return apiMethodNotAllowed("POST");
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
 }

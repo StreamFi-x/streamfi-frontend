@@ -11,7 +11,7 @@ import { verifySession } from "@/lib/auth/verify-session";
 import { cacheHeaders } from "@/lib/cache";
 import { markRecentWrite } from "@/lib/db/replica";
 import { acquireLock } from "@/lib/single-flight-lock";
-import { createRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { createRateLimit, rateLimitHeaders, tooManyRequests } from "@/lib/rate-limit";
 import {
   apiBadRequest,
   apiConflict,
@@ -22,6 +22,7 @@ import {
   apiSuccess,
 } from "@/lib/api";
 import { logger } from "@/lib/tracing/logger";
+import { withTracing } from "@/lib/tracing/api-route-wrapper";
 
 export const maxDuration = 30;
 
@@ -81,7 +82,11 @@ function ledgerUnavailable(error: unknown): NextResponse {
   );
 }
 
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
+  logger.info("Tip total refresh requested", {
+    endpoint: "POST /api/tips/refresh-total",
+  });
+
   const session = await verifySession(request);
   if (!session.ok) {
     return session.response;
@@ -244,3 +249,5 @@ export async function POST(request: NextRequest) {
     return apiInternalError("Failed to refresh tip totals");
   }
 }
+
+export const POST = withTracing(handler);

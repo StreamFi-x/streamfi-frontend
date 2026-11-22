@@ -37,6 +37,11 @@ import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { getStellarNetwork } from "@/lib/stellar/config";
 import { TipConfirmation } from "./TipConfirmation";
 import { sessionReplay } from "@/lib/session-replay";
+import {
+  beginTipFlow,
+  completeTipFlow,
+  tipFlowHeaders,
+} from "@/lib/tracing/tip-flow";
 import { StellarNetworkBadge } from "@/components/stellar/StellarNetworkBadge";
 
 interface TipModalProps {
@@ -113,6 +118,16 @@ export function TipModal({
   const usdEquivalent =
     xlmPrice && amount ? (parseFloat(amount) * xlmPrice).toFixed(2) : "0.00";
 
+  // One correlation ID per tip: every API call made while the modal is open
+  // (quote now, totals refresh after) is tied together in the server logs.
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    beginTipFlow();
+    return () => completeTipFlow();
+  }, [isOpen]);
+
   const getQuote = async (amountXlm: string) => {
     if (typeof fetch !== "function") {
       return;
@@ -134,7 +149,7 @@ export function TipModal({
 
       const response = await fetch("/api/tips/get-quote", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: tipFlowHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           fiat_amount_cents: fiatCents,
           creator_id: senderPublicKey, // Use sender as a proxy; ideally this comes from context
