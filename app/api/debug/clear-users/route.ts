@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 import { sql } from "@vercel/postgres";
 
 /**
@@ -36,9 +37,9 @@ export async function GET(req: Request) {
       message: "All users and dependent data cleared.",
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
+    return createSanitizedErrorResponse(error, {
+      context: 'debug/clear-users',
+      publicMessage: 'Failed to clear users',
+    });
   }
 }

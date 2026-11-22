@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkDebugSecret } from "@/lib/debug-auth";
+import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 
 /**
  * DEV ONLY — reports which required env vars are configured. Guarded by
@@ -32,12 +33,9 @@ export async function GET(req: Request) {
       message: "Environment check completed",
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Failed to check environment",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return createSanitizedErrorResponse(error, {
+      context: 'debug/env',
+      publicMessage: 'Failed to check environment',
+    });
   }
 }
