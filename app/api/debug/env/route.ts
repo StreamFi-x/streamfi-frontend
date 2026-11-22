@@ -4,14 +4,10 @@ import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 
 /**
  * DEV ONLY — reports which required env vars are configured. Guarded by
- * DEBUG_ENV_SECRET, same pattern as debug/clear-users' CLEAR_USERS_SECRET
- * (#1612: this ran completely unauthenticated before).
+ * DEBUG_ENV_SECRET and excluded in production builds (#1612, #1720, #1721).
  *
- * #1768: the LIVEPEER_API_KEY preview this route used to leak is gone; the
- * Livepeer -> Mux migration's library dir, dependency, and env var were
- * already fully removed. Only DB-column retirement tooling that references
- * the old column names on purpose remains (lib/maintenance/livepeer-legacy.ts,
- * scripts/audit-livepeer-legacy.ts, db/migrations/20260925190100_retire_livepeer_columns.sql).
+ * #1721 / #1768: no partial or full API key or secret values are ever included
+ * in the response.
  *
  * GET /api/debug/env?secret=<DEBUG_ENV_SECRET>
  */

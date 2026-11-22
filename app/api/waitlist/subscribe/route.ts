@@ -1,90 +1,118 @@
+import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { validateEmail } from "../../../../utils/validators";
 import { sendWelcomeEmail } from "../../../../utils/send-email";
-import {
-  apiBadRequest,
-  apiCreated,
-  apiInternalError,
-  apiSuccess,
-} from "@/lib/api";
-import { executeEmailWithRetryAndDeadLetter } from "@/lib/email/reliable-sender";
-import { logger } from "@/lib/tracing/logger";
+
+function generateToken(): string {
+  return randomBytes(32).toString("hex");
+}
 
 export async function POST(req: NextRequest) {
-  let body: { email?: string; name?: string | null };
+  let body: { email?: string; name?: string };
   try {
     body = await req.json();
   } catch {
-    return apiBadRequest("Invalid request format");
+    return NextResponse.json(
+      { error: "Invalid request format" },
+      { status: 400 }
+    );
   }
 
   if (!body.email) {
-    return apiBadRequest("Email is required");
+    return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
 
-  if (!validateEmail(body.email)) {
-    return apiBadRequest("Invalid email format");
-  }
+  const email = body.email.trim().toLowerCase();
 
-  const normalizedName =
-    typeof body.name === "string" ? body.name.trim() || null : null;
+  if (!validateEmail(email)) {
+    return NextResponse.json(
+      { error: "Invalid email format" },
+      { status: 400 }
+    );
+  }
 
   try {
     const { rows } = await sql`
-      SELECT unsubscribed_at FROM subscribers WHERE email = ${body.email}
+      SELECT confirmed_at, unsubscribed_at, unsubscribe_token
+      FROM subscribers
+      WHERE email = ${email}
     `;
 
-    const existing = rows[0];
+    const existing = rows[0] as
+      | {
+          confirmed_at?: Date | string | null;
+          unsubscribed_at?: Date | string | null;
+          unsubscribe_token?: string | null;
+        }
+      | undefined;
 
-    if (existing && !existing.unsubscribed_at) {
-      return apiSuccess(
-        { alreadySubscribed: true },
-        { message: "Already subscribed", legacyFlat: true }
-      );
+    if (existing && existing.confirmed_at && !existing.unsubscribed_at) {
+      return NextResponse.json({
+        message: "Already subscribed",
+        alreadySubscribed: true,
+      });
     }
 
+    const confirmationToken = generateToken();
+    const unsubscribeToken =
+      existing?.unsubscribe_token && !existing.unsubscribed_at
+        ? existing.unsubscribe_token
+        : generateToken();
+
     if (existing) {
-      // Resubscribe — directly update name so an explicit null or empty string clears any previously stored name
+      // Pending verification or resubscribing after unsubscribe — require double opt-in confirmation
       await sql`
         UPDATE subscribers
-        SET name = ${normalizedName},
+        SET name = COALESCE(${body.name ?? null}, name),
+            confirmation_token = ${confirmationToken},
+            confirmed_at = NULL,
+            unsubscribe_token = ${unsubscribeToken},
             unsubscribed_at = NULL,
             updated_at = CURRENT_TIMESTAMP
-        WHERE email = ${body.email}
+        WHERE email = ${email}
       `;
     } else {
       await sql`
-        INSERT INTO subscribers (email, name) VALUES (${body.email}, ${normalizedName})
+        INSERT INTO subscribers (
+          email,
+          name,
+          confirmation_token,
+          confirmed_at,
+          unsubscribe_token
+        )
+        VALUES (
+          ${email},
+          ${body.name ?? null},
+          ${confirmationToken},
+          NULL,
+          ${unsubscribeToken}
+        )
       `;
     }
 
-    // Fire-and-forget — email failure must not fail the subscription,
-    // but transient failures are retried with backoff and persistent failures
-    // are recorded in transactional_email_dead_letters for review (#1748).
-    const subscriberEmail = body.email;
-    const subscriberName = body.name ?? "";
-    void executeEmailWithRetryAndDeadLetter(
-      () =>
-        sendWelcomeEmail(subscriberEmail, subscriberName, { maxRetries: 0 }),
-      {
-        emailType: "waitlist_welcome",
-        recipientEmail: subscriberEmail,
-        subject: "Your StreamFi Waitlist Confirmation",
-        payload: { name: subscriberName },
-        maxRetries: 2,
-        initialBackoffMs: 250,
-      }
+    // Fire-and-forget — email failure must not fail the subscription request
+    sendWelcomeEmail(email, body.name ?? "", {
+      confirmationToken,
+      unsubscribeToken,
+    }).catch(err =>
+      console.error("[waitlist] Failed to send confirmation email:", err)
     );
 
-    return apiCreated(
-      { alreadySubscribed: false },
-      { message: "Successfully subscribed to waitlist", legacyFlat: true }
+    return NextResponse.json(
+      {
+        success: true,
+        pendingConfirmation: true,
+        message:
+          "Please check your email to confirm your waitlist subscription",
+      },
+      { status: 201 }
     );
   } catch (err) {
-    logger.error("Waitlist subscription database error", err, {
-      route: "POST /api/waitlist/subscribe",
-    });
-    return apiInternalError("Unable to process your subscription right now. Please try again later.");
+    console.error("[waitlist] DB error:", err);
+    return NextResponse.json(
+      { error: "Database operation failed" },
+      { status: 500 }
+    );
   }
 }

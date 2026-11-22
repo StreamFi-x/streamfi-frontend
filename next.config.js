@@ -45,6 +45,20 @@ const nextConfig = {
   },
 
   // Security headers — defense-in-depth
+  async rewrites() {
+    if (process.env.NODE_ENV === "production") {
+      return {
+        beforeFiles: [
+          {
+            source: "/api/debug/:path*",
+            destination: "/404",
+          },
+        ],
+      };
+    }
+    return [];
+  },
+
   async headers() {
     return [
       // Noindex private routes (layouts are "use client" so metadata API can't be used there)
