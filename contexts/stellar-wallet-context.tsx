@@ -16,7 +16,11 @@ import {
   FREIGHTER_ID,
 } from "@creit.tech/stellar-wallets-kit";
 import { AlertTriangle, X } from "lucide-react";
-import { getStellarNetwork } from "@/lib/stellar/config";
+import { getStellarNetwork, type StellarNetwork } from "@/lib/stellar/config";
+import {
+  getStellarNetworkGuardState,
+  type StellarNetworkGuardState,
+} from "@/lib/stellar/network-guard";
 import { sessionReplay } from "@/lib/session-replay";
 import {
   WALLET_CONNECT_ID,
@@ -77,11 +81,16 @@ interface StellarWalletContextType {
   confirmWalletSwitch: () => void;
   /** Cancels the pending wallet switch and preserves the active Privy session. */
   cancelWalletSwitch: () => void;
+  network: StellarNetwork;
+  networkGuard: StellarNetworkGuardState;
+  isMainnetBlocked: boolean;
 }
 
 const StellarWalletContext = createContext<
   StellarWalletContextType | undefined
 >(undefined);
+
+export const useOptionalStellarWallet = () => useContext(StellarWalletContext);
 
 export const useStellarWallet = () => {
   const context = useContext(StellarWalletContext);
@@ -122,6 +131,12 @@ function readStoredPrivySession(): {
 }
 
 export function StellarWalletProvider({ children }: { children: ReactNode }) {
+  // SSR-safe initial guard evaluation; refined with window.location.hostname on mount.
+  const [networkGuard, setNetworkGuard] = useState<StellarNetworkGuardState>(
+    () => getStellarNetworkGuardState({ hostname: "" })
+  );
+  const activeNetwork = networkGuard.network;
+
   // Render the same disconnected state on the server and during hydration.
   // A returning user briefly sees it until the browser restores the session.
   const [publicKey, setPublicKey] = useState<string | null>(null);
@@ -144,6 +159,23 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     privyWalletRef.current = privyWallet;
   }, [privyWallet]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setNetworkGuard(
+        getStellarNetworkGuardState({ hostname: window.location.hostname })
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (networkGuard.isUnsafeMainnetConfig) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[MainnetSafetyGuard] ${networkGuard.reason ?? "Stellar mainnet configured in a non-production deployment."}`
+      );
+    }
+  }, [networkGuard.isUnsafeMainnetConfig, networkGuard.reason]);
 
   // Listen for successful Privy session creation (dispatched by auth-provider)
   useEffect(() => {
@@ -581,6 +613,9 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         pendingWalletSwitch,
         confirmWalletSwitch,
         cancelWalletSwitch,
+        network: activeNetwork,
+        networkGuard,
+        isMainnetBlocked: networkGuard.isTransactionBlocked,
       }}
     >
       {children}

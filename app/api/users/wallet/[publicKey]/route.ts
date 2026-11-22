@@ -1,16 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { cacheHeaders } from "@/lib/cache";
 import { verifySession } from "@/lib/auth/verify-session";
+import {
+  apiInternalError,
+  apiMethodNotAllowed,
+  apiNotFound,
+  apiSuccess,
+} from "@/lib/api";
 import { logger } from "@/lib/tracing/logger";
 
 // Credential material that no client ever needs, regardless of who is
 // asking. The rest of the row is only returned to the wallet's own owner
-// (checked below) — the comment this replaced claimed that was already
-// true "because the auth provider loads the signed-in user's own profile
-// through this route", but nothing actually enforced it (#1612): any
-// caller, authenticated as anyone or no one, got the full row including
-// streamkey, privy_id, and email for any wallet they asked for.
+// (checked below).
 const SERVER_ONLY_COLUMNS = [
   "password_hash",
   "encrypted_stellar_key",
@@ -35,10 +37,9 @@ export async function GET(
     const user = result.rows[0];
 
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404, headers: cacheHeaders("privateNoStore") }
-      );
+      return apiNotFound("User not found", {
+        headers: cacheHeaders("privateNoStore"),
+      });
     }
 
     for (const column of SERVER_ONLY_COLUMNS) {
@@ -55,21 +56,18 @@ export async function GET(
 
     // Includes email and stream keys for the owner's own request, so it must
     // never enter a shared cache.
-    return NextResponse.json(
+    return apiSuccess(
       { user },
-      { headers: cacheHeaders("privateNoStore") }
+      { headers: cacheHeaders("privateNoStore"), legacyFlat: true }
     );
   } catch (error) {
     logger.error("Failed to fetch user by wallet", error, {
       route: "GET /api/users/wallet/[publicKey]",
     });
-    return NextResponse.json(
-      { error: "Failed to fetch user" },
-      { status: 500 }
-    );
+    return apiInternalError("Failed to fetch user");
   }
 }
 
 export async function POST() {
-  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
+  return apiMethodNotAllowed("GET");
 }

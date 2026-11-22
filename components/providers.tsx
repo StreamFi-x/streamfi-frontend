@@ -7,6 +7,7 @@ import { AuthProvider } from "./auth/auth-provider";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { StellarWalletProvider } from "@/contexts/stellar-wallet-context";
 import { FundingOnboardingProvider } from "@/components/wallet/funding/FundingOnboardingProvider";
+import { MainnetSafetyBanner } from "@/components/wallet/MainnetSafetyBanner";
 
 const swrCache = new Map();
 
@@ -15,6 +16,7 @@ const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
 function InnerProviders({ children }: { children: React.ReactNode }) {
   return (
     <StellarWalletProvider>
+      <MainnetSafetyBanner />
       <ThemeProvider>
         <AuthProvider>
           <FundingOnboardingProvider>{children}</FundingOnboardingProvider>

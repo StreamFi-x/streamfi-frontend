@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 import { sql } from "@vercel/postgres";
 import { validateEmail } from "../../../../utils/validators";
 import { sendWelcomeEmail } from "../../../../utils/send-email";
+import {
+  apiBadRequest,
+  apiCreated,
+  apiInternalError,
+  apiSuccess,
+} from "@/lib/api";
 import { executeEmailWithRetryAndDeadLetter } from "@/lib/email/reliable-sender";
 import { logger } from "@/lib/tracing/logger";
 
@@ -11,21 +16,15 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid request format" },
-      { status: 400 }
-    );
+    return apiBadRequest("Invalid request format");
   }
 
   if (!body.email) {
-    return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    return apiBadRequest("Email is required");
   }
 
   if (!validateEmail(body.email)) {
-    return NextResponse.json(
-      { error: "Invalid email format" },
-      { status: 400 }
-    );
+    return apiBadRequest("Invalid email format");
   }
 
   const normalizedName =
@@ -39,10 +38,10 @@ export async function POST(req: NextRequest) {
     const existing = rows[0];
 
     if (existing && !existing.unsubscribed_at) {
-      return NextResponse.json({
-        message: "Already subscribed",
-        alreadySubscribed: true,
-      });
+      return apiSuccess(
+        { alreadySubscribed: true },
+        { message: "Already subscribed", legacyFlat: true }
+      );
     }
 
     if (existing) {
@@ -78,18 +77,14 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    return NextResponse.json(
-      { success: true, message: "Successfully subscribed to waitlist" },
-      { status: 201 }
+    return apiCreated(
+      { alreadySubscribed: false },
+      { message: "Successfully subscribed to waitlist", legacyFlat: true }
     );
   } catch (err) {
     logger.error("Waitlist subscription database error", err, {
       route: "POST /api/waitlist/subscribe",
     });
-    return createSanitizedErrorResponse(err, {
-      context: "waitlist subscription",
-      publicMessage: "Unable to process your subscription right now. Please try again later.",
-      status: 500,
-    });
+    return apiInternalError("Unable to process your subscription right now. Please try again later.");
   }
 }

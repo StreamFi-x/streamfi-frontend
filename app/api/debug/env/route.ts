@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { checkDebugSecret } from "@/lib/debug-auth";
+import { apiInternalError, apiSuccess } from "@/lib/api";
 import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 
 /**
@@ -27,11 +27,10 @@ export async function GET(req: Request) {
       NODE_ENV: process.env.NODE_ENV,
     };
 
-    return NextResponse.json({
-      success: true,
-      environment: envCheck,
-      message: "Environment check completed",
-    });
+    return apiSuccess(
+      { environment: envCheck },
+      { message: "Environment check completed", legacyFlat: true }
+    );
   } catch (error) {
     return createSanitizedErrorResponse(error, {
       context: 'debug/env',

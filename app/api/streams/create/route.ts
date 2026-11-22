@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createMuxStream, deleteMuxStream } from "@/lib/mux/server";
 import { checkExistingTableDetail } from "@/utils/validators";
@@ -12,6 +12,17 @@ import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 import { invalidateUserCaches } from '@/lib/cache/invalidation';
 import { verifySession } from "@/lib/auth/verify-session";
 import { shouldBypassAuth } from "@/lib/dev-mode";
+import {
+  apiBadRequest,
+  apiConflict,
+  apiCreated,
+  apiInternalError,
+  apiNotFound,
+  apiRateLimited,
+  apiServiceUnavailable,
+  apiSuccess,
+  apiValidationError,
+} from "@/lib/api";
 
 // Stream creation calls Mux API + DB — limit per IP to prevent quota exhaustion
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 10); // 10 per hour per IP
@@ -23,10 +34,7 @@ export async function POST(req: NextRequest) {
     "unknown";
 
   if (await isRateLimited(ip)) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": "3600" } }
-    );
+    return apiRateLimited("Too many requests", { retryAfterSeconds: 3600 });
   }
   try {
     const body = await req.json();
@@ -43,83 +51,44 @@ export async function POST(req: NextRequest) {
         return session.response;
       }
       if (!session.wallet) {
-        return NextResponse.json(
-          { error: "No wallet on session" },
-          { status: 400 }
-        );
+        return apiBadRequest("No wallet on session");
       }
       wallet = session.wallet;
     }
 
-    console.log("🔍 Stream creation request:", {
-      wallet,
-      title,
-      description,
-      category,
-      tags,
-      latencyMode,
-      timestamp: new Date().toISOString(),
-    });
-
     if (!wallet || !title) {
-      console.log("❌ Validation failed: missing wallet or title");
-      return NextResponse.json(
-        { error: "Wallet and title are required" },
-        { status: 400 }
-      );
+      return apiBadRequest("Wallet and title are required");
     }
 
     if (title.length > 100) {
-      console.log("❌ Validation failed: title too long");
-      return NextResponse.json(
-        { error: "Title must be 100 characters or less" },
-        { status: 400 }
-      );
+      return apiBadRequest("Title must be 100 characters or less");
     }
 
     if (description && description.length > 500) {
-      console.log("❌ Validation failed: description too long");
-      return NextResponse.json(
-        { error: "Description must be 500 characters or less" },
-        { status: 400 }
-      );
+      return apiBadRequest("Description must be 500 characters or less");
     }
 
-    console.log("🔍 Checking if user exists...");
     const userExists = await checkExistingTableDetail(
       "users",
       "wallet",
       wallet
     );
     if (!userExists) {
-      console.log("User not found:", wallet);
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return apiNotFound("User not found");
     }
-    console.log("User found:", wallet);
 
-    console.log("🔍 Fetching user data...");
     const userResult = await sql`
       SELECT id, username, creator, mux_stream_id, enable_recording, latency_mode FROM users WHERE LOWER(wallet) = LOWER(${wallet}) AND deleted_at IS NULL
     `;
 
     if (userResult.rows.length === 0) {
-      console.log("❌ User not found in database query");
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return apiNotFound("User not found");
     }
 
     const user = userResult.rows[0];
-    console.log("📊 User data:", {
-      id: user.id,
-      username: user.username,
-      hasStream: !!user.mux_stream_id,
-      existingStreamId: user.mux_stream_id,
-    });
 
     // PERSISTENT STREAM KEY FLOW: If user already has a stream, return it
     if (user.mux_stream_id) {
-      console.log("✅ User already has persistent stream:", user.mux_stream_id);
-
-      // Get additional stream data
       const streamDataResult = await sql`
         SELECT mux_stream_id, mux_playback_id, streamkey, is_live
         FROM users
@@ -128,9 +97,8 @@ export async function POST(req: NextRequest) {
 
       const streamData = streamDataResult.rows[0];
 
-      return NextResponse.json(
+      return apiSuccess(
         {
-          message: "Stream already exists",
           streamData: {
             streamId: streamData.mux_stream_id,
             playbackId: streamData.mux_playback_id,
@@ -141,7 +109,7 @@ export async function POST(req: NextRequest) {
             persistent: true,
           },
         },
-        { status: 200 }
+        { message: "Stream already exists", legacyFlat: true }
       );
     }
 
@@ -157,31 +125,23 @@ export async function POST(req: NextRequest) {
       });
     } catch (error) {
       if (error instanceof JsonbContractError) {
-        return NextResponse.json(
-          { error: "Invalid stream details", issues: error.issues },
-          { status: 400 }
-        );
+        return apiValidationError("Invalid stream details", error.issues, {
+          legacyExtra: { issues: error.issues },
+        });
       }
       throw error;
     }
     if (!isMergeableCreator(user.creator)) {
+      // eslint-disable-next-line no-console
       console.error(
         `[streams/create] stored creator for user ${user.id} is malformed; run the JSONB audit`
       );
-      return NextResponse.json(
-        { error: "Stored stream details are malformed" },
-        { status: 409 }
-      );
+      return apiConflict("Stored stream details are malformed");
     }
 
     if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
-      console.log("❌ Missing Mux credentials");
-      return NextResponse.json(
-        { error: "Mux credentials not configured" },
-        { status: 500 }
-      );
+      return apiInternalError("Mux credentials not configured");
     }
-    console.log("✅ Mux credentials found");
 
     const enableRecording = user.enable_recording === true;
     // Use provided per-stream latency mode, fall back to user's global preference
@@ -192,11 +152,7 @@ export async function POST(req: NextRequest) {
           ? "standard"
           : "low"
     ) as "low" | "standard";
-    console.log("🎬 Creating Mux stream...", {
-      enableRecording,
-      latencyMode: effectiveLatencyMode,
-      isPerStreamChoice: !!latencyMode,
-    });
+
     let muxStream;
     try {
       muxStream = await createMuxStream({
@@ -204,13 +160,9 @@ export async function POST(req: NextRequest) {
         record: enableRecording,
         latencyMode: effectiveLatencyMode,
       });
-      console.log("✅ Mux stream created successfully:", {
-        id: muxStream?.id,
-        playbackId: muxStream?.playbackId,
-        hasStreamKey: !!muxStream?.streamKey,
-      });
     } catch (muxError) {
-      console.error("❌ Mux stream creation failed:", muxError);
+      // eslint-disable-next-line no-console
+      console.error("Mux stream creation failed:", muxError);
 
       if (muxError instanceof Error) {
         console.error("Mux error details:", {
@@ -220,10 +172,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      return NextResponse.json(
-        { error: "Failed to create stream. Please try again later." },
-        { status: 500 }
-      );
+      return apiInternalError("Failed to create stream. Please try again later.");
     }
 
     if (
@@ -232,14 +181,11 @@ export async function POST(req: NextRequest) {
       !muxStream.playbackId ||
       !muxStream.streamKey
     ) {
-      console.log("❌ Invalid Mux response:", muxStream);
-      return NextResponse.json(
-        { error: "Failed to create Mux stream - incomplete response" },
-        { status: 500 }
+      return apiInternalError(
+        "Failed to create Mux stream - incomplete response"
       );
     }
 
-    console.log("🔍 Updating user with Mux data...");
     try {
       await sql`
         UPDATE users SET
@@ -251,30 +197,22 @@ export async function POST(req: NextRequest) {
         WHERE wallet = ${wallet}
       `;
       await invalidateUserCaches({ wallet });
-      console.log("✅ User updated successfully with stream data");
     } catch (dbError) {
-      console.error("❌ Database update failed:", dbError);
+      // eslint-disable-next-line no-console
+      console.error("Database update failed:", dbError);
 
-      console.log("🧹 Attempting to cleanup Mux stream...");
       try {
         await deleteMuxStream(muxStream.id);
       } catch (cleanupError) {
-        console.error("❌ Cleanup failed:", cleanupError);
+        // eslint-disable-next-line no-console
+        console.error("Cleanup failed:", cleanupError);
       }
 
-      return NextResponse.json(
-        {
-          error: "Failed to create stream. Please try again later.",
-        },
-        { status: 500 }
-      );
+      return apiInternalError("Failed to create stream. Please try again later.");
     }
 
-    console.log("🎉 Stream creation completed successfully!");
-
-    return NextResponse.json(
+    return apiCreated(
       {
-        message: "Stream created successfully",
         streamData: {
           streamId: muxStream.id,
           playbackId: muxStream.playbackId,
@@ -284,24 +222,21 @@ export async function POST(req: NextRequest) {
           isActive: muxStream.isActive || false,
         },
       },
-      { status: 201 }
+      { message: "Stream created successfully", legacyFlat: true }
     );
   } catch (error) {
     console.error("❌ Stream creation error:", error);
     if (error instanceof Error) {
       if (error.message.includes("Mux")) {
-        return NextResponse.json(
-          { error: "Streaming service unavailable. Please try again later." },
-          { status: 503 }
+        return apiServiceUnavailable(
+          "Streaming service unavailable. Please try again later."
         );
       }
       if (error.message.includes("database") || error.message.includes("sql")) {
-        return NextResponse.json(
-          { error: "Service temporarily unavailable. Please try again later." },
-          { status: 503 }
-        );
+        return apiServiceUnavailable("Service temporarily unavailable. Please try again later.");
       }
     }
+
     return createSanitizedErrorResponse(error, {
       context: 'streams/create POST',
       publicMessage: 'Failed to create stream',
