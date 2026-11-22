@@ -19,6 +19,7 @@ import StreamCard from "@/components/shared/profile/StreamCard";
 import { EmptyState } from "@/components/skeletons/EmptyState";
 import { languageOptions, sortOptions } from "@/data/browse/live-content";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface LiveStream {
   id: string;
@@ -90,6 +91,59 @@ export default function CategoryDetailPage() {
 
   const [categoryData, setCategoryData] = useState<CategoryData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && categoryData?.title) {
+      try {
+        const stored = localStorage.getItem("streamfi_followed_categories");
+        if (stored) {
+          const followed: string[] = JSON.parse(stored);
+          setIsFollowing(followed.includes(categoryData.title.toLowerCase()));
+        }
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, [categoryData?.title]);
+
+  const handleToggleFollow = () => {
+    const nextState = !isFollowing;
+    setIsFollowing(nextState);
+
+    const catTitle =
+      categoryData?.title || decodeURIComponent(title).replace(/-/g, " ");
+
+    if (nextState) {
+      toast.success(`You are now following ${catTitle}`);
+    } else {
+      toast.info(`Unfollowed ${catTitle}`);
+    }
+
+    if (typeof window !== "undefined" && categoryData?.title) {
+      try {
+        const stored = localStorage.getItem("streamfi_followed_categories");
+        const followed: string[] = stored ? JSON.parse(stored) : [];
+        const normalized = categoryData.title.toLowerCase();
+        const updated = nextState
+          ? Array.from(new Set([...followed, normalized]))
+          : followed.filter(c => c !== normalized);
+        localStorage.setItem(
+          "streamfi_followed_categories",
+          JSON.stringify(updated)
+        );
+      } catch {
+        // ignore storage errors
+      }
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (typeof window !== "undefined") {
+      navigator.clipboard?.writeText(window.location.href);
+      toast.success("Category link copied to clipboard");
+    }
+  };
 
   // Fetch live streams with 20-second polling
   const { data } = useSWR<{ streams: LiveStream[] }>(
@@ -159,7 +213,7 @@ export default function CategoryDetailPage() {
       return [];
     }
     const streams = data?.streams || [];
-    return streams.filter(stream => {
+    const filtered = streams.filter(stream => {
       const matchesCategory =
         stream.category?.toLowerCase() === categoryData.title.toLowerCase() ||
         stream.tags.some(tag =>
@@ -183,7 +237,57 @@ export default function CategoryDetailPage() {
 
       return matchesCategory && matchesLanguage && matchesSearch;
     });
-  }, [data?.streams, categoryData, selectedLanguage, searchQuery]);
+
+    // Apply sorting matching app/browse/live/page.tsx
+    switch (selectedSort) {
+      case "viewers":
+        filtered.sort((a, b) => b.viewerCount - a.viewerCount);
+        break;
+      case "recent":
+        filtered.sort(
+          (a, b) =>
+            new Date(b.streamStartedAt).getTime() -
+            new Date(a.streamStartedAt).getTime()
+        );
+        break;
+      case "popular":
+        filtered.sort((a, b) => b.totalViews - a.totalViews);
+        break;
+      case "trending":
+        // Trending: combination of recent and high viewer count
+        filtered.sort((a, b) => {
+          const aScore =
+            a.viewerCount * 0.7 +
+            (Date.now() - new Date(a.streamStartedAt).getTime()) / 1000000;
+          const bScore =
+            b.viewerCount * 0.7 +
+            (Date.now() - new Date(b.streamStartedAt).getTime()) / 1000000;
+          return bScore - aScore;
+        });
+        break;
+      case "recommended":
+      default:
+        // Recommended: followed first, then by viewer count
+        filtered.sort((a, b) => {
+          if (a.isFollowing && !b.isFollowing) {
+            return -1;
+          }
+          if (!a.isFollowing && b.isFollowing) {
+            return 1;
+          }
+          return b.viewerCount - a.viewerCount;
+        });
+        break;
+    }
+
+    return filtered;
+  }, [
+    data?.streams,
+    categoryData,
+    selectedLanguage,
+    searchQuery,
+    selectedSort,
+  ]);
 
   const filteredStreams = useMemo(
     () => (activeTab === "live" ? categoryFilteredStreams : []),
@@ -265,8 +369,32 @@ export default function CategoryDetailPage() {
           )}
 
           <div className="flex gap-3">
-            <Button className="px-7">Follow</Button>
-            <Button variant="outline" size="icon">
+            <Button
+              className={cn(
+                "px-7 transition-colors group",
+                isFollowing
+                  ? "bg-transparent border border-border hover:bg-destructive/10 hover:border-destructive hover:text-destructive text-foreground"
+                  : "bg-highlight hover:bg-highlight/80 text-primary-foreground border-none"
+              )}
+              variant={isFollowing ? "outline" : "default"}
+              onClick={handleToggleFollow}
+            >
+              {isFollowing ? (
+                <>
+                  <span className="group-hover:hidden">Following</span>
+                  <span className="hidden group-hover:inline">Unfollow</span>
+                </>
+              ) : (
+                "Follow"
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleCopyLink}
+              title="Share category link"
+              aria-label="Share category link"
+            >
               <ExternalLink className="h-4 w-4" />
             </Button>
           </div>

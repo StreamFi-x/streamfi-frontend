@@ -14,7 +14,7 @@ import {
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useSearchParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 
 type Category = {
   id: string;
@@ -30,6 +30,7 @@ export default function BrowseCategoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSort, setSelectedSort] = useState("recommended");
   const [categories, setCategories] = useState<Category[]>([]);
+  const [followedCategories, setFollowedCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,23 +40,64 @@ export default function BrowseCategoryPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("streamfi_followed_categories");
+        if (stored) {
+          setFollowedCategories(JSON.parse(stored));
+        }
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     const fetchCategories = async () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch("/api/category");
-        if (!response.ok) {
+        const [catRes, liveRes] = await Promise.all([
+          fetch("/api/category"),
+          fetch("/api/streams/live").catch(() => null),
+        ]);
+
+        if (!catRes.ok) {
           throw new Error("Failed to fetch categories");
         }
-        const data = await response.json();
+        const data = await catRes.json();
+
+        // Count live viewers per category if live streams endpoint responded
+        const viewerMap: Record<string, number> = {};
+        if (liveRes && liveRes.ok) {
+          try {
+            const liveData = await liveRes.json();
+            const streams: Array<{ category?: string; viewerCount?: number }> =
+              liveData.streams || [];
+            for (const s of streams) {
+              const c = (s.category || "").toLowerCase();
+              if (c) {
+                viewerMap[c] = (viewerMap[c] || 0) + (s.viewerCount || 0);
+              }
+            }
+          } catch {
+            // ignore live streams parse error
+          }
+        }
+
         // API returns lowercase `imageurl` — normalize to `imageUrl` for CategoryCard.
         // Filter out example.com placeholder URLs that aren't real images.
         setCategories(
           (data.categories || []).map((c: Record<string, unknown>) => {
             const raw = c.imageurl as string | undefined;
+            const title = (c.title as string) || "";
             return {
               ...c,
               imageUrl: raw && !raw.includes("example.com") ? raw : undefined,
+              viewers:
+                viewerMap[title.toLowerCase()] ??
+                (c.viewers as number | undefined) ??
+                0,
             };
           })
         );
@@ -70,23 +112,78 @@ export default function BrowseCategoryPage() {
     fetchCategories();
   }, []);
 
-  const filteredCategories = categories.filter(category => {
-    const matchesCategory =
-      !selectedCategory ||
-      category.title.toLowerCase() === selectedCategory.toLowerCase() ||
-      category.tags?.some(
-        tag => tag.toLowerCase() === selectedCategory.toLowerCase()
-      );
+  const filteredCategories = useMemo(() => {
+    const filtered = categories.filter(category => {
+      const matchesCategory =
+        !selectedCategory ||
+        category.title.toLowerCase() === selectedCategory.toLowerCase() ||
+        category.tags?.some(
+          tag => tag.toLowerCase() === selectedCategory.toLowerCase()
+        );
 
-    const matchesSearch =
-      searchQuery === "" ||
-      category.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      category.tags?.some(tag =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const matchesSearch =
+        searchQuery === "" ||
+        category.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        category.tags?.some(tag =>
+          tag.toLowerCase().includes(searchQuery.toLowerCase())
+        );
 
-    return matchesCategory && matchesSearch;
-  });
+      return matchesCategory && matchesSearch;
+    });
+
+    // Apply sorting matching app/browse/live/page.tsx
+    switch (selectedSort) {
+      case "viewers":
+        filtered.sort(
+          (a, b) =>
+            (b.viewers || 0) - (a.viewers || 0) ||
+            a.title.localeCompare(b.title)
+        );
+        break;
+      case "recent":
+        filtered.sort(
+          (a, b) =>
+            (b.id || "").localeCompare(a.id || "") ||
+            a.title.localeCompare(b.title)
+        );
+        break;
+      case "popular":
+        filtered.sort(
+          (a, b) =>
+            (b.viewers || 0) - (a.viewers || 0) ||
+            a.title.localeCompare(b.title)
+        );
+        break;
+      case "trending":
+        filtered.sort((a, b) => {
+          const aScore = (a.viewers || 0) * 0.7;
+          const bScore = (b.viewers || 0) * 0.7;
+          return bScore - aScore || a.title.localeCompare(b.title);
+        });
+        break;
+      case "recommended":
+      default:
+        // Recommended: followed first, then by viewer count, then title
+        filtered.sort((a, b) => {
+          const aFollowed = followedCategories.includes(a.title.toLowerCase());
+          const bFollowed = followedCategories.includes(b.title.toLowerCase());
+          if (aFollowed && !bFollowed) return -1;
+          if (!aFollowed && bFollowed) return 1;
+          const diff = (b.viewers || 0) - (a.viewers || 0);
+          if (diff !== 0) return diff;
+          return a.title.localeCompare(b.title);
+        });
+        break;
+    }
+
+    return filtered;
+  }, [
+    categories,
+    selectedCategory,
+    searchQuery,
+    selectedSort,
+    followedCategories,
+  ]);
 
   if (error) {
     return (
