@@ -8,6 +8,8 @@ import { captureException } from "@sentry/nextjs";
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  compact?: boolean;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void;
 }
 
 interface State {
@@ -27,6 +29,7 @@ class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     captureException(error);
     console.error("ErrorBoundary caught an error:", error, errorInfo);
+    this.props.onError?.(error, errorInfo);
   }
 
   private handleRetry = () => {
@@ -39,8 +42,12 @@ class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
+      const containerClass = this.props.compact
+        ? "flex items-center justify-center bg-background p-4"
+        : "min-h-screen flex items-center justify-center bg-background";
+
       return (
-        <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className={containerClass}>
           <div className="text-center p-8 max-w-md">
             <div className="mx-auto w-16 h-16 mb-6 text-red-500">
               <AlertTriangle className="w-full h-full" />

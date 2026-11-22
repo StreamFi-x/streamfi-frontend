@@ -66,7 +66,7 @@ interface StellarWalletContextType {
   connect: () => Promise<void>;
   connectWallet: (walletId: string) => Promise<void>;
   connectMobileWallet: () => Promise<void>;
-  disconnect: () => void;
+  disconnect: (reason?: string | null) => void;
   isLoading: boolean;
   isConnecting: boolean;
   error: string | null;
@@ -513,6 +513,61 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     await connectWallet(WALLET_CONNECT_ID);
   }, [connectWallet]);
 
+  const disconnect = useCallback((reason?: string | null) => {
+    setPublicKey(null);
+    setError(reason ?? null);
+    localStorage.removeItem("stellar_address");
+    localStorage.removeItem("stellar_last_wallet");
+    localStorage.removeItem("stellar_auto_connect");
+  }, []);
+
+  const getWalletLivenessError = useCallback((err: unknown) => {
+    const message =
+      err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+    if (
+      message.includes("not installed") ||
+      message.includes("not found") ||
+      message.includes("extension") ||
+      message.includes("no provider") ||
+      message.includes("not available") ||
+      message.includes("unavailable")
+    ) {
+      return "Wallet extension is no longer available. Please reconnect your wallet.";
+    }
+    if (
+      message.includes("locked") ||
+      message.includes("unauthorized") ||
+      message.includes("not authorized") ||
+      message.includes("rejected") ||
+      message.includes("denied")
+    ) {
+      return "Wallet connection was lost or locked. Please unlock/reconnect your wallet and try again.";
+    }
+    return "Wallet connection was lost. Please reconnect your wallet and try again.";
+  }, []);
+
+  const checkWalletLiveness = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    const shouldCheck = localStorage.getItem("stellar_auto_connect") === "true";
+    const lastWalletId = localStorage.getItem("stellar_last_wallet");
+    if (!shouldCheck || !lastWalletId || !publicKey || isConnecting) return;
+
+    try {
+      kit.setWallet(lastWalletId);
+      const { address } = await kit.getAddress();
+      if (!address) {
+        disconnect(getWalletLivenessError(new Error("No address returned")));
+        return;
+      }
+      if (address !== publicKey) {
+        setPublicKey(address);
+        localStorage.setItem("stellar_address", address);
+      }
+    } catch (err) {
+      disconnect(getWalletLivenessError(err));
+    }
+  }, [disconnect, getWalletLivenessError, isConnecting, kit, publicKey]);
+
   // Attempt wallet restoration once for returning users (delayed so it doesn't
   // open the wallet popup immediately on reload and block the Connect Wallet modal).
   useEffect(() => {
@@ -590,6 +645,28 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   const truncatedPendingAddress = pendingWalletSwitch
     ? `${pendingWalletSwitch.address.slice(0, 6)}...${pendingWalletSwitch.address.slice(-4)}`
     : "";
+
+  // Detect wallet lock/removal while app is active or mid-transaction.
+  useEffect(() => {
+    if (!publicKey) return;
+    const onFocus = () => {
+      void checkWalletLiveness();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void checkWalletLiveness();
+    };
+    const interval = window.setInterval(() => {
+      void checkWalletLiveness();
+    }, 5000);
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [checkWalletLiveness, publicKey]);
 
   return (
     <StellarWalletContext.Provider
