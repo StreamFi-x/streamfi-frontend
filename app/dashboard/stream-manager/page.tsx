@@ -10,6 +10,7 @@ import Chat from "@/components/dashboard/stream-manager/Chat";
 import StreamInfo from "@/components/dashboard/stream-manager/StreamInfo";
 import StreamSettings from "@/components/dashboard/stream-manager/StreamSettings";
 import StreamInfoModal from "@/components/dashboard/common/StreamInfoModal";
+import ErrorBoundary from "@/components/error/ErrorBoundary";
 import { motion } from "framer-motion";
 import { Users, UserPlus, Coins, Timer } from "lucide-react";
 
@@ -194,7 +195,9 @@ export default function StreamManagerPage() {
         {/* Left column: Stream preview + Activity feed */}
         <div className="col-span-12 lg:col-span-7 flex flex-col gap-3">
           <div className="aspect-video w-full shrink-0">
-            <StreamPreview />
+            <ErrorBoundary fallback={<div className="p-4 text-sm text-muted-foreground">Stream preview failed to load.</div>}>
+              <StreamPreview />
+            </ErrorBoundary>
           </div>
           <div className="flex-1 min-h-0">
             <ActivityFeed
@@ -209,7 +212,9 @@ export default function StreamManagerPage() {
         {/* Right column: Chat + Stream info + Tip wallet */}
         <div className="col-span-12 lg:col-span-5 flex flex-col gap-3">
           <div className="h-96">
-            <Chat />
+            <ErrorBoundary fallback={<div className="p-4 text-sm text-muted-foreground">Chat failed to load.</div>}>
+              <Chat />
+            </ErrorBoundary>
           </div>
           <StreamInfo
             data={{

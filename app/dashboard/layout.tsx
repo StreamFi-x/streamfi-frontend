@@ -9,6 +9,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HomeIcon, BarChart2, Video, Coins, Settings } from "lucide-react";
+import ErrorBoundary from "@/components/error/ErrorBoundary";
 
 const mobileNavItems = [
   { name: "Home", icon: HomeIcon, path: "/dashboard/home" },
@@ -40,7 +41,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
-            {children}
+            <ErrorBoundary>{children}</ErrorBoundary>
           </motion.main>
         </div>
 

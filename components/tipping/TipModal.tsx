@@ -75,7 +75,7 @@ export function TipModal({
     code?: string;
   } | null>(null);
 
-  const { kit } = useStellarWallet();
+  const { kit, isConnected, disconnect, error: walletError } = useStellarWallet();
   const fee = calculateFeeEstimate();
   const usdEquivalent =
     xlmPrice && amount ? (parseFloat(amount) * xlmPrice).toFixed(2) : "0.00";
@@ -161,8 +161,40 @@ export function TipModal({
     return true;
   };
 
+  const handleWalletDisconnectError = (err: unknown) => {
+    const message =
+      err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+    if (
+      message.includes("not installed") ||
+      message.includes("not found") ||
+      message.includes("extension") ||
+      message.includes("no provider") ||
+      message.includes("not available") ||
+      message.includes("unavailable") ||
+      message.includes("locked") ||
+      message.includes("unauthorized") ||
+      message.includes("not authorized")
+    ) {
+      const disconnectMsg =
+        "Wallet connection was lost during the transaction. Please unlock/reconnect your wallet and try again.";
+      disconnect(disconnectMsg);
+      return disconnectMsg;
+    }
+    return null;
+  };
+
   const handleSubmit = async () => {
     if (!validateAmount()) {
+      return;
+    }
+
+    if (!isConnected) {
+      const msg =
+        walletError ||
+        "Wallet is disconnected. Please reconnect your wallet before sending a tip.";
+      setError(msg);
+      setTransactionState("error");
+      setIsConfirmationOpen(true);
       return;
     }
 
@@ -231,8 +263,10 @@ export function TipModal({
       console.error("Transaction error:", err);
 
       let errorMessage = "An unexpected error occurred. Please try again.";
-
-      if (err instanceof Error) {
+      const disconnectMessage = handleWalletDisconnectError(err);
+      if (disconnectMessage) {
+        errorMessage = disconnectMessage;
+      } else if (err instanceof Error) {
         if (
           err.message.includes("User declined") ||
           err.message.includes("rejected")
@@ -275,6 +309,19 @@ export function TipModal({
     setError(null);
     setTransactionState("idle");
   };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!isConnected && (transactionState === "signing" || transactionState === "submitting" || transactionState === "building")) {
+      const msg =
+        walletError ||
+        "Wallet connection was lost during the transaction. Please unlock/reconnect your wallet and try again.";
+      setError(msg);
+      setStructuredError({ message: msg });
+      setTransactionState("error");
+      setIsConfirmationOpen(true);
+    }
+  }, [isConnected, isOpen, transactionState, walletError]);
 
   const handleClose = () => {
     if (transactionState === "signing" || transactionState === "submitting") {

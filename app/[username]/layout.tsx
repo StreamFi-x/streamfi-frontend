@@ -3,6 +3,7 @@ import { sql } from "@vercel/postgres";
 import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
 import UsernameLayoutClient from "./UsernameLayoutClient";
+import ErrorBoundary from "@/components/error/ErrorBoundary";
 
 const BASE = "https://www.streamfi.media";
 
@@ -137,7 +138,7 @@ export default async function UsernameLayout({
         />
       )}
       <UsernameLayoutClient username={username}>
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
       </UsernameLayoutClient>
     </>
   );
