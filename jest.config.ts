@@ -29,6 +29,7 @@ const config = {
   // An array of glob patterns indicating a set of files for which coverage information should be collected
   collectCoverageFrom: [
     "components/**/*.{js,jsx,ts,tsx}",
+    "contexts/**/*.{js,jsx,ts,tsx}",
     "app/**/*.{js,jsx,ts,tsx}",
     "lib/**/*.{js,jsx,ts,tsx}",
     "hooks/**/*.{js,jsx,ts,tsx}",
@@ -61,12 +62,9 @@ const config = {
 
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
-    global: {
-      branches: 0,
-      functions: 0,
-      lines: 0,
-      statements: 0,
-    },
+    "./contexts/stellar-wallet-context.tsx": { statements: 60 },
+    "./components/tipping/TipModal.tsx": { statements: 60 },
+    "./app/api/tips/get-quote/route.ts": { statements: 75 },
   },
 
   // Test file patterns
@@ -102,6 +100,8 @@ const config = {
     "^lucide-react$": "<rootDir>/__mocks__/lucide-react.js",
     // Point ESM-only packages to their CJS builds so Jest can load them
     "^uncrypto$": "<rootDir>/node_modules/uncrypto/dist/crypto.node.cjs",
+    "^@creit.tech/stellar-wallets-kit/modules/walletconnect.module$":
+      "<rootDir>/__mocks__/@creit.tech/stellar-wallets-kit/modules/walletconnect.module.js",
     "^@creit.tech/stellar-wallets-kit$":
       "<rootDir>/__mocks__/@creit.tech/stellar-wallets-kit.js",
   },

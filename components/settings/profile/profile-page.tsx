@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import profileImage from "@/public/Images/profile.png";
 import { PROFILE_ICONS } from "@/lib/profile-icons";
 import VerificationPopup from "./popup";
-import AvatarSelectionModal from "./avatar-modal";
+import { AvatarUploadModal } from "@/components/ui/avatar-upload-modal";
 import type {
   EditState,
   FormState,
@@ -514,7 +514,8 @@ export default function ProfileSettings() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <AvatarSelectionModal
+            <AvatarUploadModal
+              isOpen={uiState.showAvatarModal}
               currentAvatar={avatar}
               onClose={() => updateUiState({ showAvatarModal: false })}
               onSaveAvatar={handleSaveAvatar}

@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/replica";
 import { verifySession } from "@/lib/auth/verify-session";
 import { validateQuery } from "@/app/api/routes-f/_lib/validate";
+import { logger } from "@/lib/tracing/logger";
 
 const MAX_RANGE_DAYS = 90;
 const DEFAULT_RANGE_DAYS = 30;
@@ -111,7 +112,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (error instanceof ReplicaUnavailableError) {
       return replicaUnavailableResponse();
     }
-    console.error("[routes-f/analytics-top-tippers] GET error:", error);
+    logger.error("Error fetching top tippers analytics", error, {
+      route: "GET /api/routes-f/analytics-top-tippers",
+      channel,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

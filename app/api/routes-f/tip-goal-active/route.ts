@@ -1,11 +1,11 @@
 /**
  * GET /api/routes-f/tip-goal-active?channel_id=<id>
- * 
+ *
  * Returns the active tip goal for a channel including target, raised, and deadline.
- * 
+ *
  * Query params:
  *   channel_id (required) - The channel ID to fetch the active tip goal for
- * 
+ *
  * Response 200:
  *   {
  *     goal_id: string,
@@ -17,10 +17,10 @@
  *     percent_complete: number (0-100),
  *     is_completed: boolean,
  *   }
- * 
+ *
  * Response 200 (no active goal):
  *   { goal: null }
- * 
+ *
  * Error responses:
  *   400 — missing channel_id
  *   500 — database error
@@ -30,6 +30,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateQuery } from "@/app/api/routes-f/_lib/validate";
 import { z } from "zod";
 import { sql } from "@vercel/postgres";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,7 +86,10 @@ async function getActiveTipGoal(
     const goal = rows[0] as any;
     const raised = parseFloat(goal.raised) || 0;
     const target = parseFloat(goal.target) || 1;
-    const percentComplete = Math.min(100, Math.round((raised / target) * 10000) / 100);
+    const percentComplete = Math.min(
+      100,
+      Math.round((raised / target) * 10000) / 100
+    );
     const isCompleted = raised >= target;
 
     return {
@@ -99,7 +103,10 @@ async function getActiveTipGoal(
       is_completed: isCompleted,
     };
   } catch (error) {
-    console.error("[tip-goal-active] Error fetching active goal:", error);
+    logger.error("Error fetching active tip goal", error, {
+      route: "GET /api/routes-f/tip-goal-active",
+      channelId: channel_id,
+    });
     throw error;
   }
 }
@@ -122,7 +129,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ goal: activeGoal }, { status: 200 });
   } catch (error) {
-    console.error("[tip-goal-active] Unexpected error:", error);
+    logger.error("Unexpected error fetching active tip goal", error, {
+      route: "GET /api/routes-f/tip-goal-active",
+      channelId: channel_id,
+    });
     return NextResponse.json(
       { error: "Failed to fetch active tip goal" },
       { status: 500 }

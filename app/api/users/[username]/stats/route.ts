@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import {
   CACHE_POLICIES,
@@ -7,6 +6,7 @@ import {
   cacheTags,
   cached,
 } from "@/lib/cache";
+import { apiInternalError, apiNotFound, apiSuccess } from "@/lib/api";
 
 export async function GET(
   req: Request,
@@ -49,34 +49,32 @@ export async function GET(
         username.startsWith("G") && username.length === 56;
 
       if (isStellarAddress) {
-        return NextResponse.json({
-          totalReceived: "0.0000000",
-          totalCount: 0,
-          lastTipAt: null,
-          stellarPublicKey: username,
-        });
+        return apiSuccess(
+          {
+            totalReceived: "0.0000000",
+            totalCount: 0,
+            lastTipAt: null,
+            stellarPublicKey: username,
+          },
+          { legacyFlat: true }
+        );
       }
 
-      return NextResponse.json(
-        { error: "User stats not found" },
-        { status: 404 }
-      );
+      return apiNotFound("User stats not found");
     }
 
-    return NextResponse.json(
+    return apiSuccess(
       {
         totalReceived: stats.total_tips_received || "0.0000000",
-        totalCount: parseInt(stats.total_tips_count || "0"),
+        totalCount: parseInt(stats.total_tips_count || "0", 10),
         lastTipAt: stats.last_tip_at,
         stellarPublicKey: stats.stellar_public_key,
       },
-      { headers: cacheHeaders("publicProfile") }
+      { headers: cacheHeaders("publicProfile"), legacyFlat: true }
     );
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("API: Fetch user stats error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch user stats" },
-      { status: 500 }
-    );
+    return apiInternalError("Failed to fetch user stats");
   }
 }

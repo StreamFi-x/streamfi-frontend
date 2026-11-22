@@ -2,10 +2,12 @@
 
 import type React from "react";
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Check, ChevronDown, X, AlertTriangle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import TwoFactorManager from "./two-factor-manager";
+import ChangePasswordModal from "./change-password-modal";
 import StepUpDialog, { type ProtectedAction } from "./step-up-dialog";
 
 interface ToggleSwitchProps {
@@ -393,8 +395,11 @@ const VerifyEmailModal: React.FC<{
         onCancel={() => setStepUpAction(null)}
         onApproved={(challengeId, action) => {
           setStepUpAction(null);
-          if (action === "wallet_export") {void handleExportKey(challengeId);}
-          else {void handleRegenerateWallet(challengeId);}
+          if (action === "wallet_export") {
+            void handleExportKey(challengeId);
+          } else {
+            void handleRegenerateWallet(challengeId);
+          }
         }}
       />
     </>
@@ -546,6 +551,7 @@ const PrivacySecurityPage: React.FC = () => {
 
   // Modal states
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error" | "warning";
     title: string;
@@ -562,7 +568,9 @@ const PrivacySecurityPage: React.FC = () => {
   const [keyCopied, setKeyCopied] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [decryptionFailed, setDecryptionFailed] = useState(false);
-  const [stepUpAction, setStepUpAction] = useState<ProtectedAction | null>(null);
+  const [stepUpAction, setStepUpAction] = useState<ProtectedAction | null>(
+    null
+  );
 
   // Handle all setting changes
   const updateSetting = useCallback(
@@ -595,7 +603,10 @@ const PrivacySecurityPage: React.FC = () => {
   }, [updateSetting]);
 
   const handleExportKey = async (challengeId?: string) => {
-    if (!challengeId) {setStepUpAction("wallet_export"); return;}
+    if (!challengeId) {
+      setStepUpAction("wallet_export");
+      return;
+    }
     setIsExporting(true);
     setExportError(null);
     setDecryptionFailed(false);
@@ -631,7 +642,10 @@ const PrivacySecurityPage: React.FC = () => {
   };
 
   const handleRegenerateWallet = async (challengeId?: string) => {
-    if (!challengeId) {setStepUpAction("wallet_regeneration"); return;}
+    if (!challengeId) {
+      setStepUpAction("wallet_regeneration");
+      return;
+    }
     setIsRegenerating(true);
     setExportError(null);
     setDecryptionFailed(false);
@@ -648,7 +662,7 @@ const PrivacySecurityPage: React.FC = () => {
         return;
       }
       // Key re-generated — now export it immediately
-          await handleExportKey();
+      await handleExportKey();
     } catch {
       setExportError("Network error — please try again");
     } finally {
@@ -683,14 +697,7 @@ const PrivacySecurityPage: React.FC = () => {
   };
 
   const handleChangePassword = () => {
-    // TODO: Replace with actual password change flow
-    // Example: navigate to change password page or show modal
-
-    showFeedback(
-      "success",
-      "Redirecting",
-      "Taking you to the password change page..."
-    );
+    setShowPasswordModal(true);
   };
 
   // Update the handleVerifyEmail function to always show the modal
@@ -766,7 +773,8 @@ const PrivacySecurityPage: React.FC = () => {
                 Verify Email Address
               </h2>
               <p className="text-muted-foreground italic text-sm mb-4">
-                Confirm your email address to keep account notices and recovery options current.
+                Confirm your email address to keep account notices and recovery
+                options current.
               </p>
               <div className="bg-input flex w-full justify-between px-3 py-4 items-center gap-2 rounded">
                 <span className="text-muted-foreground">
@@ -940,6 +948,27 @@ const PrivacySecurityPage: React.FC = () => {
           </SectionCard>
         )}
 
+        {/* Account Data & Danger Zone Entry Point */}
+        <SectionCard className="border-red-500/30">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-highlight text-xl font-medium mb-1">
+                Account Data &amp; Danger Zone
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                Export a copy of your personal data or schedule permanent
+                account deletion.
+              </p>
+            </div>
+            <Link
+              href="/settings/account"
+              className="border border-border hover:bg-surface-hover text-foreground px-4 py-2 rounded-md text-sm font-medium text-center shrink-0"
+            >
+              Manage Account &amp; Data
+            </Link>
+          </div>
+        </SectionCard>
+
         {/* Save Changes Button */}
         <div className="flex justify-end mb-8">
           <button
@@ -957,6 +986,18 @@ const PrivacySecurityPage: React.FC = () => {
         onClose={() => setShowVerifyModal(false)}
         email={userEmail}
         onSuccess={handleEmailVerified}
+      />
+
+      <ChangePasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onSuccess={() =>
+          showFeedback(
+            "success",
+            "Password Updated",
+            "Your account password has been updated successfully!"
+          )
+        }
       />
 
       <FeedbackModal

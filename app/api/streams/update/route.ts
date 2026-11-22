@@ -1,5 +1,4 @@
 // @ts-nocheck
-import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { uploadImage } from "@/utils/upload/cloudinary";
 import { hashPassword } from "@/lib/stream-access/password";
@@ -9,6 +8,14 @@ import {
   prepareCreatorPatch,
 } from "@/lib/db/jsonb-contracts";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import {
+  apiBadRequest,
+  apiConflict,
+  apiInternalError,
+  apiNotFound,
+  apiSuccess,
+  apiValidationError,
+} from "@/lib/api";
 
 export async function PATCH(req: Request) {
   try {
@@ -24,24 +31,15 @@ export async function PATCH(req: Request) {
     } = await req.json();
 
     if (!wallet) {
-      return NextResponse.json(
-        { error: "Wallet is required" },
-        { status: 400 }
-      );
+      return apiBadRequest("Wallet is required");
     }
 
     if (title && title.length > 100) {
-      return NextResponse.json(
-        { error: "Title must be 100 characters or less" },
-        { status: 400 }
-      );
+      return apiBadRequest("Title must be 100 characters or less");
     }
 
     if (description && description.length > 500) {
-      return NextResponse.json(
-        { error: "Description must be 500 characters or less" },
-        { status: 400 }
-      );
+      return apiBadRequest("Description must be 500 characters or less");
     }
 
     const userResult = await sql`
@@ -51,21 +49,15 @@ export async function PATCH(req: Request) {
     `;
 
     if (userResult.rows.length === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return apiNotFound("User not found");
     }
 
     const user = userResult.rows[0];
     const currentCreator = user.creator || {};
 
     if (!user.mux_stream_id) {
-      return NextResponse.json(
-        { error: "No stream configured for this user" },
-        { status: 404 }
-      );
+      return apiNotFound("No stream configured for this user");
     }
-
-    // Note: Mux streams don't require metadata updates on the service side
-    // All stream metadata is stored in the database
 
     // Handle thumbnail upload to Cloudinary if it's base64
     let thumbnailUrl = thumbnail;
@@ -73,13 +65,10 @@ export async function PATCH(req: Request) {
       try {
         const uploadResult = await uploadImage(thumbnail, "stream-thumbnails");
         thumbnailUrl = uploadResult.secure_url;
-        console.log("Thumbnail uploaded to Cloudinary:", thumbnailUrl);
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error("Cloudinary upload error:", error);
-        return NextResponse.json(
-          { error: "Failed to upload thumbnail" },
-          { status: 500 }
-        );
+        return apiInternalError("Failed to upload thumbnail");
       }
     }
 
@@ -95,10 +84,7 @@ export async function PATCH(req: Request) {
         await invalidateUserCaches({ wallet });
       } else {
         if (typeof password !== "string" || password.length < 4) {
-          return NextResponse.json(
-            { error: "Password must be at least 4 characters" },
-            { status: 400 }
-          );
+          return apiBadRequest("Password must be at least 4 characters");
         }
         const hashed = hashPassword(password);
         await sql`
@@ -117,11 +103,8 @@ export async function PATCH(req: Request) {
         typeof streamAccessType !== "string" ||
         !validAccessTypes.includes(streamAccessType)
       ) {
-        return NextResponse.json(
-          {
-            error: "streamAccessType must be public, password, or subscription",
-          },
-          { status: 400 }
+        return apiBadRequest(
+          "streamAccessType must be public, password, or subscription"
         );
       }
 
@@ -133,11 +116,8 @@ export async function PATCH(req: Request) {
         streamAccessType === "subscription" &&
         (!Number.isFinite(subscriptionPrice) || subscriptionPrice <= 0)
       ) {
-        return NextResponse.json(
-          {
-            error: "Set a subscription price before enabling subscriber access",
-          },
-          { status: 400 }
+        return apiBadRequest(
+          "Set a subscription price before enabling subscriber access"
         );
       }
 
@@ -162,10 +142,9 @@ export async function PATCH(req: Request) {
       });
     } catch (error) {
       if (error instanceof JsonbContractError) {
-        return NextResponse.json(
-          { error: "Invalid stream details", issues: error.issues },
-          { status: 400 }
-        );
+        return apiValidationError("Invalid stream details", error.issues, {
+          legacyExtra: { issues: error.issues },
+        });
       }
       throw error;
     }
@@ -185,22 +164,19 @@ export async function PATCH(req: Request) {
 
     if (updatedRows.length === 0) {
       if (!isMergeableCreator(user.creator)) {
+        // eslint-disable-next-line no-console
         console.error(
           `[streams/update] stored creator for user ${user.id} is malformed; run the JSONB audit`
         );
-        return NextResponse.json(
-          { error: "Stored stream details are malformed" },
-          { status: 409 }
-        );
+        return apiConflict("Stored stream details are malformed");
       }
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return apiNotFound("User not found");
     }
 
     const updatedCreator = updatedRows[0].creator ?? {};
 
-    return NextResponse.json(
+    return apiSuccess(
       {
-        message: "Stream updated successfully",
         streamData: {
           title: updatedCreator.streamTitle,
           description: updatedCreator.description,
@@ -210,13 +186,11 @@ export async function PATCH(req: Request) {
           streamAccessType: streamAccessType ?? "public",
         },
       },
-      { status: 200 }
+      { message: "Stream updated successfully", legacyFlat: true }
     );
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("Stream update error:", error);
-    return NextResponse.json(
-      { error: "Failed to update stream" },
-      { status: 500 }
-    );
+    return apiInternalError("Failed to update stream");
   }
 }

@@ -1,11 +1,12 @@
 /**
  * Real-time progress synchronization for tip goals.
- * 
+ *
  * Publishes goal progress to viewers without per-viewer RPC polling.
  */
 
 import { getGlobalRealtimeClient } from "@/lib/realtime/client";
 import type { TipGoalProgressUpdate } from "./types";
+import { logger } from "@/lib/tracing/logger";
 
 const PROGRESS_CHANNEL_PREFIX = "tip-goal";
 
@@ -18,7 +19,7 @@ export function getProgressChannelName(goalId: string): string {
 
 /**
  * Publish a progress update to all viewers watching a goal.
- * 
+ *
  * Called after:
  * - A new contribution is recorded
  * - Goal is reached
@@ -39,9 +40,15 @@ export async function publishProgressUpdate(
       timestamp: Date.now(),
     });
 
-    console.log(`[realtime-progress] published update for goal ${update.goalId}`);
+    logger.info("Published tip goal progress update", {
+      operation: "publishProgressUpdate",
+      goalId: update.goalId,
+    });
   } catch (err) {
-    console.error("[realtime-progress] error publishing update:", err);
+    logger.error("Error publishing tip goal progress update", err, {
+      operation: "publishProgressUpdate",
+      goalId: update.goalId,
+    });
     // Don't throw; progress publishing is best-effort
     // Viewers will see stale progress until next sync
   }
@@ -61,9 +68,15 @@ export async function publishGoalReached(goalId: string): Promise<void> {
       timestamp: Date.now(),
     });
 
-    console.log(`[realtime-progress] published goal-reached for ${goalId}`);
+    logger.info("Published tip goal reached event", {
+      operation: "publishGoalReached",
+      goalId,
+    });
   } catch (err) {
-    console.error("[realtime-progress] error publishing goal-reached:", err);
+    logger.error("Error publishing tip goal reached event", err, {
+      operation: "publishGoalReached",
+      goalId,
+    });
   }
 }
 
@@ -81,11 +94,15 @@ export async function publishDeadlinePassed(goalId: string): Promise<void> {
       timestamp: Date.now(),
     });
 
-    console.log(
-      `[realtime-progress] published deadline-passed for ${goalId}`
-    );
+    logger.info("Published tip goal deadline-passed event", {
+      operation: "publishDeadlinePassed",
+      goalId,
+    });
   } catch (err) {
-    console.error("[realtime-progress] error publishing deadline-passed:", err);
+    logger.error("Error publishing tip goal deadline-passed event", err, {
+      operation: "publishDeadlinePassed",
+      goalId,
+    });
   }
 }
 
@@ -107,22 +124,28 @@ export async function publishRefundComplete(
       timestamp: Date.now(),
     });
 
-    console.log(
-      `[realtime-progress] published refund-complete for ${goalId}: ${successCount} success, ${failureCount} failed`
-    );
+    logger.info("Published tip goal refund-complete event", {
+      operation: "publishRefundComplete",
+      goalId,
+      successCount,
+      failureCount,
+    });
   } catch (err) {
-    console.error("[realtime-progress] error publishing refund-complete:", err);
+    logger.error("Error publishing tip goal refund-complete event", err, {
+      operation: "publishRefundComplete",
+      goalId,
+    });
   }
 }
 
 /**
  * Subscription hook for React components to listen to goal progress.
- * 
+ *
  * Usage:
  * ```
  * const { data, isConnected } = useGoalProgress(goalId);
  * ```
- * 
+ *
  * This would typically be a hook that calls useRealtimeChannel
  * with the progress channel name.
  */

@@ -83,7 +83,7 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
     return NextResponse.json(
       {
         error: 'Cron job failed',
-        message: error instanceof Error ? error.message : String(error),
+        message: 'An internal error occurred while verifying pending payout changes',
       },
       { status: 500 }
     );

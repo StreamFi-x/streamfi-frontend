@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { createSanitizedErrorResponse } from '@/lib/api/error-response';
+import { NextResponse } from 'next/server';
 import { getPlaybackUrl } from "@/lib/mux/server";
 import { sql } from "@vercel/postgres";
 
@@ -88,13 +89,10 @@ export async function GET(
     });
   } catch (error) {
     console.error("[routes-f] Playback source error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to get playback source",
-        details: error instanceof Error ? error.message : "Unknown error",
-        playbackId,
-      },
-      { status: 500 }
-    );
+    return createSanitizedErrorResponse(error, {
+      context: 'streams/playback GET',
+      publicMessage: 'Failed to get playback source',
+      extra: { playbackId },
+    });
   }
 }

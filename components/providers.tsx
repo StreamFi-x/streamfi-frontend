@@ -16,6 +16,7 @@ const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
 function InnerProviders({ children }: { children: React.ReactNode }) {
   return (
     <StellarWalletProvider>
+      <MainnetSafetyBanner />
       <ThemeProvider>
         <AuthProvider>
           <FundingOnboardingProvider>

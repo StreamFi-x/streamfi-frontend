@@ -21,6 +21,8 @@ import {
   LargeTipReceivedEmailData,
   CommentReplyEmailData,
 } from "./email-templates/transactional-emails";
+import { recordEmailDeadLetter } from "./email/reliable-sender";
+import { logger } from "./tracing/logger";
 
 // Singleton transporter instance
 let transporter: Transporter | null = null;
@@ -28,6 +30,7 @@ let transporter: Transporter | null = null;
 interface EmailSendOptions {
   maxRetries?: number;
   retryDelayMs?: number;
+  emailType?: string;
 }
 
 interface EmailSendResult {
@@ -109,17 +112,16 @@ async function sendEmailWithRetry(
         text: textContent,
         headers: {
           "X-Mailer": "StreamFi Notification Service",
-          "Precedence": "bulk",
+          Precedence: "bulk",
         },
       });
 
-      console.log(
-        `[EmailService] Successfully sent "${subject}" to ${recipientEmail}`,
-        {
-          messageId: result.messageId,
-          attempts: attempt + 1,
-        }
-      );
+      logger.info("Transactional email sent", {
+        recipientEmail,
+        subject,
+        messageId: result.messageId,
+        attempts: attempt + 1,
+      });
 
       return {
         success: true,
@@ -133,19 +135,33 @@ async function sendEmailWithRetry(
       if (attempt < maxRetries) {
         // Wait before retrying (exponential backoff)
         const delay = retryDelayMs * Math.pow(2, attempt);
-        console.warn(
-          `[EmailService] Send failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms:`,
-          lastError.message
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        logger.warn("Transactional email send failed, retrying", {
+          recipientEmail,
+          subject,
+          attempt: attempt + 1,
+          maxAttempts: maxRetries + 1,
+          retryInMs: delay,
+          errorMessage: lastError.message,
+        });
+        await new Promise(resolve => setTimeout(resolve, delay));
       } else {
-        console.error(
-          `[EmailService] Failed to send "${subject}" to ${recipientEmail} after ${maxRetries + 1} attempts:`,
-          lastError.message
-        );
+        logger.error("Transactional email send failed after all retries", {
+          recipientEmail,
+          subject,
+          attempts: maxRetries + 1,
+          errorMessage: lastError.message,
+        });
       }
     }
   }
+
+  await recordEmailDeadLetter({
+    emailType: options.emailType ?? "transactional_notification",
+    recipientEmail,
+    subject,
+    attempts: retryCount,
+    lastError: lastError?.message || "Unknown error",
+  });
 
   return {
     success: false,
@@ -164,10 +180,21 @@ export async function sendNewFollowerEmail(
 ): Promise<EmailSendResult> {
   try {
     const { subject, htmlContent, textContent } = getNewFollowerEmail(data);
-    return sendEmailWithRetry(recipientEmail, subject, htmlContent, textContent, options);
+    return sendEmailWithRetry(
+      recipientEmail,
+      subject,
+      htmlContent,
+      textContent,
+      {
+        ...options,
+        emailType: options?.emailType ?? "new_follower",
+      }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[EmailService] Error preparing new follower email:", message);
+    logger.error("Error preparing new follower email", error, {
+      recipientEmail,
+    });
     return { success: false, error: message };
   }
 }
@@ -182,10 +209,21 @@ export async function sendCreatorWentLiveEmail(
 ): Promise<EmailSendResult> {
   try {
     const { subject, htmlContent, textContent } = getCreatorWentLiveEmail(data);
-    return sendEmailWithRetry(recipientEmail, subject, htmlContent, textContent, options);
+    return sendEmailWithRetry(
+      recipientEmail,
+      subject,
+      htmlContent,
+      textContent,
+      {
+        ...options,
+        emailType: options?.emailType ?? "creator_went_live",
+      }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[EmailService] Error preparing creator went live email:", message);
+    logger.error("Error preparing creator went live email", error, {
+      recipientEmail,
+    });
     return { success: false, error: message };
   }
 }
@@ -199,11 +237,23 @@ export async function sendLargeTipReceivedEmail(
   options?: EmailSendOptions
 ): Promise<EmailSendResult> {
   try {
-    const { subject, htmlContent, textContent } = getLargeTipReceivedEmail(data);
-    return sendEmailWithRetry(recipientEmail, subject, htmlContent, textContent, options);
+    const { subject, htmlContent, textContent } =
+      getLargeTipReceivedEmail(data);
+    return sendEmailWithRetry(
+      recipientEmail,
+      subject,
+      htmlContent,
+      textContent,
+      {
+        ...options,
+        emailType: options?.emailType ?? "large_tip",
+      }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[EmailService] Error preparing large tip email:", message);
+    logger.error("Error preparing large tip email", error, {
+      recipientEmail,
+    });
     return { success: false, error: message };
   }
 }
@@ -218,10 +268,21 @@ export async function sendCommentReplyEmail(
 ): Promise<EmailSendResult> {
   try {
     const { subject, htmlContent, textContent } = getCommentReplyEmail(data);
-    return sendEmailWithRetry(recipientEmail, subject, htmlContent, textContent, options);
+    return sendEmailWithRetry(
+      recipientEmail,
+      subject,
+      htmlContent,
+      textContent,
+      {
+        ...options,
+        emailType: options?.emailType ?? "comment_reply",
+      }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[EmailService] Error preparing comment reply email:", message);
+    logger.error("Error preparing comment reply email", error, {
+      recipientEmail,
+    });
     return { success: false, error: message };
   }
 }
@@ -229,7 +290,10 @@ export async function sendCommentReplyEmail(
 /**
  * Health check / test the email service
  */
-export async function testEmailService(): Promise<{ success: boolean; message: string }> {
+export async function testEmailService(): Promise<{
+  success: boolean;
+  message: string;
+}> {
   try {
     const tp = getTransporter();
     await tp.verify();

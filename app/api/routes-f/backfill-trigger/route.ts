@@ -34,6 +34,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 import { sql } from "@vercel/postgres";
 import { z } from "zod";
 import { verifySession } from "@/lib/auth/verify-session";
@@ -396,9 +397,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
     console.error("[backfill-trigger] POST error:", error);
-    return NextResponse.json(
-      { error: "Internal server error", details: String(error) },
-      { status: 500 }
-    );
+    return createSanitizedErrorResponse(error, { context: 'backfill-trigger POST', publicMessage: 'Internal server error' });
   }
 }

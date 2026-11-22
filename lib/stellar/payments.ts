@@ -14,6 +14,18 @@ import { logger } from "@/lib/tracing/logger";
 import { getTraceHeaders } from "@/lib/tracing/trace-context";
 import { calculateSpendableBalance } from "./reserve";
 import { assertMainnetAllowedForTransaction } from "./network-guard";
+import { getStellarNetwork } from "./config";
+import {
+  assertMainnetAllowedForTransaction,
+  MainnetBlockedError,
+} from "./network-guard";
+export {
+  pollTransactionConfirmation,
+  type TransactionConfirmationStatus,
+  type TransactionConfirmationProgress,
+  type PollTransactionOptions,
+  type PollTransactionResult,
+} from "./tx-confirmation";
 
 const Server = Horizon.Server;
 
@@ -201,6 +213,7 @@ export async function buildTipTransaction(
     memo,
     feeStroops,
   } = params;
+  assertMainnetAllowedForTransaction(network);
   const startTime = Date.now();
 
   try {
@@ -282,6 +295,7 @@ export async function buildUsdcTipTransaction(
     memo,
     feeStroops,
   } = params;
+  assertMainnetAllowedForTransaction(network);
   const startTime = Date.now();
 
   try {
@@ -369,6 +383,7 @@ export async function buildPathPaymentTipTransaction(
     memo,
     strict = "send",
   } = params;
+  assertMainnetAllowedForTransaction(network);
   const startTime = Date.now();
 
   try {
@@ -537,6 +552,8 @@ export async function submitTransaction(
   const startTime = Date.now();
 
   try {
+    assertMainnetAllowedForTransaction(network);
+
     logger.info("Submitting transaction to Stellar", {
       operation: "submitTransaction",
       network,
@@ -560,6 +577,14 @@ export async function submitTransaction(
       ledger: response.ledger,
     };
   } catch (error) {
+    if (error instanceof MainnetBlockedError) {
+      return {
+        success: false,
+        error: error.message,
+        resultCode: error.code,
+      };
+    }
+
     const durationMs = Date.now() - startTime;
     logger.error("Transaction submission failed", {
       operation: "submitTransaction",
@@ -620,8 +645,7 @@ export async function submitTransaction(
  * Defaults to testnet if not set
  */
 export function getCurrentNetwork(): "testnet" | "mainnet" {
-  const network = process.env.NEXT_PUBLIC_STELLAR_NETWORK;
-  return network === "mainnet" ? "mainnet" : "testnet";
+  return getStellarNetwork();
 }
 
 /**
@@ -676,9 +700,18 @@ const MAX_FEE_STROOPS = 100_000;
 interface CachedFee {
   stroops: number;
   fetchedAt: number;
+  isFallback: boolean;
+}
+
+export interface FeeEstimateDetails {
+  stroops: number;
+  xlm: number;
+  baseFeeStroops: number;
+  isSurgePricing: boolean;
+  isFallback: boolean;
 }
 const feeCache = new Map<string, CachedFee>();
-const feeInFlight = new Map<string, Promise<number>>();
+const feeInFlight = new Map<string, Promise<CachedFee>>();
 
 export function resetFeeCacheForTests(): void {
   feeCache.clear();
@@ -720,35 +753,55 @@ async function fetchFeeStroops(
  * callers. If Horizon's feeStats cannot be read, the last known value is used,
  * else the network minimum.
  */
-export async function getRecommendedFeeStroops(
-  network: "testnet" | "mainnet" = getCurrentNetwork()
-): Promise<number> {
+// Internal cached fee fetcher
+async function getCachedFee(network: "testnet" | "mainnet" = getCurrentNetwork()): Promise<CachedFee> {
   const cached = feeCache.get(network);
   if (cached && Date.now() - cached.fetchedAt < FEE_CACHE_TTL_MS) {
-    return cached.stroops;
+    return cached;
   }
   let pending = feeInFlight.get(network);
   if (!pending) {
     pending = fetchFeeStroops(network)
       .then(stroops => {
-        feeCache.set(network, { stroops, fetchedAt: Date.now() });
-        return stroops;
+        const entry: CachedFee = { stroops, fetchedAt: Date.now(), isFallback: false };
+        feeCache.set(network, entry);
+        return entry;
       })
       .catch(error => {
         logger.warn("Stellar fee stats unavailable, using fallback fee", {
-          operation: "getRecommendedFeeStroops",
+          operation: "getCachedFee",
           network,
           errorMessage: error instanceof Error ? error.message : String(error),
         });
-        // Remember the fallback briefly too, so an outage is not retried per call.
         const stroops = cached?.stroops ?? BASE_FEE_STROOPS;
-        feeCache.set(network, { stroops, fetchedAt: Date.now() });
-        return stroops;
+        const entry: CachedFee = { stroops, fetchedAt: Date.now(), isFallback: true };
+        feeCache.set(network, entry);
+        return entry;
       })
       .finally(() => feeInFlight.delete(network));
     feeInFlight.set(network, pending);
   }
   return pending;
+}
+
+export async function getRecommendedFeeStroops(
+  network: "testnet" | "mainnet" = getCurrentNetwork()
+): Promise<number> {
+  const cached = await getCachedFee(network);
+  return cached.stroops;
+}
+
+export async function getFeeEstimateDetails(
+  network: "testnet" | "mainnet" = getCurrentNetwork()
+): Promise<FeeEstimateDetails> {
+  const entry = await getCachedFee(network);
+  return {
+    stroops: entry.stroops,
+    xlm: calculateFeeEstimate(entry.stroops),
+    baseFeeStroops: BASE_FEE_STROOPS,
+    isSurgePricing: entry.stroops > BASE_FEE_STROOPS,
+    isFallback: entry.isFallback,
+  };
 }
 
 /**
@@ -934,6 +987,7 @@ export async function buildChangeTrustTransaction(
   memo?: string,
   feeStroops?: number
 ): Promise<Transaction> {
+  assertMainnetAllowedForTransaction(network);
   const startTime = Date.now();
 
   try {

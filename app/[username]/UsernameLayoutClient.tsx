@@ -31,6 +31,8 @@ export default function UsernameLayoutClient({
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [ownershipWarningDismissed, setOwnershipWarningDismissed] =
+    useState(false);
   // Populated in useEffect to avoid SSR/client sessionStorage mismatch
   const [loggedInUsername, setLoggedInUsername] = useState<string | null>(null);
 
@@ -56,7 +58,6 @@ export default function UsernameLayoutClient({
     if (isDefaultRoute && isLive === true) {
       window.location.replace(`/${username}/watch`);
     }
-     
   }, [isDefaultRoute, isLive, username]);
 
   // Fetch user data — viewer_username lets the API return is_following from the join table
@@ -72,6 +73,18 @@ export default function UsernameLayoutClient({
         return;
       }
 
+      if (response.status === 307 || response.status === 308) {
+        const redirectData = await response.json().catch(() => null);
+        const target =
+          redirectData?.targetUsername ||
+          response.headers.get("X-Redirect-Username");
+        if (target) {
+          const suffix = pathname.slice(`/${username}`.length);
+          window.location.replace(`/${target}${suffix}`);
+          return;
+        }
+      }
+
       // Any other non-OK response (500, DB timeout, etc.) is transient — keep
       // showing whatever data we already have; never redirect to 404.
       if (!response.ok) {
@@ -82,6 +95,11 @@ export default function UsernameLayoutClient({
       }
 
       const data = await response.json();
+      if (data?.redirect && data?.targetUsername) {
+        const suffix = pathname.slice(`/${username}`.length);
+        window.location.replace(`/${data.targetUsername}${suffix}`);
+        return;
+      }
       setUserData(data.user);
       setIsLive(data.user.is_live || false);
       setIsFollowing(!!data.user.is_following);
@@ -187,10 +205,36 @@ export default function UsernameLayoutClient({
     return null;
   }
 
+  const ownershipWarningBanner =
+    userData?.recently_reregistered && !ownershipWarningDismissed ? (
+      <div
+        role="alert"
+        data-testid="ownership-change-warning"
+        className="bg-amber-950/90 border-b border-amber-700/60 px-4 py-3 text-amber-200 text-sm flex items-center justify-between gap-4"
+      >
+        <div>
+          <span className="font-semibold">Channel ownership notice: </span>
+          <span>
+            {userData.ownership_change_notice ||
+              `@${username} was recently released by a previous creator and registered by a new account. Bookmarked links from the old channel now point to a different creator.`}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOwnershipWarningDismissed(true)}
+          aria-label="Dismiss ownership change notice"
+          className="text-amber-300 hover:text-white text-xs font-medium shrink-0 px-2 py-1 rounded hover:bg-amber-900/50"
+        >
+          Dismiss
+        </button>
+      </div>
+    ) : null;
+
   // /watch and /clips/[id] routes: render children without the profile banner/header/tabs overlay
   if (isWatchRoute || isClipRoute) {
     return (
       <div className="flex flex-col h-full bg-secondary text-foreground">
+        {ownershipWarningBanner}
         {/* Watch: overflow-hidden so ViewStream manages its own internal scroll.
             Clips: overflow-y-auto so the page can scroll normally. */}
         <main
@@ -204,6 +248,7 @@ export default function UsernameLayoutClient({
 
   return (
     <div className="flex flex-col h-screen bg-secondary text-foreground">
+      {ownershipWarningBanner}
       <main className="flex-1 overflow-auto">
         <div className="bg-secondary min-h-screen">
           <Banner

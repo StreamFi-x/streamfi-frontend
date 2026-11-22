@@ -176,7 +176,7 @@ function addSecurityHeaders(response: NextResponse): void {
   // Content security policy (basic)
   response.headers.set(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
   );
   
   // Referrer policy
