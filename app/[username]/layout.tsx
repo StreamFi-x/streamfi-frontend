@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { serializeJsonLd } from "@/lib/security/json-ld";
 import UsernameLayoutClient from "./UsernameLayoutClient";
+import ErrorBoundary from "@/components/error/ErrorBoundary";
 import { safeJsonLd } from "@/lib/security/json-ld";
 import { resolveUsernameRedirect } from "@/lib/users/username-history";
 
@@ -159,7 +160,7 @@ export default async function UsernameLayout({
         />
       )}
       <UsernameLayoutClient username={username}>
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
       </UsernameLayoutClient>
     </>
   );
