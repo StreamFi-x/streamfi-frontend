@@ -155,6 +155,20 @@ export class FakePostgres {
     );
   }
 
+  addSession(session: Partial<FakeSession> & { user_id: string }): FakeSession {
+    const s: FakeSession = {
+      id: session.id ?? `session-${++this.seq}`,
+      user_id: session.user_id,
+      title: session.title ?? "Live Stream",
+      playback_id: session.playback_id ?? "pb-1",
+      mux_session_id: session.mux_session_id ?? null,
+      started_at: session.started_at ?? new Date(this.clock),
+      ended_at: session.ended_at ?? null,
+    };
+    this.state.stream_sessions.push(s);
+    return s;
+  }
+
   /** Makes the next `times` statements matching `pattern` throw `error`. */
   failOn(pattern: RegExp, error: Error, times = 1) {
     this.failures.push({ pattern, error, times });
@@ -482,14 +496,87 @@ export class FakePostgres {
             .map(s => ({ id: s.id }))
         )
     );
+    rule(
+      /^SELECT id, user_id, title FROM stream_sessions WHERE id = \$1$/,
+      p => {
+        const s = this.state.stream_sessions.find(x => x.id === p[0]);
+        return rows(
+          s ? [{ id: s.id, user_id: s.user_id, title: s.title }] : []
+        );
+      }
+    );
+    rule(
+      /^SELECT id, user_id, title, started_at, ended_at, mux_session_id FROM stream_sessions WHERE user_id = \$1 ORDER BY started_at DESC LIMIT \d+$/,
+      p =>
+        rows(
+          this.state.stream_sessions
+            .filter(s => s.user_id === p[0])
+            .sort(
+              (a, b) =>
+                (b.started_at?.getTime() ?? 0) - (a.started_at?.getTime() ?? 0)
+            )
+            .slice(0, 10)
+            .map(s => ({
+              id: s.id,
+              user_id: s.user_id,
+              title: s.title,
+              started_at: s.started_at?.toISOString() ?? null,
+              ended_at: s.ended_at?.toISOString() ?? null,
+              mux_session_id: s.mux_session_id,
+            }))
+        )
+    );
+    rule(
+      /^SELECT id, user_id, title, started_at, ended_at FROM stream_sessions WHERE playback_id = \$1 AND user_id = \$2 ORDER BY started_at DESC LIMIT \d+$/,
+      p =>
+        rows(
+          this.state.stream_sessions
+            .filter(s => s.playback_id === p[0] && s.user_id === p[1])
+            .sort(
+              (a, b) =>
+                (b.started_at?.getTime() ?? 0) - (a.started_at?.getTime() ?? 0)
+            )
+            .slice(0, 5)
+            .map(s => ({
+              id: s.id,
+              user_id: s.user_id,
+              title: s.title,
+              started_at: s.started_at?.toISOString() ?? null,
+              ended_at: s.ended_at?.toISOString() ?? null,
+            }))
+        )
+    );
 
     // ── recordings + notifications ──────────────────────────────────────
-    rule(/^SELECT id, creator FROM users WHERE mux_stream_id = \$1$/, p =>
-      rows(
-        [...this.state.users.values()]
-          .filter(u => u.mux_stream_id === p[0])
-          .map(u => ({ id: u.id, creator: u.creator }))
-      )
+    rule(
+      /^SELECT id, creator(?:, mux_playback_id)? FROM users WHERE mux_stream_id = \$1$/,
+      p =>
+        rows(
+          [...this.state.users.values()]
+            .filter(u => u.mux_stream_id === p[0])
+            .map(u => ({
+              id: u.id,
+              creator: u.creator,
+              mux_playback_id: u.mux_playback_id ?? null,
+            }))
+        )
+    );
+    rule(
+      /^SELECT user_id, stream_session_id, title FROM stream_recordings WHERE mux_asset_id = \$1$/,
+      p => {
+        const r = this.state.stream_recordings.get(String(p[0]));
+        return rows(
+          r
+            ? [
+                {
+                  user_id: r.user_id,
+                  stream_session_id: r.stream_session_id ?? null,
+                  title: r.title ?? null,
+                },
+              ]
+            : []
+        );
+      }
     );
     rule(/^INSERT INTO stream_recordings/, p => {
       const [userId, sessionId, assetId, playbackId, title, duration] = p;
@@ -498,6 +585,9 @@ export class FakePostgres {
         existing.status = "ready";
         existing.duration = duration ?? existing.duration;
         existing.playback_id = playbackId;
+        if (!existing.stream_session_id && sessionId) {
+          existing.stream_session_id = sessionId;
+        }
       } else {
         this.state.stream_recordings.set(String(assetId), {
           user_id: userId,
@@ -510,7 +600,7 @@ export class FakePostgres {
           needs_review: true,
         });
       }
-      return { rows: [], rowCount: 1 };
+      return rows([{ inserted: !existing }]);
     });
     rule(
       /^UPDATE stream_recordings SET status = 'error' WHERE mux_asset_id = \$1 RETURNING user_id$/,
