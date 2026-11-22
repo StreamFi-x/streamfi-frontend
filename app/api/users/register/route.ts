@@ -11,6 +11,7 @@ import {
   prepareSocialLinks,
 } from "@/lib/db/jsonb-contracts";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { getReservedUsernameError } from "@/lib/reserved-usernames";
 
 // Registration creates a Mux stream + DB write — strict limit to prevent abuse
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 5); // 5 per hour per IP
@@ -50,6 +51,14 @@ async function handler(req: NextRequest) {
   if (!username) {
     return NextResponse.json(
       { error: "Username is required" },
+      { status: 400 }
+    );
+  }
+
+  const reservedUsernameError = getReservedUsernameError(username);
+  if (reservedUsernameError) {
+    return NextResponse.json(
+      { error: reservedUsernameError },
       { status: 400 }
     );
   }

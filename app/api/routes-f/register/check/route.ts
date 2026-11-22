@@ -1,10 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-
-const RESERVED = [
-  "admin", "api", "dashboard", "settings", "explore",
-  "browse", "onboarding", "streamfi", "support", "help",
-];
+import { isReservedUsername } from "@/lib/reserved-usernames";
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,30}$/;
 
@@ -24,7 +20,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (RESERVED.includes(username.toLowerCase())) {
+  if (isReservedUsername(username)) {
     return NextResponse.json(
       { available: false, suggestions: buildSuggestions(username), reason: "reserved" },
       { status: 200 }

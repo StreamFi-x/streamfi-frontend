@@ -16,6 +16,7 @@ import { getDefaultAvatar } from "@/lib/profile-icons";
 import ProfileDropdown from "../ui/profileDropdown";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { usePrivyAuth } from "@/hooks/usePrivyAuth";
+import { StellarNetworkBadge } from "@/components/stellar/StellarNetworkBadge";
 
 interface NavbarProps {
   onConnectWallet?: () => void;
@@ -283,7 +284,7 @@ export default function Navbar({}: NavbarProps) {
   return (
     <>
       <header className="h-20 flex items-center justify-between px-4 border-b-[0.5px] border-border bg-sidebar z-50">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <Link href="/explore" className="flex items-center gap-2">
             <Image
               src={StreamfiLogoLight}
@@ -296,6 +297,7 @@ export default function Navbar({}: NavbarProps) {
               className="hidden dark:block"
             />
           </Link>
+          <StellarNetworkBadge variant="pill" />
         </div>
 
         <div className="hidden md:block flex-1 items-center max-w-xl mx-4 relative">

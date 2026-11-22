@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import { AddFundsButton } from "@/components/wallet/AddFundsButton";
 import {
   buildTipTransaction,
   submitTransaction,
+  pollTransactionConfirmation,
   hasInsufficientBalance,
   checkAccountBalance,
   AccountNotFundedError,
@@ -28,12 +29,14 @@ import {
   FeeEstimateDetails,
   MAX_TIP_AMOUNT_XLM,
   MIN_TIP_AMOUNT_XLM,
+  type TransactionConfirmationProgress,
 } from "@/lib/stellar/payments";
 import { TransactionBuilder, Networks } from "@stellar/stellar-sdk";
 import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { TipConfirmation } from "./TipConfirmation";
 import { sessionReplay } from "@/lib/session-replay";
+import { StellarNetworkBadge } from "@/components/stellar/StellarNetworkBadge";
 
 interface TipModalProps {
   isOpen: boolean;
@@ -51,6 +54,7 @@ type TransactionState =
   | "building"
   | "signing"
   | "submitting"
+  | "confirming"
   | "success"
   | "error";
 
@@ -93,6 +97,9 @@ export function TipModal({
   const [quoteCountdown, setQuoteCountdown] = useState<number>(0);
   const [isLoadingQuote, setIsLoadingQuote] = useState<boolean>(false);
   const [quoteFetchFailed, setQuoteFetchFailed] = useState<boolean>(false);
+  const [confirmationProgress, setConfirmationProgress] =
+    useState<TransactionConfirmationProgress | null>(null);
+  const pollAbortRef = useRef<AbortController | null>(null);
 
   const { kit } = useStellarWallet();
   const [feeStroops, setFeeStroops] = useState<number | undefined>(undefined);
@@ -217,11 +224,20 @@ export function TipModal({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    return () => {
+      pollAbortRef.current?.abort();
+    };
+  }, []);
+
   const resetModal = () => {
+    pollAbortRef.current?.abort();
+    pollAbortRef.current = null;
     setAmount("");
     setTransactionState("idle");
     setError(null);
     setTxHash(null);
+    setConfirmationProgress(null);
     setIsConfirmationOpen(false);
     setIsReviewing(false);
     setStructuredError(null);
@@ -439,17 +455,65 @@ export function TipModal({
       );
 
       if (result.success) {
+        const submittedHash =
+          result.hash || signedTransaction.hash().toString("hex");
         sessionReplay.addBreadcrumb({
           category: "tipping",
-          message: `Tip transaction successful: ${result.hash}`,
+          message: `Tip transaction submitted, polling confirmation: ${submittedHash}`,
           level: "info",
-          data: { txHash: result.hash },
+          data: { txHash: submittedHash },
         });
-        setTransactionState("success");
-        setTxHash(result.hash ?? null);
+
+        stage = "confirming";
+        setTxHash(submittedHash);
+        setTransactionState("confirming");
+        setConfirmationProgress({
+          status: "submitted",
+          txHash: submittedHash,
+          attempt: 0,
+          maxAttempts: 30,
+          elapsedMs: 0,
+        });
         setIsConfirmationOpen(true);
-        if (onSuccess && result.hash) {
-          onSuccess(result.hash, amount);
+
+        pollAbortRef.current?.abort();
+        const abortController = new AbortController();
+        pollAbortRef.current = abortController;
+
+        const confirmation = await pollTransactionConfirmation({
+          txHash: submittedHash,
+          network: network as "testnet" | "mainnet",
+          signal: abortController.signal,
+          onProgress: progress => {
+            setConfirmationProgress(progress);
+          },
+        });
+
+        if (confirmation.confirmed) {
+          sessionReplay.addBreadcrumb({
+            category: "tipping",
+            message: `Tip transaction confirmed on-chain: ${submittedHash}`,
+            level: "info",
+            data: { txHash: submittedHash, ledger: confirmation.ledger },
+          });
+          setTransactionState("success");
+          if (onSuccess) {
+            onSuccess(submittedHash, amount);
+          }
+        } else {
+          const failMessage =
+            confirmation.error ||
+            "Transaction could not be confirmed on the Stellar network.";
+          setError(failMessage);
+          setStructuredError({
+            message: failMessage,
+            code: confirmation.status,
+            details: `Transaction ${submittedHash} ended with status "${confirmation.status}" after ${confirmation.attempts} confirmation check(s).`,
+          });
+          setTransactionState("error");
+          if (onError) {
+            onError(failMessage);
+          }
         }
       } else {
         throw result.error
@@ -457,6 +521,9 @@ export function TipModal({
           : new Error("Transaction failed");
       }
     } catch (err: unknown) {
+      if (err instanceof Error && err.message === "Polling aborted") {
+        return;
+      }
       console.error("Transaction error:", err);
 
       sessionReplay.recordFlowError("tipping", err, {
@@ -512,14 +579,22 @@ export function TipModal({
   };
 
   const handleClose = () => {
-    if (transactionState === "signing" || transactionState === "submitting") {
+    if (
+      transactionState === "signing" ||
+      transactionState === "submitting" ||
+      transactionState === "confirming"
+    ) {
       return;
     }
     onClose();
   };
 
-  const currentConfirmationState =
-    transactionState === "success" ? "success" : "error";
+  const currentConfirmationState: "confirming" | "success" | "error" =
+    transactionState === "confirming"
+      ? "confirming"
+      : transactionState === "success"
+        ? "success"
+        : "error";
 
   const getStateMessage = () => {
     switch (transactionState) {
@@ -529,6 +604,10 @@ export function TipModal({
         return "Please approve the transaction in your wallet";
       case "submitting":
         return "Submitting to Stellar network...";
+      case "confirming":
+        return confirmationProgress && confirmationProgress.attempt > 0
+          ? `Confirming on Stellar (check ${confirmationProgress.attempt}/${confirmationProgress.maxAttempts})...`
+          : "Confirming transaction on Stellar network...";
       case "success":
         return "Tip sent successfully!";
       case "error":
@@ -541,7 +620,8 @@ export function TipModal({
   const isProcessing =
     transactionState === "building" ||
     transactionState === "signing" ||
-    transactionState === "submitting";
+    transactionState === "submitting" ||
+    transactionState === "confirming";
 
   const canSubmit = amount !== "" && transactionState === "idle";
 
@@ -549,13 +629,18 @@ export function TipModal({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[440px] bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-foreground text-lg font-bold">
-            Send a Tip
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-2 pr-6">
+            <DialogTitle className="text-foreground text-lg font-bold">
+              Send a Tip
+            </DialogTitle>
+            <StellarNetworkBadge variant="pill" />
+          </div>
           <DialogDescription className="text-muted-foreground text-sm">
             {transactionState === "success"
               ? "Your tip has been sent!"
-              : `Supporting @${recipientUsername} with XLM`}
+              : transactionState === "confirming"
+                ? "Confirming your tip on the Stellar network..."
+                : `Supporting @${recipientUsername} with XLM`}
           </DialogDescription>
         </DialogHeader>
 
@@ -874,6 +959,9 @@ export function TipModal({
       <TipConfirmation
         isOpen={isConfirmationOpen}
         onClose={() => {
+          if (transactionState === "confirming") {
+            return;
+          }
           setIsConfirmationOpen(false);
           if (transactionState === "success") {
             onClose();
@@ -883,6 +971,7 @@ export function TipModal({
         amount={amount}
         recipientUsername={recipientUsername}
         txHash={txHash || undefined}
+        confirmationProgress={confirmationProgress}
         error={structuredError || undefined}
         onRetry={() => {
           setIsConfirmationOpen(false);
