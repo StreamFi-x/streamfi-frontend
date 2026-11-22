@@ -222,10 +222,9 @@ const config = {
   //   "**/?(*.)+(spec|test).?([mc])[jt]s?(x)"
   // ],
 
-  // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
-  // testPathIgnorePatterns: [
-  //   "\\\\node_modules\\\\"
-  // ],
+  // Playwright specs live outside Jest. Without this, *.spec.ts under
+  // tests/e2e and tests/visual would be run by Jest in the wrong environment.
+  testPathIgnorePatterns: ["/node_modules/", "/tests/e2e/", "/tests/visual/"],
 
   // The regexp pattern or array of patterns that Jest uses to detect test files
   // testRegex: [],
