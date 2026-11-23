@@ -67,17 +67,20 @@ export async function POST(req: NextRequest) {
         INSERT INTO user_follows (follower_id, followee_id)
         VALUES (${callerId}, ${receiverId})
         ON CONFLICT DO NOTHING
+        RETURNING id
       `;
-      await invalidateFollowCaches(callerId, receiverId);
 
-      try {
-        await evaluateAndAwardBadges(receiverId);
-      } catch (badgeErr) {
-        console.error("[follow] badge evaluation failed:", badgeErr);
-      }
+      const isNewFollow = followResult.rows.length > 0;
 
-      // Write notification only if this follow was newly created (not a retried/duplicate click)
-      if (followResult.rowCount > 0) {
+      if (isNewFollow) {
+        await invalidateFollowCaches(callerId, receiverId);
+
+        try {
+          await evaluateAndAwardBadges(receiverId);
+        } catch (badgeErr) {
+          console.error("[follow] badge evaluation failed:", badgeErr);
+        }
+
         try {
           // Check if user has follow notifications enabled
           const shouldSend = await shouldSendInAppNotification(
@@ -101,7 +104,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      return NextResponse.json({ message: "Followed successfully" });
+      return NextResponse.json({
+        message: isNewFollow ? "Followed successfully" : "Already following",
+        created: isNewFollow,
+      });
     } else {
       await sql`
         DELETE FROM user_follows
