@@ -15,6 +15,10 @@ import {
   allowAllModules,
   FREIGHTER_ID,
 } from "@creit.tech/stellar-wallets-kit";
+import { getStellarNetwork } from "@/lib/stellar/config";
+import {
+  getMainnetGuardState,
+  type MainnetGuardState,
 import { AlertTriangle, X } from "lucide-react";
 import { getStellarNetwork, type StellarNetwork } from "@/lib/stellar/config";
 import {
@@ -75,6 +79,8 @@ interface StellarWalletContextType {
   unavailableWalletId: string | null;
   /** Privy-authenticated user (Google login). Null if signed in via Stellar wallet only. */
   privyWallet: PrivySessionUser | null;
+  /** Runtime guard state for detecting Stellar mainnet in non-production environments. */
+  mainnetGuard: MainnetGuardState;
   /** Populated when connecting a wallet would clear an active Privy session. */
   pendingWalletSwitch: PendingWalletSwitch | null;
   /** Explicitly confirms clearing Privy session state and activating the new wallet. */
@@ -148,6 +154,13 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   const [pendingWalletSwitch, setPendingWalletSwitch] =
     useState<PendingWalletSwitch | null>(null);
   const hasAttemptedAutoConnect = useRef(false);
+  const mainnetGuard = getMainnetGuardState();
+
+  useEffect(() => {
+    if (mainnetGuard.isMainnetInNonProd && mainnetGuard.warningMessage) {
+      console.error(`[StellarMainnetGuard] ${mainnetGuard.warningMessage}`);
+    }
+  }, [mainnetGuard.isMainnetInNonProd, mainnetGuard.warningMessage]);
   const walletConnectModuleRef = useRef<WalletConnectModule | null>(null);
   const activeWalletIdRef = useRef<string | null>(activeWalletId);
   const privyWalletRef = useRef<PrivySessionUser | null>(privyWallet);
@@ -687,6 +700,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         isWalletConnectAvailable,
         unavailableWalletId,
         privyWallet,
+        mainnetGuard,
         pendingWalletSwitch,
         confirmWalletSwitch,
         cancelWalletSwitch,

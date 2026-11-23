@@ -13,6 +13,7 @@ import {
 import { logger } from "@/lib/tracing/logger";
 import { getTraceHeaders } from "@/lib/tracing/trace-context";
 import { calculateSpendableBalance } from "./reserve";
+import { assertMainnetAllowedForTransaction } from "./network-guard";
 import { getStellarNetwork } from "./config";
 import {
   assertMainnetAllowedForTransaction,
@@ -547,6 +548,7 @@ export async function submitTransaction(
   transaction: Transaction,
   network: "testnet" | "mainnet"
 ): Promise<SubmitTransactionResult> {
+  assertMainnetAllowedForTransaction(network);
   const startTime = Date.now();
 
   try {

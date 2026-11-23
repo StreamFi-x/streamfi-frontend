@@ -34,6 +34,7 @@ import {
 import { TransactionBuilder, Networks } from "@stellar/stellar-sdk";
 import { WalletNetwork } from "@creit.tech/stellar-wallets-kit";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
+import { getMainnetGuardState } from "@/lib/stellar/network-guard";
 import { getStellarNetwork } from "@/lib/stellar/config";
 import { TipConfirmation } from "./TipConfirmation";
 import { sessionReplay } from "@/lib/session-replay";
@@ -56,6 +57,7 @@ interface TipModalProps {
 }
 
 type TransactionState =
+  "idle" | "building" | "signing" | "submitting" | "success" | "error";
   "idle"
   | "building"
   | "signing"
@@ -107,6 +109,8 @@ export function TipModal({
     useState<TransactionConfirmationProgress | null>(null);
   const pollAbortRef = useRef<AbortController | null>(null);
 
+  const { kit } = useStellarWallet();
+  const mainnetGuard = getMainnetGuardState();
   const {
     kit,
     isConnected,
@@ -360,6 +364,18 @@ export function TipModal({
   };
 
   const handleSubmit = async () => {
+    if (mainnetGuard.isBlocked) {
+      const blockedMessage =
+        mainnetGuard.warningMessage ??
+        "Stellar mainnet transactions are blocked in non-production environments.";
+      setError(blockedMessage);
+      setTransactionState("error");
+      if (onError) {
+        onError(blockedMessage);
+      }
+      return;
+    }
+
     sessionReplay.addBreadcrumb({
       category: "tipping",
       message: `Submitting tip: ${amount} XLM to @${recipientUsername}`,
@@ -715,6 +731,7 @@ export function TipModal({
     transactionState === "confirming";
 
   const canSubmit =
+    amount !== "" && transactionState === "idle" && !mainnetGuard.isBlocked;
     amount !== "" && transactionState === "idle" && !isMainnetBlocked;
 
   return (
@@ -756,6 +773,27 @@ export function TipModal({
               </div>
             </div>
 
+          {/* Mainnet non-production safety block */}
+          {mainnetGuard.isBlocked && (
+            <div
+              role="alert"
+              data-testid="tip-modal-mainnet-blocked"
+              className="flex items-start gap-2.5 p-3 bg-red-600/15 border border-red-500/40 rounded-xl"
+            >
+              <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-red-500 font-medium">
+                {mainnetGuard.warningMessage}
+              </p>
+            </div>
+          )}
+
+          {/* XLM price warning */}
+          {priceFetchFailed && !isLoadingPrice && (
+            <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+              <p className="text-xs text-amber-500">
+                Unable to load XLM price — USD estimate unavailable.
+              </p>
             <div className="p-4 bg-secondary border border-border rounded-xl space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Recipient</span>

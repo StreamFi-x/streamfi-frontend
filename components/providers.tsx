@@ -19,7 +19,10 @@ function InnerProviders({ children }: { children: React.ReactNode }) {
       <MainnetSafetyBanner />
       <ThemeProvider>
         <AuthProvider>
-          <FundingOnboardingProvider>{children}</FundingOnboardingProvider>
+          <FundingOnboardingProvider>
+            <MainnetSafetyBanner />
+            {children}
+          </FundingOnboardingProvider>
         </AuthProvider>
       </ThemeProvider>
     </StellarWalletProvider>
