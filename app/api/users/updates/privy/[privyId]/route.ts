@@ -10,6 +10,8 @@ import { parseProfileJsonbFields } from "@/lib/users/profile-form";
 import { validateUserUpdate } from "../../../../../../utils/userValidators";
 import { UserUpdateInput } from "../../../../../../types/user";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { verifySession } from "@/lib/auth/verify-session";
+import { shouldBypassAuth } from "@/lib/dev-mode";
 
 export async function PUT(
   req: NextRequest,
@@ -17,6 +19,16 @@ export async function PUT(
 ) {
   try {
     const { privyId } = await params;
+
+    if (!shouldBypassAuth()) {
+      const session = await verifySession(req);
+      if (!session.ok) {
+        return session.response;
+      }
+      if (session.privyId !== privyId && session.userId !== privyId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
 
     // Fetch current user record by privy_id
     const existingResult = await sql`
