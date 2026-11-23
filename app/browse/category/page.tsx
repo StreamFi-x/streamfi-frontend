@@ -14,7 +14,7 @@ import {
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useSearchParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 type Category = {
   id: string;
@@ -70,23 +70,45 @@ export default function BrowseCategoryPage() {
     fetchCategories();
   }, []);
 
-  const filteredCategories = categories.filter(category => {
-    const matchesCategory =
-      !selectedCategory ||
-      category.title.toLowerCase() === selectedCategory.toLowerCase() ||
-      category.tags?.some(
-        tag => tag.toLowerCase() === selectedCategory.toLowerCase()
-      );
+  const filteredCategories = useMemo(() => {
+    const list = categories.filter(category => {
+      const matchesCategory =
+        !selectedCategory ||
+        category.title.toLowerCase() === selectedCategory.toLowerCase() ||
+        category.tags?.some(
+          tag => tag.toLowerCase() === selectedCategory.toLowerCase()
+        );
 
-    const matchesSearch =
-      searchQuery === "" ||
-      category.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      category.tags?.some(tag =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const matchesSearch =
+        searchQuery === "" ||
+        category.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        category.tags?.some(tag =>
+          tag.toLowerCase().includes(searchQuery.toLowerCase())
+        );
 
-    return matchesCategory && matchesSearch;
-  });
+      return matchesCategory && matchesSearch;
+    });
+
+    switch (selectedSort) {
+      case "viewers":
+      case "popular":
+      case "trending":
+        list.sort((a, b) => (b.viewers || 0) - (a.viewers || 0));
+        break;
+      case "recent":
+        list.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case "recommended":
+      default:
+        list.sort(
+          (a, b) =>
+            (b.viewers || 0) - (a.viewers || 0) || a.title.localeCompare(b.title)
+        );
+        break;
+    }
+
+    return list;
+  }, [categories, selectedCategory, searchQuery, selectedSort]);
 
   if (error) {
     return (
