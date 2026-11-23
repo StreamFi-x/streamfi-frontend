@@ -90,6 +90,40 @@ export default function CategoryDetailPage() {
 
   const [categoryData, setCategoryData] = useState<CategoryData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
+
+  useEffect(() => {
+    if (!categoryData?.title) return;
+    try {
+      const stored = localStorage.getItem("streamfi_followed_categories");
+      if (stored) {
+        const list: string[] = JSON.parse(stored);
+        setIsFollowing(list.includes(categoryData.title.toLowerCase()));
+      }
+    } catch {
+      // ignore storage access errors
+    }
+  }, [categoryData?.title]);
+
+  const handleFollowToggle = () => {
+    if (!categoryData?.title) return;
+    const catName = categoryData.title.toLowerCase();
+    try {
+      const stored = localStorage.getItem("streamfi_followed_categories");
+      const list: string[] = stored ? JSON.parse(stored) : [];
+      let updated: string[];
+      if (isFollowing) {
+        updated = list.filter(c => c !== catName);
+        setIsFollowing(false);
+      } else {
+        updated = [...list, catName];
+        setIsFollowing(true);
+      }
+      localStorage.setItem("streamfi_followed_categories", JSON.stringify(updated));
+    } catch {
+      setIsFollowing(!isFollowing);
+    }
+  };
 
   // Fetch live streams with 20-second polling
   const { data } = useSWR<{ streams: LiveStream[] }>(
@@ -265,8 +299,23 @@ export default function CategoryDetailPage() {
           )}
 
           <div className="flex gap-3">
-            <Button className="px-7">Follow</Button>
-            <Button variant="outline" size="icon">
+            <Button
+              className="px-7"
+              variant={isFollowing ? "outline" : "default"}
+              onClick={handleFollowToggle}
+            >
+              {isFollowing ? "Following" : "Follow"}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              title="Share category link"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  navigator.clipboard.writeText(window.location.href);
+                }
+              }}
+            >
               <ExternalLink className="h-4 w-4" />
             </Button>
           </div>
