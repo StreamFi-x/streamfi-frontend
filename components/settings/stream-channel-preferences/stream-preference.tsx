@@ -1,7 +1,7 @@
 "use client";
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
-import { Eye, Zap } from "lucide-react";
+import { Eye, Globe, Lock, Users, Zap } from "lucide-react";
 import { toast } from "sonner";
 import StreamKeyModal from "@/components/ui/streamkeyModal";
 import StreamKeyConfirmationModal from "@/components/ui/streamKeyConfirmationModal";

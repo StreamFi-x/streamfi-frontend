@@ -7,7 +7,7 @@ const nextConfig = {
     // only the icons/components actually used get compiled.
     optimizePackageImports: ["lucide-react", "framer-motion"],
   },
-  allowedDevOrigins: ["*.ngrok-free.app"],
+  allowedDevOrigins: ["*.ngrok-free.app", "127.0.0.1", "localhost"],
   images: {
     remotePatterns: [
       {
