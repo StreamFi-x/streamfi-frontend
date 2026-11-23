@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ users: [] });
     }
 
-    // Fetch both exact and fuzzy matches in one query for efficiency
+    // Fetch both exact, prefix, substring, and fuzzy matches in one query with relevance scoring
     const { rows } = await sql`
       SELECT
         id,
@@ -69,13 +69,15 @@ export async function GET(req: NextRequest) {
         -- Similarity score for fuzzy matching (0-1)
         similarity(username, ${query}) as sim_score,
         CASE
-          WHEN username ILIKE ${query + '%'} THEN 1000  -- Exact prefix match: highest priority
+          WHEN LOWER(username) = LOWER(${query}) THEN 2000  -- Exact match: absolute highest priority
+          WHEN username ILIKE ${query + '%'} THEN 1000  -- Exact prefix match: second priority
           WHEN username ILIKE ${'%' + query + '%'} THEN 100  -- Substring match
           ELSE similarity(username, ${query}) * 100  -- Fuzzy match: use similarity score (0-100)
         END as relevance_score
       FROM users
       WHERE
         username IS NOT NULL
+        AND deleted_at IS NULL
         AND (
           -- Exact/prefix/substring match
           username ILIKE ${query + '%'}
@@ -83,11 +85,8 @@ export async function GET(req: NextRequest) {
           -- Fuzzy match: similarity >= 0.3 (tuned to catch typos without flood)
           OR similarity(username, ${query}) >= 0.3
         )
-      ORDER BY relevance_score DESC, similarity(username, ${query}) DESC
-      LIMIT ${limit * 2}  -- Fetch more, then rank/filter
-      WHERE username ILIKE ${"%" + query + "%"}
-        AND deleted_at IS NULL
-      LIMIT 8
+      ORDER BY relevance_score DESC, similarity(username, ${query}) DESC, LENGTH(username) ASC
+      LIMIT ${limit * 2}
     `;
 
     // Rank results using comprehensive algorithm
