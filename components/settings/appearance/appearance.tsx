@@ -1,7 +1,11 @@
 "use client";
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { useTheme } from "@/contexts/theme-context";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+
+type ThemeValue = "light" | "dark" | "system";
 
 interface RadioOptionProps {
   label: string;
@@ -100,39 +104,40 @@ const OptionsSection: React.FC<OptionsSectionProps> = ({
 
 const ThemeSettingsPage: React.FC = () => {
   const { theme, setTheme } = useTheme();
-  const [settings, setSettings] = useState({
-    theme: theme,
-    display: theme,
-  });
+  const { preferences, update } = useUserPreferences();
+  const [isSaving, setIsSaving] = useState(false);
+  // Set once the server value has been applied or the user picked a theme,
+  // so a late server response never overrides a choice made on this page.
+  const hasSyncedTheme = useRef(false);
 
-  // Sync with theme context
+  // Hydrate the theme context from the saved server preference so the
+  // theme follows the user across devices and sessions.
   useEffect(() => {
-    setSettings(prev => ({
-      ...prev,
-      theme: theme,
-      display: theme,
-    }));
-  }, [theme]);
-
-  // Universal handler for updating settings
-  const updateSetting = (key: keyof typeof settings, value: string) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: value,
-    }));
-
-    // Update theme context immediately
-    if (key === "theme" || key === "display") {
-      setTheme(value as "light" | "dark" | "system");
+    if (hasSyncedTheme.current || !preferences?.theme) {
+      return;
     }
+    hasSyncedTheme.current = true;
+    setTheme(preferences.theme);
+  }, [preferences?.theme, setTheme]);
+
+  const handleThemeChange = (value: string) => {
+    hasSyncedTheme.current = true;
+    // Apply immediately; Save Changes persists it server side
+    setTheme(value as ThemeValue);
   };
 
   const commonOptions = ["light", "dark", "system"];
 
-  const saveChanges = () => {
-    // Theme is already saved via context, just show confirmation
-    alert("Settings saved successfully!");
-    console.log("Settings saved:", settings);
+  const saveChanges = async () => {
+    setIsSaving(true);
+    try {
+      await update({ theme });
+      toast.success("Theme preference saved");
+    } catch {
+      toast.error("Failed to save theme preference. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -141,26 +146,18 @@ const ThemeSettingsPage: React.FC = () => {
         <OptionsSection
           title="Theme"
           description="Choose between light and dark interface themes"
-          value={settings.theme}
+          value={theme}
           options={commonOptions}
-          onChange={newValue => updateSetting("theme", newValue)}
-        />
-
-        {/* Display Selection */}
-        <OptionsSection
-          title="Display"
-          description="Choose between light and dark interface themes"
-          value={settings.display}
-          options={commonOptions}
-          onChange={newValue => updateSetting("display", newValue)}
+          onChange={handleThemeChange}
         />
 
         <div className="lg:flex lg:justify-end w-full">
           <button
-            className="bg-highlight hover:bg-highlight/80 text-primary-foreground w-full lg:w-[12em] px-6 py-3 rounded-lg"
+            className="bg-highlight hover:bg-highlight/80 text-primary-foreground w-full lg:w-[12em] px-6 py-3 rounded-lg disabled:opacity-50"
             onClick={saveChanges}
+            disabled={isSaving}
           >
-            Save Changes
+            {isSaving ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>
