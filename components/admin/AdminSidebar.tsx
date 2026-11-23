@@ -10,6 +10,8 @@ import {
   LayoutGrid,
   ArrowLeftToLine,
   History,
+  Flag,
+  FileText,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -33,6 +35,16 @@ const navItems = [
     name: "Categories",
     icon: <LayoutGrid size={24} />,
     path: "/admin/categories",
+  },
+  {
+    name: "Feature Flags",
+    icon: <Flag size={24} />,
+    path: "/admin/feature-flags",
+  },
+  {
+    name: "Audit Log",
+    icon: <FileText size={24} />,
+    path: "/admin/audit-log",
   },
   {
     name: "Session Replays",

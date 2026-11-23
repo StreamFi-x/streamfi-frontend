@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * POST /api/routes-f/tip-send-xlm
- * 
+ *
  * Build and return an unsigned XLM payment transaction for tipping.
- * 
+ *
  * Request body:
  * {
  *   amount: string (XLM amount, e.g., "10.0000000")
  *   recipientChannelId: string (channel ID to lookup recipient's wallet)
  *   memo?: string (optional memo for the transaction)
  * }
- * 
+ *
  * Response 200:
  *   {
  *     transaction: string (XDR encoded unsigned transaction),
@@ -21,7 +21,7 @@
  *     networkPassphrase: string,
  *     fee: string (in XLM),
  *   }
- * 
+ *
  * Error responses:
  *   400 — invalid body, missing fields, invalid amount
  *   401 — unauthorized (no session)
@@ -33,9 +33,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { verifySession } from "@/lib/auth/verify-session";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
-import { buildTipTransaction, isValidStellarPublicKey, formatXLMAmount, calculateFeeEstimate } from "@/lib/stellar/payments";
+import {
+  buildTipTransaction,
+  isValidStellarPublicKey,
+  formatXLMAmount,
+  calculateFeeEstimate,
+} from "@/lib/stellar/payments";
 import { getStellarNetwork, getNetworkPassphrase } from "@/lib/stellar/config";
 import { sql } from "@vercel/postgres";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,7 +49,10 @@ export const dynamic = "force-dynamic";
 const tipSendXlmSchema = z.object({
   amount: z
     .string()
-    .regex(/^\d+(\.\d{1,7})?$/, "amount must be a valid XLM amount with up to 7 decimals"),
+    .regex(
+      /^\d+(\.\d{1,7})?$/,
+      "amount must be a valid XLM amount with up to 7 decimals"
+    ),
   recipientChannelId: z.string().min(1, "recipientChannelId is required"),
   memo: z.string().max(28, "memo must be 28 characters or less").optional(),
 });
@@ -71,7 +80,10 @@ async function getRecipientWallet(channelId: string): Promise<string | null> {
     const recipient = rows[0] as any;
     return recipient.stellar_address || recipient.wallet_address || null;
   } catch (error) {
-    console.error("[tip-send-xlm] Error fetching recipient wallet:", error);
+    logger.error("Error fetching recipient wallet", error, {
+      route: "POST /api/routes-f/tip-send-xlm",
+      channelId,
+    });
     throw error;
   }
 }
@@ -95,7 +107,10 @@ async function getSenderWallet(userId: string): Promise<string | null> {
     const sender = rows[0] as any;
     return sender.stellar_address || sender.wallet_address || null;
   } catch (error) {
-    console.error("[tip-send-xlm] Error fetching sender wallet:", error);
+    logger.error("Error fetching sender wallet", error, {
+      route: "POST /api/routes-f/tip-send-xlm",
+      userId,
+    });
     throw error;
   }
 }
@@ -190,21 +205,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       { status: 200 }
     );
   } catch (error) {
-    console.error("[tip-send-xlm] Error building transaction:", error);
+    logger.error("Error building XLM tip transaction", error, {
+      route: "POST /api/routes-f/tip-send-xlm",
+      recipientChannelId,
+    });
 
     // Check if it's an account funding error
     if (error instanceof Error) {
       if (error.message.includes("Account not found")) {
         return NextResponse.json(
-          { error: "Sender account not found. Please ensure your wallet is funded." },
+          {
+            error:
+              "Sender account not found. Please ensure your wallet is funded.",
+          },
           { status: 400 }
         );
       }
       if (error.message.includes("Recipient")) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: error.message }, { status: 400 });
       }
     }
 

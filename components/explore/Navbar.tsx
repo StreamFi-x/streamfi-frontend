@@ -16,6 +16,7 @@ import { getDefaultAvatar } from "@/lib/profile-icons";
 import ProfileDropdown from "../ui/profileDropdown";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import { usePrivyAuth } from "@/hooks/usePrivyAuth";
+import { StellarNetworkBadge } from "@/components/stellar/StellarNetworkBadge";
 
 interface NavbarProps {
   onConnectWallet?: () => void;
@@ -33,6 +34,7 @@ export default function Navbar({}: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const latestSearchQueryRef = useRef("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { publicKey, isConnected, disconnect, privyWallet } =
     useStellarWallet();
@@ -155,17 +157,20 @@ export default function Navbar({}: NavbarProps) {
 
   // Search results fetch with debounce — categories + users in parallel
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    const trimmedQuery = searchQuery.trim();
+    latestSearchQueryRef.current = trimmedQuery;
+    if (!trimmedQuery) {
       setSearchResults([]);
       return;
     }
 
+    const controller = new AbortController();
     const timeout = setTimeout(async () => {
       try {
-        const q = encodeURIComponent(searchQuery);
+        const q = encodeURIComponent(trimmedQuery);
         const [catRes, userRes] = await Promise.all([
-          fetch(`/api/category?title=${q}`),
-          fetch(`/api/search-username?q=${q}`),
+          fetch(`/api/category?title=${q}`, { signal: controller.signal }),
+          fetch(`/api/search-username?q=${q}`, { signal: controller.signal }),
         ]);
 
         const [catData, userData] = await Promise.all([
@@ -191,13 +196,28 @@ export default function Navbar({}: NavbarProps) {
           })
         );
 
+        if (
+          controller.signal.aborted ||
+          latestSearchQueryRef.current !== trimmedQuery
+        ) {
+          return;
+        }
         setSearchResults([...users, ...categories]);
       } catch {
+        if (
+          controller.signal.aborted ||
+          latestSearchQueryRef.current !== trimmedQuery
+        ) {
+          return;
+        }
         setSearchResults([]);
       }
     }, 300);
 
-    return () => clearTimeout(timeout);
+      return () => {
+        clearTimeout(timeout);
+        controller.abort();
+      };
   }, [searchQuery]);
 
   const handleConnectWallet = () => {
@@ -264,7 +284,7 @@ export default function Navbar({}: NavbarProps) {
   return (
     <>
       <header className="h-20 flex items-center justify-between px-4 border-b-[0.5px] border-border bg-sidebar z-50">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <Link href="/explore" className="flex items-center gap-2">
             <Image
               src={StreamfiLogoLight}
@@ -277,6 +297,7 @@ export default function Navbar({}: NavbarProps) {
               className="hidden dark:block"
             />
           </Link>
+          <StellarNetworkBadge variant="pill" />
         </div>
 
         <div className="hidden md:block flex-1 items-center max-w-xl mx-4 relative">

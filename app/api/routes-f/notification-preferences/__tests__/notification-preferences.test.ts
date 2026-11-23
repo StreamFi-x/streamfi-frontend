@@ -1,17 +1,32 @@
 /**
  * @jest-environment node
  */
-import { NextRequest } from "next/server";
-import { GET, PUT, prefsStore } from "../route";
+import { NextRequest, NextResponse } from "next/server";
+import { GET, PUT } from "../route";
+import { verifySession } from "@/lib/auth/verify-session";
+import {
+  getNotificationPreferences,
+  updateNotificationPreferences,
+} from "@/lib/notifications/preferences";
 
+jest.mock("@vercel/postgres", () => ({ sql: jest.fn() }));
+jest.mock("@/lib/auth/verify-session", () => ({
+  verifySession: jest.fn(),
+}));
+jest.mock("@/lib/notifications/preferences", () => ({
+  getNotificationPreferences: jest.fn(),
+  updateNotificationPreferences: jest.fn(),
+}));
+
+const USER_ID = "c0110000-0000-4000-8000-000000000001";
+const OTHER_USER_ID = "c0110000-0000-4000-8000-000000000002";
 const BASE_URL = "http://localhost/api/routes-f/notification-preferences";
-const VIEWER_ID = "v-0001-0000-4000-8000-000000000001";
-const OTHER_VIEWER = "v-0002-0000-4000-8000-000000000002";
+const mockVerifySession = verifySession as jest.Mock;
+const mockGetPreferences = getNotificationPreferences as jest.Mock;
+const mockUpdatePreferences = updateNotificationPreferences as jest.Mock;
 
-function makeGet(params: Record<string, string>) {
-  const url = new URL(BASE_URL);
-  for (const [k, v] of Object.entries(params)) {url.searchParams.set(k, v);}
-  return new NextRequest(url.toString(), { method: "GET" });
+function makeGet(url = BASE_URL) {
+  return new NextRequest(url, { method: "GET" });
 }
 
 function makePut(body: unknown) {
@@ -22,99 +37,73 @@ function makePut(body: unknown) {
   });
 }
 
-describe("GET /api/routes-f/notification-preferences", () => {
-  beforeEach(() => prefsStore.clear());
+describe("/api/routes-f/notification-preferences", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockVerifySession.mockResolvedValue({ ok: true, userId: USER_ID });
+  });
 
-  it("returns defaults (all true except email_digest) for unknown viewer", async () => {
-    const res = await GET(makeGet({ viewer_id: VIEWER_ID }));
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toEqual({
-      live_alerts: true,
-      tips_received: true,
-      chat_mentions: true,
-      email_digest: false,
+  it("requires an authenticated session for reads", async () => {
+    mockVerifySession.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     });
+
+    const response = await GET(makeGet());
+
+    expect(response.status).toBe(401);
+    expect(mockGetPreferences).not.toHaveBeenCalled();
   });
 
-  it("returns stored prefs after a PUT", async () => {
-    await PUT(makePut({ viewer_id: VIEWER_ID, live_alerts: false, email_digest: true }));
-    const res = await GET(makeGet({ viewer_id: VIEWER_ID }));
-    const body = await res.json();
-    expect(body.live_alerts).toBe(false);
-    expect(body.email_digest).toBe(true);
-    // untouched fields keep their defaults
-    expect(body.tips_received).toBe(true);
-    expect(body.chat_mentions).toBe(true);
+  it("scopes reads to the authenticated user and rejects caller-selected IDs", async () => {
+    const response = await GET(makeGet(`${BASE_URL}?user_id=${OTHER_USER_ID}`));
+
+    expect(response.status).toBe(400);
+    expect(mockGetPreferences).not.toHaveBeenCalled();
   });
 
-  it("different viewers have independent prefs", async () => {
-    await PUT(makePut({ viewer_id: VIEWER_ID, live_alerts: false }));
-    const res = await GET(makeGet({ viewer_id: OTHER_VIEWER }));
-    const body = await res.json();
-    expect(body.live_alerts).toBe(true);
+  it("returns the authenticated user's persisted preferences", async () => {
+    const preferences = { user_id: USER_ID, notify_live: false };
+    mockGetPreferences.mockResolvedValue(preferences);
+
+    const response = await GET(makeGet());
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(preferences);
+    expect(mockGetPreferences).toHaveBeenCalledWith(USER_ID);
   });
 
-  it("400 — missing viewer_id", async () => {
-    const res = await GET(makeGet({}));
-    expect(res.status).toBe(400);
-  });
-});
+  it("writes only to the authenticated user's preference record", async () => {
+    const preferences = { user_id: USER_ID, notify_live: false };
+    mockUpdatePreferences.mockResolvedValue(preferences);
 
-describe("PUT /api/routes-f/notification-preferences", () => {
-  beforeEach(() => prefsStore.clear());
+    const response = await PUT(makePut({ notify_live: false }));
 
-  it("updates a single field, leaves others at defaults", async () => {
-    const res = await PUT(makePut({ viewer_id: VIEWER_ID, chat_mentions: false }));
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.chat_mentions).toBe(false);
-    expect(body.live_alerts).toBe(true);
-    expect(body.tips_received).toBe(true);
-    expect(body.email_digest).toBe(false);
-  });
-
-  it("updates all four fields at once", async () => {
-    const res = await PUT(
-      makePut({
-        viewer_id: VIEWER_ID,
-        live_alerts: false,
-        tips_received: false,
-        chat_mentions: false,
-        email_digest: true,
-      })
+    expect(response.status).toBe(200);
+    expect(mockUpdatePreferences).toHaveBeenCalledWith(
+      USER_ID,
+      { notify_live: false },
+      expect.any(Function)
     );
-    const body = await res.json();
-    expect(body).toEqual({
-      live_alerts: false,
-      tips_received: false,
-      chat_mentions: false,
-      email_digest: true,
+  });
+
+  it("rejects caller-supplied user IDs", async () => {
+    const response = await PUT(
+      makePut({ user_id: OTHER_USER_ID, notify_live: false })
+    );
+
+    expect(response.status).toBe(400);
+    expect(mockUpdatePreferences).not.toHaveBeenCalled();
+  });
+
+  it("surfaces database failures instead of returning a success-shaped default", async () => {
+    mockUpdatePreferences.mockRejectedValue(new Error("database unavailable"));
+
+    const response = await PUT(makePut({ notify_live: false }));
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: "Failed to update notification preferences",
     });
-  });
-
-  it("second PUT merges on top of first", async () => {
-    await PUT(makePut({ viewer_id: VIEWER_ID, live_alerts: false }));
-    await PUT(makePut({ viewer_id: VIEWER_ID, email_digest: true }));
-    const res = await GET(makeGet({ viewer_id: VIEWER_ID }));
-    const body = await res.json();
-    expect(body.live_alerts).toBe(false);
-    expect(body.email_digest).toBe(true);
-  });
-
-  it("400 — missing viewer_id", async () => {
-    const res = await PUT(makePut({ live_alerts: false }));
-    expect(res.status).toBe(400);
-  });
-
-  it("400 — invalid JSON body", async () => {
-    const res = await PUT(
-      new NextRequest(BASE_URL, {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: "not-json",
-      })
-    );
-    expect(res.status).toBe(400);
   });
 });

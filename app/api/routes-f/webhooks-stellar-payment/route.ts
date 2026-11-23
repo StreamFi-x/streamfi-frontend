@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Stellar Payment Webhook Handler
- * 
+ *
  * POST /api/routes-f/webhooks-stellar-payment
- * 
+ *
  * Ingests Stellar payment stream events keyed by memo to credit tips.
  * Verifies transactions on Horizon API before processing to prevent fraud.
- * 
+ *
  * Expected payload:
  * {
  *   tx_hash: string;
@@ -30,6 +30,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
 import { httpStatusOf } from "@/lib/resilience/circuit-breaker";
 import { fetchHorizonJson } from "@/lib/stellar/horizon-client";
+import { logger } from "@/lib/tracing/logger";
 
 // Rate limiter: max 60 requests per minute per IP
 const isRateLimited = createRateLimiter(60 * 1000, 60);
@@ -50,21 +51,25 @@ type PaymentPayload = z.infer<typeof paymentSchema>;
  * Verify webhook signature (optional - for third-party webhook services)
  * If STELLAR_WEBHOOK_SECRET is set, verify HMAC signature
  */
-function verifyWebhookSignature(
-  req: NextRequest,
-  rawBody: string
-): boolean {
+function verifyWebhookSignature(req: NextRequest, rawBody: string): boolean {
   const webhookSecret = process.env.STELLAR_WEBHOOK_SECRET;
-  
+
   if (!webhookSecret) {
     // No secret configured - skip verification (dev mode)
-    console.warn("⚠️ STELLAR_WEBHOOK_SECRET not set — skipping signature verification");
+    logger.warn(
+      "STELLAR_WEBHOOK_SECRET not set - skipping signature verification",
+      {
+        route: "POST /api/routes-f/webhooks-stellar-payment",
+      }
+    );
     return true;
   }
 
   const signatureHeader = req.headers.get("x-stellar-signature");
   if (!signatureHeader) {
-    console.error("❌ Missing x-stellar-signature header");
+    logger.error("Missing x-stellar-signature header", {
+      route: "POST /api/routes-f/webhooks-stellar-payment",
+    });
     return false;
   }
 
@@ -81,14 +86,19 @@ function verifyWebhookSignature(
   const signature = parts["v1"];
 
   if (!timestamp || !signature) {
-    console.error("❌ Invalid signature header format");
+    logger.error("Invalid signature header format", {
+      route: "POST /api/routes-f/webhooks-stellar-payment",
+    });
     return false;
   }
 
   // Reject events older than 5 minutes (replay attack prevention)
   const ageSeconds = Math.abs(Date.now() / 1000 - parseInt(timestamp, 10));
   if (ageSeconds > 300) {
-    console.error(`❌ Webhook too old: ${ageSeconds}s`);
+    logger.error("Webhook signature timestamp too old", {
+      route: "POST /api/routes-f/webhooks-stellar-payment",
+      ageSeconds,
+    });
     return false;
   }
 
@@ -141,7 +151,7 @@ async function verifyTransactionOnHorizon(
     if (paymentOp.to !== payload.to) {
       return { verified: false, error: "Destination address mismatch" };
     }
-    
+
     // Allow small rounding differences (within 0.0000001 XLM)
     const horizonAmount = parseFloat(paymentOp.amount);
     const payloadAmount = parseFloat(payload.amount);
@@ -156,7 +166,10 @@ async function verifyTransactionOnHorizon(
     }
     // Horizon slow, failing or its circuit open: the transaction may well be
     // real, so ask the sender to retry rather than rejecting it.
-    console.error("❌ Horizon verification error:", error);
+    logger.error("Horizon verification error", error, {
+      route: "POST /api/routes-f/webhooks-stellar-payment",
+      txHash,
+    });
     return {
       verified: false,
       unavailable: true,
@@ -177,7 +190,9 @@ async function getXLMPrice(): Promise<number> {
     const data = await response.json();
     return data.stellar?.usd || 0.12; // Fallback price
   } catch (error) {
-    console.error("Failed to fetch XLM price:", error);
+    logger.error("Failed to fetch XLM price", error, {
+      route: "POST /api/routes-f/webhooks-stellar-payment",
+    });
     return 0.12; // Fallback price
   }
 }
@@ -185,12 +200,12 @@ async function getXLMPrice(): Promise<number> {
 export async function POST(req: NextRequest) {
   try {
     // Rate limiting by IP
-    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    const ip =
+      req.headers.get("x-forwarded-for") ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
     if (await isRateLimited(ip)) {
-      return NextResponse.json(
-        { error: "Too many requests" },
-        { status: 429 }
-      );
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
     // Get raw body for signature verification
@@ -198,10 +213,7 @@ export async function POST(req: NextRequest) {
 
     // Verify webhook signature if secret is configured
     if (!verifyWebhookSignature(req, rawBody)) {
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     // Parse and validate payload
@@ -209,10 +221,7 @@ export async function POST(req: NextRequest) {
     try {
       parsedBody = JSON.parse(rawBody);
     } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
     const bodyResult = paymentSchema.safeParse(parsedBody);
@@ -227,10 +236,16 @@ export async function POST(req: NextRequest) {
     }
 
     const payload = bodyResult.data;
-    console.log(`🔔 Stellar payment webhook received: ${payload.tx_hash}`);
+    logger.info("Stellar payment webhook received", {
+      route: "POST /api/routes-f/webhooks-stellar-payment",
+      txHash: payload.tx_hash,
+    });
 
     // Verify transaction exists on Stellar network
-    const verification = await verifyTransactionOnHorizon(payload.tx_hash, payload);
+    const verification = await verifyTransactionOnHorizon(
+      payload.tx_hash,
+      payload
+    );
     if (verification.unavailable) {
       return NextResponse.json(
         { error: verification.error },
@@ -238,9 +253,16 @@ export async function POST(req: NextRequest) {
       );
     }
     if (!verification.verified) {
-      console.error(`❌ Transaction verification failed: ${verification.error}`);
+      logger.error("Transaction verification failed", {
+        route: "POST /api/routes-f/webhooks-stellar-payment",
+        txHash: payload.tx_hash,
+        reason: verification.error,
+      });
       return NextResponse.json(
-        { error: "Transaction verification failed", details: verification.error },
+        {
+          error: "Transaction verification failed",
+          details: verification.error,
+        },
         { status: 400 }
       );
     }
@@ -251,7 +273,10 @@ export async function POST(req: NextRequest) {
     `;
 
     if (existingTx.rows.length > 0) {
-      console.log(`⏭️ Transaction already processed: ${payload.tx_hash}`);
+      logger.info("Transaction already processed", {
+        route: "POST /api/routes-f/webhooks-stellar-payment",
+        txHash: payload.tx_hash,
+      });
       return NextResponse.json({
         message: "Transaction already processed",
         tx_hash: payload.tx_hash,
@@ -265,7 +290,10 @@ export async function POST(req: NextRequest) {
     `;
 
     if (creatorResult.rows.length === 0) {
-      console.error(`❌ Creator not found for wallet: ${payload.to}`);
+      logger.error("Creator not found for wallet", {
+        route: "POST /api/routes-f/webhooks-stellar-payment",
+        to: payload.to.substring(0, 8),
+      });
       return NextResponse.json(
         { error: "Creator wallet not found" },
         { status: 404 }
@@ -277,7 +305,7 @@ export async function POST(req: NextRequest) {
     // Find supporter by wallet address (optional - may be anonymous)
     let supporterId: string | null = null;
     let supporterUsername = "Anonymous";
-    
+
     const supporterResult = await sql`
       -- tombstone-aware: financial records keep their supporter link
       SELECT id, username FROM users WHERE wallet = ${payload.from}
@@ -339,13 +367,20 @@ export async function POST(req: NextRequest) {
     `;
     await invalidateUserCaches({ id: creator.id });
 
-    console.log(`✅ Tip credited: ${amountXLM} XLM ($${priceUSD.toFixed(2)}) to ${creator.username}`);
+    logger.info("Tip credited", {
+      route: "POST /api/routes-f/webhooks-stellar-payment",
+      txHash: payload.tx_hash,
+      amountXlm: amountXLM,
+      priceUsd: priceUSD.toFixed(2),
+      creatorId: creator.id,
+      creatorUsername: creator.username,
+    });
 
     // Broadcast real-time tip alert to overlay (non-blocking)
     try {
       const broadcastURL = new URL(req.url);
       broadcastURL.pathname = "/api/routes-f/tip-alerts/broadcast";
-      
+
       fetch(broadcastURL.toString(), {
         method: "POST",
         headers: {
@@ -359,17 +394,27 @@ export async function POST(req: NextRequest) {
           amount_usd: priceUSD.toFixed(2),
           tx_hash: payload.tx_hash,
         }),
-      }).catch((err) => {
-        console.error("Failed to broadcast tip alert:", err);
+      }).catch(err => {
+        logger.error("Failed to broadcast tip alert", err, {
+          route: "POST /api/routes-f/webhooks-stellar-payment",
+          txHash: payload.tx_hash,
+        });
       });
     } catch (alertError) {
-      console.error("Tip alert broadcast error:", alertError);
+      logger.error("Tip alert broadcast error", alertError, {
+        route: "POST /api/routes-f/webhooks-stellar-payment",
+        txHash: payload.tx_hash,
+      });
     }
 
     // Send notification to creator
     try {
       // Check if creator has tip notifications enabled
-      const shouldSend = await shouldSendInAppNotification(creator.id, "tip_received", { sql });
+      const shouldSend = await shouldSendInAppNotification(
+        creator.id,
+        "tip_received",
+        { sql }
+      );
       if (shouldSend) {
         await writeTemplatedNotification(
           creator.id,
@@ -383,14 +428,20 @@ export async function POST(req: NextRequest) {
         );
       }
     } catch (notifError) {
-      console.error("Failed to send notification:", notifError);
+      logger.error("Failed to send notification", notifError, {
+        route: "POST /api/routes-f/webhooks-stellar-payment",
+        creatorId: creator.id,
+      });
     }
 
     // Evaluate and award badges (e.g., "First Tip" badge)
     try {
       await evaluateAndAwardBadges(creator.id);
     } catch (badgeError) {
-      console.error("Failed to evaluate badges:", badgeError);
+      logger.error("Failed to evaluate badges", badgeError, {
+        route: "POST /api/routes-f/webhooks-stellar-payment",
+        creatorId: creator.id,
+      });
     }
 
     return NextResponse.json({
@@ -401,7 +452,9 @@ export async function POST(req: NextRequest) {
       amount_usd: priceUSD,
     });
   } catch (error) {
-    console.error("❌ Stellar payment webhook error:", error);
+    logger.error("Stellar payment webhook error", error, {
+      route: "POST /api/routes-f/webhooks-stellar-payment",
+    });
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 }

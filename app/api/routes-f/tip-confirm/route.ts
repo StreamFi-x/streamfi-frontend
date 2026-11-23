@@ -1,17 +1,17 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * POST /api/routes-f/tip-confirm
- * 
+ *
  * Verify a signed XLM transaction hash on Stellar Horizon, persist the tip row,
  * and emit a chat event for notification.
- * 
+ *
  * Request body:
  * {
  *   tx_hash: string (Stellar transaction hash),
  *   amount: string (XLM amount, e.g., "10.0000000"),
  *   recipient_channel_id: string (recipient's channel ID),
  * }
- * 
+ *
  * Response 201:
  *   {
  *     tip_id: string,
@@ -21,7 +21,7 @@
  *     ledger: number,
  *     created_at: string (ISO 8601),
  *   }
- * 
+ *
  * Error responses:
  *   400 — invalid body, invalid tx_hash format
  *   401 — unauthorized (no session)
@@ -40,6 +40,7 @@ import { sql } from "@vercel/postgres";
 import { httpStatusOf } from "@/lib/resilience/circuit-breaker";
 import { callHorizon } from "@/lib/stellar/horizon-client";
 import { insertActivityEvent } from "@/app/api/routes-f/activity/_lib/insert";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,10 +48,16 @@ export const dynamic = "force-dynamic";
 const tipConfirmSchema = z.object({
   tx_hash: z
     .string()
-    .regex(/^[a-f0-9]{64}$/i, "tx_hash must be a valid 64-character hex string"),
+    .regex(
+      /^[a-f0-9]{64}$/i,
+      "tx_hash must be a valid 64-character hex string"
+    ),
   amount: z
     .string()
-    .regex(/^\d+(\.\d{1,7})?$/, "amount must be a valid XLM amount with up to 7 decimals"),
+    .regex(
+      /^\d+(\.\d{1,7})?$/,
+      "amount must be a valid XLM amount with up to 7 decimals"
+    ),
   recipient_channel_id: z.string().min(1, "recipient_channel_id is required"),
 });
 
@@ -88,7 +95,8 @@ async function verifyTransactionOnHorizon(
     // Find the payment operation from the transaction's operations
     const operations = await callHorizon(() => response.operations());
     const paymentOp = operations.records.find(
-      (op: any) => op.type === "payment" || op.type === "path_payment_strict_receive"
+      (op: any) =>
+        op.type === "payment" || op.type === "path_payment_strict_receive"
     );
 
     if (!paymentOp) {
@@ -132,7 +140,10 @@ async function getRecipientUserIdFromChannel(
 
     return (rows[0] as any).user_id;
   } catch (error) {
-    console.error("[tip-confirm] Error fetching recipient:", error);
+    logger.error("Error fetching tip recipient from channel", error, {
+      route: "POST /api/routes-f/tip-confirm",
+      channelId: channel_id,
+    });
     throw error;
   }
 }
@@ -158,7 +169,10 @@ async function isDuplicateTip(
 
     return rows.length > 0;
   } catch (error) {
-    console.error("[tip-confirm] Error checking duplicate:", error);
+    logger.error("Error checking duplicate tip", error, {
+      route: "POST /api/routes-f/tip-confirm",
+      txHash: tx_hash,
+    });
     throw error;
   }
 }
@@ -206,7 +220,10 @@ async function persistTip(
       created_at: row.created_at,
     };
   } catch (error) {
-    console.error("[tip-confirm] Error persisting tip:", error);
+    logger.error("Error persisting confirmed tip", error, {
+      route: "POST /api/routes-f/tip-confirm",
+      txHash: tx_hash,
+    });
     throw error;
   }
 }
@@ -232,7 +249,10 @@ async function emitTipChatEvent(
       },
     });
   } catch (error) {
-    console.error("[tip-confirm] Error emitting chat event:", error);
+    logger.error("Error emitting tip chat event", error, {
+      route: "POST /api/routes-f/tip-confirm",
+      tipId: tip_id,
+    });
     // Don't throw - tip is already persisted, event emission is best-effort
   }
 }
@@ -285,7 +305,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // Get recipient's user ID
-    const recipient_id = await getRecipientUserIdFromChannel(recipient_channel_id);
+    const recipient_id =
+      await getRecipientUserIdFromChannel(recipient_channel_id);
     if (!recipient_id) {
       return NextResponse.json(
         { error: "Recipient channel not found" },
@@ -294,7 +315,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // Check for duplicate tips
-    const isDuplicate = await isDuplicateTip(session.userId, recipient_id, tx_hash);
+    const isDuplicate = await isDuplicateTip(
+      session.userId,
+      recipient_id,
+      tx_hash
+    );
     if (isDuplicate) {
       return NextResponse.json(
         { error: "This tip has already been confirmed" },
@@ -328,7 +353,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       )
     );
   } catch (error) {
-    console.error("[tip-confirm] Unexpected error:", error);
+    logger.error("Unexpected error confirming tip", error, {
+      route: "POST /api/routes-f/tip-confirm",
+      txHash: tx_hash,
+    });
 
     if (error instanceof Error) {
       if (error.message.includes("duplicate")) {

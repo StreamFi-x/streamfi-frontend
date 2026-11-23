@@ -4,6 +4,7 @@ import {
   DownstreamTimeoutError,
 } from "@/lib/resilience/circuit-breaker";
 import { getNativeBalance, STELLAR_ADDRESS } from "@/lib/stellar/balance";
+import { logger } from "@/lib/tracing/logger";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -17,10 +18,15 @@ export async function GET(req: Request) {
   }
 
   try {
-    const { balance, spendableBalance, activated } = await getNativeBalance(address);
+    const { balance, spendableBalance, activated } =
+      await getNativeBalance(address);
     if (!activated) {
       // The account has never been funded (below minimum reserve).
-      return NextResponse.json({ balance: "0", spendableBalance: "0", unfunded: true });
+      return NextResponse.json({
+        balance: "0",
+        spendableBalance: "0",
+        unfunded: true,
+      });
     }
     return NextResponse.json(
       { balance, spendableBalance },
@@ -42,7 +48,10 @@ export async function GET(req: Request) {
         { status: 503, headers: { "Retry-After": String(retryAfter) } }
       );
     }
-    console.error("Balance fetch error:", error);
+    logger.error("Balance fetch error", error, {
+      route: "GET /api/wallet/balance",
+      address: address.substring(0, 8),
+    });
     return NextResponse.json(
       { error: "Failed to fetch balance" },
       { status: 500 }

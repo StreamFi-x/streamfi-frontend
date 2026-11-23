@@ -27,9 +27,12 @@ export function rateLimit({ interval }: { interval: any }) {
         }
 
         if (tokenCount[0] === 1) {
-          setTimeout(() => {
+          const timer = setTimeout(() => {
             tokenCache.delete(token);
           }, interval);
+          if (typeof timer.unref === "function") {
+            timer.unref();
+          }
         }
 
         resolve(undefined);

@@ -40,6 +40,7 @@ import {
   getUsdcAssetIssuer,
 } from "@/lib/stellar/payments";
 import { getStellarNetwork } from "@/lib/stellar/config";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -99,8 +100,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       } else {
         return NextResponse.json(
           {
-            error:
-              "assetIssuer is required for non-USDC assets",
+            error: "assetIssuer is required for non-USDC assets",
           },
           { status: 400 }
         );
@@ -144,10 +144,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
-    console.error("[wallet-trustline] Error building transaction:", error);
+    logger.error("Error building wallet trustline transaction", error, {
+      route: "POST /api/routes-f/wallet-trustline",
+      assetCode,
+      network,
+    });
 
     const message =
-      error instanceof Error ? error.message : "Failed to build trustline transaction";
+      error instanceof Error
+        ? error.message
+        : "Failed to build trustline transaction";
 
     // Distinguish between different error types
     if (message.includes("Account not found")) {

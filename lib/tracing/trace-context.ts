@@ -6,6 +6,8 @@ export interface TraceContext {
   traceId: string;
   spanId: string;
   parentSpanId?: string;
+  /** Shared by every request of one user action; see ./correlation. */
+  correlationId?: string;
   timestamp: number;
 }
 
@@ -31,14 +33,17 @@ class FallbackAsyncLocalStorage<T> implements ALS<T> {
 }
 
 function createALS<T>(): ALS<T> {
-  if (typeof (globalThis as unknown as { AsyncLocalStorage?: new () => ALS<T> }).AsyncLocalStorage !== 'undefined') {
-    const G = (globalThis as unknown as { AsyncLocalStorage: new () => ALS<T> });
+  if (
+    typeof (globalThis as unknown as { AsyncLocalStorage?: new () => ALS<T> })
+      .AsyncLocalStorage !== "undefined"
+  ) {
+    const G = globalThis as unknown as { AsyncLocalStorage: new () => ALS<T> };
     return new G.AsyncLocalStorage();
   }
   try {
     // Use dynamic require so bundlers do not attempt to bundle async_hooks in browser/edge
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const nodeHooks = require('async_hooks');
+    const nodeHooks = require("async_hooks");
     if (nodeHooks?.AsyncLocalStorage) {
       return new nodeHooks.AsyncLocalStorage();
     }
@@ -51,7 +56,10 @@ function createALS<T>(): ALS<T> {
 const asyncLocalStorage = createALS<TraceContext>();
 
 function safeUUID(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -62,12 +70,14 @@ function safeUUID(): string {
  */
 export function createTraceContext(
   traceId?: string,
-  parentSpanId?: string
+  parentSpanId?: string,
+  correlationId?: string
 ): TraceContext {
   return {
     traceId: traceId || `trace-${safeUUID()}`,
     spanId: `span-${safeUUID()}`,
     parentSpanId,
+    correlationId,
     timestamp: Date.now(),
   };
 }
@@ -79,6 +89,7 @@ export function withTraceContext<T>(
   context: TraceContext,
   fn: () => T
 ): T {
+export function withTraceContext<T>(context: TraceContext, fn: () => T): T {
   if (asyncLocalStorage) {
     return asyncLocalStorage.run(context, fn);
   }
@@ -123,11 +134,14 @@ export function getTraceHeaders(): Record<string, string> {
   const context = getCurrentTraceContext();
   if (!context) {
     return {
-      'x-request-id': `trace-${safeUUID()}`,
+      "x-request-id": `trace-${safeUUID()}`,
     };
   }
 
   return {
+    ...(context.correlationId && {
+      "x-correlation-id": context.correlationId,
+    }),
     "x-request-id": context.traceId,
     "x-trace-id": context.traceId,
     "x-span-id": context.spanId,
@@ -138,7 +152,9 @@ export function getTraceHeaders(): Record<string, string> {
 /**
  * Format trace context for structured logging
  */
-export function formatTraceContext(context?: TraceContext): Record<string, string> {
+export function formatTraceContext(
+  context?: TraceContext
+): Record<string, string> {
   const ctx = context || getCurrentTraceContext();
   if (!ctx) {
     return {};
@@ -148,5 +164,6 @@ export function formatTraceContext(context?: TraceContext): Record<string, strin
     traceId: ctx.traceId,
     spanId: ctx.spanId,
     ...(ctx.parentSpanId && { parentSpanId: ctx.parentSpanId }),
+    ...(ctx.correlationId && { correlationId: ctx.correlationId }),
   };
 }

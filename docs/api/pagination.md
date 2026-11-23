@@ -157,3 +157,27 @@ const { items, hasMore, loadMore, isLoadingMore, isLoading, error, mutate } =
 | `GET /api/users/top`                      | `limit` only                                        | Top-N leaderboard, not a list to page through.                                                                                                                          |
 | `routes-f/follows`, `follow-list-mine`    | Cursor = followee id, compared by `created_at` only | Same tie-skipping bug as the old chat cursor. Follow-up: move to this contract.                                                                                         |
 | other `routes-f/*` lists                  | In-memory seed data                                 | No database access.                                                                                                                                                     |
+
+## Ranked lists (score order instead of time order)
+
+Lists ordered by a score rather than `created_at` use the same envelope, limit
+rules and errors, with a ranked cursor from `lib/pagination/ranked.ts`. The
+order is `score_1 DESC, ..., score_n DESC, id DESC` and the cursor holds the
+last row's scores and id:
+
+| Endpoint                | Default | Max | Ranking                                        |
+| ----------------------- | ------- | --- | ---------------------------------------------- |
+| `GET /api/streams/live` | 50      | 100 | followed first (with `viewer_wallet`), viewers |
+| `GET /api/users/top`    | 5       | 20  | followers, viewers                             |
+
+```sql
+WHERE (${isFirstPage} OR (score_1, score_2, id) < (${s1}, ${s2}, ${id}::uuid))
+ORDER BY score_1 DESC, score_2 DESC, id DESC
+LIMIT $limit + 1
+```
+
+A cursor issued for a different ranking (wrong number of scores) is rejected
+with 400. Both endpoints also return their previous field (`streams`, `users`)
+as an alias of `items` so existing clients keep working; new clients should
+read `items`. The `offset` and `nextOffset` fields of `/api/streams/live` are
+gone.

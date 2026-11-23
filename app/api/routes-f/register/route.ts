@@ -4,13 +4,9 @@ import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { getReservedUsernameError } from "@/lib/reserved-usernames";
 
 const isRateLimited = createRateLimiter(60 * 60 * 1000, 3); // 3 attempts per IP per hour
-
-const RESERVED = [
-  "admin", "api", "dashboard", "settings", "explore",
-  "browse", "onboarding", "streamfi", "support", "help",
-];
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,30}$/;
 
@@ -56,11 +52,9 @@ export async function POST(request: NextRequest) {
 
   const { username, ref_code } = body;
 
-  if (RESERVED.includes(username.toLowerCase())) {
-    return NextResponse.json(
-      { error: "Username is reserved and cannot be used" },
-      { status: 400 }
-    );
+  const reservedError = getReservedUsernameError(username);
+  if (reservedError) {
+    return NextResponse.json({ error: reservedError }, { status: 400 });
   }
 
   try {

@@ -1,12 +1,13 @@
 /**
  * Race-safe goal-reached detection and state transitions.
- * 
+ *
  * Uses SERIALIZABLE isolation to prevent concurrent tips from double-triggering
  * goal-reached or missing the threshold.
  */
 
 import { sql } from "@vercel/postgres";
 import type { TipGoal } from "./types";
+import { logger } from "@/lib/tracing/logger";
 
 /**
  * Result of checking if a new contribution triggers goal-reached.
@@ -20,7 +21,7 @@ export interface GoalCheckResult {
 
 /**
  * Record a new contribution and check if goal is reached (race-safe).
- * 
+ *
  * This function:
  * 1. Starts a SERIALIZABLE transaction
  * 2. Records the contribution
@@ -28,7 +29,7 @@ export interface GoalCheckResult {
  * 4. Checks if the sum meets or exceeds the goal
  * 5. If yes, atomically transitions goal to GOAL_REACHED
  * 6. Returns whether the goal was reached
- * 
+ *
  * SERIALIZABLE isolation ensures no two concurrent tips can race past the threshold.
  * If two tips land near the boundary, one will succeed and see GOAL_REACHED;
  * the other will see that the goal is already reached and not duplicate the transition.
@@ -42,7 +43,7 @@ export async function recordContributionAndCheckGoal(
 ): Promise<GoalCheckResult> {
   try {
     // Use a transaction with SERIALIZABLE isolation
-    const result = await sql.begin(async (sqlTransaction) => {
+    const result = await sql.begin(async sqlTransaction => {
       // 1. Get current goal state
       const goalResult = await sqlTransaction`
         SELECT 
@@ -111,14 +112,17 @@ export async function recordContributionAndCheckGoal(
 
     return result;
   } catch (err) {
-    console.error("[goal-resolution] error recording contribution:", err);
+    logger.error("Error recording tip goal contribution", err, {
+      operation: "recordContributionAndCheckGoal",
+      goalId,
+    });
     throw err;
   }
 }
 
 /**
  * Check if a goal deadline has passed and transition to DEADLINE_PASSED if needed.
- * 
+ *
  * Called by a background job (cron).
  */
 export async function checkDeadlinesAndTransition(): Promise<{
@@ -139,7 +143,9 @@ export async function checkDeadlinesAndTransition(): Promise<{
       passedCount: result.rowCount,
     };
   } catch (err) {
-    console.error("[goal-resolution] error checking deadlines:", err);
+    logger.error("Error checking tip goal deadlines", err, {
+      operation: "checkDeadlinesAndTransition",
+    });
     throw err;
   }
 }
@@ -159,7 +165,10 @@ export async function getGoal(goalId: string): Promise<TipGoal | null> {
 
     return result.rows[0] as TipGoal;
   } catch (err) {
-    console.error("[goal-resolution] error fetching goal:", err);
+    logger.error("Error fetching tip goal", err, {
+      operation: "getGoal",
+      goalId,
+    });
     throw err;
   }
 }
@@ -183,7 +192,10 @@ export async function getGoalsForCreator(
 
     return result.rows as TipGoal[];
   } catch (err) {
-    console.error("[goal-resolution] error fetching creator goals:", err);
+    logger.error("Error fetching creator tip goals", err, {
+      operation: "getGoalsForCreator",
+      creatorId,
+    });
     throw err;
   }
 }
@@ -207,7 +219,10 @@ export async function getGoalContributions(
       amount_xlm: string;
     }>;
   } catch (err) {
-    console.error("[goal-resolution] error fetching contributions:", err);
+    logger.error("Error fetching tip goal contributions", err, {
+      operation: "getGoalContributions",
+      goalId,
+    });
     throw err;
   }
 }

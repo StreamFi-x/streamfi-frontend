@@ -1,6 +1,6 @@
 /**
  * Refund processor for failed tip-goals.
- * 
+ *
  * Handles per-contributor refunds with retry logic and failure tracking.
  * Called by background job when a goal deadline passes without reaching the threshold.
  */
@@ -8,6 +8,7 @@
 import { sql } from "@vercel/postgres";
 import type { TipGoalContribution, RefundRetryConfig } from "./types";
 import { DEFAULT_REFUND_CONFIG } from "./types";
+import { logger } from "@/lib/tracing/logger";
 
 /**
  * Result of a refund processing run.
@@ -23,13 +24,13 @@ export interface RefundProcessingResult {
 
 /**
  * Initiate refunds for a goal that failed to reach its threshold.
- * 
+ *
  * Called when a goal's deadline passes and status is DEADLINE_PASSED.
  * Transitions goal to REFUNDING and queues refunds for all contributions.
  */
 export async function initiateGoalRefunds(goalId: string): Promise<void> {
   try {
-    await sql.begin(async (sqlTransaction) => {
+    await sql.begin(async sqlTransaction => {
       // 1. Verify goal is in DEADLINE_PASSED state
       const goalResult = await sqlTransaction`
         SELECT id, status FROM tip_goals WHERE id = ${goalId} FOR UPDATE
@@ -62,19 +63,25 @@ export async function initiateGoalRefunds(goalId: string): Promise<void> {
       `;
     });
 
-    console.log(`[refund-processor] initiated refunds for goal ${goalId}`);
+    logger.info("Initiated tip goal refunds", {
+      operation: "initiateGoalRefunds",
+      goalId,
+    });
   } catch (err) {
-    console.error("[refund-processor] error initiating refunds:", err);
+    logger.error("Error initiating tip goal refunds", err, {
+      operation: "initiateGoalRefunds",
+      goalId,
+    });
     throw err;
   }
 }
 
 /**
  * Process pending refunds for a goal.
- * 
+ *
  * This is called by a background job (e.g., every 5 minutes) to retry failed refunds
  * and process new ones. For each pending refund:
- * 
+ *
  * 1. Try to issue a refund transaction from escrow to contributor
  * 2. On success: mark refund_tx_hash and set refunded = true
  * 3. On failure: categorize the failure and schedule retry
@@ -151,9 +158,11 @@ export async function processPendingRefunds(
           `;
 
           unreachableCount++;
-          console.warn(
-            `[refund-processor] unreachable account for ${contribution.contributor_wallet}, goal ${goalId}`
-          );
+          logger.warn("Unreachable account for tip goal refund", {
+            operation: "processPendingRefunds",
+            goalId,
+            contributorWallet: contribution.contributor_wallet.substring(0, 8),
+          });
         } else {
           // Transient error; schedule retry
           const nextRetry = calculateNextRetry(
@@ -186,9 +195,14 @@ export async function processPendingRefunds(
             `;
 
             failedCount++;
-            console.error(
-              `[refund-processor] max retries exceeded for ${contribution.contributor_wallet}, goal ${goalId}`
-            );
+            logger.error("Max retries exceeded for tip goal refund", {
+              operation: "processPendingRefunds",
+              goalId,
+              contributorWallet: contribution.contributor_wallet.substring(
+                0,
+                8
+              ),
+            });
           }
         }
       }
@@ -223,14 +237,17 @@ export async function processPendingRefunds(
       pending_retry_count: remaining,
     };
   } catch (err) {
-    console.error("[refund-processor] error processing refunds:", err);
+    logger.error("Error processing tip goal refunds", err, {
+      operation: "processPendingRefunds",
+      goalId,
+    });
     throw err;
   }
 }
 
 /**
  * Issue a refund transaction from escrow to contributor.
- * 
+ *
  * This is a placeholder. In production, it would:
  * 1. Sign a transaction with the escrow secret key
  * 2. Send the refund amount to the contributor's wallet
@@ -250,15 +267,17 @@ async function issueRefundTransaction(
   // 4. Return tx hash or throw on failure
 
   // For now, return a mock hash
-  console.log(
-    `[refund-processor] Would refund ${amountXlm} XLM to ${contributorWallet}`
-  );
+  logger.info("Issuing mock refund transaction", {
+    operation: "issueRefundTransaction",
+    amountXlm,
+    contributorWallet: contributorWallet.substring(0, 8),
+  });
   return `mock-refund-tx-${Date.now()}`;
 }
 
 /**
  * Determine if an error indicates an unreachable account.
- * 
+ *
  * Examples:
  * - "Account does not exist"
  * - "No trust line for XLM"
@@ -272,7 +291,7 @@ function isUnreachableAccountError(errorMsg: string): boolean {
     /destination.*requires/i,
   ];
 
-  return unreachablePatterns.some((pattern) => pattern.test(errorMsg));
+  return unreachablePatterns.some(pattern => pattern.test(errorMsg));
 }
 
 /**

@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * POST /api/routes-f/tip-refund-request
- * 
+ *
  * Request a refund for a tip. Only permitted within 60 seconds of the tip.
  * Requires creator agreement to be processed.
- * 
+ *
  * Request body:
  * {
  *   tip_id: string (UUID of the tip to refund),
  *   reason?: string (optional reason for refund request),
  * }
- * 
+ *
  * Response 201:
  *   {
  *     request_id: string (UUID),
@@ -19,7 +19,7 @@
  *     created_at: string (ISO 8601),
  *     expires_at: string (when creator must respond),
  *   }
- * 
+ *
  * Error responses:
  *   400 — invalid body, invalid tip_id, tip outside 60 second window
  *   401 — unauthorized (no session)
@@ -34,6 +34,7 @@ import { z } from "zod";
 import { verifySession } from "@/lib/auth/verify-session";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { sql } from "@vercel/postgres";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,7 +44,10 @@ const CREATOR_RESPONSE_WINDOW_HOURS = 24;
 
 const tipRefundRequestSchema = z.object({
   tip_id: z.string().uuid("tip_id must be a valid UUID"),
-  reason: z.string().max(500, "reason must be 500 characters or less").optional(),
+  reason: z
+    .string()
+    .max(500, "reason must be 500 characters or less")
+    .optional(),
 });
 
 type TipRefundRequestInput = z.infer<typeof tipRefundRequestSchema>;
@@ -90,7 +94,10 @@ async function getTipDetails(tip_id: string): Promise<TipDetails | null> {
       status: row.status,
     };
   } catch (error) {
-    console.error("[tip-refund-request] Error fetching tip:", error);
+    logger.error("Error fetching tip for refund request", error, {
+      route: "POST /api/routes-f/tip-refund-request",
+      tipId: tip_id,
+    });
     throw error;
   }
 }
@@ -111,7 +118,10 @@ async function hasExistingRefundRequest(tip_id: string): Promise<boolean> {
 
     return rows.length > 0;
   } catch (error) {
-    console.error("[tip-refund-request] Error checking refund requests:", error);
+    logger.error("Error checking existing refund requests", error, {
+      route: "POST /api/routes-f/tip-refund-request",
+      tipId: tip_id,
+    });
     throw error;
   }
 }
@@ -125,7 +135,9 @@ async function createRefundRequest(
   reason?: string
 ): Promise<{ request_id: string; expires_at: string }> {
   try {
-    const expiresAt = new Date(Date.now() + CREATOR_RESPONSE_WINDOW_HOURS * 3600000);
+    const expiresAt = new Date(
+      Date.now() + CREATOR_RESPONSE_WINDOW_HOURS * 3600000
+    );
 
     const { rows } = await sql`
       INSERT INTO refund_requests (
@@ -157,7 +169,10 @@ async function createRefundRequest(
       expires_at: row.expires_at,
     };
   } catch (error) {
-    console.error("[tip-refund-request] Error creating refund request:", error);
+    logger.error("Error creating refund request", error, {
+      route: "POST /api/routes-f/tip-refund-request",
+      tipId: tip_id,
+    });
     throw error;
   }
 }
@@ -173,9 +188,8 @@ async function notifyCreatorOfRefundRequest(
 ): Promise<void> {
   try {
     // Import here to avoid circular dependency
-    const { insertActivityEvent } = await import(
-      "@/app/api/routes-f/activity/_lib/insert"
-    );
+    const { insertActivityEvent } =
+      await import("@/app/api/routes-f/activity/_lib/insert");
 
     await insertActivityEvent({
       userId: recipient_id,
@@ -189,7 +203,10 @@ async function notifyCreatorOfRefundRequest(
       },
     });
   } catch (error) {
-    console.error("[tip-refund-request] Error notifying creator:", error);
+    logger.error("Error notifying creator of refund request", error, {
+      route: "POST /api/routes-f/tip-refund-request",
+      tipId: tip_id,
+    });
     // Don't throw - notification is best-effort
   }
 }
@@ -278,7 +295,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       { status: 201 }
     );
   } catch (error) {
-    console.error("[tip-refund-request] Unexpected error:", error);
+    logger.error("Unexpected error in tip refund request", error, {
+      route: "POST /api/routes-f/tip-refund-request",
+      tipId: tip_id,
+    });
 
     if (error instanceof Error) {
       if (error.message.includes("duplicate")) {

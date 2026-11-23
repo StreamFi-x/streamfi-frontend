@@ -1,9 +1,10 @@
 import { sql } from "@vercel/postgres";
+import type { VercelPoolClient } from "@vercel/postgres";
 import type { Tx } from "@/lib/postgres-transaction";
 
 /**
  * Notification preference model.
- * Persisted to user_preferences table.
+ * Persisted to notification_preferences table.
  * Controls which notification types are sent via which channels.
  */
 export interface NotificationPreferences {
@@ -14,6 +15,7 @@ export interface NotificationPreferences {
   notify_tip_received: boolean;
   notify_new_subscriber: boolean;
   notify_clip_featured: boolean;
+  notify_clip_created: boolean;
   notify_payment_confirmed: boolean;
   notify_system: boolean;
   // Email notifications
@@ -29,6 +31,13 @@ export interface NotificationPreferences {
   updated_at: string;
 }
 
+export type NotificationPreferenceKey = Exclude<
+  keyof NotificationPreferences,
+  "user_id" | "updated_at"
+>;
+
+type PreferenceWriteExecutor = Pick<VercelPoolClient, "query" | "sql">;
+
 /**
  * Default preferences - all notifications enabled except email_digest
  */
@@ -40,6 +49,7 @@ export function getDefaultPreferences(userId: string): NotificationPreferences {
     notify_tip_received: true,
     notify_new_subscriber: true,
     notify_clip_featured: true,
+    notify_clip_created: true,
     notify_payment_confirmed: true,
     notify_system: true,
     email_notify_follow: true,
@@ -62,40 +72,55 @@ export async function getNotificationPreferences(
   userId: string,
   executor: Tx = { sql }
 ): Promise<NotificationPreferences> {
-  try {
-    const result = await executor.sql`
-      SELECT 
-        user_id,
-        COALESCE(notify_follow, true) AS notify_follow,
-        COALESCE(notify_live, true) AS notify_live,
-        COALESCE(notify_tip_received, true) AS notify_tip_received,
-        COALESCE(notify_new_subscriber, true) AS notify_new_subscriber,
-        COALESCE(notify_clip_featured, true) AS notify_clip_featured,
-        COALESCE(notify_payment_confirmed, true) AS notify_payment_confirmed,
-        COALESCE(notify_system, true) AS notify_system,
-        COALESCE(email_notify_follow, true) AS email_notify_follow,
-        COALESCE(email_notify_live, false) AS email_notify_live,
-        COALESCE(email_notify_tip_received, true) AS email_notify_tip_received,
-        COALESCE(email_notify_new_subscriber, false) AS email_notify_new_subscriber,
-        COALESCE(email_notify_clip_featured, false) AS email_notify_clip_featured,
-        COALESCE(email_notify_payment_confirmed, true) AS email_notify_payment_confirmed,
-        COALESCE(email_digest, false) AS email_digest,
-        COALESCE(unsubscribed_all, false) AS unsubscribed_all,
-        COALESCE(updated_at, NOW()::text) AS updated_at
-      FROM notification_preferences
-      WHERE user_id = ${userId}::uuid
-    `;
+  const result = await executor.sql`
+    SELECT
+      user_id,
+      COALESCE(notify_follow, true) AS notify_follow,
+      COALESCE(notify_live, true) AS notify_live,
+      COALESCE(notify_tip_received, true) AS notify_tip_received,
+      COALESCE(notify_new_subscriber, true) AS notify_new_subscriber,
+      COALESCE(notify_clip_featured, true) AS notify_clip_featured,
+      COALESCE(notify_clip_created, true) AS notify_clip_created,
+      COALESCE(notify_payment_confirmed, true) AS notify_payment_confirmed,
+      COALESCE(notify_system, true) AS notify_system,
+      COALESCE(email_notify_follow, true) AS email_notify_follow,
+      COALESCE(email_notify_live, false) AS email_notify_live,
+      COALESCE(email_notify_tip_received, true) AS email_notify_tip_received,
+      COALESCE(email_notify_new_subscriber, false) AS email_notify_new_subscriber,
+      COALESCE(email_notify_clip_featured, false) AS email_notify_clip_featured,
+      COALESCE(email_notify_payment_confirmed, true) AS email_notify_payment_confirmed,
+      COALESCE(email_digest, false) AS email_digest,
+      COALESCE(unsubscribed_all, false) AS unsubscribed_all,
+      COALESCE(updated_at, NOW()::text) AS updated_at
+    FROM notification_preferences
+    WHERE user_id = ${userId}::uuid
+  `;
 
-    if (result.rows.length === 0) {
-      return getDefaultPreferences(userId);
-    }
-
-    return result.rows[0] as NotificationPreferences;
-  } catch (error) {
-    console.error("[getNotificationPreferences] error:", error);
+  if (result.rows.length === 0) {
     return getDefaultPreferences(userId);
   }
+
+  return result.rows[0] as NotificationPreferences;
 }
+
+const WRITABLE_PREFERENCES: readonly NotificationPreferenceKey[] = [
+  "notify_follow",
+  "notify_live",
+  "notify_tip_received",
+  "notify_new_subscriber",
+  "notify_clip_featured",
+  "notify_clip_created",
+  "notify_payment_confirmed",
+  "notify_system",
+  "email_notify_follow",
+  "email_notify_live",
+  "email_notify_tip_received",
+  "email_notify_new_subscriber",
+  "email_notify_clip_featured",
+  "email_notify_payment_confirmed",
+  "email_digest",
+  "unsubscribed_all",
+];
 
 /**
  * Update user's notification preferences.
@@ -104,48 +129,42 @@ export async function getNotificationPreferences(
 export async function updateNotificationPreferences(
   userId: string,
   updates: Partial<Omit<NotificationPreferences, "user_id" | "updated_at">>,
-  executor: Tx = { sql }
+  executor: PreferenceWriteExecutor = sql
 ): Promise<NotificationPreferences> {
-  try {
-    // Build UPDATE SET clause dynamically
-    const setClause: string[] = [];
-    const values: (string | boolean | null)[] = [];
-    let paramIndex = 1;
-
-    for (const [key, value] of Object.entries(updates)) {
-      if (key !== "user_id" && key !== "updated_at") {
-        setClause.push(`${key} = $${paramIndex}`);
-        values.push(value as string | boolean | null);
-        paramIndex++;
-      }
+  const entries: Array<[NotificationPreferenceKey, boolean]> = [];
+  for (const key of WRITABLE_PREFERENCES) {
+    const value = updates[key];
+    if (typeof value === "boolean") {
+      entries.push([key, value]);
     }
+  }
 
-    setClause.push(`updated_at = NOW()::text`);
-    values.push(userId);
-
-    if (setClause.length === 1) {
-      // No updates - just return current prefs
-      return getNotificationPreferences(userId, executor);
-    }
-
-    const query = `
-      INSERT INTO notification_preferences (user_id, ${Object.keys(updates).join(", ")}, updated_at)
-      VALUES ($${paramIndex}::uuid, ${Array.from({ length: Object.keys(updates).length }, (_, i) => `$${i + 1}`).join(", ")}, NOW()::text)
-      ON CONFLICT (user_id) DO UPDATE SET ${setClause.join(", ")}
-      RETURNING *
-    `;
-
-    const result = await executor.sql(query, [userId, ...Object.values(updates)]);
-
-    if (result.rows.length === 0) {
-      return getNotificationPreferences(userId, executor);
-    }
-
-    return result.rows[0] as NotificationPreferences;
-  } catch (error) {
-    console.error("[updateNotificationPreferences] error:", error);
+  if (entries.length === 0) {
     return getNotificationPreferences(userId, executor);
   }
+
+  const columns = entries.map(([key]) => key);
+  const placeholders = entries.map((_, index) => `$${index + 2}`).join(", ");
+  const assignments = columns.map(key => `${key} = EXCLUDED.${key}`).join(", ");
+  const query = `
+    INSERT INTO notification_preferences (user_id, ${columns.join(", ")}, updated_at)
+    VALUES ($1::uuid, ${placeholders}, NOW()::text)
+    ON CONFLICT (user_id) DO UPDATE SET
+      ${assignments},
+      updated_at = NOW()::text
+    RETURNING *
+  `;
+
+  const result = await executor.query(query, [
+    userId,
+    ...entries.map(([, value]) => value),
+  ]);
+
+  if (result.rows.length === 0) {
+    throw new Error("Notification preference update returned no rows");
+  }
+
+  return result.rows[0] as NotificationPreferences;
 }
 
 /**
@@ -154,7 +173,15 @@ export async function updateNotificationPreferences(
  */
 export async function shouldSendInAppNotification(
   userId: string,
-  notificationType: "follow" | "live" | "tip_received" | "new_subscriber" | "clip_featured" | "payment_confirmed" | "system",
+  notificationType:
+    | "follow"
+    | "live"
+    | "tip_received"
+    | "new_subscriber"
+    | "clip_featured"
+    | "clip_created"
+    | "payment_confirmed"
+    | "system",
   executor: Tx = { sql }
 ): Promise<boolean> {
   const prefs = await getNotificationPreferences(userId, executor);
@@ -172,7 +199,13 @@ export async function shouldSendInAppNotification(
  */
 export async function shouldSendEmailNotification(
   userId: string,
-  notificationType: "follow" | "live" | "tip_received" | "new_subscriber" | "clip_featured" | "payment_confirmed",
+  notificationType:
+    | "follow"
+    | "live"
+    | "tip_received"
+    | "new_subscriber"
+    | "clip_featured"
+    | "payment_confirmed",
   executor: Tx = { sql }
 ): Promise<boolean> {
   const prefs = await getNotificationPreferences(userId, executor);
@@ -181,7 +214,8 @@ export async function shouldSendEmailNotification(
     return false;
   }
 
-  const prefKey = `email_notify_${notificationType}` as keyof NotificationPreferences;
+  const prefKey =
+    `email_notify_${notificationType}` as keyof NotificationPreferences;
   return Boolean(prefs[prefKey]);
 }
 

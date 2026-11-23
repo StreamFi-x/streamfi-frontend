@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createTraceContext, withTraceContextAsync } from "@/lib/tracing/trace-context";
+import {
+  createTraceContext,
+  withTraceContextAsync,
+} from "@/lib/tracing/trace-context";
 import { logger } from "@/lib/tracing/logger";
 
 function buildCsp(nonce: string): string {
@@ -22,14 +25,25 @@ function buildCsp(nonce: string): string {
 
 export async function proxy(req: NextRequest) {
   const hostname = req.headers.get("host") ?? "";
+export async function proxy(request: NextRequest) {
+  if (
+    process.env.NODE_ENV === "production" &&
+    request.nextUrl.pathname.startsWith("/api/debug")
+  ) {
+    return NextResponse.json({ error: "Not Found" }, { status: 404 });
+  }
+
+  const hostname = request.headers.get("host") ?? "";
 
   // On the admin subdomain, redirect root to /admin so the user lands on
   // the admin panel without having to type /admin in the URL.
-  if (hostname === "admin.streamfi.media" && req.nextUrl.pathname === "/") {
-    return NextResponse.redirect(new URL("/admin", req.url));
+  if (hostname === "admin.streamfi.media" && request.nextUrl.pathname === "/") {
+    return NextResponse.redirect(new URL("/admin", request.url));
   }
 
-  const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
+  const nonce = btoa(
+    String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16)))
+  );
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", buildCsp(nonce));
@@ -42,7 +56,11 @@ export async function proxy(req: NextRequest) {
 export const config = {
   matcher: [
     {
-      source: "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|woff2?)$).*)",
+      source: "/api/debug/:path*",
+    },
+    {
+      source:
+        "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js|woff2?)$).*)",
     },
   ],
 };

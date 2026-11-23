@@ -24,7 +24,10 @@ jest.mock("@/components/templates/WaitlistConfirm", () => ({
   WaitlistConfirmation: () => "<p>waitlist</p>",
 }));
 
-import { sendWelcomeRegistrationEmail } from "@/utils/send-email";
+import {
+  sendWelcomeEmail,
+  sendWelcomeRegistrationEmail,
+} from "@/utils/send-email";
 
 describe("sendWelcomeRegistrationEmail", () => {
   const originalEmailUser = process.env.EMAIL_USER;
@@ -85,5 +88,29 @@ describe("sendWelcomeRegistrationEmail", () => {
       subject: "Welcome to Streamfi!",
       html: "<p>Welcome Viewer</p>",
     });
+  });
+});
+
+describe("sendWelcomeEmail (#1727, #1728)", () => {
+  beforeEach(() => {
+    mockSendMail.mockReset();
+    mockSendMail.mockResolvedValue({});
+  });
+
+  it("sets List-Unsubscribe header with the subscriber's unsubscribe verification token", async () => {
+    await sendWelcomeEmail("subscriber@example.com", "Sub", {
+      confirmationToken: "confirm-tok",
+      unsubscribeToken: "unsub-tok",
+      baseUrl: "https://streamfi.xyz",
+    });
+
+    expect(mockSendMail).toHaveBeenCalledTimes(1);
+    const mailOptions = mockSendMail.mock.calls[0][0];
+    expect(mailOptions.subject).toBe(
+      "Confirm your StreamFi Waitlist Subscription"
+    );
+    expect(mailOptions.headers["List-Unsubscribe"]).toBe(
+      "<https://streamfi.xyz/api/waitlist/unsubscribe?email=subscriber%40example.com&token=unsub-tok>"
+    );
   });
 });
