@@ -147,6 +147,7 @@ export function assetHandlers({
         duration?: number | null;
         live_stream_id?: string;
         live_stream?: { id?: string };
+        created_at?: string | number;
       };
       const assetId = data.id;
       const playbackId = Array.isArray(data.playback_ids)
@@ -175,10 +176,35 @@ export function assetHandlers({
           const u = userResult.rows[0];
           userId = u.id;
           title = u.creator?.streamTitle ?? u.creator?.title ?? title;
+
+          // Correlate with session that does not already have an attached recording,
+          // matching closest in time to asset creation.
+          const createdAtRaw =
+            data.created_at ??
+            (event as { created_at?: string | number }).created_at;
+          const createdAtNum =
+            typeof createdAtRaw === "number"
+              ? createdAtRaw
+              : Number(createdAtRaw);
+          const assetCreatedAtIso =
+            !isNaN(createdAtNum) && createdAtNum > 0
+              ? new Date(
+                  createdAtNum < 1e11 ? createdAtNum * 1000 : createdAtNum
+                ).toISOString()
+              : new Date().toISOString();
+
           const sessionResult = await tx.sql`
             SELECT id FROM stream_sessions
-            WHERE user_id = ${u.id} AND ended_at IS NOT NULL
-            ORDER BY ended_at DESC LIMIT 1
+            WHERE user_id = ${u.id}
+              AND id NOT IN (
+                SELECT stream_session_id FROM stream_recordings WHERE stream_session_id IS NOT NULL
+              )
+            ORDER BY 
+              CASE 
+                WHEN ended_at IS NOT NULL THEN ABS(EXTRACT(EPOCH FROM (ended_at - ${assetCreatedAtIso}::timestamptz)))
+                ELSE ABS(EXTRACT(EPOCH FROM (started_at - ${assetCreatedAtIso}::timestamptz)))
+              END ASC
+            LIMIT 1
           `;
           streamSessionId = sessionResult.rows[0]?.id ?? null;
         }
