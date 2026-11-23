@@ -405,7 +405,7 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Pagination */}
-      {!isLoading && (data?.limit ?? 0) === 20 && users.length === 20 && (
+      {!isLoading && (page > 1 || users.length > 0) && (
         <div className="flex justify-end gap-2 mt-4">
           <button
             disabled={page === 1}
@@ -418,8 +418,9 @@ export default function AdminUsersPage() {
             Page {page}
           </span>
           <button
+            disabled={users.length < (data?.limit ?? 20)}
             onClick={() => setPage(p => p + 1)}
-            className="px-3 py-1.5 text-sm bg-sidebar border border-border rounded-md text-foreground hover:bg-surface-hover"
+            className="px-3 py-1.5 text-sm bg-sidebar border border-border rounded-md text-foreground disabled:opacity-40 hover:bg-surface-hover"
           >
             Next
           </button>
