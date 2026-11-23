@@ -159,7 +159,7 @@ export default function CategoryDetailPage() {
       return [];
     }
     const streams = data?.streams || [];
-    return streams.filter(stream => {
+    const filtered = streams.filter(stream => {
       const matchesCategory =
         stream.category?.toLowerCase() === categoryData.title.toLowerCase() ||
         stream.tags.some(tag =>
@@ -183,7 +183,44 @@ export default function CategoryDetailPage() {
 
       return matchesCategory && matchesLanguage && matchesSearch;
     });
-  }, [data?.streams, categoryData, selectedLanguage, searchQuery]);
+
+    switch (selectedSort) {
+      case "viewers":
+        filtered.sort((a, b) => b.viewerCount - a.viewerCount);
+        break;
+      case "recent":
+        filtered.sort(
+          (a, b) =>
+            new Date(b.streamStartedAt).getTime() -
+            new Date(a.streamStartedAt).getTime()
+        );
+        break;
+      case "popular":
+        filtered.sort((a, b) => b.totalViews - a.totalViews);
+        break;
+      case "trending":
+        filtered.sort((a, b) => {
+          const aScore =
+            a.viewerCount * 0.7 +
+            (Date.now() - new Date(a.streamStartedAt).getTime()) / 1000000;
+          const bScore =
+            b.viewerCount * 0.7 +
+            (Date.now() - new Date(b.streamStartedAt).getTime()) / 1000000;
+          return bScore - aScore;
+        });
+        break;
+      case "recommended":
+      default:
+        filtered.sort((a, b) => {
+          if (a.isFollowing && !b.isFollowing) return -1;
+          if (!a.isFollowing && b.isFollowing) return 1;
+          return b.viewerCount - a.viewerCount;
+        });
+        break;
+    }
+
+    return filtered;
+  }, [data?.streams, categoryData, selectedLanguage, searchQuery, selectedSort]);
 
   const filteredStreams = useMemo(
     () => (activeTab === "live" ? categoryFilteredStreams : []),
