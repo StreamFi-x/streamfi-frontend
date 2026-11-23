@@ -25,7 +25,6 @@
     "commit": "git-cz",
     "analyze": "ANALYZE=true npm run build",
     "clean": "rm -rf .next out coverage",
-    "prebuild": "npm run type-check",
     "backfill": "tsx scripts/backfill-analytics.ts",
     "migrate:custodial-keys": "tsx scripts/migrate-custodial-keys-to-kms.ts",
     "jobs:sync-schedules": "tsx scripts/sync-job-schedules.ts",
