@@ -157,7 +157,9 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
           });
         },
         onClosed: err => {
-          console.log("Modal closed", err);
+          if (process.env.NODE_ENV === "development" && err) {
+            console.log("Modal closed", err);
+          }
           sessionReplay.addBreadcrumb({
             category: "wallet",
             message: "Wallet selection modal closed",
@@ -168,7 +170,9 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         },
       });
     } catch (err) {
-      console.error("Failed to connect Stellar wallet:", err);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to connect Stellar wallet:", err);
+      }
       sessionReplay.recordFlowError("wallet", err, { action: "openModal" });
       setError("Failed to connect wallet");
       setIsConnecting(false);
@@ -219,13 +223,15 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
           throw new Error("No address returned from wallet");
         }
       } catch (err: any) {
-        console.error("Failed to connect Stellar wallet:", err);
-        console.error("Error details:", {
-          walletId,
-          error: err,
-          message: err?.message,
-          stack: err?.stack,
-        });
+        if (process.env.NODE_ENV === "development") {
+          console.error("Failed to connect Stellar wallet:", err);
+          console.error("Error details:", {
+            walletId,
+            error: err,
+            message: err?.message,
+            stack: err?.stack,
+          });
+        }
 
         sessionReplay.recordFlowError("wallet", err, {
           walletId,
@@ -318,7 +324,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
             localStorage.setItem("stellar_auto_connect", "true");
           }
         } catch (err) {
-          if (!cancelled) {
+          if (!cancelled && process.env.NODE_ENV === "development") {
             console.warn("Stellar auto-connect failed:", err);
           }
         } finally {
