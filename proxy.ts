@@ -23,7 +23,7 @@ function buildCsp(nonce: string): string {
   ].join("; ");
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   if (
     process.env.NODE_ENV === "production" &&
     request.nextUrl.pathname.startsWith("/api/debug")
@@ -35,8 +35,8 @@ export function proxy(request: NextRequest) {
 
   // On the admin subdomain, redirect root to /admin so the user lands on
   // the admin panel without having to type /admin in the URL.
-  if (hostname === "admin.streamfi.media" && req.nextUrl.pathname === "/") {
-    return NextResponse.redirect(new URL("/admin", req.url));
+  if (hostname === "admin.streamfi.media" && request.nextUrl.pathname === "/") {
+    return NextResponse.redirect(new URL("/admin", request.url));
   }
 
   const nonce = btoa(

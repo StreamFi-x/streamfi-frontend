@@ -1,5 +1,5 @@
 /**
- * Trace context stored in AsyncLocalStorage.
+ * Trace context stored in AsyncLocalStorage (on Node/server environments).
  * Provides request-scoped correlation ID and trace metadata.
  */
 export interface TraceContext {
@@ -86,7 +86,10 @@ export function createTraceContext(
  * Run a function within a trace context
  */
 export function withTraceContext<T>(context: TraceContext, fn: () => T): T {
-  return asyncLocalStorage.run(context, fn);
+  if (asyncLocalStorage) {
+    return asyncLocalStorage.run(context, fn);
+  }
+  return fn();
 }
 
 /**
@@ -96,14 +99,20 @@ export async function withTraceContextAsync<T>(
   context: TraceContext,
   fn: () => Promise<T>
 ): Promise<T> {
-  return asyncLocalStorage.run(context, fn);
+  if (asyncLocalStorage) {
+    return asyncLocalStorage.run(context, fn);
+  }
+  return fn();
 }
 
 /**
  * Get current trace context (returns undefined if not in a traced context)
  */
 export function getCurrentTraceContext(): TraceContext | undefined {
-  return asyncLocalStorage.getStore();
+  if (asyncLocalStorage) {
+    return asyncLocalStorage.getStore();
+  }
+  return undefined;
 }
 
 /**
