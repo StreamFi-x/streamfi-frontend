@@ -14,6 +14,8 @@ import {
   Twitter,
   Users,
   Flag,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -286,6 +288,8 @@ const ViewStream = ({
   const [streamPassword, setStreamPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const [playbackRetryKey, setPlaybackRetryKey] = useState(0);
 
   // Use custom hooks for Stellar wallet and tip modal state
   const { publicKey, privyWallet } = useStellarWallet();
@@ -664,29 +668,61 @@ const ViewStream = ({
                     !isPrivate || !!playbackOverride?.playbackId;
 
                   return isLive && effectivePlaybackId && playerReady ? (
-                    <MuxPlayer
-                      playbackId={effectivePlaybackId}
-                      streamType={
-                        userData.latencyMode === "standard" ? "live:dvr" : "live"
-                      }
-                      autoPlay="muted"
-                      tokens={
-                        effectiveToken
-                          ? {
-                              playback: effectiveToken,
-                              thumbnail: effectiveToken,
-                              storyboard: effectiveToken,
-                            }
-                          : undefined
-                      }
-                      metadata={{
-                        video_id: effectivePlaybackId,
-                        video_title: streamData.title || `${username}'s Stream`,
-                        viewer_user_id: "anonymous",
-                      }}
-                      primaryColor="#ac39f2"
-                      className="w-full h-full"
-                    />
+                    playbackError ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-card z-10">
+                        <div className="text-foreground text-center p-6 max-w-md">
+                          <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-3" />
+                          <p className="text-lg font-semibold mb-1">Playback Error</p>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            {playbackError || "The live stream encountered a playback interruption."}
+                          </p>
+                          <Button
+                            onClick={() => {
+                              setPlaybackError(null);
+                              setPlaybackRetryKey((k) => k + 1);
+                            }}
+                            variant="outline"
+                            className="gap-2"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                            Retry Playback
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <MuxPlayer
+                        key={playbackRetryKey}
+                        playbackId={effectivePlaybackId}
+                        streamType={
+                          userData.latencyMode === "standard" ? "live:dvr" : "live"
+                        }
+                        autoPlay="muted"
+                        tokens={
+                          effectiveToken
+                            ? {
+                                playback: effectiveToken,
+                                thumbnail: effectiveToken,
+                                storyboard: effectiveToken,
+                              }
+                            : undefined
+                        }
+                        metadata={{
+                          video_id: effectivePlaybackId,
+                          video_title: streamData?.title || `${username}'s Stream`,
+                          viewer_user_id: "anonymous",
+                        }}
+                        primaryColor="#ac39f2"
+                        className="w-full h-full"
+                        onError={(err: any) => {
+                          console.error("MuxPlayer playback error:", err);
+                          const errMsg =
+                            err?.detail?.message ||
+                            err?.message ||
+                            "Stream playback encountered an issue";
+                          setPlaybackError(errMsg);
+                        }}
+                      />
+                    )
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center bg-card">
                       <div className="text-foreground text-center">
