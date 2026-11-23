@@ -63,6 +63,23 @@ export const useStellarWallet = () => {
   return context;
 };
 
+/**
+ * Confirm clearing Privy session state when switching/connecting a wallet (#1743).
+ * Prevents silent destruction of active Google/email Privy login session.
+ */
+export function confirmPrivySessionClear(): boolean {
+  if (typeof window === "undefined") {
+    return true;
+  }
+  const hasPrivySession = !!sessionStorage.getItem("privy_user");
+  if (!hasPrivySession) {
+    return true;
+  }
+  return window.confirm(
+    "You are currently signed in with an account. Connecting a new wallet will switch your active session and disconnect your account. Do you want to continue?"
+  );
+}
+
 export function StellarWalletProvider({ children }: { children: ReactNode }) {
   // Restore the address immediately from localStorage so all wallet types
   // (including Lobstr/WalletConnect) appear connected on page reload without
@@ -132,6 +149,10 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     try {
       await kit.openModal({
         onWalletSelected: async wallet => {
+          if (!confirmPrivySessionClear()) {
+            setIsConnecting(false);
+            return;
+          }
           sessionReplay.addBreadcrumb({
             category: "wallet",
             message: `Wallet selected from modal: ${wallet.id}`,
@@ -177,6 +198,9 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
 
   const connectWallet = useCallback(
     async (walletId: string) => {
+      if (!confirmPrivySessionClear()) {
+        return;
+      }
       sessionReplay.addBreadcrumb({
         category: "wallet",
         message: `Attempting direct connection to wallet: ${walletId}`,
