@@ -147,6 +147,7 @@ export function assetHandlers({
         duration?: number | null;
         live_stream_id?: string;
         live_stream?: { id?: string };
+        created_at?: string | number;
       };
       const assetId = data.id;
       const playbackId = Array.isArray(data.playback_ids)
@@ -157,6 +158,16 @@ export function assetHandlers({
           ? Math.round(data.duration)
           : null;
       const liveStreamId = data.live_stream_id ?? data.live_stream?.id;
+      const rawCreatedAt = data.created_at ?? (event as any).created_at;
+      const assetCreatedAt = rawCreatedAt
+        ? new Date(
+            typeof rawCreatedAt === "number"
+              ? rawCreatedAt > 1e11
+                ? rawCreatedAt
+                : rawCreatedAt * 1000
+              : rawCreatedAt
+          )
+        : new Date();
 
       if (!playbackId) {
         console.error(`❌ video.asset.ready missing playback_id: ${assetId}`);
@@ -175,12 +186,31 @@ export function assetHandlers({
           const u = userResult.rows[0];
           userId = u.id;
           title = u.creator?.streamTitle ?? u.creator?.title ?? title;
+
           const sessionResult = await tx.sql`
-            SELECT id FROM stream_sessions
-            WHERE user_id = ${u.id} AND ended_at IS NOT NULL
-            ORDER BY ended_at DESC LIMIT 1
+            SELECT s.id FROM stream_sessions s
+            LEFT JOIN stream_recordings r ON r.stream_session_id = s.id
+            WHERE s.user_id = ${u.id}
+              AND s.ended_at IS NOT NULL
+              AND s.ended_at >= ${assetCreatedAt.toISOString()}::timestamptz - interval '2 hours'
+              AND s.ended_at <= ${assetCreatedAt.toISOString()}::timestamptz + interval '30 minutes'
+            ORDER BY
+              (r.id IS NULL) DESC,
+              ABS(EXTRACT(EPOCH FROM (s.ended_at - ${assetCreatedAt.toISOString()}::timestamptz))) ASC
+            LIMIT 1
           `;
-          streamSessionId = sessionResult.rows[0]?.id ?? null;
+          let matchedSession = sessionResult.rows[0]?.id;
+          if (!matchedSession) {
+            const fallbackResult = await tx.sql`
+              SELECT s.id FROM stream_sessions s
+              LEFT JOIN stream_recordings r ON r.stream_session_id = s.id
+              WHERE s.user_id = ${u.id} AND s.ended_at IS NOT NULL
+              ORDER BY (r.id IS NULL) DESC, s.ended_at DESC
+              LIMIT 1
+            `;
+            matchedSession = fallbackResult.rows[0]?.id;
+          }
+          streamSessionId = matchedSession ?? null;
         }
       }
 
