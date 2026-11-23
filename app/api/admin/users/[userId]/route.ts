@@ -136,8 +136,26 @@ export async function DELETE(
       purgeAfter: result.deletion.purge_after,
       alreadyPending: result.outcome === "already_pending",
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("[admin/users/[userId]] DELETE error:", err);
+    if (
+      err &&
+      typeof err === "object" &&
+      (("code" in err && err.code === "23503") ||
+        ("message" in err &&
+          typeof (err as { message: unknown }).message === "string" &&
+          ((err as { message: string }).message.includes("foreign key") ||
+            (err as { message: string }).message.includes("violates foreign key"))))
+    ) {
+      return Response.json(
+        {
+          error:
+            "Cannot delete user due to existing foreign key constraints on related activity records.",
+          details: "foreign_key_violation",
+        },
+        { status: 409 }
+      );
+    }
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
