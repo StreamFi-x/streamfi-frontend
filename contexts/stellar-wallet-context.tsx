@@ -16,14 +16,34 @@ import {
   FREIGHTER_ID,
 } from "@creit.tech/stellar-wallets-kit";
 import { getStellarNetwork } from "@/lib/stellar/config";
+import {
+  getMainnetGuardState,
+  type MainnetGuardState,
+import { AlertTriangle, X } from "lucide-react";
+import { getStellarNetwork, type StellarNetwork } from "@/lib/stellar/config";
+import {
+  getStellarNetworkGuardState,
+  type StellarNetworkGuardState,
+} from "@/lib/stellar/network-guard";
 import { sessionReplay } from "@/lib/session-replay";
+import {
+  WALLET_CONNECT_ID,
+  WalletConnectModule,
+  createWalletConnectModule,
+  isWalletConnectNotReadyError,
+} from "@/lib/stellar/walletconnect";
+
+const isDev = process.env.NODE_ENV === "development";
 
 const network =
   getStellarNetwork() === "mainnet"
     ? WalletNetwork.PUBLIC
     : WalletNetwork.TESTNET;
 
-interface PrivySessionUser {
+const WC_INIT_RETRY_ATTEMPTS = 6;
+const WC_INIT_RETRY_DELAY_MS = 300;
+
+export interface PrivySessionUser {
   id: string;
   privyId: string;
   username: string | null;
@@ -33,25 +53,50 @@ interface PrivySessionUser {
   displayName: string | null;
 }
 
+export interface PendingWalletSwitch {
+  walletId: string;
+  address: string;
+  privyEmail: string | null;
+  privyUsername: string | null;
+}
+
 interface StellarWalletContextType {
   kit: StellarWalletsKit;
   address: string | null;
   publicKey: string | null;
+  activeWalletId: string | null;
   isConnected: boolean;
   status: "connected" | "disconnected" | "connecting";
   connect: () => Promise<void>;
   connectWallet: (walletId: string) => Promise<void>;
-  disconnect: () => void;
+  connectMobileWallet: () => Promise<void>;
+  disconnect: (reason?: string | null) => void;
   isLoading: boolean;
   isConnecting: boolean;
   error: string | null;
+  /** True when WalletConnect QR bridge is configured and registered on the kit. */
+  isWalletConnectAvailable: boolean;
+  unavailableWalletId: string | null;
   /** Privy-authenticated user (Google login). Null if signed in via Stellar wallet only. */
   privyWallet: PrivySessionUser | null;
+  /** Runtime guard state for detecting Stellar mainnet in non-production environments. */
+  mainnetGuard: MainnetGuardState;
+  /** Populated when connecting a wallet would clear an active Privy session. */
+  pendingWalletSwitch: PendingWalletSwitch | null;
+  /** Explicitly confirms clearing Privy session state and activating the new wallet. */
+  confirmWalletSwitch: () => void;
+  /** Cancels the pending wallet switch and preserves the active Privy session. */
+  cancelWalletSwitch: () => void;
+  network: StellarNetwork;
+  networkGuard: StellarNetworkGuardState;
+  isMainnetBlocked: boolean;
 }
 
 const StellarWalletContext = createContext<
   StellarWalletContextType | undefined
 >(undefined);
+
+export const useOptionalStellarWallet = () => useContext(StellarWalletContext);
 
 export const useStellarWallet = () => {
   const context = useContext(StellarWalletContext);
@@ -63,22 +108,87 @@ export const useStellarWallet = () => {
   return context;
 };
 
+function readStoredPrivySession(): {
+  hasSession: boolean;
+  email: string | null;
+  username: string | null;
+} {
+  if (typeof window === "undefined") {
+    return { hasSession: false, email: null, username: null };
+  }
+  const storedRaw = sessionStorage.getItem("privy_user");
+  if (!storedRaw) {
+    return { hasSession: false, email: null, username: null };
+  }
+  try {
+    const parsed = JSON.parse(storedRaw) as Partial<PrivySessionUser>;
+    return {
+      hasSession: true,
+      email: parsed.email ?? null,
+      username: parsed.username ?? sessionStorage.getItem("username") ?? null,
+    };
+  } catch {
+    return {
+      hasSession: true,
+      email: null,
+      username: sessionStorage.getItem("username") ?? null,
+    };
+  }
+}
+
 export function StellarWalletProvider({ children }: { children: ReactNode }) {
-  // Restore the address immediately from localStorage so all wallet types
-  // (including Lobstr/WalletConnect) appear connected on page reload without
-  // waiting for the async wallet SDK to re-establish its session.
-  const [publicKey, setPublicKey] = useState<string | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-    const autoConnect = localStorage.getItem("stellar_auto_connect") === "true";
-    const cachedAddress = localStorage.getItem("stellar_address");
-    return autoConnect && cachedAddress ? cachedAddress : null;
-  });
+  // SSR-safe initial guard evaluation; refined with window.location.hostname on mount.
+  const [networkGuard, setNetworkGuard] = useState<StellarNetworkGuardState>(
+    () => getStellarNetworkGuardState({ hostname: "" })
+  );
+  const activeNetwork = networkGuard.network;
+
+  // Render the same disconnected state on the server and during hydration.
+  // A returning user briefly sees it until the browser restores the session.
+  const [publicKey, setPublicKey] = useState<string | null>(null);
+  const [activeWalletId, setActiveWalletId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unavailableWalletId, setUnavailableWalletId] = useState<string | null>(null);
   const [privyWallet, setPrivyWallet] = useState<PrivySessionUser | null>(null);
+  const [pendingWalletSwitch, setPendingWalletSwitch] =
+    useState<PendingWalletSwitch | null>(null);
   const hasAttemptedAutoConnect = useRef(false);
+  const mainnetGuard = getMainnetGuardState();
+
+  useEffect(() => {
+    if (mainnetGuard.isMainnetInNonProd && mainnetGuard.warningMessage) {
+      console.error(`[StellarMainnetGuard] ${mainnetGuard.warningMessage}`);
+    }
+  }, [mainnetGuard.isMainnetInNonProd, mainnetGuard.warningMessage]);
+  const walletConnectModuleRef = useRef<WalletConnectModule | null>(null);
+  const activeWalletIdRef = useRef<string | null>(activeWalletId);
+  const privyWalletRef = useRef<PrivySessionUser | null>(privyWallet);
+
+  useEffect(() => {
+    activeWalletIdRef.current = activeWalletId;
+  }, [activeWalletId]);
+
+  useEffect(() => {
+    privyWalletRef.current = privyWallet;
+  }, [privyWallet]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setNetworkGuard(
+        getStellarNetworkGuardState({ hostname: window.location.hostname })
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (networkGuard.isUnsafeMainnetConfig) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[MainnetSafetyGuard] ${networkGuard.reason ?? "Stellar mainnet configured in a non-production deployment."}`
+      );
+    }
+  }, [networkGuard.isUnsafeMainnetConfig, networkGuard.reason]);
 
   // Listen for successful Privy session creation (dispatched by auth-provider)
   useEffect(() => {
@@ -103,15 +213,53 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("privy-wallet-set", handler);
   }, []);
 
-  const [kit] = useState(() => {
-    if (typeof window === "undefined") {
-      return null as unknown as StellarWalletsKit;
+  const disconnect = useCallback(() => {
+    const wcModule = walletConnectModuleRef.current;
+    if (wcModule && activeWalletIdRef.current === WALLET_CONNECT_ID) {
+      void wcModule.disconnect().catch(() => {
+        // Ignore errors if the remote session was already closed
+      });
     }
-    return new StellarWalletsKit({
-      selectedWalletId: FREIGHTER_ID,
+    setPublicKey(null);
+    setActiveWalletId(null);
+    setPendingWalletSwitch(null);
+    localStorage.removeItem("stellar_address");
+    localStorage.removeItem("stellar_last_wallet");
+    localStorage.removeItem("stellar_auto_connect");
+  }, []);
+
+  const [{ kit, isWalletConnectAvailable }] = useState(() => {
+    if (typeof window === "undefined") {
+      return {
+        kit: null as unknown as StellarWalletsKit,
+        isWalletConnectAvailable: false,
+      };
+    }
+    const wcModule = createWalletConnectModule({
       network,
-      modules: allowAllModules(),
+      onSessionDeleted: () => {
+        if (activeWalletIdRef.current === WALLET_CONNECT_ID) {
+          setPublicKey(null);
+          setActiveWalletId(null);
+          localStorage.removeItem("stellar_address");
+          localStorage.removeItem("stellar_last_wallet");
+          localStorage.removeItem("stellar_auto_connect");
+        }
+      },
     });
+    walletConnectModuleRef.current = wcModule;
+    const modules = wcModule
+      ? [...allowAllModules(), wcModule]
+      : allowAllModules();
+
+    return {
+      kit: new StellarWalletsKit({
+        selectedWalletId: FREIGHTER_ID,
+        network,
+        modules,
+      }),
+      isWalletConnectAvailable: wcModule !== null,
+    };
   });
 
   const isConnected = !!publicKey;
@@ -120,6 +268,98 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     : isConnected
       ? "connected"
       : "disconnected";
+
+  const commitWalletConnection = useCallback(
+    (walletId: string, address: string, clearPrivySession: boolean) => {
+      setPublicKey(address);
+      setActiveWalletId(walletId);
+      localStorage.setItem("stellar_address", address);
+      localStorage.setItem("stellar_last_wallet", walletId);
+      localStorage.setItem("stellar_auto_connect", "true");
+
+      if (clearPrivySession) {
+        sessionStorage.removeItem("privy_user");
+        sessionStorage.removeItem("username");
+        setPrivyWallet(null);
+      }
+
+      sessionReplay.addBreadcrumb({
+        category: "wallet",
+        message: `Wallet successfully connected: ${walletId}`,
+        level: "info",
+        data: {
+          walletId,
+          address: `${address.slice(0, 4)}...${address.slice(-4)}`,
+        },
+      });
+    },
+    []
+  );
+
+  const finalizeWalletConnection = useCallback(
+    (walletId: string, address: string) => {
+      const storedPrivy = readStoredPrivySession();
+      const activePrivy = privyWalletRef.current;
+
+      if (activePrivy || storedPrivy.hasSession) {
+        // Never silently clear Privy session state — require explicit user confirmation
+        setPendingWalletSwitch({
+          walletId,
+          address,
+          privyEmail: activePrivy?.email ?? storedPrivy.email,
+          privyUsername: activePrivy?.username ?? storedPrivy.username,
+        });
+        return;
+      }
+
+      commitWalletConnection(walletId, address, false);
+    },
+    [commitWalletConnection]
+  );
+
+  const confirmWalletSwitch = useCallback(() => {
+    setPendingWalletSwitch(current => {
+      if (!current) {
+        return null;
+      }
+      commitWalletConnection(current.walletId, current.address, true);
+      return null;
+    });
+  }, [commitWalletConnection]);
+
+  const cancelWalletSwitch = useCallback(() => {
+    setPendingWalletSwitch(null);
+  }, []);
+
+  const getAddressWithWalletConnectRetry = useCallback(
+    async (walletId: string) => {
+      let lastError: unknown;
+      const maxAttempts =
+        walletId === WALLET_CONNECT_ID ? WC_INIT_RETRY_ATTEMPTS : 1;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          return await kit.getAddress();
+        } catch (err) {
+          lastError = err;
+          if (
+            walletId === WALLET_CONNECT_ID &&
+            isWalletConnectNotReadyError(err) &&
+            attempt < maxAttempts - 1
+          ) {
+            await new Promise(resolve =>
+              setTimeout(resolve, WC_INIT_RETRY_DELAY_MS)
+            );
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      throw lastError;
+    },
+    [kit]
+  );
 
   const connect = useCallback(async () => {
     sessionReplay.addBreadcrumb({
@@ -139,25 +379,18 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
             data: { walletId: wallet.id, name: wallet.name },
           });
           kit.setWallet(wallet.id);
-          const { address } = await kit.getAddress();
-          setPublicKey(address);
-          localStorage.setItem("stellar_address", address);
-          // A fresh wallet-connect session must not inherit a previous Privy identity
-          sessionStorage.removeItem("privy_user");
-          sessionStorage.removeItem("username");
-          setPrivyWallet(null);
-          localStorage.setItem("stellar_last_wallet", wallet.id);
-          localStorage.setItem("stellar_auto_connect", "true");
+          const { address } = await getAddressWithWalletConnectRetry(wallet.id);
+          finalizeWalletConnection(wallet.id, address);
           setIsConnecting(false);
-          sessionReplay.addBreadcrumb({
-            category: "wallet",
-            message: `Wallet successfully connected: ${wallet.id}`,
-            level: "info",
-            data: { address: `${address.slice(0, 4)}...${address.slice(-4)}` },
-          });
         },
         onClosed: err => {
-          console.log("Modal closed", err);
+          if (isDev) {
+            // eslint-disable-next-line no-console
+            console.debug(
+              "[StellarWallet] Modal closed",
+              err ? String(err) : ""
+            );
+          }
           sessionReplay.addBreadcrumb({
             category: "wallet",
             message: "Wallet selection modal closed",
@@ -168,12 +401,15 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         },
       });
     } catch (err) {
-      console.error("Failed to connect Stellar wallet:", err);
+      if (isDev) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to connect Stellar wallet:", err);
+      }
       sessionReplay.recordFlowError("wallet", err, { action: "openModal" });
       setError("Failed to connect wallet");
       setIsConnecting(false);
     }
-  }, [kit]);
+  }, [finalizeWalletConnection, getAddressWithWalletConnectRetry, kit]);
 
   const connectWallet = useCallback(
     async (walletId: string) => {
@@ -183,8 +419,17 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         level: "info",
         data: { walletId },
       });
+
+      if (walletId === WALLET_CONNECT_ID && !isWalletConnectAvailable) {
+        setError(
+          "Mobile QR wallet connection is not configured. Please set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID."
+        );
+        return;
+      }
+
       setIsConnecting(true);
       setError(null);
+      setUnavailableWalletId(null);
       try {
         // Set the wallet first - this initializes the wallet module
         kit.setWallet(walletId);
@@ -193,39 +438,23 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         // This is especially important for extension wallets
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        // For some wallets (like Albedo), getAddress might open a modal
-        // For extension wallets, it should work directly
-        const result = await kit.getAddress();
+        // For WalletConnect, getAddress opens the QR modal and resolves after
+        // the mobile wallet approves the session over the WalletConnect relay.
+        const result = await getAddressWithWalletConnectRetry(walletId);
 
         if (result && result.address) {
-          setPublicKey(result.address);
-          localStorage.setItem("stellar_address", result.address);
-          // A fresh wallet-connect session must not inherit a previous Privy identity
-          sessionStorage.removeItem("privy_user");
-          sessionStorage.removeItem("username");
-          setPrivyWallet(null);
-          localStorage.setItem("stellar_last_wallet", walletId);
-          localStorage.setItem("stellar_auto_connect", "true");
-          sessionReplay.addBreadcrumb({
-            category: "wallet",
-            message: `Wallet connected directly: ${walletId}`,
-            level: "info",
-            data: {
-              walletId,
-              address: `${result.address.slice(0, 4)}...${result.address.slice(-4)}`,
-            },
-          });
+          finalizeWalletConnection(walletId, result.address);
         } else {
           throw new Error("No address returned from wallet");
         }
       } catch (err: any) {
-        console.error("Failed to connect Stellar wallet:", err);
-        console.error("Error details:", {
-          walletId,
-          error: err,
-          message: err?.message,
-          stack: err?.stack,
-        });
+        if (isDev) {
+          // eslint-disable-next-line no-console
+          console.error("Failed to connect Stellar wallet:", {
+            walletId,
+            message: err?.message,
+          });
+        }
 
         sessionReplay.recordFlowError("wallet", err, {
           walletId,
@@ -238,17 +467,27 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
           String(err) ||
           "Failed to connect wallet";
 
-        // Check if wallet is not installed
+        // Check if wallet is not installed. WalletConnect is a QR bridge, not
+        // an extension, so the string heuristics must not flag it.
+        const supportedWallets = await kit.getSupportedWallets().catch(() => []);
+        const unavailable = supportedWallets.some(
+          (wallet) => wallet.id === walletId && wallet.isAvailable === false,
+        );
         if (
-          errorMessage.includes("not installed") ||
-          errorMessage.includes("not found") ||
-          errorMessage.includes("extension") ||
-          errorMessage.includes("Extension not found") ||
-          errorMessage.includes("Wallet not found") ||
-          errorMessage.toLowerCase().includes("no provider") ||
-          errorMessage.toLowerCase().includes("not available") ||
-          errorMessage.toLowerCase().includes("unavailable")
+          unavailable ||
+          (walletId !== WALLET_CONNECT_ID &&
+            (errorMessage.includes("not installed") ||
+              errorMessage.includes("not found") ||
+              errorMessage.includes("extension") ||
+              errorMessage.includes("Extension not found") ||
+              errorMessage.includes("Wallet not found") ||
+              errorMessage.toLowerCase().includes("no provider") ||
+              errorMessage.toLowerCase().includes("not available") ||
+              errorMessage.toLowerCase().includes("unavailable")))
         ) {
+          if (unavailable) {
+            setUnavailableWalletId(walletId);
+          }
           setError(
             `${walletId.charAt(0).toUpperCase() + walletId.slice(1)} wallet is not installed. Please install the extension first.`
           );
@@ -275,15 +514,72 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         setIsConnecting(false);
       }
     },
-    [kit]
+    [
+      finalizeWalletConnection,
+      getAddressWithWalletConnectRetry,
+      isWalletConnectAvailable,
+      kit,
+    ]
   );
 
-  const disconnect = useCallback(() => {
+  const connectMobileWallet = useCallback(async () => {
+    await connectWallet(WALLET_CONNECT_ID);
+  }, [connectWallet]);
+
+  const disconnect = useCallback((reason?: string | null) => {
     setPublicKey(null);
+    setError(reason ?? null);
     localStorage.removeItem("stellar_address");
     localStorage.removeItem("stellar_last_wallet");
     localStorage.removeItem("stellar_auto_connect");
   }, []);
+
+  const getWalletLivenessError = useCallback((err: unknown) => {
+    const message =
+      err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+    if (
+      message.includes("not installed") ||
+      message.includes("not found") ||
+      message.includes("extension") ||
+      message.includes("no provider") ||
+      message.includes("not available") ||
+      message.includes("unavailable")
+    ) {
+      return "Wallet extension is no longer available. Please reconnect your wallet.";
+    }
+    if (
+      message.includes("locked") ||
+      message.includes("unauthorized") ||
+      message.includes("not authorized") ||
+      message.includes("rejected") ||
+      message.includes("denied")
+    ) {
+      return "Wallet connection was lost or locked. Please unlock/reconnect your wallet and try again.";
+    }
+    return "Wallet connection was lost. Please reconnect your wallet and try again.";
+  }, []);
+
+  const checkWalletLiveness = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    const shouldCheck = localStorage.getItem("stellar_auto_connect") === "true";
+    const lastWalletId = localStorage.getItem("stellar_last_wallet");
+    if (!shouldCheck || !lastWalletId || !publicKey || isConnecting) return;
+
+    try {
+      kit.setWallet(lastWalletId);
+      const { address } = await kit.getAddress();
+      if (!address) {
+        disconnect(getWalletLivenessError(new Error("No address returned")));
+        return;
+      }
+      if (address !== publicKey) {
+        setPublicKey(address);
+        localStorage.setItem("stellar_address", address);
+      }
+    } catch (err) {
+      disconnect(getWalletLivenessError(err));
+    }
+  }, [disconnect, getWalletLivenessError, isConnecting, kit, publicKey]);
 
   // Attempt wallet restoration once for returning users (delayed so it doesn't
   // open the wallet popup immediately on reload and block the Connect Wallet modal).
@@ -294,8 +590,19 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
 
     const autoConnect = localStorage.getItem("stellar_auto_connect") === "true";
     const lastWalletId = localStorage.getItem("stellar_last_wallet");
+    const cachedAddress = localStorage.getItem("stellar_address");
+
+    if (autoConnect && cachedAddress) {
+      hasAttemptedAutoConnect.current = true;
+      setPublicKey(cachedAddress);
+      return;
+    }
 
     if (!autoConnect || !lastWalletId) {
+      return;
+    }
+
+    if (lastWalletId === WALLET_CONNECT_ID && !isWalletConnectAvailable) {
       return;
     }
 
@@ -311,15 +618,21 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         setError(null);
         try {
           kit.setWallet(lastWalletId);
-          const { address } = await kit.getAddress();
+          const { address } =
+            await getAddressWithWalletConnectRetry(lastWalletId);
           if (!cancelled && address) {
             setPublicKey(address);
+            setActiveWalletId(lastWalletId);
             localStorage.setItem("stellar_last_wallet", lastWalletId);
             localStorage.setItem("stellar_auto_connect", "true");
           }
         } catch (err) {
-          if (!cancelled) {
-            console.warn("Stellar auto-connect failed:", err);
+          if (!cancelled && isDev) {
+            // eslint-disable-next-line no-console
+            console.warn(
+              "Stellar auto-connect failed:",
+              err instanceof Error ? err.message : String(err)
+            );
           }
         } finally {
           if (!cancelled) {
@@ -335,7 +648,38 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [kit, publicKey]);
+  }, [
+    getAddressWithWalletConnectRetry,
+    isWalletConnectAvailable,
+    kit,
+    publicKey,
+  ]);
+
+  const truncatedPendingAddress = pendingWalletSwitch
+    ? `${pendingWalletSwitch.address.slice(0, 6)}...${pendingWalletSwitch.address.slice(-4)}`
+    : "";
+
+  // Detect wallet lock/removal while app is active or mid-transaction.
+  useEffect(() => {
+    if (!publicKey) return;
+    const onFocus = () => {
+      void checkWalletLiveness();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void checkWalletLiveness();
+    };
+    const interval = window.setInterval(() => {
+      void checkWalletLiveness();
+    }, 5000);
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [checkWalletLiveness, publicKey]);
 
   return (
     <StellarWalletContext.Provider
@@ -343,18 +687,101 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         kit,
         address: publicKey,
         publicKey,
+        activeWalletId,
         isConnected,
         status,
         connect,
         connectWallet,
+        connectMobileWallet,
         disconnect,
         isLoading: isConnecting,
         isConnecting,
         error,
+        isWalletConnectAvailable,
+        unavailableWalletId,
         privyWallet,
+        mainnetGuard,
+        pendingWalletSwitch,
+        confirmWalletSwitch,
+        cancelWalletSwitch,
+        network: activeNetwork,
+        networkGuard,
+        isMainnetBlocked: networkGuard.isTransactionBlocked,
       }}
     >
       {children}
+
+      {pendingWalletSwitch && (
+        <div
+          className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-[2px] flex items-center justify-center p-4"
+          onClick={cancelWalletSwitch}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="wallet-switch-confirm-title"
+        >
+          <div
+            className="relative w-full max-w-md bg-[#111114] border border-yellow-500/30 rounded-2xl p-6 shadow-2xl space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-yellow-400 shrink-0" />
+                <h2
+                  id="wallet-switch-confirm-title"
+                  className="text-white text-base font-semibold"
+                >
+                  Clear Privy Session &amp; Switch Wallet?
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={cancelWalletSwitch}
+                aria-label="Cancel wallet switch"
+                className="text-white/40 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 p-3.5 text-xs text-yellow-200 leading-relaxed space-y-1.5">
+              <p>
+                You are currently signed in with your Privy session
+                {pendingWalletSwitch.privyEmail
+                  ? ` (${pendingWalletSwitch.privyEmail})`
+                  : pendingWalletSwitch.privyUsername
+                    ? ` (@${pendingWalletSwitch.privyUsername})`
+                    : ""}
+                .
+              </p>
+              <p>
+                Switching to Stellar wallet{" "}
+                <code className="font-mono text-white">
+                  {truncatedPendingAddress}
+                </code>{" "}
+                will clear your stored Privy session and username from this
+                browser session.
+              </p>
+            </div>
+
+            <div className="flex gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={cancelWalletSwitch}
+                className="flex-1 bg-white/[0.08] hover:bg-white/[0.14] text-white text-sm font-medium py-2.5 px-4 rounded-xl transition-colors"
+              >
+                Keep Current Session
+              </button>
+              <button
+                type="button"
+                onClick={confirmWalletSwitch}
+                className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black text-sm font-semibold py-2.5 px-4 rounded-xl transition-colors"
+              >
+                Switch Wallet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </StellarWalletContext.Provider>
   );
 }

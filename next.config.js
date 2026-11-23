@@ -7,7 +7,7 @@ const nextConfig = {
     // only the icons/components actually used get compiled.
     optimizePackageImports: ["lucide-react", "framer-motion"],
   },
-  allowedDevOrigins: ["*.ngrok-free.app"],
+  allowedDevOrigins: ["*.ngrok-free.app", "127.0.0.1", "localhost"],
   images: {
     remotePatterns: [
       {
@@ -40,11 +40,36 @@ const nextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "localhost",
+        port: "",
+        pathname: "/**",
+      },
     ],
-    domains: ["localhost"],
   },
 
   // Security headers — defense-in-depth
+  async rewrites() {
+    if (process.env.NODE_ENV === "production") {
+      return {
+        beforeFiles: [
+          {
+            source: "/api/debug/:path*",
+            destination: "/404",
+          },
+        ],
+      };
+    }
+    return [];
+  },
+
   async headers() {
     return [
       // Noindex private routes (layouts are "use client" so metadata API can't be used there)
@@ -85,6 +110,8 @@ const nextConfig = {
   // Environment variables validation
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
+    NEXT_PUBLIC_VERCEL_ENV:
+      process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.VERCEL_ENV || "",
   },
 
   // Bundle analyzer (optional - for production optimization)
@@ -101,4 +128,12 @@ const nextConfig = {
   }),
 };
 
-export default nextConfig;
+import { withSentryConfig } from "@sentry/nextjs";
+
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+});

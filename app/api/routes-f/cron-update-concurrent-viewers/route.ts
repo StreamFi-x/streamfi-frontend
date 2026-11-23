@@ -59,7 +59,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       {
         status: 'error',
         message: 'Failed to update concurrent viewer cache',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'An internal error occurred',
       },
       { status: 500 }
     );

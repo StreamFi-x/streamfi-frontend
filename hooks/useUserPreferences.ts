@@ -5,9 +5,6 @@ import { fetcher } from "@/lib/fetcher";
 export interface UserPreferences {
   user_id: string;
   stream_quality: "auto" | "1080p" | "720p" | "480p" | "360p";
-  notify_live: boolean;
-  notify_clips: boolean;
-  notify_tips: boolean;
   theme: "dark" | "light" | "system";
   language: string;
   chat_font_size: "small" | "medium" | "large";
@@ -16,11 +13,9 @@ export interface UserPreferences {
 }
 
 export function useUserPreferences() {
-  const { data, error, isLoading, mutate } = useSWR<{ preferences: UserPreferences }>(
-    "/api/users/preferences",
-    fetcher,
-    { revalidateOnFocus: false }
-  );
+  const { data, error, isLoading, mutate } = useSWR<{
+    preferences: UserPreferences;
+  }>("/api/users/preferences", fetcher, { revalidateOnFocus: false });
 
   const update = useCallback(
     async (patch: Partial<Omit<UserPreferences, "user_id" | "updated_at">>) => {

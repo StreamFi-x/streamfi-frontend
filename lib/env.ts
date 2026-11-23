@@ -1,45 +1,112 @@
 import { z } from "zod";
 
-// Define the schema for environment variables
-const envSchema = z.object({
-  // Database
-  DATABASE_URL: z.string().url(),
+// Schemas are parsed explicitly. Optional integrations validate their own
+// required settings when enabled. Importing this module does not read secrets.
+const optional = z.string().optional();
 
-  // Authentication
-  NEXTAUTH_SECRET: z.string().min(1),
-  NEXTAUTH_URL: z.string().url(),
-
-  // API Keys
-  CLOUDINARY_CLOUD_NAME: z.string().min(1),
-  CLOUDINARY_API_KEY: z.string().min(1),
-  CLOUDINARY_API_SECRET: z.string().min(1),
-
-  // Email
-  SMTP_HOST: z.string().min(1),
-  SMTP_PORT: z.string().transform(Number),
-  SMTP_USER: z.string().min(1),
-  SMTP_PASS: z.string().min(1),
-
-  // Optional variables
-  NODE_ENV: z
-    .enum(["development", "production", "test"])
-    .default("development"),
-  ANALYZE: z.string().optional(),
+export const envSchema = z.object({
+  NEXT_PUBLIC_SENTRY_DSN: optional,
+  SENTRY_DSN: optional,
+  SENTRY_ORG: optional,
+  SENTRY_PROJECT: optional,
+  SENTRY_AUTH_TOKEN: optional,
+  CI: optional,
+  LOAD_STAGING_ORIGIN: optional,
+  LOAD_PLAYBACK_ID: optional,
+  LOAD_CHAT_COOKIE: optional,
+  LOAD_CONCURRENCY: optional,
+  LOAD_BATCHES: optional,
+  ACCOUNT_DELETION_GRACE_DAYS: optional,
+  ADMIN_EMAIL: optional,
+  ADMIN_PRIVY_IDS: optional,
+  ADMIN_SECRET_TOKEN: optional,
+  ADMIN_WALLET_ADDRESSES: optional,
+  ANALYZE: optional,
+  AWS_REGION: optional,
+  CB_MUX_TIMEOUT_MS: optional,
+  CHAT_CONN_SPIKE_THRESHOLD: optional,
+  CHAT_SPIKE_THRESHOLD_CRITICAL: optional,
+  CHAT_SPIKE_THRESHOLD_WARN: optional,
+  CLEAR_USERS_SECRET: optional,
+  CLOUDINARY_API_KEY: optional,
+  CLOUDINARY_API_SECRET: optional,
+  CLOUDINARY_CLOUD_NAME: optional,
+  CRON_SECRET: optional,
+  CSRF_SECRET: optional,
+  CUSTODIAL_KEY_KMS_KEY_ID: optional,
+  CUSTODIAL_KEY_KMS_REGION: optional,
+  CUSTOM_KEY: optional,
+  DATABASE_URL: optional,
+  DEBUG_ENV_SECRET: optional,
+  DKIM_PRIVATE_KEY: optional,
+  EMAIL_DOMAIN: optional,
+  EMAIL_PASS: optional,
+  EMAIL_USER: optional,
+  GEO_PROVIDER: optional,
+  GEOIP_CITY_DB_PATH: optional,
+  INSTANCE_ID: optional,
+  INTERNAL_API_SECRET: optional,
+  IPAPI_API_KEY: optional,
+  JOBS_BASE_URL: optional,
+  JWT_SECRET: optional,
+  LIVEPEER_API_KEY: optional,
+  MAXMIND_DB_PATH: optional,
+  MIGRATE_CHAT_SECRET: optional,
+  MIGRATION_DATABASE_URL: optional,
+  MUX_RECONCILE_GRACE_SECONDS: optional,
+  MUX_SIGNING_KEY_ID: optional,
+  MUX_SIGNING_KEY_PRIVATE: optional,
+  MUX_TOKEN_ID: optional,
+  MUX_TOKEN_SECRET: optional,
+  MUX_WEBHOOK_EVENT_RETENTION_DAYS: optional,
+  MUX_WEBHOOK_SECRET: optional,
+  NEXT_PUBLIC_API_URL: optional,
+  NEXT_PUBLIC_APP_URL: optional,
+  NEXT_PUBLIC_DEV_MODE: optional,
+  NEXT_PUBLIC_PRIVY_APP_ID: optional,
+  NEXT_PUBLIC_SITE_URL: optional,
+  NEXT_PUBLIC_STELLAR_NETWORK: z.enum(["mainnet", "testnet"]).optional(),
+  NEXT_PUBLIC_TRANSAK_API_KEY: optional,
+  NODE_ENV: z.enum(["development", "production", "test"]).optional(),
+  OPS_ALERT_HOURLY_BUDGET: optional,
+  OPS_ALERT_WEBHOOK_URL: optional,
+  POSTGRES_URL: optional,
+  POSTGRES_URL_NON_POOLING: optional,
+  PRIVY_APP_SECRET: optional,
+  PRIVY_WEBHOOK_SECRET: optional,
+  PURGE_CUSTODIAL_MAX_XLM: optional,
+  QSTASH_CURRENT_SIGNING_KEY: optional,
+  QSTASH_NEXT_SIGNING_KEY: optional,
+  QSTASH_TOKEN: optional,
+  SESSION_KEYRING_JSON: optional,
+  SESSION_SECRET: optional,
+  SOROBAN_RPC_URL: optional,
+  STELLAR_ENCRYPTION_KEY: optional,
+  STELLAR_ENCRYPTION_KEYRING_JSON: optional,
+  STELLAR_MAINNET_USDC_ISSUER: optional,
+  STELLAR_TESTNET_USDC_ISSUER: optional,
+  STELLAR_WEBHOOK_SECRET: optional,
+  STREAMER_ID: optional,
+  STREAMFI_SUBSCRIPTION_CONTRACT_ID: optional,
+  TEST_DATABASE_URL: optional,
+  TEST_UPSTASH_REDIS_REST_TOKEN: optional,
+  TEST_UPSTASH_REDIS_REST_URL: optional,
+  TOTP_ENCRYPTION_KEYRING_JSON: optional,
+  TWO_FA_ENCRYPTION_KEY: optional,
+  UPSTASH_REDIS_REST_TOKEN: optional,
+  UPSTASH_REDIS_REST_URL: optional,
+  VERCEL_ENV: optional,
+  WS_MAX_CONNECTIONS: optional,
 });
 
-// Validate environment variables
-const envParse = envSchema.safeParse(process.env);
-
-if (!envParse.success) {
-  // eslint-disable-next-line no-console
-  console.error("❌ Invalid environment variables:");
-  // eslint-disable-next-line no-console
-  console.error(envParse.error.format());
-  throw new Error("Invalid environment variables");
-}
-
-// Export validated environment variables
-export const env = envParse.data;
-
-// Type for environment variables
 export type Env = z.infer<typeof envSchema>;
+
+export function validateEnvironment(values: Record<string, unknown>): Env {
+  const result = envSchema.safeParse(values);
+  if (!result.success) {
+    throw new Error(
+      `Invalid environment settings: ${result.error.issues.map(issue => issue.path.join(".")).join(", ")}`
+    );
+  }
+  return result.data;
+}

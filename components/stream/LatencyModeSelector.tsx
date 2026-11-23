@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
-export interface LatencyMode = "low" | "standard";
+export type LatencyMode = "low" | "standard";
 
 interface LatencyModeSelectorProps {
   value: LatencyMode;

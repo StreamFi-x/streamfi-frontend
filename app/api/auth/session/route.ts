@@ -5,6 +5,7 @@ import { createRateLimiter } from "@/lib/rate-limit";
 import { getRandomProfileIcon } from "@/lib/profile-icons";
 import { recordLoginAndCheckTravel } from "@/lib/security/login-anomaly";
 import { createSession } from "@/lib/sessions/user-sessions";
+import { logger } from "@/lib/tracing/logger";
 import { signToken } from "@/lib/auth/sign-token";
 import { currentKeyring } from "@/lib/security/keyring";
 
@@ -133,7 +134,10 @@ export async function POST(req: NextRequest) {
     try {
       await recordLoginAndCheckTravel(dbUser.id, ip);
     } catch (anomalyError) {
-      console.error("[session] Login anomaly processing failed:", anomalyError);
+      logger.error("Login anomaly processing failed", anomalyError, {
+        route: "POST /api/auth/session",
+        userId: dbUser.id,
+      });
     }
 
     // 5. Build secure session cookie — HttpOnly, Secure, SameSite=Strict
@@ -187,13 +191,18 @@ export async function POST(req: NextRequest) {
         null,
       userAgent: req.headers.get("user-agent") ?? null,
       ttlSeconds: cookieMaxAge,
-    }).catch((err) =>
-      console.error("[session] Failed to record user_session row:", err)
+    }).catch(err =>
+      logger.error("Failed to record user_session row", err, {
+        route: "POST /api/auth/session",
+        userId: dbUser.id,
+      })
     );
 
     return res;
   } catch (err) {
-    console.error("[session] DB error:", err);
+    logger.error("Session database error", err, {
+      route: "POST /api/auth/session",
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

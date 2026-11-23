@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import profileImage from "@/public/Images/profile.png";
 import { PROFILE_ICONS } from "@/lib/profile-icons";
 import VerificationPopup from "./popup";
-import AvatarSelectionModal from "./avatar-modal";
+import { AvatarUploadModal } from "@/components/ui/avatar-upload-modal";
 import type {
   EditState,
   FormState,
@@ -23,11 +23,19 @@ import type { StaticImageData } from "next/image";
 import { SocialLinksSection } from "./social-links-section";
 import { SaveSection } from "./save-section";
 import { useToast } from "@/components/ui/toast-provider";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { SUPPORTED_LANGUAGES, type LanguageCode } from "@/lib/i18n/languages";
 
 export default function ProfileSettings() {
   const { user, isLoading, updateUserProfile } = useAuth();
   const avatarOptions = [...PROFILE_ICONS];
   const { showToast } = useToast();
+  const {
+    preferences,
+    isLoading: isPreferencesLoading,
+    error: preferencesError,
+    update: updatePreferences,
+  } = useUserPreferences();
 
   const [avatar, setAvatar] = useState<StaticImageData | string | File>(
     profileImage
@@ -38,6 +46,7 @@ export default function ProfileSettings() {
   const [, setUsedPlatforms] = useState<Platform[]>([]);
   const [, setIsEmailVerified] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isLanguageInitialized, setIsLanguageInitialized] = useState(false);
 
   const [formState, setFormState] = useState<FormState>({
     username: "",
@@ -46,7 +55,7 @@ export default function ProfileSettings() {
     wallet: "",
     socialLinkUrl: "",
     socialLinkTitle: "",
-    language: "English",
+    language: "en",
   });
 
   // Edit state
@@ -250,6 +259,13 @@ export default function ProfileSettings() {
     }
   }, [user, isLoading, isInitialized, convertBackendSocialLinks, showToast]);
 
+  useEffect(() => {
+    if (preferences && !isLanguageInitialized) {
+      setFormState(prev => ({ ...prev, language: preferences.language }));
+      setIsLanguageInitialized(true);
+    }
+  }, [preferences, isLanguageInitialized]);
+
   const generateDefaultTitle = useCallback(
     (platform: Platform): string => {
       const existingCount = socialLinks.filter(
@@ -335,18 +351,7 @@ export default function ProfileSettings() {
     [generateDefaultTitle]
   );
 
-  const languages = [
-    "English",
-    "Spanish",
-    "French",
-    "German",
-    "Portuguese",
-    "Russian",
-    "Chinese",
-    "Japanese",
-  ];
-
-  if (isLoading || !isInitialized) {
+  if (isLoading || !isInitialized || isPreferencesLoading) {
     return (
       <div className="min-h-screen bg-secondary text-foreground flex items-center justify-center">
         <div className="text-center">
@@ -397,7 +402,7 @@ export default function ProfileSettings() {
     setAvatar(newAvatar);
   };
 
-  const handleLanguageSelect = (selectedLanguage: string) => {
+  const handleLanguageSelect = (selectedLanguage: LanguageCode) => {
     updateFormField("language", selectedLanguage);
     updateUiState({ showLanguageModal: false });
   };
@@ -429,6 +434,19 @@ export default function ProfileSettings() {
       });
 
       if (result.success) {
+        if (preferences && formState.language !== preferences.language) {
+          try {
+            await updatePreferences({ language: formState.language });
+          } catch (error) {
+            console.error("Error saving language preference:", error);
+            const msg =
+              "Profile was updated, but the language preference could not be saved.";
+            showToast(msg, "error");
+            updateUiState({ saveError: msg });
+            return;
+          }
+        }
+
         showToast("Profile updated successfully!", "success");
         updateUiState({ saveSuccess: true });
 
@@ -497,8 +515,14 @@ export default function ProfileSettings() {
           formState={formState}
           updateUiState={updateUiState}
           uiState={uiState}
-          languages={languages}
+          languages={SUPPORTED_LANGUAGES}
           handleLanguageSelect={handleLanguageSelect}
+          disabled={!!preferencesError || !preferences}
+          error={
+            preferencesError || !preferences
+              ? "Could not load your saved language preference."
+              : null
+          }
         />
 
         {/* Save Button */}
@@ -514,7 +538,8 @@ export default function ProfileSettings() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <AvatarSelectionModal
+            <AvatarUploadModal
+              isOpen={uiState.showAvatarModal}
               currentAvatar={avatar}
               onClose={() => updateUiState({ showAvatarModal: false })}
               onSaveAvatar={handleSaveAvatar}

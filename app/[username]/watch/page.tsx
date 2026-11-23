@@ -30,6 +30,9 @@ interface UserData {
   stream_access_type: "public" | "password" | "subscription" | null;
   subscription_price_usdc: number | null;
   latency_mode: string | null;
+  recently_reregistered?: boolean;
+  ownership_change_notice?: string | null;
+  previous_owner_released_at?: string | null;
 }
 
 const WatchPage = ({ params }: PageProps) => {
@@ -94,6 +97,17 @@ const WatchPage = ({ params }: PageProps) => {
           return;
         }
 
+        if (response.status === 307 || response.status === 308) {
+          const redirectData = await response.json().catch(() => null);
+          const target =
+            redirectData?.targetUsername ||
+            response.headers.get("X-Redirect-Username");
+          if (target) {
+            window.location.replace(`/${target}/watch`);
+            return;
+          }
+        }
+
         if (!response.ok) {
           if (isInitialLoad) {
             toast.error("Failed to load stream");
@@ -102,6 +116,10 @@ const WatchPage = ({ params }: PageProps) => {
         }
 
         const data = await response.json();
+        if (data?.redirect && data?.targetUsername) {
+          window.location.replace(`/${data.targetUsername}/watch`);
+          return;
+        }
         setUserData(data.user);
         setIsFollowing(!!data.user.is_following);
       } catch (error) {
@@ -122,11 +140,32 @@ const WatchPage = ({ params }: PageProps) => {
     return () => clearInterval(interval);
   }, [username, loggedInUsername]);
 
-  // Register viewer once when stream goes live; guard against re-registration on every poll
+  // Register viewer when stream goes live and deregister when it ends (#1853)
   useEffect(() => {
-    if (!userData?.mux_playback_id || !userData?.is_live) {
+    // If stream transitions to offline while viewer was registered, decrement and reset session
+    if (!userData?.is_live || !userData?.mux_playback_id) {
+      if (viewerRegistered.current && viewerSessionId.current) {
+        const sid = viewerSessionId.current;
+        const pid = viewerPlaybackId.current;
+        const tok = viewerSessionToken.current;
+        viewerRegistered.current = false;
+        viewerSessionId.current = null;
+        viewerSessionToken.current = null;
+        viewerPlaybackId.current = null;
+        fetch("/api/streams/viewers", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: sid,
+            playbackId: pid,
+            token: tok,
+          }),
+          keepalive: true,
+        }).catch(() => {});
+      }
       return;
     }
+
     if (viewerRegistered.current) {
       return;
     }
@@ -143,6 +182,7 @@ const WatchPage = ({ params }: PageProps) => {
           )}`
         );
         if (!mintRes.ok) {
+          viewerRegistered.current = false;
           return;
         }
         const session = (await mintRes.json()) as {
@@ -164,7 +204,7 @@ const WatchPage = ({ params }: PageProps) => {
           }),
         });
       } catch {
-        // Best-effort — a dropped viewer event must never break the watch page.
+        viewerRegistered.current = false;
       }
     };
 

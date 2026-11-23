@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { executeAccountRecovery } from "@/lib/auth/wallet-recovery";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,11 +47,14 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      message: "Account successfully recovered and rebound to new wallet address.",
+      message:
+        "Account successfully recovered and rebound to new wallet address.",
       userId: result.userId,
     });
   } catch (err) {
-    console.error("[recovery/execute] Error executing recovery:", err);
+    logger.error("Error executing wallet recovery", err, {
+      route: "POST /api/auth/recovery/execute",
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

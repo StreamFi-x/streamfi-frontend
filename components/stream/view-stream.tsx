@@ -36,6 +36,7 @@ const FacebookIcon = ({ className }: { className?: string }) => (
 import StreamInfoModal from "../dashboard/common/StreamInfoModal";
 import { Button } from "../ui/button";
 import ChatSection from "./chat-section";
+import ErrorBoundary from "@/components/error/ErrorBoundary";
 import { ViewStreamSkeleton } from "../skeletons/ViewStreamSkeleton";
 import MuxPlayer from "@/components/MuxPlayerLazy";
 import ReportLiveStreamModal from "../modals/ReportLiveStreamModal";
@@ -664,29 +665,40 @@ const ViewStream = ({
                     !isPrivate || !!playbackOverride?.playbackId;
 
                   return isLive && effectivePlaybackId && playerReady ? (
-                    <MuxPlayer
-                      playbackId={effectivePlaybackId}
-                      streamType={
-                        userData.latencyMode === "standard" ? "live:dvr" : "live"
+                    <ErrorBoundary
+                      fallback={
+                        <div className="absolute inset-0 flex items-center justify-center bg-card text-foreground p-4 text-center">
+                          <div>
+                            <p className="font-medium mb-2">Video player failed to load.</p>
+                            <p className="text-sm text-muted-foreground">Try refreshing the page.</p>
+                          </div>
+                        </div>
                       }
-                      autoPlay="muted"
-                      tokens={
-                        effectiveToken
-                          ? {
-                              playback: effectiveToken,
-                              thumbnail: effectiveToken,
-                              storyboard: effectiveToken,
-                            }
-                          : undefined
-                      }
-                      metadata={{
-                        video_id: effectivePlaybackId,
-                        video_title: streamData.title || `${username}'s Stream`,
-                        viewer_user_id: "anonymous",
-                      }}
-                      primaryColor="#ac39f2"
-                      className="w-full h-full"
-                    />
+                    >
+                      <MuxPlayer
+                        playbackId={effectivePlaybackId}
+                        streamType={
+                          userData.latencyMode === "standard" ? "live:dvr" : "live"
+                        }
+                        autoPlay="muted"
+                        tokens={
+                          effectiveToken
+                            ? {
+                                playback: effectiveToken,
+                                thumbnail: effectiveToken,
+                                storyboard: effectiveToken,
+                              }
+                            : undefined
+                        }
+                        metadata={{
+                          video_id: effectivePlaybackId,
+                          video_title: streamData.title || `${username}'s Stream`,
+                          viewer_user_id: "anonymous",
+                        }}
+                        primaryColor="#ac39f2"
+                        className="w-full h-full"
+                      />
+                    </ErrorBoundary>
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center bg-card">
                       <div className="text-foreground text-center">
@@ -1159,24 +1171,30 @@ const ViewStream = ({
             {/* Mobile-only full-height chat — shown when Chat tab active */}
             {!isFullscreen && mobileTab === "chat" && (
               <div className="flex-1 min-h-0 lg:hidden">
-                <ChatSection
-                  messages={chatMessages}
-                  onSendMessage={sendMessage}
-                  isCollapsible={false}
-                  isFullscreen={false}
-                  className="h-full pb-10"
-                  showChat={true}
-                  isWalletConnected={!!address}
-                  isSending={isSending}
-                  onLoginClick={() => login()}
-                  onLoadOlder={loadOlder}
-                  hasOlder={hasOlder}
-                  isLoadingOlder={isLoadingOlder}
-                  spikeLevel={spikeLevel}
-                  typingLabel={typingLabel}
-                  onTypingInput={onInputChange}
-                  onTypingStop={onMessageSent}
-                />
+                <ErrorBoundary
+                  fallback={
+                    <div className="p-4 text-sm text-muted-foreground">Chat failed to load.</div>
+                  }
+                >
+                  <ChatSection
+                    messages={chatMessages}
+                    onSendMessage={sendMessage}
+                    isCollapsible={false}
+                    isFullscreen={false}
+                    className="h-full pb-10"
+                    showChat={true}
+                    isWalletConnected={!!address}
+                    isSending={isSending}
+                    onLoginClick={() => login()}
+                    onLoadOlder={loadOlder}
+                    hasOlder={hasOlder}
+                    isLoadingOlder={isLoadingOlder}
+                    spikeLevel={spikeLevel}
+                    typingLabel={typingLabel}
+                    onTypingInput={onInputChange}
+                    onTypingStop={onMessageSent}
+                  />
+                </ErrorBoundary>
               </div>
             )}
           </div>
@@ -1192,25 +1210,31 @@ const ViewStream = ({
                     : "lg:w-0"
                 }`}
             >
-              <ChatSection
-                messages={chatMessages}
-                onSendMessage={sendMessage}
-                isCollapsible={true}
-                isFullscreen={false}
-                className="h-full"
-                onToggleChat={toggleChat}
-                showChat={showChat}
-                isWalletConnected={!!address}
-                isSending={isSending}
-                onLoginClick={() => login()}
-                onLoadOlder={loadOlder}
-                hasOlder={hasOlder}
-                isLoadingOlder={isLoadingOlder}
-                spikeLevel={spikeLevel}
-                typingLabel={typingLabel}
-                onTypingInput={onInputChange}
-                onTypingStop={onMessageSent}
-              />
+              <ErrorBoundary
+                fallback={
+                  <div className="p-4 text-sm text-muted-foreground">Chat failed to load.</div>
+                }
+              >
+                <ChatSection
+                  messages={chatMessages}
+                  onSendMessage={sendMessage}
+                  isCollapsible={true}
+                  isFullscreen={false}
+                  className="h-full"
+                  onToggleChat={toggleChat}
+                  showChat={showChat}
+                  isWalletConnected={!!address}
+                  isSending={isSending}
+                  onLoginClick={() => login()}
+                  onLoadOlder={loadOlder}
+                  hasOlder={hasOlder}
+                  isLoadingOlder={isLoadingOlder}
+                  spikeLevel={spikeLevel}
+                  typingLabel={typingLabel}
+                  onTypingInput={onInputChange}
+                  onTypingStop={onMessageSent}
+                />
+              </ErrorBoundary>
             </div>
           )}
 

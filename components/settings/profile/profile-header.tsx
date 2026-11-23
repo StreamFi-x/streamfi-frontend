@@ -3,8 +3,9 @@ import Image, { type StaticImageData } from "next/image";
 import { PROFILE_ICONS } from "@/lib/profile-icons";
 import { Camera } from "lucide-react";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef } from "react";
 import { useToast } from "@/components/ui/toast-provider";
+import { useObjectUrl } from "@/hooks/useObjectUrl";
 
 const MAX_BANNER_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB hard limit before compression
 
@@ -77,41 +78,9 @@ export function ProfileHeader({
   onBannerChange,
 }: ProfileHeaderProps) {
   const { showToast } = useToast();
-  const [avatarSrc, setAvatarSrc] = useState<string | StaticImageData>(() => {
-    if (avatar instanceof File) {
-      return URL.createObjectURL(avatar);
-    }
-    return avatar as string | StaticImageData;
-  });
-
-  const [bannerSrc, setBannerSrc] = useState<string | null>(null);
+  const avatarSrc = useObjectUrl(avatar);
+  const bannerSrc = useObjectUrl(banner);
   const bannerInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (avatar instanceof File) {
-      const objectURL = URL.createObjectURL(avatar);
-      setAvatarSrc(objectURL);
-      return () => {
-        URL.revokeObjectURL(objectURL);
-      };
-    } else {
-      setAvatarSrc(avatar);
-    }
-  }, [avatar]);
-
-  useEffect(() => {
-    if (banner instanceof File) {
-      const objectURL = URL.createObjectURL(banner);
-      setBannerSrc(objectURL);
-      return () => {
-        URL.revokeObjectURL(objectURL);
-      };
-    } else if (typeof banner === "string" && banner.trim()) {
-      setBannerSrc(banner);
-    } else {
-      setBannerSrc(null);
-    }
-  }, [banner]);
 
   const handleBannerFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -147,9 +116,10 @@ export function ProfileHeader({
       <div
         className="relative w-full h-32 bg-gradient-to-r from-gray-900 to-gray-800 bg-center bg-cover bg-no-repeat"
         style={{
-          backgroundImage: bannerSrc
-            ? `url('${bannerSrc}')`
-            : `url('/Images/banner-bg.png')`,
+          backgroundImage:
+            typeof bannerSrc === "string"
+              ? `url('${bannerSrc}')`
+              : `url('/Images/banner-bg.png')`,
         }}
       >
         <button

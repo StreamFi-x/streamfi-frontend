@@ -10,13 +10,17 @@ import {
   cacheTags,
   cached,
 } from "@/lib/cache";
+import {
+  getUsernameOwnershipWarning,
+  resolveUsernameRedirect,
+} from "@/lib/users/username-history";
 
 async function loadPublicProfile(normalizedUsername: string) {
   const result = await sql`
     SELECT
       u.id, u.username, u.wallet, u.avatar, u.banner, u.bio,
       u.sociallinks, u.emailverified, u.emailnotifications,
-      u.creator, u.auth_type,
+      u.creator, u.auth_type, u.privy_id,
       u.is_live, u.mux_playback_id, u.latency_mode, u.current_viewers,
       COALESCE(u.stream_access_type, 'public') AS stream_access_type,
       COALESCE(
@@ -25,6 +29,9 @@ async function loadPublicProfile(normalizedUsername: string) {
       ) AS subscription_price_usdc,
       u.stream_started_at, u.total_views,
       u.total_tips_received, u.total_tips_count, u.last_tip_at,
+      u.stream_privacy, u.share_token,
+      u.stream_password_hash,
+      (SELECT id FROM stream_sessions ss WHERE ss.user_id = u.id AND ss.ended_at IS NULL ORDER BY ss.started_at DESC LIMIT 1) AS stream_session_id,
       u.created_at, u.updated_at,
       (u.stream_password_hash IS NOT NULL) AS is_password_protected,
       (SELECT COUNT(*)::int FROM user_follows f
@@ -53,7 +60,7 @@ async function isFollowing(viewerUsername: string, userId: string) {
 }
 
 export async function GET(
-  req: NextRequest,
+  req: NextRequest | Request,
   { params }: { params: Promise<{ username: string }> }
 ) {
   try {
@@ -61,32 +68,8 @@ export async function GET(
     const normalizedUsername = username.toLowerCase();
     const { searchParams } = new URL(req.url);
     const viewerUsername = searchParams.get("viewer_username") ?? "";
+    const providedToken = searchParams.get("token");
 
-    const result = await sql`
-      SELECT
-        u.id, u.username, u.wallet, u.avatar, u.banner, u.bio,
-        u.sociallinks, u.emailverified, u.emailnotifications,
-        u.creator, u.auth_type, u.privy_id,
-        u.is_live, u.mux_playback_id, u.latency_mode, u.current_viewers,
-        u.stream_started_at, u.total_views,
-        u.total_tips_received, u.total_tips_count, u.last_tip_at,
-        u.stream_privacy, u.share_token,
-        u.stream_password_hash,
-        (SELECT id FROM stream_sessions ss WHERE ss.user_id = u.id AND ss.ended_at IS NULL ORDER BY ss.started_at DESC LIMIT 1) AS stream_session_id,
-        u.created_at, u.updated_at,
-        (SELECT COUNT(*)::int FROM user_follows WHERE followee_id = u.id) AS follower_count,
-        (SELECT COUNT(*)::int FROM user_follows WHERE follower_id = u.id) AS following_count,
-        EXISTS(
-          SELECT 1 FROM user_follows uf
-          JOIN users viewer ON viewer.id = uf.follower_id
-          WHERE LOWER(viewer.username) = LOWER(${viewerUsername})
-            AND uf.followee_id = u.id
-        ) AS is_following
-      FROM users u
-      WHERE LOWER(u.username) = ${normalizedUsername}
-    `;
-
-    const user = result.rows[0];
     // The viewer-independent part is cached and invalidated by every write to
     // the row (lib/cache/invalidation.ts); is_following is per viewer, so it is
     // always read live.
@@ -100,6 +83,24 @@ export async function GET(
     );
 
     if (!user) {
+      const redirectInfo = await resolveUsernameRedirect(normalizedUsername);
+      if (redirectInfo.shouldRedirect && redirectInfo.targetUsername) {
+        return NextResponse.json(
+          {
+            redirect: true,
+            previousUsername: normalizedUsername,
+            targetUsername: redirectInfo.targetUsername,
+            redirectTo: `/${redirectInfo.targetUsername}`,
+          },
+          {
+            status: 307,
+            headers: {
+              Location: `/${redirectInfo.targetUsername}`,
+              "X-Redirect-Username": redirectInfo.targetUsername,
+            },
+          }
+        );
+      }
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
@@ -107,12 +108,16 @@ export async function GET(
     let viewerUserId: string | null = null;
     if (viewerUsername) {
       const viewer = await sql`
-        SELECT id FROM users WHERE LOWER(username) = LOWER(${viewerUsername})
+        SELECT id FROM users WHERE LOWER(username) = LOWER(${viewerUsername}) AND deleted_at IS NULL
       `;
       viewerUserId = viewer.rows[0]?.id ?? null;
     }
-    const verifiedViewer = await verifySession(req);
-    const verifiedViewerId = verifiedViewer.ok ? verifiedViewer.userId : null;
+
+    let verifiedViewerId: string | null = null;
+    if (user.stream_password_hash && "cookies" in req) {
+      const verifiedViewer = await verifySession(req as NextRequest);
+      verifiedViewerId = verifiedViewer.ok ? verifiedViewer.userId : null;
+    }
 
     const access = await canAccessStream({
       privacy: user.stream_privacy,
@@ -126,7 +131,12 @@ export async function GET(
       user.stream_password_hash &&
       user.id !== verifiedViewerId &&
       (!user.stream_session_id ||
-        !hasStreamPasswordGrant(req, user.id, user.stream_session_id))
+        !("cookies" in req) ||
+        !hasStreamPasswordGrant(
+          req as NextRequest,
+          user.id,
+          user.stream_session_id
+        ))
     ) {
       access.allowed = false;
       access.reason = "password_required";
@@ -157,8 +167,26 @@ export async function GET(
       ? await isFollowing(viewerUsername, user.id)
       : false;
 
+    const ownershipWarning = await getUsernameOwnershipWarning({
+      username: normalizedUsername,
+      currentUserId: String(user.id),
+    });
+
     return NextResponse.json(
-      { user: { ...publicUser, is_following } },
+      {
+        user: {
+          ...publicUser,
+          is_following,
+          ...(ownershipWarning.hasRecentOwnershipChange
+            ? {
+                recently_reregistered: true,
+                ownership_change_notice: ownershipWarning.notice,
+                previous_owner_released_at:
+                  ownershipWarning.previousOwnerReleasedAt,
+              }
+            : {}),
+        },
+      },
       { headers: cacheHeaders("publicProfile") }
     );
   } catch (error) {

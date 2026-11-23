@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { z } from "zod";
+import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 
 /**
  * GET /api/category/[title]/streams
@@ -164,14 +165,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("Error fetching category streams:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch category streams",
-        details: message,
-      },
-      { status: 500 }
-    );
+    return createSanitizedErrorResponse(error, { context: 'category/streams GET', publicMessage: 'Failed to fetch category streams', extra: { success: false } });
   }
 }
