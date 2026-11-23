@@ -24,6 +24,8 @@ import {
 
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
+// 60 GET requests per minute per IP for polling (1 req/sec × 60 viewers)
+const isGetRateLimited = createRateLimiter(60_000, 60);
 
 // 120 deletes per minute per authenticated user — generous enough for a
 // spam-wave clear (moderator removing ~2 msg/s) but caps worst-case damage
@@ -157,12 +159,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const body = await req.json().catch(() => ({}));
     const {
       wallet,
       playbackId,
       content,
       messageType = "message",
-    } = await req.json();
+    } = body;
 
     if (!playbackId || !content) {
       return NextResponse.json(
@@ -400,6 +403,8 @@ export async function POST(req: NextRequest) {
       formattedMessage
     ).catch(e => console.error("[chat] Realtime publish error:", e));
 
+    const userWallet = sender_wallet || session.wallet || wallet;
+
     return NextResponse.json(
       {
         message: "Message sent successfully",
@@ -480,6 +485,19 @@ async function loadChatPage(playbackId: string, page: PageParams) {
  * `nextCursor` walks back through older history.
  */
 export async function GET(req: Request) {
+  const ip = 
+    (req.headers instanceof Headers ? 
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? 
+      req.headers.get("x-real-ip") 
+      : null) ?? "unknown";
+
+  if (await isGetRateLimited(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": "60" } }
+    );
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const playbackId = searchParams.get("playbackId");
