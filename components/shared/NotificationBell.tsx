@@ -90,6 +90,8 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const dwellTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const markAllRead = useCallback(async () => {
     try {
       await fetch("/api/users/notifications", {
@@ -110,14 +112,28 @@ export default function NotificationBell() {
     }
   }, [mutate]);
 
-  const handleOpen = () => {
-    setOpen(prev => {
-      const next = !prev;
-      if (next && unreadCount > 0) {
+  // Debounce mark-all-read with dwell time: mark as read only after dropdown remains open for 3s
+  useEffect(() => {
+    if (open && unreadCount > 0) {
+      dwellTimerRef.current = setTimeout(() => {
         void markAllRead();
+      }, 3000);
+    } else {
+      if (dwellTimerRef.current) {
+        clearTimeout(dwellTimerRef.current);
+        dwellTimerRef.current = null;
       }
-      return next;
-    });
+    }
+    return () => {
+      if (dwellTimerRef.current) {
+        clearTimeout(dwellTimerRef.current);
+        dwellTimerRef.current = null;
+      }
+    };
+  }, [open, unreadCount, markAllRead]);
+
+  const handleOpen = () => {
+    setOpen(prev => !prev);
   };
 
   const badgeLabel = unreadCount > 9 ? "9+" : String(unreadCount);
