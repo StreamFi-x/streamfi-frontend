@@ -163,6 +163,22 @@ export function assetHandlers({
         return;
       }
 
+      // 1. Check if this asset belongs to a clip first
+      const clipResult = await tx.sql`
+        SELECT id, streamer_id FROM stream_clips WHERE mux_asset_id = ${assetId}
+      `;
+      if (clipResult.rows.length > 0) {
+        await tx.sql`
+          UPDATE stream_clips SET
+            playback_id = ${playbackId},
+            status = 'ready',
+            updated_at = CURRENT_TIMESTAMP
+          WHERE mux_asset_id = ${assetId}
+        `;
+        console.log(`✅ Clip marked ready from video.asset.ready: ${assetId}`);
+        return;
+      }
+
       let userId: string | null = null;
       let streamSessionId: string | null = null;
       let title = "Stream Recording";
@@ -218,6 +234,10 @@ export function assetHandlers({
 
     "video.asset.errored": async (tx, event) => {
       const assetId = event.data.id as string;
+      await tx.sql`
+        UPDATE stream_clips SET status = 'error', updated_at = CURRENT_TIMESTAMP
+        WHERE mux_asset_id = ${assetId}
+      `;
       const { rows } = await tx.sql`
         UPDATE stream_recordings SET status = 'error'
         WHERE mux_asset_id = ${assetId}
@@ -241,7 +261,8 @@ export function assetHandlers({
 export const assetDeletedHandler: MuxEventHandler = async (tx, event) => {
   const assetId = event.data.id as string;
   await tx.sql`DELETE FROM stream_recordings WHERE mux_asset_id = ${assetId}`;
-  console.log(`✅ Recording removed from database: ${assetId}`);
+  await tx.sql`DELETE FROM stream_clips WHERE mux_asset_id = ${assetId}`;
+  console.log(`✅ Recording/clip removed from database: ${assetId}`);
 };
 
 export const assetLogOnly: MuxLogOnlyEvents = {

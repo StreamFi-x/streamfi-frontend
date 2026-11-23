@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
 
   // Resolve streamer
   const { rows: streamerRows } = await sql`
-    SELECT id, mux_playback_id, is_live FROM users
+    SELECT id, mux_playback_id, mux_stream_id, is_live FROM users
     WHERE LOWER(username) = LOWER(${streamer_username}) AND deleted_at IS NULL
     LIMIT 1
   `;
