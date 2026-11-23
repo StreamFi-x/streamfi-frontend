@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     
     is_deleted BOOLEAN DEFAULT FALSE,
     is_moderated BOOLEAN DEFAULT FALSE,
-    moderated_by UUID REFERENCES users(id),
+    moderated_by UUID REFERENCES users(id) ON DELETE SET NULL,
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 CREATE TABLE IF NOT EXISTS watch_history (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   viewer_id       UUID REFERENCES users(id) ON DELETE CASCADE,
-  streamer_id     UUID REFERENCES users(id),
+  streamer_id     UUID REFERENCES users(id) ON DELETE CASCADE,
   stream_type     TEXT NOT NULL,   -- 'live' | 'vod' | 'clip'
   stream_id       TEXT,            -- recording ID if VOD/clip, null if live
   stream_title    TEXT,            -- title of the stream at the time

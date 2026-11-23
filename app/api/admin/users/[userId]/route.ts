@@ -136,7 +136,21 @@ export async function DELETE(
       purgeAfter: result.deletion.purge_after,
       alreadyPending: result.outcome === "already_pending",
     });
-  } catch (err) {
+  } catch (err: any) {
+    if (
+      err?.code === "23503" ||
+      (typeof err?.message === "string" &&
+        err.message.toLowerCase().includes("foreign key constraint"))
+    ) {
+      return Response.json(
+        {
+          error:
+            "Cannot delete user due to active foreign key constraints. Dependent records must be unlinked or cascaded.",
+          code: "FOREIGN_KEY_VIOLATION",
+        },
+        { status: 409 }
+      );
+    }
     console.error("[admin/users/[userId]] DELETE error:", err);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
