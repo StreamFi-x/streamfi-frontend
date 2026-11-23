@@ -42,6 +42,7 @@ interface StellarWalletContextType {
   connect: () => Promise<void>;
   connectWallet: (walletId: string) => Promise<void>;
   disconnect: () => void;
+  checkWalletLiveness: () => Promise<boolean>;
   isLoading: boolean;
   isConnecting: boolean;
   error: string | null;
@@ -285,6 +286,22 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("stellar_auto_connect");
   }, []);
 
+  /** Check if the connected wallet extension is still reachable (#1695) */
+  const checkWalletLiveness = useCallback(async (): Promise<boolean> => {
+    if (!publicKey) return false;
+    try {
+      const result = await kit.getAddress();
+      if (!result?.address) {
+        disconnect();
+        return false;
+      }
+      return true;
+    } catch {
+      disconnect();
+      return false;
+    }
+  }, [kit, publicKey, disconnect]);
+
   // Attempt wallet restoration once for returning users (delayed so it doesn't
   // open the wallet popup immediately on reload and block the Connect Wallet modal).
   useEffect(() => {
@@ -348,6 +365,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
         connect,
         connectWallet,
         disconnect,
+        checkWalletLiveness,
         isLoading: isConnecting,
         isConnecting,
         error,

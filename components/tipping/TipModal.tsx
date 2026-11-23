@@ -92,7 +92,7 @@ export function TipModal({
   const [isLoadingQuote, setIsLoadingQuote] = useState<boolean>(false);
   const [quoteFetchFailed, setQuoteFetchFailed] = useState<boolean>(false);
 
-  const { kit } = useStellarWallet();
+  const { kit, disconnect } = useStellarWallet();
   const [feeStroops, setFeeStroops] = useState<number | undefined>(undefined);
   const fee = calculateFeeEstimate(feeStroops);
   const usdEquivalent =
@@ -436,7 +436,20 @@ export function TipModal({
       let errorMessage = "An unexpected error occurred. Please try again.";
 
       if (err instanceof Error) {
-        if (
+        const isWalletDisconnectedError =
+          err.message.includes("locked") ||
+          err.message.includes("disconnect") ||
+          err.message.includes("not connected") ||
+          err.message.includes("closed") ||
+          err.message.includes("No active account");
+
+        if (isWalletDisconnectedError) {
+          errorMessage =
+            "Wallet disconnected or locked during transaction. Please unlock or reconnect your wallet to retry.";
+          if (typeof disconnect === "function") {
+            disconnect();
+          }
+        } else if (
           err.message.includes("User declined") ||
           err.message.includes("rejected")
         ) {
