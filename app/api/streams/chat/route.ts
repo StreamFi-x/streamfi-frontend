@@ -26,6 +26,9 @@ import {
 // 30 messages per minute per IP prevents chat spam
 const isRateLimited = createRateLimiter(60_000, 30);
 
+// 120 polling requests per minute per IP accommodates 1-second active stream polling with multi-tab margin
+const isGetRateLimited = createRateLimiter(60_000, 120);
+
 // 120 deletes per minute per authenticated user — generous enough for a
 // spam-wave clear (moderator removing ~2 msg/s) but caps worst-case damage
 // if credentials are compromised (#763). Keyed on userId, not IP, so the
@@ -273,6 +276,18 @@ async function loadChatPage(playbackId: string, page: PageParams) {
  */
 export async function GET(req: Request) {
   try {
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      req.headers.get("x-real-ip") ??
+      "unknown";
+
+    if (await isGetRateLimited(ip)) {
+      return NextResponse.json(
+        { error: "Too many polling requests" },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const playbackId = searchParams.get("playbackId");
 
