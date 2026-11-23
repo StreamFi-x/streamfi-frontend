@@ -1,19 +1,21 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
-import type { NotificationPreferences } from "@/lib/notifications/preferences";
+import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
+import type { NotificationPreferenceKey } from "@/lib/notifications/preferences";
 
 interface ToggleSwitchProps {
   enabled: boolean;
+  label: string;
   onChange: (enabled: boolean) => void;
   loading?: boolean;
 }
 
 interface NotificationOptionType {
-  key: keyof NotificationPreferences;
+  key: NotificationPreferenceKey;
   title: string;
   description: string;
   enabled: boolean;
@@ -25,24 +27,34 @@ interface NotificationCategoryProps {
   isOpen: boolean;
   toggleSection: () => void;
   options: NotificationOptionType[];
-  onOptionToggle: (key: keyof NotificationPreferences, enabled: boolean) => void;
+  onOptionToggle: (key: NotificationPreferenceKey, enabled: boolean) => void;
   loading?: boolean;
 }
 
-const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ enabled, onChange, loading }) => {
+const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
+  enabled,
+  label,
+  onChange,
+  loading,
+}) => {
   return (
-    <div
-      className={`flex-shrink-0 w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label={label}
+      disabled={loading}
+      className={`flex-shrink-0 w-12 h-6 rounded-full p-1 transition-colors ${
         enabled ? "bg-highlight" : "bg-muted"
       } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-      onClick={() => !loading && onChange(!enabled)}
+      onClick={() => onChange(!enabled)}
     >
-      <div
+      <span
         className={`bg-white w-4 h-4 rounded-full transform transition-transform ${
           enabled ? "translate-x-6" : "translate-x-0"
         }`}
       />
-    </div>
+    </button>
   );
 };
 
@@ -57,24 +69,30 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
 }) => {
   return (
     <div className="bg-card border border-border shadow-sm rounded-lg mb-4 overflow-hidden">
-      <div
-        className="flex justify-between items-center cursor-pointer p-6"
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        className="flex justify-between items-center text-left w-full p-6"
         onClick={toggleSection}
       >
-        <div className="flex-1">
-          <h2 className="text-highlight text-xl font-medium">{title}</h2>
-          <p className="text-muted-foreground text-sm">{description}</p>
-        </div>
-        <button className="text-foreground">
+        <span className="flex-1">
+          <span className="block text-highlight text-xl font-medium">
+            {title}
+          </span>
+          <span className="block text-muted-foreground text-sm">
+            {description}
+          </span>
+        </span>
+        <span className="text-foreground">
           {isOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
-        </button>
-      </div>
+        </span>
+      </button>
 
       {isOpen && (
         <div>
           <hr className="border-border m-0 w-[96%] mx-auto" />
           <div>
-            {options.map((option) => (
+            {options.map(option => (
               <div
                 key={option.key}
                 className="py-5 flex justify-between items-center px-6 pl-24 md:pl-20"
@@ -87,7 +105,8 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
                 </div>
                 <ToggleSwitch
                   enabled={option.enabled}
-                  onChange={(enabled) => onOptionToggle(option.key, enabled)}
+                  label={option.title}
+                  onChange={enabled => onOptionToggle(option.key, enabled)}
                   loading={loading}
                 />
               </div>
@@ -101,8 +120,12 @@ const NotificationCategory: React.FC<NotificationCategoryProps> = ({
 
 const NotificationSettings: React.FC = () => {
   const { user, authenticated } = usePrivy();
-  const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
-  const [loading, setLoading] = useState(true);
+  const {
+    preferences,
+    isLoading: loading,
+    error: loadError,
+    update,
+  } = useNotificationPreferences(authenticated && !!user);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -110,83 +133,37 @@ const NotificationSettings: React.FC = () => {
     email: false,
   });
 
-  // Fetch preferences on mount
-  useEffect(() => {
-    if (!authenticated || !user) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchPreferences = async () => {
-      try {
-        const res = await fetch("/api/routes-f/notification-preferences", {
-          credentials: "include",
-        });
-        if (!res.ok) {
-          throw new Error("Failed to fetch preferences");
-        }
-        const data = await res.json();
-        setPreferences(data);
-        setError(null);
-      } catch (err) {
-        console.error("[NotificationSettings] fetch error:", err);
-        setError("Failed to load notification preferences");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPreferences();
-  }, [authenticated, user]);
-
   const toggleSection = (sectionId: string) => {
-    setOpenSections((prev) => ({
+    setOpenSections(prev => ({
       ...prev,
       [sectionId]: !prev[sectionId],
     }));
   };
 
   const handleOptionToggle = useCallback(
-    async (key: keyof NotificationPreferences, enabled: boolean) => {
-      if (!preferences) return;
-
-      // Optimistic update
-      setPreferences((prev) => prev ? { ...prev, [key]: enabled } : null);
-
-      // Save to server
+    async (key: NotificationPreferenceKey, enabled: boolean) => {
+      if (!preferences || saving) return;
       setSaving(true);
+      setError(null);
       try {
-        const res = await fetch("/api/routes-f/notification-preferences", {
-          method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ [key]: enabled }),
-        });
-
-        if (!res.ok) {
-          throw new Error("Failed to save preferences");
-        }
-
-        const updated = await res.json();
-        setPreferences(updated);
-        setError(null);
+        await update({ [key]: enabled });
       } catch (err) {
         console.error("[handleOptionToggle] error:", err);
-        // Revert optimistic update
-        setPreferences((prev) => prev ? { ...prev, [key]: !enabled } : null);
         setError("Failed to save preference. Please try again.");
       } finally {
         setSaving(false);
       }
     },
-    [preferences]
+    [preferences, saving, update]
   );
 
   if (!authenticated) {
     return (
       <div className="bg-secondary text-foreground min-h-screen p-6">
         <div className="max-w-2xl mx-auto">
-          <p className="text-muted-foreground">Please log in to manage notification preferences.</p>
+          <p className="text-muted-foreground">
+            Please log in to manage notification preferences.
+          </p>
         </div>
       </div>
     );
@@ -206,7 +183,11 @@ const NotificationSettings: React.FC = () => {
     return (
       <div className="bg-secondary text-foreground min-h-screen p-6">
         <div className="max-w-2xl mx-auto">
-          <p className="text-red-500">Failed to load notification preferences.</p>
+          <p className="text-red-500" role="alert">
+            {loadError
+              ? "Failed to load notification preferences."
+              : "Notification preferences are unavailable."}
+          </p>
         </div>
       </div>
     );
@@ -242,6 +223,12 @@ const NotificationSettings: React.FC = () => {
       title: "Featured Clips",
       description: "When your clips are featured",
       enabled: preferences.notify_clip_featured,
+    },
+    {
+      key: "notify_clip_created",
+      title: "Clips Created",
+      description: "When someone clips your stream",
+      enabled: preferences.notify_clip_created,
     },
     {
       key: "notify_payment_confirmed",
@@ -294,13 +281,18 @@ const NotificationSettings: React.FC = () => {
     <div className="bg-secondary text-foreground min-h-screen p-6">
       <div className="max-w-2xl mx-auto">
         {error && (
-          <div className="mb-4 p-4 bg-red-500/10 border border-red-500 rounded-lg text-red-500 text-sm">
+          <div
+            role="alert"
+            className="mb-4 p-4 bg-red-500/10 border border-red-500 rounded-lg text-red-500 text-sm"
+          >
             {error}
           </div>
         )}
 
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Notification Preferences</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Notification Preferences
+          </h1>
           <p className="text-muted-foreground">
             Control how and when you receive notifications from StreamFi
           </p>
@@ -330,17 +322,19 @@ const NotificationSettings: React.FC = () => {
           <button
             onClick={async () => {
               setSaving(true);
+              setError(null);
               try {
-                const res = await fetch("/api/routes-f/notification-preferences", {
-                  method: "PUT",
-                  credentials: "include",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ unsubscribed_all: !preferences.unsubscribed_all }),
+                await update({
+                  unsubscribed_all: !preferences.unsubscribed_all,
                 });
-                if (res.ok) {
-                  const updated = await res.json();
-                  setPreferences(updated);
-                }
+              } catch (err) {
+                console.error(
+                  "[NotificationSettings] global update error:",
+                  err
+                );
+                setError(
+                  "Failed to update notification preferences. Please try again."
+                );
               } finally {
                 setSaving(false);
               }

@@ -68,6 +68,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^16.6.1",
     "embla-carousel-react": "^8.5.2",
+    "file-type": "^22.3.0",
     "formidable": "^3.5.4",
     "framer-motion": "^12.34.3",
     "input-otp": "^1.4.2",
