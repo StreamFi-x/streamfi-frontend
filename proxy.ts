@@ -23,6 +23,8 @@ function buildCsp(nonce: string): string {
   ].join("; ");
 }
 
+export async function proxy(req: NextRequest) {
+  const hostname = req.headers.get("host") ?? "";
 export async function proxy(request: NextRequest) {
   if (
     process.env.NODE_ENV === "production" &&

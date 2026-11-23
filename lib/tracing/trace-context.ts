@@ -85,6 +85,10 @@ export function createTraceContext(
 /**
  * Run a function within a trace context
  */
+export function withTraceContext<T>(
+  context: TraceContext,
+  fn: () => T
+): T {
 export function withTraceContext<T>(context: TraceContext, fn: () => T): T {
   if (asyncLocalStorage) {
     return asyncLocalStorage.run(context, fn);
