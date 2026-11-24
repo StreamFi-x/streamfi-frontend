@@ -68,6 +68,7 @@ export async function GET() {
       "video.asset.ready",
       "video.asset.errored",
       "video.asset.deleted",
+      "video.upload.asset_created",
     ],
   });
 }

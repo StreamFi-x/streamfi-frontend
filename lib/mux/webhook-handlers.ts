@@ -2,6 +2,7 @@ import { defaultExecutor } from "@/lib/db/executor";
 import { writeNotification } from "@/lib/notifications";
 import { markMuxStreamLive, markMuxStreamOffline } from "@/lib/mux/live-state";
 import { upsertRecordingFromAsset } from "@/lib/mux/recordings";
+import { resolveRecordingSession } from "@/lib/mux/recording-attribution";
 import type {
   MuxEventHandler,
   MuxLogOnlyEvents,
@@ -147,6 +148,8 @@ export function assetHandlers({
         duration?: number | null;
         live_stream_id?: string;
         live_stream?: { id?: string };
+        passthrough?: string | null;
+        created_at?: string | number | null;
       };
       const assetId = data.id;
       const playbackId = Array.isArray(data.playback_ids)
@@ -156,33 +159,26 @@ export function assetHandlers({
         data.duration !== null && data.duration !== undefined
           ? Math.round(data.duration)
           : null;
-      const liveStreamId = data.live_stream_id ?? data.live_stream?.id;
+      const liveStreamId = data.live_stream_id ?? data.live_stream?.id ?? null;
+      const passthrough = data.passthrough ?? null;
+      const assetCreatedAt = data.created_at ?? event.created_at ?? null;
 
       if (!playbackId) {
         console.error(`❌ video.asset.ready missing playback_id: ${assetId}`);
         return;
       }
 
-      let userId: string | null = null;
-      let streamSessionId: string | null = null;
-      let title = "Stream Recording";
+      const resolution = await resolveRecordingSession(tx, {
+        assetId,
+        liveStreamId,
+        playbackId,
+        passthrough,
+        assetCreatedAt,
+      });
 
-      if (liveStreamId) {
-        const userResult = await tx.sql`
-          SELECT id, creator FROM users WHERE mux_stream_id = ${liveStreamId}
-        `;
-        if (userResult.rows.length > 0) {
-          const u = userResult.rows[0];
-          userId = u.id;
-          title = u.creator?.streamTitle ?? u.creator?.title ?? title;
-          const sessionResult = await tx.sql`
-            SELECT id FROM stream_sessions
-            WHERE user_id = ${u.id} AND ended_at IS NOT NULL
-            ORDER BY ended_at DESC LIMIT 1
-          `;
-          streamSessionId = sessionResult.rows[0]?.id ?? null;
-        }
-      }
+      const userId = resolution.userId;
+      const streamSessionId = resolution.streamSessionId;
+      const title = resolution.title ?? "Stream Recording";
 
       if (!userId) {
         console.warn(
@@ -202,7 +198,9 @@ export function assetHandlers({
         },
         tx
       );
-      console.log(`✅ Stream recording saved: ${assetId}`);
+      console.log(
+        `✅ Stream recording saved: ${assetId} (session: ${streamSessionId ?? "none"}, method: ${resolution.method})`
+      );
 
       if (notifyOwner) {
         const minutes = duration ? Math.floor(duration / 60) : 0;
@@ -211,6 +209,49 @@ export function assetHandlers({
           "live",
           "Recording Ready",
           `Your stream recording is ready (${minutes} min). Review it now!`,
+          tx
+        );
+      }
+    },
+
+    "video.upload.asset_created": async (tx, event) => {
+      const data = event.data as {
+        id: string;
+        asset_id?: string;
+        playback_ids?: Array<{ id?: string }>;
+        passthrough?: string | null;
+        new_asset_settings?: { passthrough?: string | null };
+        created_at?: string | number | null;
+      };
+      const assetId = data.asset_id ?? data.id;
+      const passthrough =
+        data.passthrough ?? data.new_asset_settings?.passthrough ?? null;
+      const playbackId = Array.isArray(data.playback_ids)
+        ? data.playback_ids[0]?.id
+        : undefined;
+      const assetCreatedAt = data.created_at ?? event.created_at ?? null;
+
+      const resolution = await resolveRecordingSession(tx, {
+        assetId,
+        passthrough,
+        playbackId,
+        assetCreatedAt,
+      });
+
+      console.log(
+        `📹 video.upload.asset_created: asset ${assetId} attributed to session ${resolution.streamSessionId ?? "none"} via ${resolution.method}`
+      );
+
+      if (resolution.userId && playbackId) {
+        await upsertRecordingFromAsset(
+          {
+            userId: resolution.userId,
+            streamSessionId: resolution.streamSessionId,
+            assetId,
+            playbackId,
+            title: resolution.title ?? "Stream Recording",
+            duration: null,
+          },
           tx
         );
       }

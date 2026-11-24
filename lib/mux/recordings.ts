@@ -43,7 +43,8 @@ export async function upsertRecordingFromAsset(
     ON CONFLICT (mux_asset_id) DO UPDATE SET
       status = 'ready',
       duration = COALESCE(EXCLUDED.duration, stream_recordings.duration),
-      playback_id = EXCLUDED.playback_id
+      playback_id = EXCLUDED.playback_id,
+      stream_session_id = COALESCE(stream_recordings.stream_session_id, EXCLUDED.stream_session_id)
     RETURNING (xmax = 0) AS inserted
   `;
   return rows[0]?.inserted === true;
