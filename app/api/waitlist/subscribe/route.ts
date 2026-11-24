@@ -9,7 +9,7 @@ function generateToken(): string {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { email?: string; name?: string };
+  let body: { email?: string; name?: string | null };
   try {
     body = await req.json();
   } catch {
@@ -31,6 +31,9 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+
+  const normalizedName =
+    typeof body.name === "string" ? body.name.trim() || null : null;
 
   try {
     const { rows } = await sql`
@@ -61,10 +64,11 @@ export async function POST(req: NextRequest) {
         : generateToken();
 
     if (existing) {
-      // Pending verification or resubscribing after unsubscribe — require double opt-in confirmation
+      // Pending verification or resubscribing after unsubscribe — require double opt-in confirmation.
+      // An explicit null or empty name clears any previously stored name.
       await sql`
         UPDATE subscribers
-        SET name = COALESCE(${body.name ?? null}, name),
+        SET name = ${normalizedName},
             confirmation_token = ${confirmationToken},
             confirmed_at = NULL,
             unsubscribe_token = ${unsubscribeToken},
@@ -83,7 +87,7 @@ export async function POST(req: NextRequest) {
         )
         VALUES (
           ${email},
-          ${body.name ?? null},
+          ${normalizedName},
           ${confirmationToken},
           NULL,
           ${unsubscribeToken}
@@ -92,7 +96,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Fire-and-forget — email failure must not fail the subscription request
-    sendWelcomeEmail(email, body.name ?? "", {
+    sendWelcomeEmail(email, normalizedName ?? "", {
       confirmationToken,
       unsubscribeToken,
     }).catch(err =>
