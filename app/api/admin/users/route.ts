@@ -25,7 +25,7 @@ export async function GET(req: NextRequest): Promise<Response> {
           FROM users
           WHERE is_banned = true
             AND username ILIKE ${"%" + q + "%"}
-          ORDER BY created_at DESC
+          ORDER BY created_at DESC, id DESC
           LIMIT ${limit} OFFSET ${offset}
         `;
       } else {
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest): Promise<Response> {
           SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
           WHERE is_banned = true
-          ORDER BY created_at DESC
+          ORDER BY created_at DESC, id DESC
           LIMIT ${limit} OFFSET ${offset}
         `;
       }
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest): Promise<Response> {
           FROM users
           WHERE is_live = true
             AND username ILIKE ${"%" + q + "%"}
-          ORDER BY created_at DESC
+          ORDER BY created_at DESC, id DESC
           LIMIT ${limit} OFFSET ${offset}
         `;
       } else {
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest): Promise<Response> {
           SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
           WHERE is_live = true
-          ORDER BY created_at DESC
+          ORDER BY created_at DESC, id DESC
           LIMIT ${limit} OFFSET ${offset}
         `;
       }
@@ -63,14 +63,14 @@ export async function GET(req: NextRequest): Promise<Response> {
           SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
           WHERE username ILIKE ${"%" + q + "%"}
-          ORDER BY created_at DESC
+          ORDER BY created_at DESC, id DESC
           LIMIT ${limit} OFFSET ${offset}
         `;
       } else {
         result = await sql`
           SELECT id, username, avatar, email, is_live, is_banned, ban_reason, deleted_at, created_at, total_views
           FROM users
-          ORDER BY created_at DESC
+          ORDER BY created_at DESC, id DESC
           LIMIT ${limit} OFFSET ${offset}
         `;
       }
