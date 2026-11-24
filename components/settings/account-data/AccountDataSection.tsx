@@ -23,7 +23,7 @@ interface DeletionRecord {
 
 interface ExportJobState {
   exportId: string;
-  status: "queued" | "ready" | "failed";
+  status: "queued" | "ready" | "failed" | "timed_out";
   downloadUrl?: string;
   emailedAt?: string;
   error?: string;
@@ -139,6 +139,11 @@ export default function AccountDataSection() {
           pollTimerRef.current = setTimeout(() => {
             void pollExportStatus(exportId);
           }, EXPORT_POLL_INTERVAL_MS);
+        } else {
+          stopExportPolling();
+          setExportJob(prev =>
+            prev ? { ...prev, status: "timed_out" } : null
+          );
         }
       } catch {
         stopExportPolling();
@@ -244,13 +249,26 @@ export default function AccountDataSection() {
     setIsDeleteModalOpen(true);
   };
 
-  const closeDeleteModal = () => {
+  const closeDeleteModal = useCallback(() => {
     if (isSubmittingDeletion) {
       return;
     }
     setIsDeleteModalOpen(false);
     setDeletionError(null);
-  };
+  }, [isSubmittingDeletion]);
+
+  useEffect(() => {
+    if (!isDeleteModalOpen) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeDeleteModal();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDeleteModalOpen, closeDeleteModal]);
 
   const handleConfirmDeletion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -393,6 +411,8 @@ export default function AccountDataSection() {
                   <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
                 ) : exportJob.status === "failed" ? (
                   <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                ) : exportJob.status === "timed_out" ? (
+                  <AlertTriangle className="w-4 h-4 text-yellow-500 shrink-0" />
                 ) : (
                   <Loader2 className="w-4 h-4 animate-spin text-highlight shrink-0" />
                 )}
@@ -401,13 +421,34 @@ export default function AccountDataSection() {
                     ? "Your data export is ready."
                     : exportJob.status === "failed"
                       ? "Data export failed."
-                      : "Your data export has been queued."}
+                      : exportJob.status === "timed_out"
+                        ? "Your data export is still being prepared. Check your email or check status again."
+                        : "Your data export has been queued."}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
                 Export ID:{" "}
                 <code className="font-mono">{exportJob.exportId}</code>
               </p>
+              {exportJob.status === "timed_out" && (
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      pollAttemptsRef.current = 0;
+                      setExportError(null);
+                      setExportJob(prev =>
+                        prev ? { ...prev, status: "queued" } : null
+                      );
+                      void pollExportStatus(exportJob.exportId);
+                    }}
+                    className="inline-flex items-center gap-2 border border-border hover:bg-surface-hover text-foreground px-3 py-1.5 rounded-md text-xs font-medium"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Check Status
+                  </button>
+                </div>
+              )}
               {exportJob.status === "ready" && exportJob.downloadUrl && (
                 <div className="pt-1 flex flex-wrap items-center gap-3">
                   <a

@@ -260,4 +260,229 @@ describe("AccountDataSection (#1732)", () => {
       ).toBeInTheDocument();
     });
   });
+
+  it("closes the deletion confirmation modal when Escape is pressed", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ deletion: null, graceDays: 30 }),
+    });
+
+    render(<AccountDataSection />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /Delete Account/i })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Delete Account/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("displays an error when data export polling reports failure", async () => {
+    jest.useFakeTimers();
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ deletion: null, graceDays: 30 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 202,
+        json: async () => ({ export_id: "acct_exp_fail", status: "queued" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: "failed",
+          error: "Archive generation failed",
+        }),
+      });
+
+    render(<AccountDataSection />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /Request Data Export/i })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Request Data Export/i })
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Your data export has been queued/i)
+      ).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(1100);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Archive generation failed"
+      );
+    });
+  });
+
+  it("stops polling after max attempts and lets user manually check status", async () => {
+    jest.useFakeTimers();
+
+    const fetchMock = global.fetch as jest.Mock;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ deletion: null, graceDays: 30 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 202,
+        json: async () => ({ export_id: "acct_exp_slow", status: "queued" }),
+      });
+
+    for (let i = 0; i < 20; i++) {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "queued" }),
+      });
+    }
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        status: "ready",
+        download_url:
+          "/api/routes-f/account-data-export/download/acct_exp_slow.zip",
+      }),
+    });
+
+    render(<AccountDataSection />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /Request Data Export/i })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Request Data Export/i })
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Your data export has been queued/i)
+      ).toBeInTheDocument();
+    });
+
+    for (let i = 0; i < 20; i++) {
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+    }
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Your data export is still being prepared/i)
+      ).toBeInTheDocument();
+    });
+
+    const checkStatusBtn = screen.getByRole("button", {
+      name: /Check Status/i,
+    });
+    fireEvent.click(checkStatusBtn);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("link", { name: /Download Data Archive/i })
+      ).toHaveAttribute(
+        "href",
+        "/api/routes-f/account-data-export/download/acct_exp_slow.zip"
+      );
+    });
+  });
+
+  it("surfaces API errors when account deletion submission fails", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ deletion: null, graceDays: 30 }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ error: "Username confirmation mismatch" }),
+      });
+
+    render(<AccountDataSection />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /Delete Account/i })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Delete Account/i }));
+    fireEvent.change(screen.getByLabelText(/Type/i), {
+      target: { value: "alice" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: /Confirm Account Deletion/i })
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Username confirmation mismatch"
+      );
+    });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("surfaces API errors when cancelling a pending deletion fails", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          deletion: {
+            status: "pending",
+            requested_at: "2026-11-20T00:00:00.000Z",
+            purge_after: "2026-12-20T00:00:00.000Z",
+            cancelled_at: null,
+          },
+          graceDays: 30,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: "Unable to cancel deletion right now" }),
+      });
+
+    render(<AccountDataSection />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /Cancel Account Deletion/i })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Cancel Account Deletion/i })
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Unable to cancel deletion right now"
+      );
+    });
+  });
 });
