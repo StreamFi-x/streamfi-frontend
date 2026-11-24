@@ -1,4 +1,5 @@
 import { sql } from "@vercel/postgres";
+import { logger } from "@/lib/tracing/logger";
 import { writeTemplatedNotification } from "@/lib/notifications";
 import { shouldSendInAppNotification } from "@/lib/notifications/preferences";
 
@@ -241,7 +242,11 @@ export async function evaluateAndAwardBadges(userId: string) {
           );
         }
       } catch (err) {
-        console.error(`[badge-notification] failed for user ${userId}:`, err);
+        logger.error("Badge notification delivery failed", err, {
+          module: "routes-f/badges",
+          operation: "evaluateAndAwardBadges",
+          userId,
+        });
       }
     })
   );

@@ -1,4 +1,5 @@
 import { deleteImage, extractPublicIdFromUrl } from "@/utils/upload/cloudinary";
+import { logger } from "@/lib/tracing/logger";
 
 /**
  * Tracks Cloudinary images touched by a profile update so they are only
@@ -16,9 +17,15 @@ export function createImageCleanup() {
     try {
       await deleteImage(publicId);
     } catch (error) {
-      console.error(
-        `Failed to delete ${reason} Cloudinary image ${publicId}:`,
-        error
+      logger.error(
+        `Failed to delete ${reason} Cloudinary image`,
+        error,
+        {
+          module: "users/image-cleanup",
+          operation: "destroy",
+          publicId,
+          reason,
+        }
       );
     }
   }
