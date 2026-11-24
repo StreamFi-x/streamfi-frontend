@@ -1,8 +1,9 @@
+import { StrKey } from "@stellar/stellar-sdk";
 import { logger } from "@/lib/tracing/logger";
 import { callHorizon } from "./horizon-client";
 import { toStroops, fromStroops } from "./tip-reconciliation";
 
-interface FetchPaymentsParams {
+export interface FetchPaymentsParams {
   publicKey: string;
   limit?: number;
   cursor?: string;
@@ -11,68 +12,125 @@ interface FetchPaymentsParams {
    * oldest, or after `cursor`, so a walk can resume where it stopped.
    */
   order?: "asc" | "desc";
+  /**
+   * Filter payments by asset type: "all" (default, XLM + USDC), "native" (XLM only), or "usdc" (USDC only).
+   */
+  assetType?: "all" | "native" | "usdc";
 }
 
-interface TipRecord {
+export interface TipRecord {
   id: string;
   sender: string;
   amount: string;
   asset: string;
+  assetIssuer?: string;
   txHash: string;
   timestamp: string;
   ledger: number;
 }
 
-interface FetchPaymentsResult {
+export interface FetchPaymentsResult {
   tips: TipRecord[];
   nextCursor: string | undefined;
 }
 
+export interface AssetTipStats {
+  totalAmount: string;
+  count: number;
+}
+
+export interface AccountTipStatsResult {
+  totalTipsReceived: string; // Backwards compatible XLM total formatted in stroops/decimals
+  totalXlmReceived: string;
+  totalUsdcReceived: string;
+  totalTipsCount: number;
+  lastTipAt: string | null;
+  breakdownByAsset: Record<string, AssetTipStats>;
+}
+
 /**
- * Fetches incoming payments (tips) for a Stellar account with pagination support.
+ * Validates a Stellar public key format (G... 56 chars).
+ */
+export function isValidStellarPublicKey(key: string): boolean {
+  if (!key || typeof key !== "string" || key.length !== 56) return false;
+  try {
+    return StrKey.isValidEd25519PublicKey(key);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fetches incoming payments (tips) for a Stellar account with multi-asset and pagination support.
  */
 export async function fetchPaymentsReceived(
   params: FetchPaymentsParams
 ): Promise<FetchPaymentsResult> {
+  const { publicKey, limit = 200, cursor, order = "desc", assetType = "all" } = params;
+
+  if (!publicKey || !isValidStellarPublicKey(publicKey)) {
+    throw new Error(`Invalid Stellar public key: ${publicKey}`);
+  }
+
   const startTime = Date.now();
 
   try {
     logger.info("Fetching payments from Stellar", {
       operation: "fetchPaymentsReceived",
-      publicKey: params.publicKey.substring(0, 8),
-      limit: params.limit || 200,
+      publicKey: publicKey.substring(0, 8),
+      limit: Math.min(limit, 200),
+      assetType,
     });
 
-    const order = params.order ?? "desc";
     const payments = await callHorizon(server => {
       const builder = server
         .payments()
-        .forAccount(params.publicKey)
-        .limit(params.limit || 200)
+        .forAccount(publicKey)
+        .limit(Math.min(limit, 200))
         .order(order);
-      const cursor = params.cursor;
       return (cursor ? builder.cursor(cursor) : builder).call();
     });
 
-    // Filter only incoming payments with XLM
+    // Filter incoming payments with XLM or USDC
     const tips: TipRecord[] = payments.records
       .filter((payment: any) => {
-        return (
+        const isIncoming =
           (payment.type === "payment" ||
             payment.type === "path_payment_strict_receive") &&
-          payment.to === params.publicKey &&
-          payment.asset_type === "native"
-        );
+          payment.to === publicKey;
+
+        if (!isIncoming) return false;
+
+        const isNative = payment.asset_type === "native";
+        const isUsdc =
+          (payment.asset_code === "USDC" || payment.asset_type?.includes("credit")) &&
+          payment.asset_code === "USDC";
+
+        if (assetType === "native") return isNative;
+        if (assetType === "usdc") return isUsdc;
+        return isNative || isUsdc;
       })
-      .map((payment: any) => ({
-        id: payment.id,
-        sender: payment.from,
-        amount: payment.amount,
-        asset: "XLM",
-        txHash: payment.transaction_hash,
-        timestamp: payment.created_at,
-        ledger: payment.ledger,
-      }));
+      .map((payment: any) => {
+        const isNative = payment.asset_type === "native";
+        const asset = isNative ? "XLM" : payment.asset_code || "UNKNOWN";
+
+        return {
+          id: payment.id,
+          sender: payment.from,
+          amount: payment.amount,
+          asset,
+          assetIssuer: payment.asset_issuer || undefined,
+          txHash: payment.transaction_hash,
+          timestamp: payment.created_at,
+          ledger: payment.ledger,
+        };
+      });
+
+    const lastRecord = payments.records[payments.records.length - 1];
+    const nextCursor =
+      payments.records.length > 0 && lastRecord?.paging_token !== cursor
+        ? lastRecord?.paging_token
+        : undefined;
 
     const durationMs = Date.now() - startTime;
     logger.info("Payments fetched from Stellar", {
@@ -83,10 +141,7 @@ export async function fetchPaymentsReceived(
 
     return {
       tips,
-      nextCursor:
-        payments.records.length > 0
-          ? payments.records[payments.records.length - 1]?.paging_token
-          : undefined,
+      nextCursor,
     };
   } catch (error) {
     const durationMs = Date.now() - startTime;
@@ -100,10 +155,16 @@ export async function fetchPaymentsReceived(
 }
 
 /**
- * Fetches the total payment statistics for a Stellar account.
- * This looks for incoming payments (native XLM) and sums them up.
+ * Fetches comprehensive multi-asset tip statistics for a Stellar account.
+ * Aggregates both native XLM (using stroops precision) and USDC tips received.
  */
-export async function getAccountTipStats(publicKey: string) {
+export async function getAccountTipStats(
+  publicKey: string
+): Promise<AccountTipStatsResult> {
+  if (!publicKey || !isValidStellarPublicKey(publicKey)) {
+    throw new Error(`Invalid Stellar public key: ${publicKey}`);
+  }
+
   const startTime = Date.now();
 
   try {
@@ -117,27 +178,50 @@ export async function getAccountTipStats(publicKey: string) {
     );
 
     let totalTipsStroops = BigInt(0);
+    let totalUsdc = 0;
     let totalTipsCount = 0;
     let lastTipAt: Date | null = null;
+    const breakdown: Record<string, { amount: number; count: number; stroops?: bigint }> = {
+      XLM: { amount: 0, count: 0, stroops: BigInt(0) },
+      USDC: { amount: 0, count: 0 },
+    };
 
-    // Filter for incoming payments of type 'payment' or 'path_payment_strict_receive'
-    // that are in native XLM.
+    // Filter incoming payments of type 'payment' or 'path_payment_strict_receive'
     const tipRecords = payments.records.filter((record: any) => {
-      return (
+      const isIncoming =
         (record.type === "payment" ||
           record.type === "path_payment_strict_receive") &&
-        record.to === publicKey &&
-        record.asset_type === "native"
-      );
+        record.to === publicKey;
+      if (!isIncoming) return false;
+
+      const isNative = record.asset_type === "native";
+      const isUsdc = record.asset_code === "USDC";
+      return isNative || isUsdc;
     });
 
     tipRecords.forEach((record: any) => {
-      try {
-        totalTipsStroops += toStroops(record.amount);
-      } catch {
-        // Fallback for unexpected number formatting
-        totalTipsStroops += BigInt(Math.round(parseFloat(record.amount || "0") * 10_000_000));
+      const isNative = record.asset_type === "native";
+      const assetCode = isNative ? "XLM" : record.asset_code || "OTHER";
+      const numAmount = parseFloat(record.amount || "0") || 0;
+
+      if (isNative) {
+        try {
+          const stroops = toStroops(record.amount);
+          totalTipsStroops += stroops;
+          breakdown.XLM.stroops = (breakdown.XLM.stroops ?? BigInt(0)) + stroops;
+        } catch {
+          const fallbackStroops = BigInt(Math.round(numAmount * 10_000_000));
+          totalTipsStroops += fallbackStroops;
+          breakdown.XLM.stroops = (breakdown.XLM.stroops ?? BigInt(0)) + fallbackStroops;
+        }
+        breakdown.XLM.amount += numAmount;
+        breakdown.XLM.count += 1;
+      } else if (assetCode === "USDC") {
+        totalUsdc += numAmount;
+        breakdown.USDC.amount += numAmount;
+        breakdown.USDC.count += 1;
       }
+
       totalTipsCount += 1;
 
       const createdAt = new Date(record.created_at);
@@ -151,13 +235,29 @@ export async function getAccountTipStats(publicKey: string) {
       operation: "getAccountTipStats",
       totalTipsCount,
       totalTipsStroops: totalTipsStroops.toString(),
+      totalUsdc: totalUsdc.toFixed(2),
       durationMs,
     });
 
+    const xlmFormatted = fromStroops(totalTipsStroops);
+    const breakdownByAsset: Record<string, AssetTipStats> = {
+      XLM: {
+        totalAmount: xlmFormatted,
+        count: breakdown.XLM.count,
+      },
+      USDC: {
+        totalAmount: totalUsdc.toFixed(2),
+        count: breakdown.USDC.count,
+      },
+    };
+
     return {
-      totalTipsReceived: fromStroops(totalTipsStroops),
+      totalTipsReceived: xlmFormatted,
+      totalXlmReceived: xlmFormatted,
+      totalUsdcReceived: totalUsdc.toFixed(2),
       totalTipsCount,
       lastTipAt: lastTipAt ? (lastTipAt as Date).toISOString() : null,
+      breakdownByAsset,
     };
   } catch (error) {
     const durationMs = Date.now() - startTime;
