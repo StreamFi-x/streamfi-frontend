@@ -19,7 +19,7 @@ jest.mock("@vercel/postgres", () => ({
 }));
 
 import { sql } from "@vercel/postgres";
-import { GET } from "../route";
+import { GET } from "../route.dev";
 
 const sqlMock = sql as unknown as jest.Mock;
 

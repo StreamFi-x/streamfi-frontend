@@ -8,6 +8,8 @@
  * gated by a shared secret in non-production (#1612), and the key preview is
  * gone. These tests lock that in.
  */
+import fs from "fs";
+import path from "path";
 import { NextRequest } from "next/server";
 import { createSqlMock } from "@/testing/sql-mock";
 
@@ -16,10 +18,10 @@ jest.mock("@vercel/postgres", () => ({
   sql: (...args: unknown[]) => mockDb.sql(...args),
 }));
 
-import { GET as clearUsersRoute } from "@/app/api/debug/clear-users/route";
-import { GET as envRoute } from "@/app/api/debug/env/route";
-import { GET as migrateChatRoute } from "@/app/api/debug/migrate-chat/route";
-import nextConfig from "@/next.config.js";
+import { GET as clearUsersRoute } from "@/app/api/debug/clear-users/route.dev";
+import { GET as envRoute } from "@/app/api/debug/env/route.dev";
+import { GET as migrateChatRoute } from "@/app/api/debug/migrate-chat/route.dev";
+import nextConfig, { getPageExtensions } from "@/next.config.js";
 import { proxy } from "@/proxy";
 
 const SECRET = "debug-secret-value";
@@ -136,11 +138,52 @@ describe("production debug route exclusion (#1720)", () => {
   it("proxy blocks /api/debug/* with 404 in production", async () => {
     (process.env as Record<string, string | undefined>).NODE_ENV = "production";
 
-    const res = proxy(
+    const res = await proxy(
       new NextRequest("https://streamfi.media/api/debug/env?secret=any")
     );
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "Not Found" });
+  });
+
+  it("next.config.js excludes dev.* pageExtensions in production builds", () => {
+    const prodExtensions = getPageExtensions("production");
+    expect(prodExtensions).not.toContain("dev.ts");
+    expect(prodExtensions).not.toContain("dev.tsx");
+    expect(prodExtensions).not.toContain("dev.js");
+    expect(prodExtensions).not.toContain("dev.jsx");
+    expect(prodExtensions).toEqual(["tsx", "ts", "jsx", "js"]);
+  });
+
+  it("next.config.js includes dev.* pageExtensions in development builds", () => {
+    const devExtensions = getPageExtensions("development");
+    expect(devExtensions).toContain("dev.ts");
+    expect(devExtensions).toContain("dev.tsx");
+    expect(devExtensions).toContain("dev.js");
+    expect(devExtensions).toContain("dev.jsx");
+  });
+
+  it("all debug API routes use the .dev.ts suffix so Next.js omits them from production builds", () => {
+    const debugRoot = path.join(process.cwd(), "app", "api", "debug");
+    const routeFiles: string[] = [];
+
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name !== "__tests__") {
+            walk(fullPath);
+          }
+        } else if (/^route\./.test(entry.name)) {
+          routeFiles.push(path.relative(debugRoot, fullPath));
+        }
+      }
+    };
+
+    walk(debugRoot);
+    expect(routeFiles.length).toBeGreaterThan(0);
+    for (const file of routeFiles) {
+      expect(file).toMatch(/route\.dev\.ts$/);
+    }
   });
 
   it("next.config.js rewrites /api/debug/:path* to /404 in production builds", async () => {
