@@ -54,6 +54,8 @@ const nextConfig = {
   // Environment variables validation
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
+    NEXT_PUBLIC_VERCEL_ENV:
+      process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.VERCEL_ENV || "",
   },
 
   // Bundle analyzer (optional - for production optimization)

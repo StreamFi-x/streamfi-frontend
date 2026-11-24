@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth/verify-session";
 import { sql } from "@vercel/postgres";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { getReservedUsernameError } from "@/lib/reserved-usernames";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -29,6 +30,11 @@ export async function PATCH(req: NextRequest) {
       { error: "Handle must be 3-30 characters long and contain only letters, numbers, and underscores" },
       { status: 400 }
     );
+  }
+
+  const reservedError = getReservedUsernameError(cleanHandle);
+  if (reservedError) {
+    return NextResponse.json({ error: reservedError }, { status: 400 });
   }
 
   // 1. Check 30-day rate limit

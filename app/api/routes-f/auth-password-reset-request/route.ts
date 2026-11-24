@@ -23,6 +23,8 @@ import { signToken } from "@/lib/auth/sign-token";
 import { hashToken } from "@/lib/sessions/user-sessions";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { sendPasswordResetEmail } from "@/utils/send-email";
+import { executeEmailWithRetryAndDeadLetter } from "@/lib/email/reliable-sender";
+import { logger } from "@/lib/tracing/logger";
 
 // 5 requests per 15 minutes per IP, and per account — generous enough for a
 // legitimate user who mistypes their password a few times, tight enough to
@@ -87,9 +89,9 @@ export async function POST(request: NextRequest) {
 
   const secret = process.env.SESSION_SECRET;
   if (!secret) {
-    console.error(
-      "[routes-f auth-password-reset-request] SESSION_SECRET not configured"
-    );
+    logger.error("SESSION_SECRET not configured", {
+      route: "POST /api/routes-f/auth-password-reset-request",
+    });
     return NextResponse.json(
       { error: "Server misconfiguration" },
       { status: 500 }
@@ -113,7 +115,10 @@ export async function POST(request: NextRequest) {
     // for the same user never collide, even before hashing.
     const nonce = randomBytes(16).toString("hex");
     const exp = Math.floor(Date.now() / 1000) + RESET_TOKEN_TTL_SECONDS;
-    const rawToken = signToken({ userId: user.id, purpose: "password_reset", nonce, exp }, secret);
+    const rawToken = signToken(
+      { userId: user.id, purpose: "password_reset", nonce, exp },
+      secret
+    );
     const tokenHash = hashToken(rawToken);
 
     // Invalidate any previously issued, still-unused reset tokens for this
@@ -132,18 +137,23 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
     const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
 
-    await sendPasswordResetEmail(user.email, resetUrl).catch((err: unknown) => {
-      // Do not fail the request just because the email provider hiccuped —
-      // log it, but keep the response generic either way.
-      console.error(
-        "[routes-f auth-password-reset-request] Failed to send email:",
-        err
-      );
-    });
+    await executeEmailWithRetryAndDeadLetter(
+      () => sendPasswordResetEmail(user.email, resetUrl),
+      {
+        emailType: "password_reset",
+        recipientEmail: user.email,
+        subject: "Reset your StreamFi password",
+        payload: { userId: user.id },
+        maxRetries: 1,
+        initialBackoffMs: 50,
+      }
+    );
 
     return NextResponse.json(GENERIC_RESPONSE, { status: 200 });
   } catch (error) {
-    console.error("[routes-f auth-password-reset-request POST]", error);
+    logger.error("Failed to process password reset request", error, {
+      route: "POST /api/routes-f/auth-password-reset-request",
+    });
     return NextResponse.json(
       { error: "Failed to process password reset request" },
       { status: 500 }

@@ -3,6 +3,7 @@ import { verifySession } from "@/lib/auth/verify-session";
 import { validateBody } from "@/app/api/routes-f/_lib/validate";
 import { z } from "zod";
 import { insertActivityEvent } from "@/app/api/routes-f/activity/_lib/insert";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,10 +32,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const { creator_id, amount, currency, tx_hash } = bodyResult.data;
 
   if (creator_id === session.userId) {
-    return NextResponse.json(
-      { error: "Cannot tip yourself" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Cannot tip yourself" }, { status: 400 });
   }
 
   try {
@@ -63,7 +61,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       { status: 201 }
     );
   } catch (error) {
-    console.error("[routes-f tips/payment POST]", error);
+    logger.error("Error recording tip payment activity", error, {
+      route: "POST /api/routes-f/tips/payment",
+      creatorId: creator_id,
+    });
     return NextResponse.json(
       { error: "Failed to record tip activity" },
       { status: 500 }

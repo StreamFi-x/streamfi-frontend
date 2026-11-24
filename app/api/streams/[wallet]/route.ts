@@ -1,7 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getMuxStreamHealth } from "@/lib/mux/server";
 import { verifySession } from "@/lib/auth/verify-session";
+import {
+  apiBadRequest,
+  apiInternalError,
+  apiNotFound,
+  apiSuccess,
+} from "@/lib/api";
+import { logger } from "@/lib/tracing/logger";
 
 export async function GET(
   req: NextRequest,
@@ -11,10 +18,7 @@ export async function GET(
     const { wallet } = await params;
 
     if (!wallet) {
-      return NextResponse.json(
-        { error: "Wallet parameter is required" },
-        { status: 400 }
-      );
+      return apiBadRequest("Wallet parameter is required");
     }
 
     const result = await sql`
@@ -46,7 +50,7 @@ export async function GET(
     `;
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ error: "Stream not found" }, { status: 404 });
+      return apiNotFound("Stream not found");
     }
 
     const streamData = result.rows[0];
@@ -66,7 +70,10 @@ export async function GET(
       try {
         muxHealth = await getMuxStreamHealth(streamData.mux_stream_id);
       } catch (healthError) {
-        console.error("Failed to get Mux health:", healthError);
+        logger.error("Failed to get Mux health", healthError, {
+          route: "GET /api/streams/[wallet]",
+          muxStreamId: streamData.mux_stream_id,
+        });
       }
     }
 
@@ -117,18 +124,17 @@ export async function GET(
         : null,
     };
 
-    return NextResponse.json(
+    return apiSuccess(
       { streamData: responseData },
       {
-        status: 200,
         headers: { "Cache-Control": "private, max-age=10" },
+        legacyFlat: true,
       }
     );
   } catch (error) {
-    console.error("Get stream error:", error);
-    return NextResponse.json(
-      { error: "Failed to get stream data" },
-      { status: 500 }
-    );
+    logger.error("Get stream error", error, {
+      route: "GET /api/streams/[wallet]",
+    });
+    return apiInternalError("Failed to get stream data");
   }
 }

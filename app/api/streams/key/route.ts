@@ -1,7 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { getWalletOrDevDefault, shouldBypassAuth } from "@/lib/dev-mode";
 import { verifySession } from "@/lib/auth/verify-session";
+import {
+  apiBadRequest,
+  apiInternalError,
+  apiNotFound,
+  apiSuccess,
+} from "@/lib/api";
 
 /**
  * GET /api/streams/key
@@ -25,19 +31,13 @@ export async function GET(req: NextRequest) {
         return session.response;
       }
       if (!session.wallet) {
-        return NextResponse.json(
-          { error: "No wallet on session" },
-          { status: 400 }
-        );
+        return apiBadRequest("No wallet on session");
       }
       wallet = session.wallet;
     }
 
     if (!wallet) {
-      return NextResponse.json(
-        { error: "Wallet parameter required" },
-        { status: 400 }
-      );
+      return apiBadRequest("Wallet parameter required");
     }
 
     const userResult = await sql`
@@ -57,15 +57,14 @@ export async function GET(req: NextRequest) {
     `;
 
     if (userResult.rows.length === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return apiNotFound("User not found");
     }
 
     const user = userResult.rows[0];
 
     if (!user.streamkey || !user.mux_stream_id) {
-      return NextResponse.json(
+      return apiSuccess(
         {
-          message: "No stream key found",
           hasStream: false,
           streamKey: null,
           enableRecording: user.enable_recording === true,
@@ -77,13 +76,12 @@ export async function GET(req: NextRequest) {
                 user.creator?.subscription_price_usdc
             ) || null,
         },
-        { status: 200 }
+        { message: "No stream key found", legacyFlat: true }
       );
     }
 
-    return NextResponse.json(
+    return apiSuccess(
       {
-        message: "Stream key retrieved successfully",
         hasStream: true,
         streamData: {
           streamKey: user.streamkey,
@@ -101,13 +99,11 @@ export async function GET(req: NextRequest) {
             ) || null,
         },
       },
-      { status: 200 }
+      { message: "Stream key retrieved successfully", legacyFlat: true }
     );
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("Stream key retrieval error:", error);
-    return NextResponse.json(
-      { error: "Failed to retrieve stream key" },
-      { status: 500 }
-    );
+    return apiInternalError("Failed to retrieve stream key");
   }
 }

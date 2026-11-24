@@ -122,7 +122,7 @@ describe("POST /api/streams/chat", () => {
   });
 
   it("returns 404 when user or stream not found", async () => {
-    sqlMock.mockResolvedValueOnce({ rows: [] }); // combined query returns nothing
+    sqlMock.mockResolvedValueOnce({ rows: [] });
     const req = makeRequest("POST", {
       wallet: "0xABC",
       playbackId: "pb1",
@@ -594,6 +594,11 @@ describe("DELETE /api/streams/chat", () => {
   });
 
   it("allows stream owner to delete any message", async () => {
+    verifySessionMock.mockResolvedValueOnce({
+      ok: true,
+      userId: 20,
+      wallet: "0xSTREAMOWNER",
+    });
     sqlMock
       .mockResolvedValueOnce({
         rows: [{ id: 42, message_user_id: "random-user", stream_owner_id: "stream-owner-id" }],
@@ -620,5 +625,201 @@ describe("DELETE /api/streams/chat", () => {
     const req = makeRequest("DELETE", { messageId: 42 });
     const res = await DELETE(req);
     expect(res.status).toBe(200);
+  });
+});
+
+describe("Chat Moderation — moderator role, timeout/mute, ban, slow mode, word filter (#1851)", () => {
+  beforeEach(() => {
+    sqlMock.mockReset();
+    verifySessionMock.mockResolvedValue({
+      ok: true,
+      userId: "stream-owner-1",
+      wallet: "0xOWNER",
+      username: "Owner",
+    });
+  });
+
+  it("allows stream owner to assign a moderator, and moderator can delete messages and timeout/ban users", async () => {
+    const { PATCH, resetChatModerationState } = await import("../route");
+    resetChatModerationState();
+
+    // Owner assigns mod-1
+    sqlMock.mockResolvedValueOnce({ rows: [{ id: "stream-owner-1" }] });
+    const addModRes = await PATCH(
+      makeRequest("PATCH", {
+        playbackId: "pb-mod-suite",
+        action: "add_moderator",
+        targetUserId: "mod-1",
+      })
+    );
+    expect(addModRes.status).toBe(200);
+
+    // Moderator deletes a viewer's message
+    verifySessionMock.mockResolvedValueOnce({
+      ok: true,
+      userId: "mod-1",
+      wallet: "0xMOD",
+      username: "ModUser",
+    });
+    sqlMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 501,
+            message_user_id: "viewer-99",
+            stream_owner_id: "stream-owner-1",
+            mux_playback_id: "pb-mod-suite",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const delRes = await DELETE(makeRequest("DELETE", { messageId: 501 }));
+    expect(delRes.status).toBe(200);
+
+    // Moderator mutes viewer-99 for 120s
+    verifySessionMock.mockResolvedValueOnce({
+      ok: true,
+      userId: "mod-1",
+      wallet: "0xMOD",
+      username: "ModUser",
+    });
+    sqlMock.mockResolvedValueOnce({ rows: [{ id: "stream-owner-1" }] });
+    const muteRes = await PATCH(
+      makeRequest("PATCH", {
+        playbackId: "pb-mod-suite",
+        action: "timeout",
+        targetUserId: "viewer-99",
+        durationSeconds: 120,
+      })
+    );
+    expect(muteRes.status).toBe(200);
+
+    // Timed-out viewer-99 attempts to post a message -> 403
+    verifySessionMock.mockResolvedValueOnce({
+      ok: true,
+      userId: "viewer-99",
+      wallet: "0xVIEWER",
+      username: "Viewer99",
+    });
+    sqlMock.mockResolvedValueOnce({
+      rows: [
+        {
+          sender_id: "viewer-99",
+          sender_username: "Viewer99",
+          sender_wallet: "0xVIEWER",
+          streamer_id: "stream-owner-1",
+          is_live: true,
+          session_id: 77,
+        },
+      ],
+    });
+    const mutedPost = await POST(
+      makeRequest("POST", {
+        wallet: "0xVIEWER",
+        playbackId: "pb-mod-suite",
+        content: "am I muted?",
+      })
+    );
+    expect(mutedPost.status).toBe(403);
+  });
+
+  it("enforces configurable word filter, persistent ban list, and slow mode", async () => {
+    const { PATCH, resetChatModerationState } = await import("../route");
+    resetChatModerationState();
+
+    // Configure word filter & slow mode
+    sqlMock.mockResolvedValueOnce({ rows: [{ id: "stream-owner-1" }] });
+    await PATCH(
+      makeRequest("PATCH", {
+        playbackId: "pb-rules",
+        action: "set_word_filter",
+        words: ["scamlink", "badword"],
+      })
+    );
+
+    sqlMock.mockResolvedValueOnce({ rows: [{ id: "stream-owner-1" }] });
+    await PATCH(
+      makeRequest("PATCH", {
+        playbackId: "pb-rules",
+        action: "set_slow_mode",
+        slowModeSeconds: 15,
+      })
+    );
+
+    // Viewer posts filtered word -> 400
+    verifySessionMock.mockResolvedValue({
+      ok: true,
+      userId: "chatter-1",
+      wallet: "0xCHAT1",
+      username: "Chatter1",
+    });
+    sqlMock.mockResolvedValueOnce({
+      rows: [
+        {
+          sender_id: "chatter-1",
+          sender_username: "Chatter1",
+          sender_wallet: "0xCHAT1",
+          streamer_id: "stream-owner-1",
+          is_live: true,
+          session_id: 88,
+        },
+      ],
+    });
+    const filteredRes = await POST(
+      makeRequest("POST", {
+        wallet: "0xCHAT1",
+        playbackId: "pb-rules",
+        content: "check out this scamlink right now",
+      })
+    );
+    expect(filteredRes.status).toBe(400);
+
+    // Viewer posts clean message -> 201, then immediate second message -> 429 (slow mode)
+    sqlMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            sender_id: "chatter-1",
+            sender_username: "Chatter1",
+            sender_wallet: "0xCHAT1",
+            streamer_id: "stream-owner-1",
+            is_live: true,
+            session_id: 88,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 601, created_at: "2026-01-01T00:00:00Z" }],
+      });
+    const firstClean = await POST(
+      makeRequest("POST", {
+        wallet: "0xCHAT1",
+        playbackId: "pb-rules",
+        content: "hello stream!",
+      })
+    );
+    expect(firstClean.status).toBe(201);
+
+    sqlMock.mockResolvedValueOnce({
+      rows: [
+        {
+          sender_id: "chatter-1",
+          sender_username: "Chatter1",
+          sender_wallet: "0xCHAT1",
+          streamer_id: "stream-owner-1",
+          is_live: true,
+          session_id: 88,
+        },
+      ],
+    });
+    const slowLimited = await POST(
+      makeRequest("POST", {
+        wallet: "0xCHAT1",
+        playbackId: "pb-rules",
+        content: "spamming fast",
+      })
+    );
+    expect(slowLimited.status).toBe(429);
   });
 });

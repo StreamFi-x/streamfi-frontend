@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth/verify-session";
 import { setupRecoveryEmail } from "@/lib/auth/wallet-recovery";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,17 +42,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { verificationCode } = await setupRecoveryEmail(session.userId, email);
+    const { verificationCode } = await setupRecoveryEmail(
+      session.userId,
+      email
+    );
 
     // In production, send via Nodemailer / Sendgrid. In test/dev, return status ok.
     return NextResponse.json({
       ok: true,
       message: "Verification code sent to recovery email address",
       // Code returned in non-prod for automated verification testing
-      ...(process.env.NODE_ENV !== "production" ? { debugCode: verificationCode } : {}),
+      ...(process.env.NODE_ENV !== "production"
+        ? { debugCode: verificationCode }
+        : {}),
     });
   } catch (err) {
-    console.error("[recovery/setup] Error setting up recovery:", err);
+    logger.error("Error setting up wallet recovery", err, {
+      route: "POST /api/auth/recovery/setup",
+      userId: session.userId,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

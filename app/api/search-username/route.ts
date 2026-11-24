@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { createRateLimiter } from "@/lib/rate-limit";
-import { logSearchQuery, normalizeQuery } from "@/lib/analytics/search-query-logger";
+import {
+  logSearchQuery,
+  normalizeQuery,
+} from "@/lib/analytics/search-query-logger";
 import { rankSearchResults } from "@/lib/search-ranking";
 import { logger } from "@/lib/tracing/logger";
 import { CACHE_POLICIES } from "@/lib/cache";
+import { normalizeUsername } from "@/lib/validation/username";
 
 // 30 searches per minute per IP — ILIKE is fast with the trgm index but still DB work
 const isRateLimited = createRateLimiter(60_000, 30);
@@ -31,7 +35,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const { searchParams } = new URL(req.url);
-    const query = searchParams.get("q")?.trim() ?? "";
+    const query = normalizeUsername(searchParams.get("q") ?? "");
     const limit = Math.min(parseInt(searchParams.get("limit") || "8", 10), 20);
 
     if (!query) {
@@ -48,7 +52,7 @@ export async function GET(req: NextRequest) {
       await logSearchQuery({
         query_text: query,
         normalized_query: normalizeQuery(query),
-        search_source: 'general',
+        search_source: "general",
         result_count: 0,
         viewer_id: viewerId,
         query_duration_ms: Date.now() - startTime,
@@ -69,8 +73,8 @@ export async function GET(req: NextRequest) {
         -- Similarity score for fuzzy matching (0-1)
         similarity(username, ${query}) as sim_score,
         CASE
-          WHEN username ILIKE ${query + '%'} THEN 1000  -- Exact prefix match: highest priority
-          WHEN username ILIKE ${'%' + query + '%'} THEN 100  -- Substring match
+          WHEN username ILIKE ${query + "%"} THEN 1000  -- Exact prefix match: highest priority
+          WHEN username ILIKE ${"%" + query + "%"} THEN 100  -- Substring match
           ELSE similarity(username, ${query}) * 100  -- Fuzzy match: use similarity score (0-100)
         END as relevance_score
       FROM users
@@ -78,8 +82,8 @@ export async function GET(req: NextRequest) {
         username IS NOT NULL
         AND (
           -- Exact/prefix/substring match
-          username ILIKE ${query + '%'}
-          OR username ILIKE ${'%' + query + '%'}
+          username ILIKE ${query + "%"}
+          OR username ILIKE ${"%" + query + "%"}
           -- Fuzzy match: similarity >= 0.3 (tuned to catch typos without flood)
           OR similarity(username, ${query}) >= 0.3
         )
@@ -91,13 +95,16 @@ export async function GET(req: NextRequest) {
     `;
 
     // Rank results using comprehensive algorithm
-    const ranked = rankSearchResults(query, rows.map(row => ({
-      id: row.id,
-      title: row.username,
-      followerCount: row.follower_count,
-      isLive: row.is_live,
-      lastActiveAt: new Date(),
-    })));
+    const ranked = rankSearchResults(
+      query,
+      rows.map(row => ({
+        id: row.id,
+        title: row.username,
+        followerCount: row.follower_count,
+        isLive: row.is_live,
+        lastActiveAt: new Date(),
+      }))
+    );
 
     const results = ranked.slice(0, limit).map(r => {
       const orig = rows.find(row => row.id === r.item.id);
@@ -119,15 +126,15 @@ export async function GET(req: NextRequest) {
     await logSearchQuery({
       query_text: query,
       normalized_query: normalizeQuery(query),
-      search_source: 'general',
+      search_source: "general",
       result_count: results.length,
       viewer_id: viewerId,
       query_duration_ms: queryDuration,
       client_ip: ip,
     }).catch(() => {}); // Silently ignore logging errors
 
-    logger.debug('[search-username] Query completed', {
-      operation: 'searchUsername',
+    logger.debug("[search-username] Query completed", {
+      operation: "searchUsername",
       query_length: query.length,
       results_count: results.length,
       duration_ms: queryDuration,
@@ -140,7 +147,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     const queryDuration = Date.now() - startTime;
     logger.error("[search-username] Search error:", {
-      operation: 'searchUsername',
+      operation: "searchUsername",
       error: error instanceof Error ? error.message : String(error),
       duration_ms: queryDuration,
     });

@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth/verify-session";
 import { verifyRecoverySetup } from "@/lib/auth/wallet-recovery";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +40,10 @@ export async function POST(req: NextRequest) {
       message: "Recovery email verified and enabled successfully.",
     });
   } catch (err) {
-    console.error("[recovery/verify-setup] Error verifying code:", err);
+    logger.error("Error verifying wallet recovery code", err, {
+      route: "POST /api/auth/recovery/verify-setup",
+      userId: session.userId,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -5,6 +5,9 @@ import { createRateLimiter } from "@/lib/rate-limit";
 import { getRandomProfileIcon } from "@/lib/profile-icons";
 import { recordLoginAndCheckTravel } from "@/lib/security/login-anomaly";
 import { createSession } from "@/lib/sessions/user-sessions";
+import { logger } from "@/lib/tracing/logger";
+import { signToken } from "@/lib/auth/sign-token";
+import { currentKeyring } from "@/lib/security/keyring";
 
 // 10 Privy session exchanges per IP per 60 s
 const isRateLimited = createRateLimiter(60_000, 10);
@@ -131,15 +134,26 @@ export async function POST(req: NextRequest) {
     try {
       await recordLoginAndCheckTravel(dbUser.id, ip);
     } catch (anomalyError) {
-      console.error("[session] Login anomaly processing failed:", anomalyError);
+      logger.error("Login anomaly processing failed", anomalyError, {
+        route: "POST /api/auth/session",
+        userId: dbUser.id,
+      });
     }
 
     // 5. Build secure session cookie — HttpOnly, Secure, SameSite=Strict
-    //    We store the privy_id (opaque, server-verified) — never the raw JWT
+    //    The cookie is an HMAC-signed token carrying the privy_id (#1858), the
+    //    same scheme as wallet_session — never the bare DID and never the raw JWT.
     const isProduction = process.env.NODE_ENV === "production";
     const cookieMaxAge = 24 * 60 * 60; // 24 h in seconds
-    // The raw token for a Privy session is the privy_id itself
-    const rawToken = privyUserId;
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const rawToken = signToken(
+      {
+        privyId: privyUserId,
+        iat: issuedAt,
+        exp: issuedAt + cookieMaxAge,
+      },
+      currentKeyring()
+    );
     const cookieValue = [
       `privy_session=${rawToken}`,
       `Path=/`,
@@ -177,13 +191,18 @@ export async function POST(req: NextRequest) {
         null,
       userAgent: req.headers.get("user-agent") ?? null,
       ttlSeconds: cookieMaxAge,
-    }).catch((err) =>
-      console.error("[session] Failed to record user_session row:", err)
+    }).catch(err =>
+      logger.error("Failed to record user_session row", err, {
+        route: "POST /api/auth/session",
+        userId: dbUser.id,
+      })
     );
 
     return res;
   } catch (err) {
-    console.error("[session] DB error:", err);
+    logger.error("Session database error", err, {
+      route: "POST /api/auth/session",
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

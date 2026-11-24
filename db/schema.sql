@@ -2,6 +2,9 @@ CREATE TABLE IF NOT EXISTS waitlist (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255),
+    confirmation_token VARCHAR(128),
+    confirmed_at TIMESTAMP WITH TIME ZONE,
+    unsubscribe_token VARCHAR(128),
     subscribed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     unsubscribed_at TIMESTAMP WITH TIME ZONE,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -50,6 +53,25 @@ ADD COLUMN IF NOT EXISTS stream_password_hash VARCHAR(255);
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS stream_access_type TEXT DEFAULT 'public'
 CHECK (stream_access_type IN ('public', 'password', 'subscription'));
+
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS username_changed_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS username_history (
+  id                UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  previous_username VARCHAR(255) NOT NULL,
+  new_username      VARCHAR(255) NOT NULL,
+  changed_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  redirect_until    TIMESTAMPTZ  NOT NULL DEFAULT (now() + INTERVAL '90 days'),
+  hold_until        TIMESTAMPTZ  NOT NULL DEFAULT (now() + INTERVAL '30 days')
+);
+
+CREATE INDEX IF NOT EXISTS idx_username_history_previous_lower
+  ON username_history (LOWER(previous_username), changed_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_username_history_user_changed
+  ON username_history (user_id, changed_at DESC);
 
 -- Creator-defined subscription tiers (price points, labels).
 -- Referenced by subscriptions below; must precede it.

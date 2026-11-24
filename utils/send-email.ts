@@ -2,7 +2,10 @@
 import nodemailer from "nodemailer";
 import WelcomeUserEmail from "@/components/templates/WelcomeUserEmail";
 import VerifyEmailCode from "@/components/templates/VerifyEmailCode";
-import { WaitlistConfirmation } from "@/components/templates/WaitlistConfirm";
+import {
+  WaitlistConfirmation,
+  type WaitlistEmailOptions,
+} from "@/components/templates/WaitlistConfirm";
 export async function sendWelcomeRegistrationEmail(
   email: string,
   name: string
@@ -18,7 +21,10 @@ export async function sendWelcomeRegistrationEmail(
   const htmlContent = WelcomeUserEmail(name);
 
   const mailOptions = {
-    from: "process.env.EMAIL_USER",
+    from: {
+      name: "StreamFi",
+      address: process.env.EMAIL_USER || "support@streamfi.xyz",
+    },
     to: email,
     subject: "Welcome to Streamfi!",
     html: htmlContent,
@@ -102,7 +108,10 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string) {
   }
 }
 
-export async function sendEmailVerificationLink(email: string, verifyUrl: string) {
+export async function sendEmailVerificationLink(
+  email: string,
+  verifyUrl: string
+) {
   const transporter = nodemailer.createTransport({
     service: "Gmail",
     auth: {
@@ -176,8 +185,12 @@ export async function sendMagicLinkEmail(email: string, magicLinkUrl: string) {
   }
 }
 
-export async function sendWelcomeEmail(email: string, name: string) {
-  const htmlContent = WaitlistConfirmation(name, email);
+export async function sendWelcomeEmail(
+  email: string,
+  name: string,
+  options: WaitlistEmailOptions = {}
+) {
+  const htmlContent = WaitlistConfirmation(name, email, options);
   // Create a more professional transporter with additional configuration
   const transporter = nodemailer.createTransport({
     service: "Gmail",
@@ -206,6 +219,14 @@ export async function sendWelcomeEmail(email: string, name: string) {
 
   // Generate a unique message ID for this email
   const messageId = `${Date.now()}.${Math.random().toString(36).substring(2)}@streamfi.xyz`;
+  const baseUrl = (
+    options.baseUrl ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://streamfi.xyz"
+  ).replace(/\/$/, "");
+  const listUnsubscribeUrl = options.unsubscribeToken
+    ? `${baseUrl}/api/waitlist/unsubscribe?email=${encodeURIComponent(email)}&token=${encodeURIComponent(options.unsubscribeToken)}`
+    : `${baseUrl}/unsubscribe?email=${encodeURIComponent(email)}&id=${messageId}`;
 
   const mailOptions = {
     from: {
@@ -213,11 +234,13 @@ export async function sendWelcomeEmail(email: string, name: string) {
       address: process.env.EMAIL_USER || "support@streamfi.xyz",
     },
     to: email,
-    subject: "Your StreamFi Waitlist Confirmation",
+    subject: options.confirmationToken
+      ? "Confirm your StreamFi Waitlist Subscription"
+      : "Your StreamFi Waitlist Confirmation",
     html: htmlContent,
     headers: {
       "Message-ID": `<${messageId}>`,
-      "List-Unsubscribe": `<https://streamfi.xyz/unsubscribe?email=${encodeURIComponent(email)}&id=${messageId}>`,
+      "List-Unsubscribe": `<${listUnsubscribeUrl}>`,
       Precedence: "bulk",
       "X-Mailer": "StreamFi Mailer",
       "X-Entity-Ref-ID": messageId,

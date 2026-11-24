@@ -77,9 +77,56 @@ npm run test         # Run tests
 npm run setup-db     # Setup database
 npm run update-schema # Update user schema
 
+# Environment
+npm run env:generate # Regenerate .env.example from process.env usage in code
+npm run env:check    # Verify .env.example is current (what CI runs)
+
 # Committing
 npm run commit       # Interactive commit (recommended)
 ```
+
+### Local Development Setup
+
+The app depends on several external services. Only Postgres has a practical
+local equivalent, so that's what's provided here (#1713):
+
+1. **Postgres** — start a local instance with Docker:
+
+   ```bash
+   docker compose up -d postgres
+   ```
+
+   Then set both of these in `.env.local` (the serverless Postgres driver and
+   `@vercel/postgres` read different variable names for the same database):
+
+   ```bash
+   DATABASE_URL=postgres://postgres:postgres@localhost:5432/streamfi_dev
+   POSTGRES_URL=postgres://postgres:postgres@localhost:5432/streamfi_dev
+   ```
+
+   Then create the schema:
+
+   ```bash
+   npm run setup-db
+   npm run db:migrate
+   ```
+
+2. **Upstash Redis** — no local equivalent needed. Leave
+   `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` unset and the app
+   runs without a cache (`lib/upstash-redis.ts` returns `null` and callers
+   degrade gracefully). Only set these if you need to test caching behavior
+   against a real Upstash sandbox database.
+
+3. **Mux, Privy, Stellar Horizon** — no safe local equivalent exists for
+   these (Mux needs real video assets, Privy is an auth provider, Stellar
+   Horizon is a live network). Use sandbox/testnet credentials for each
+   from a non-production account; any feature exercising them will not
+   work locally without real credentials set.
+
+Copy `.env.example` (kept current by `npm run env:check` in CI — see
+[Available Scripts](#available-scripts)) to `.env.local` and fill in only
+the variables your work actually touches; most integrations validate
+themselves and stay inert when unset.
 
 ### Commit Message Format
 

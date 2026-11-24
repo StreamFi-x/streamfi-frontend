@@ -18,6 +18,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 import { z } from "zod";
 import {
   sendNewFollowerEmail,
@@ -25,6 +26,7 @@ import {
   sendLargeTipReceivedEmail,
   sendCommentReplyEmail,
 } from "@/lib/email-service";
+import { logger } from "@/lib/tracing/logger";
 
 // Validation schemas
 const newFollowerSchema = z.object({
@@ -137,7 +139,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           );
         }
 
-        const cwlData = validation.data as z.infer<typeof creatorWentLiveSchema>;
+        const cwlData = validation.data as z.infer<
+          typeof creatorWentLiveSchema
+        >;
         result = await sendCreatorWentLiveEmail(cwlData.recipient_email, {
           recipientName: cwlData.data.recipient_name,
           creatorName: cwlData.data.creator_name,
@@ -220,27 +224,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         { status: 200 }
       );
     } else {
+      logger.error("Transactional email sending failed", result.error, {
+        route: "POST /api/notifications/send-transactional-email",
+      });
       return NextResponse.json(
-        {
-          success: false,
-          error: "Failed to send email",
-          details: result.error,
-        },
-        { status: 500 }
+        { success: false, error: 'Failed to send email' },
+        { status: 500 },
       );
     }
   } catch (error) {
-    console.error("[Transactional Email API] Unhandled error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Internal server error",
-        details: message,
-      },
-      { status: 500 }
-    );
+    logger.error("Transactional Email API unhandled error", error, {
+      route: "POST /api/notifications/send-transactional-email",
+    });
+    return createSanitizedErrorResponse(error, {
+      context: 'send-transactional-email POST',
+      publicMessage: 'Internal server error',
+      extra: { success: false },
+    });
   }
 }
 
@@ -258,7 +258,9 @@ export async function GET(): Promise<NextResponse> {
       status: result.success ? 200 : 500,
     });
   } catch (error) {
-    console.error("[Transactional Email API] Health check failed:", error);
+    logger.error("Transactional Email API health check failed", error, {
+      route: "GET /api/notifications/send-transactional-email",
+    });
     return NextResponse.json(
       {
         success: false,

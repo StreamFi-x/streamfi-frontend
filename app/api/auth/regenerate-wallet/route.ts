@@ -25,6 +25,7 @@ import {
   encryptCustodialSecret,
 } from "@/lib/custodial-keys";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { logger } from "@/lib/tracing/logger";
 
 // ─── Rate limiter: 2 regenerations per 10 minutes per IP ──────────────────────
 const isRateLimited = createRateLimiter(10 * 60 * 1000, 2);
@@ -58,9 +59,30 @@ export async function POST(req: NextRequest) {
   }
 
   let body: { stepUpChallengeId?: unknown };
-  try {body = await req.json();} catch {return NextResponse.json({ error: "Step-up challenge required" }, { status: 403 });}
-  if (typeof body.stepUpChallengeId !== "string" || !(await consumeStepUp(session.userId, body.stepUpChallengeId, "wallet_regeneration", session.userId))) {
-    return NextResponse.json({ error: "Complete two-factor verification before regenerating the wallet" }, { status: 403 });
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Step-up challenge required" },
+      { status: 403 }
+    );
+  }
+  if (
+    typeof body.stepUpChallengeId !== "string" ||
+    !(await consumeStepUp(
+      session.userId,
+      body.stepUpChallengeId,
+      "wallet_regeneration",
+      session.userId
+    ))
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Complete two-factor verification before regenerating the wallet",
+      },
+      { status: 403 }
+    );
   }
 
   const keypair = Keypair.random();
@@ -73,10 +95,11 @@ export async function POST(req: NextRequest) {
       keypair.secret()
     );
   } catch (err) {
-    console.error(
-      "[regenerate-wallet] Encryption failed:",
-      err instanceof CustodialKeyError ? err.code : "unexpected_error"
-    );
+    logger.error("Custodial wallet encryption failed during regeneration", {
+      route: "POST /api/auth/regenerate-wallet",
+      userId: session.userId,
+      code: err instanceof CustodialKeyError ? err.code : "unexpected_error",
+    });
     const transient = err instanceof CustodialKeyError && err.transient;
     return NextResponse.json(
       {
@@ -101,7 +124,10 @@ export async function POST(req: NextRequest) {
       WHERE id = ${session.userId}
     `;
   } catch (err) {
-    console.error("[regenerate-wallet] DB update failed:", err);
+    logger.error("Regenerate wallet database update failed", err, {
+      route: "POST /api/auth/regenerate-wallet",
+      userId: session.userId,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

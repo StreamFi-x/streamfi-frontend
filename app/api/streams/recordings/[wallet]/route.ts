@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { verifySession } from "@/lib/auth/verify-session";
 import { deleteMuxAssetIfExists } from "@/lib/mux/server";
+import { logger } from "@/lib/tracing/logger";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -81,7 +82,9 @@ export async function GET(
       recordings: result.rows,
     });
   } catch (error) {
-    console.error("Error fetching recordings:", error);
+    logger.error("Error fetching recordings", error, {
+      route: "GET /api/streams/recordings/[wallet]",
+    });
     return NextResponse.json(
       { success: false, error: "Failed to fetch recordings" },
       { status: 500 }
@@ -91,9 +94,10 @@ export async function GET(
 
 /**
  * DELETE /api/streams/recordings/[id]
- * Auth required. Owner only. Permanently removes the recording from the DB and
- * then deletes the Mux asset. If the Mux call fails the asset is left behind
- * and reported by the Mux reconciliation sweep (#1409) for admin cleanup.
+ * Auth required. Owner only. Deletes the Mux asset first (a Mux 404 counts as
+ * already deleted), then removes the DB row. If Mux fails with a real error the
+ * row is kept and a 502 is returned so the delete can be retried; deleting the
+ * row first would orphan a billable asset with no record pointing to it.
  */
 export async function DELETE(
   req: NextRequest,
@@ -125,20 +129,31 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await sql`DELETE FROM stream_recordings WHERE id = ${id}`;
-
-    try {
-      await deleteMuxAssetIfExists(String(rows[0].mux_asset_id));
-    } catch (muxErr) {
-      console.error(
-        `[recordings] DELETE: Mux asset ${rows[0].mux_asset_id} not deleted:`,
-        muxErr instanceof Error ? muxErr.message : muxErr
-      );
+    const assetId = rows[0].mux_asset_id as string | null;
+    if (assetId) {
+      try {
+        // "not_found" means the asset is already gone, which is the goal.
+        await deleteMuxAssetIfExists(String(assetId));
+      } catch (muxErr) {
+        logger.error("Failed to delete Mux asset for recording", muxErr, {
+          route: "DELETE /api/streams/recordings/[id]",
+          muxAssetId: assetId,
+        });
+        return NextResponse.json(
+          { error: "Failed to delete recording video. Please try again." },
+          { status: 502 }
+        );
+      }
     }
+    }
+
+    await sql`DELETE FROM stream_recordings WHERE id = ${id}`;
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[recordings] DELETE error:", error);
+    logger.error("Delete recording error", error, {
+      route: "DELETE /api/streams/recordings/[id]",
+    });
     return NextResponse.json(
       { error: "Failed to delete recording" },
       { status: 500 }
@@ -184,7 +199,9 @@ export async function PATCH(
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[recordings] PATCH error:", error);
+    logger.error("Update recording error", error, {
+      route: "PATCH /api/streams/recordings/[id]",
+    });
     return NextResponse.json(
       { error: "Failed to update recording" },
       { status: 500 }

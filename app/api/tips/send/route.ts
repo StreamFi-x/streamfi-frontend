@@ -1,13 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { withTracing } from '@/lib/tracing/api-route-wrapper';
-import { logger } from '@/lib/tracing/logger';
-import { getCurrentTraceContext } from '@/lib/tracing/trace-context';
-import { verifySession } from '@/lib/auth/verify-session';
-import { buildTipTransaction, submitTransaction, getCurrentNetwork } from '@/lib/stellar/payments';
-import { sql } from '@vercel/postgres';
-import { addTraceComment, logDbQuery } from '@/lib/tracing/db-tracer';
-import { markRecentWrite } from '@/lib/db/replica';
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { withTracing } from "@/lib/tracing/api-route-wrapper";
+import { logger } from "@/lib/tracing/logger";
+import { getCurrentTraceContext } from "@/lib/tracing/trace-context";
+import { verifySession } from "@/lib/auth/verify-session";
+import {
+  buildTipTransaction,
+  submitTransaction,
+  getCurrentNetwork,
+} from "@/lib/stellar/payments";
+import { getStellarNetworkGuardState } from "@/lib/stellar/network-guard";
+import { sql } from "@vercel/postgres";
+import { addTraceComment, logDbQuery } from "@/lib/tracing/db-tracer";
+import { markRecentWrite } from "@/lib/db/replica";
+import {
+  apiBadRequest,
+  apiForbidden,
+  apiInternalError,
+  apiMethodNotAllowed,
+  apiSuccess,
+} from "@/lib/api";
 
 const bodySchema = z.object({
   destinationPublicKey: z.string(),
@@ -17,29 +29,53 @@ const bodySchema = z.object({
 });
 
 const handler = async (req: NextRequest): Promise<NextResponse> => {
-  if (req.method !== 'POST') {
-    return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  if (req.method !== "POST") {
+    return apiMethodNotAllowed("POST");
   }
 
   const traceContext = getCurrentTraceContext();
   const traceId = traceContext?.traceId;
+  const traceHeaders = { "x-request-id": traceId || "" };
   let quoteToken: string | undefined;
 
   try {
-    logger.info('Tip send request received', {
-      endpoint: 'POST /api/tips/send',
+    logger.info("Tip send request received", {
+      endpoint: "POST /api/tips/send",
     });
 
     // 1. Verify session (auth check)
     const session = await verifySession(req);
     if (!session.ok) {
-      logger.warn('Session verification failed', {
-        endpoint: 'POST /api/tips/send',
+      logger.warn("Session verification failed", {
+        endpoint: "POST /api/tips/send",
       });
       return session.response;
     }
 
-    logger.info('Session verified', {
+    // 1.5. Enforce non-production mainnet safety guard before touching DB or Horizon
+    const networkGuard = getStellarNetworkGuardState({
+      network: getCurrentNetwork(),
+    });
+    if (networkGuard.isTransactionBlocked) {
+      logger.warn("Blocked Stellar mainnet tip in non-production deployment", {
+        endpoint: "POST /api/tips/send",
+        deploymentContext: networkGuard.deploymentContext,
+      });
+      return apiForbidden(
+        networkGuard.reason ??
+          "Stellar mainnet tipping is blocked in non-production deployments",
+        {
+          code: "MAINNET_BLOCKED",
+          details: {
+            network: networkGuard.network,
+            deploymentContext: networkGuard.deploymentContext,
+          },
+          headers: traceHeaders,
+        }
+      );
+    }
+
+    logger.info("Session verified", {
       userId: session.userId,
       wallet: session.wallet,
     });
@@ -49,35 +85,39 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json(
-        { error: 'Invalid JSON body' },
-        { status: 400, headers: { 'x-request-id': traceId || '' } }
-      );
+      return apiBadRequest("Invalid JSON body", { headers: traceHeaders });
     }
 
     const validation = bodySchema.safeParse(body);
     if (!validation.success) {
-      logger.warn('Request validation failed', {
-        errors: validation.error.issues.map(i => i.path.join('.')),
+      logger.warn("Request validation failed", {
+        errors: validation.error.issues.map(i => i.path.join(".")),
       });
-      return NextResponse.json(
-        { error: 'Invalid request body' },
-        { status: 400, headers: { 'x-request-id': traceId || '' } }
-      );
+      return apiBadRequest("Invalid request body", {
+        details: validation.error.issues.map(i => ({
+          field: i.path.join("."),
+          message: i.message,
+        })),
+        headers: traceHeaders,
+      });
     }
 
-    const { destinationPublicKey, amount, memo } = validation.data;
+    const {
+      destinationPublicKey,
+      amount,
+      memo,
+      quote_token: providedQuoteToken,
+    } = validation.data;
 
-    logger.info('Request validated', {
+    logger.info("Request validated", {
       destinationPublicKey: destinationPublicKey.substring(0, 8),
       amount,
     });
 
     // 2.5. Validate quote if provided
-    const providedQuoteToken = (validation.data as any).quote_token;
     if (providedQuoteToken) {
       quoteToken = providedQuoteToken;
-      logger.info('Quote token provided, validating quote', {
+      logger.info("Quote token provided, validating quote", {
         quoteToken: quoteToken.substring(0, 16),
       });
 
@@ -95,83 +135,81 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
         `;
 
         if (quoteResult.rows.length === 0) {
-          logger.warn('Quote not found or already used', {
+          logger.warn("Quote not found or already used", {
             quoteToken: quoteToken.substring(0, 16),
           });
-          return NextResponse.json(
-            { error: 'Quote not found or already used' },
-            { status: 400, headers: { 'x-request-id': traceId || '' } }
-          );
+          return apiBadRequest("Quote not found or already used", {
+            headers: traceHeaders,
+          });
         }
 
-        const quote = quoteResult.rows[0] as any;
+        const quote = quoteResult.rows[0] as {
+          expires_at: string;
+          status: string;
+          consumed_at: string | null;
+          quoted_xlm_amount: string | number;
+        };
 
         // Check if quote is expired
         const expiresAt = new Date(quote.expires_at);
         if (expiresAt < new Date()) {
-          logger.warn('Quote has expired', {
+          logger.warn("Quote has expired", {
             expiresAt: quote.expires_at,
           });
-          return NextResponse.json(
-            { error: 'Quote expired' },
-            { status: 400, headers: { 'x-request-id': traceId || '' } }
-          );
+          return apiBadRequest("Quote expired", { headers: traceHeaders });
         }
 
         // Check if quote has already been consumed
-        if (quote.status === 'consumed') {
-          logger.warn('Quote already consumed', {
+        if (quote.status === "consumed") {
+          logger.warn("Quote already consumed", {
             quoteToken: quoteToken.substring(0, 16),
             consumedAt: quote.consumed_at,
           });
-          return NextResponse.json(
-            { error: 'Quote not found or already used' },
-            { status: 400, headers: { 'x-request-id': traceId || '' } }
-          );
+          return apiBadRequest("Quote not found or already used", {
+            headers: traceHeaders,
+          });
         }
 
         // Check if the amount matches the quoted amount (allow 0.1% tolerance)
-        const quotedAmount = parseFloat(quote.quoted_xlm_amount);
+        const quotedAmount = parseFloat(String(quote.quoted_xlm_amount));
         const requestAmount = parseFloat(amount);
         const tolerance = quotedAmount * 0.001; // 0.1%
 
         if (Math.abs(requestAmount - quotedAmount) > tolerance) {
-          logger.warn('Amount mismatch with quote', {
+          logger.warn("Amount mismatch with quote", {
             requestAmount,
             quotedAmount,
             difference: Math.abs(requestAmount - quotedAmount),
             tolerance,
           });
-          return NextResponse.json(
-            { error: 'Amount does not match quote' },
-            { status: 400, headers: { 'x-request-id': traceId || '' } }
-          );
+          return apiBadRequest("Amount does not match quote", {
+            headers: traceHeaders,
+          });
         }
 
-        logger.info('Quote validated successfully', {
+        logger.info("Quote validated successfully", {
           quotedAmount,
           requestAmount,
         });
       } catch (error) {
-        if ((error as any).message?.includes('Quote')) {
+        if (error instanceof Error && error.message.includes("Quote")) {
           throw error; // Re-throw our validation errors
         }
-        logger.error('Failed to validate quote', {
+        logger.error("Failed to validate quote", {
           errorMessage: error instanceof Error ? error.message : String(error),
         });
-        return NextResponse.json(
-          { error: 'Failed to validate quote' },
-          { status: 500, headers: { 'x-request-id': traceId || '' } }
-        );
+        return apiInternalError("Failed to validate quote", {
+          headers: traceHeaders,
+        });
       }
     } else {
-      logger.warn('No quote token provided for tip submission', {
+      logger.warn("No quote token provided for tip submission", {
         amount,
       });
     }
 
     // 3. Query database to get sender's Stellar public key
-    logger.debug('Querying database for user wallet', {
+    logger.debug("Querying database for user wallet", {
       userId: session.userId,
     });
 
@@ -182,35 +220,32 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
 
     let senderPublicKey: string;
     try {
-      const { rows } = await sql`SELECT stellar_public_key FROM users WHERE id = ${session.userId} AND deleted_at IS NULL`;
-      logDbQuery('SELECT user wallet', query);
+      const { rows } =
+        await sql`SELECT stellar_public_key FROM users WHERE id = ${session.userId} AND deleted_at IS NULL`;
+      logDbQuery("SELECT user wallet", query);
 
       if (rows.length === 0 || !rows[0].stellar_public_key) {
-        logger.warn('User wallet not found', {
+        logger.warn("User wallet not found", {
           userId: session.userId,
         });
-        return NextResponse.json(
-          { error: 'User wallet not configured' },
-          { status: 400, headers: { 'x-request-id': traceId || '' } }
-        );
+        return apiBadRequest("User wallet not configured", {
+          headers: traceHeaders,
+        });
       }
 
       senderPublicKey = rows[0].stellar_public_key;
-      logger.debug('User wallet retrieved from database', {
+      logger.debug("User wallet retrieved from database", {
         senderPublicKey: senderPublicKey.substring(0, 8),
       });
     } catch (error) {
       dbError = error instanceof Error ? error : new Error(String(error));
       logDbQuery('SELECT user wallet', query, dbError);
-      return NextResponse.json(
-        { error: 'Database error' },
-        { status: 500, headers: { 'x-request-id': traceId || '' } }
-      );
+      return apiInternalError('Unable to process tip request. Please try again later.', { headers: traceHeaders });
     }
 
     // 4. Build Stellar transaction (calls Horizon API)
-    logger.info('Building Stellar transaction', {
-      operation: 'buildTipTransaction',
+    logger.info("Building Stellar transaction", {
+      operation: "buildTipTransaction",
       senderKey: senderPublicKey.substring(0, 8),
       destinationKey: destinationPublicKey.substring(0, 8),
     });
@@ -224,17 +259,16 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
         network: getCurrentNetwork(),
         memo,
       });
-      logger.info('Stellar transaction built successfully', {
-        txHash: transaction.hash().toString('hex').substring(0, 16),
+      logger.info("Stellar transaction built successfully", {
+        txHash: transaction.hash().toString("hex").substring(0, 16),
       });
     } catch (error) {
-      logger.error('Failed to build Stellar transaction', {
+      logger.error("Failed to build Stellar transaction", {
         errorMessage: error instanceof Error ? error.message : String(error),
       });
-      return NextResponse.json(
-        { error: 'Failed to build transaction' },
-        { status: 500, headers: { 'x-request-id': traceId || '' } }
-      );
+      return apiInternalError("Failed to build transaction", {
+        headers: traceHeaders,
+      });
     }
 
     // 5. Record tip in database before submitting (for audit trail)
@@ -244,51 +278,49 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
       );
 
       await sql`INSERT INTO tips (user_id, destination_wallet, amount, status, created_at) VALUES (${session.userId}, ${destinationPublicKey}, ${amount}, 'pending', NOW())`;
-      logDbQuery('INSERT tip record', insertQuery);
+      logDbQuery("INSERT tip record", insertQuery);
 
-      logger.info('Tip recorded in database', {
+      logger.info("Tip recorded in database", {
         userId: session.userId,
-        status: 'pending',
+        status: "pending",
       });
     } catch (error) {
       dbError = error instanceof Error ? error : new Error(String(error));
-      logger.error('Failed to record tip in database', {
+      logger.error("Failed to record tip in database", {
         errorMessage: dbError.message,
       });
       // Non-critical — proceed with submission
     }
 
     // 6. Submit transaction to Stellar (Horizon API)
-    logger.info('Submitting transaction to Stellar', {
-      txHash: transaction.hash().toString('hex').substring(0, 16),
+    logger.info("Submitting transaction to Stellar", {
+      txHash: transaction.hash().toString("hex").substring(0, 16),
     });
 
     let result;
     try {
       result = await submitTransaction(transaction, getCurrentNetwork());
       if (!result.success) {
-        logger.error('Stellar transaction submission returned error', {
+        logger.error("Stellar transaction submission returned error", {
           errorMessage: result.error,
           resultCode: result.resultCode,
         });
-        return NextResponse.json(
-          { error: result.error || 'Transaction failed' },
-          { status: 400, headers: { 'x-request-id': traceId || '' } }
-        );
+        return apiBadRequest(result.error || "Transaction failed", {
+          headers: traceHeaders,
+        });
       }
 
-      logger.info('Transaction submitted to Stellar successfully', {
+      logger.info("Transaction submitted to Stellar successfully", {
         hash: result.hash,
         ledger: result.ledger,
       });
     } catch (error) {
-      logger.error('Failed to submit transaction to Stellar', {
+      logger.error("Failed to submit transaction to Stellar", {
         errorMessage: error instanceof Error ? error.message : String(error),
       });
-      return NextResponse.json(
-        { error: 'Failed to submit transaction' },
-        { status: 500, headers: { 'x-request-id': traceId || '' } }
-      );
+      return apiInternalError("Failed to submit transaction", {
+        headers: traceHeaders,
+      });
     }
 
     // 7. Update tip record with confirmed transaction hash
@@ -298,14 +330,14 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
       );
 
       await sql`UPDATE tips SET status = 'confirmed', tx_hash = ${result.hash}, ledger = ${result.ledger} WHERE user_id = ${session.userId} AND destination_wallet = ${destinationPublicKey} AND status = 'pending'`;
-      logDbQuery('UPDATE tip status', updateQuery);
+      logDbQuery("UPDATE tip status", updateQuery);
 
-      logger.info('Tip status updated to confirmed', {
+      logger.info("Tip status updated to confirmed", {
         txHash: result.hash,
       });
     } catch (error) {
       dbError = error instanceof Error ? error : new Error(String(error));
-      logger.warn('Failed to update tip status in database', {
+      logger.warn("Failed to update tip status in database", {
         errorMessage: dbError.message,
       });
       // Non-critical
@@ -320,47 +352,48 @@ const handler = async (req: NextRequest): Promise<NextResponse> => {
           WHERE quote_token = ${quoteToken}
         `;
 
-        logger.info('Quote marked as consumed', {
+        logger.info("Quote marked as consumed", {
           quoteToken: quoteToken.substring(0, 16),
           txHash: result.hash,
         });
       } catch (error) {
         dbError = error instanceof Error ? error : new Error(String(error));
-        logger.warn('Failed to mark quote as consumed', {
+        logger.warn("Failed to mark quote as consumed", {
           errorMessage: dbError.message,
         });
         // Non-critical - quote will eventually expire
       }
     }
 
-    logger.info('Tip send completed successfully', {
+    logger.info("Tip send completed successfully", {
       transactionHash: result.hash,
       ledger: result.ledger,
     });
 
-    const response = NextResponse.json(
+    const response = apiSuccess(
       {
-        success: true,
         transactionHash: result.hash,
         ledger: result.ledger,
         requestId: traceId,
       },
-      { status: 200 }
+      {
+        meta: traceId ? { requestId: traceId } : undefined,
+        headers: traceHeaders,
+        legacyFlat: true,
+      }
     );
 
-    response.headers.set('x-request-id', traceId || '');
     return markRecentWrite(response);
   } catch (error) {
-    logger.error('Unhandled error in tip send endpoint', {
+    logger.error("Unhandled error in tip send endpoint", {
       errorMessage: error instanceof Error ? error.message : String(error),
     });
 
-    const errorResponse = NextResponse.json(
-      { error: 'Internal server error', requestId: traceId },
-      { status: 500 }
-    );
-    errorResponse.headers.set('x-request-id', traceId || '');
-    return errorResponse;
+    return apiInternalError("Internal server error", {
+      meta: traceId ? { requestId: traceId } : undefined,
+      legacyExtra: traceId ? { requestId: traceId } : undefined,
+      headers: traceHeaders,
+    });
   }
 };
 

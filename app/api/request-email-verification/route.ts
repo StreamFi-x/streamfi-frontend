@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { sendEmailVerificationToken } from "@/utils/send-email";
 import { randomInt } from "crypto";
+import { logger } from "@/lib/tracing/logger";
 
 // Generate 6-digit token
 function generateToken() {
@@ -43,7 +44,9 @@ export async function POST(req: Request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Email verification token error:", error);
+    logger.error("Email verification token error", error, {
+      route: "POST /api/request-email-verification",
+    });
     return NextResponse.json(
       { error: "Failed to send verification token" },
       { status: 500 }
