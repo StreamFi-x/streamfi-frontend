@@ -1,55 +1,72 @@
+import { NextResponse } from "next/server";
 import {
+  CURSOR_VERSION,
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
   PaginationError,
-  parseLimit,
   paginationErrorResponse,
   type Page,
   type PageParamsOptions,
-} from "@/lib/pagination/cursor";
-import type { NextResponse } from "next/server";
+} from "./cursor";
 
 /**
- * Keyset pagination for lists ranked by numeric scores rather than by
- * creation time (live streams by viewers, top users by followers).
- * It shares the envelope, limit rules and error type of ./cursor.
+ * Ranked keyset cursor pagination for list endpoints ordered by one or more
+ * integer ranking scores descending with a UUID tie-breaker:
  *
- * Every ranked list is ordered `score_1 DESC, ..., score_n DESC, id DESC`.
- * The cursor holds the scores and id of the last row of the previous page, so
- * the next page is `WHERE (score_1, ..., score_n, id) < (cursor scores, id)`.
- * The id tie-breaker makes the order total.
+ *   ORDER BY score_1 DESC, ..., score_k DESC, id DESC
+ *   WHERE (score_1, ..., score_k, id) < ($s1::int, ..., $sk::int, $id::uuid)
+ *   LIMIT $limit + 1
+ *
+ * Shares the same response envelope (`{ items, nextCursor, hasMore }`),
+ * parameter validation, and error contract as `lib/pagination/cursor.ts`.
  */
 
-const RANKED_CURSOR_VERSION = 1;
 const MAX_CURSOR_LENGTH = 256;
-const MAX_SCORES = 4;
+const MAX_INT4 = 2_147_483_647;
+const FIRST_PAGE_ID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const NIL_UUID = "00000000-0000-0000-0000-000000000000";
 
-export interface RankedPosition {
-  /** Score values of the last row seen, in ORDER BY order. */
+export interface RankedKeysetPosition {
+  /** Non-negative integer ranking keys in ORDER BY precedence order. */
   scores: number[];
-  /** id (uuid) of the last row seen. */
+  /** Tie-breaker UUID of the last row seen. */
   id: string;
 }
 
 export interface RankedPageParams {
   limit: number;
-  after: RankedPosition | null;
+  after: RankedKeysetPosition | null;
 }
 
-/** Row shape every ranked keyset query must select. */
-export interface RankedRow {
-  id: string;
-  /** Scores as selected, in ORDER BY order. */
-  rank_scores: number[];
+export interface RankedPageParamsOptions extends PageParamsOptions {
+  /** Number of integer score columns in the endpoint's ORDER BY tuple. */
+  scoreCount: number;
 }
 
-export function encodeRankedCursor(position: RankedPosition): string {
+function isValidScore(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= 0 &&
+    value <= MAX_INT4
+  );
+}
+
+export function encodeRankedCursor(position: RankedKeysetPosition): string {
+  if (
+    position.scores.length === 0 ||
+    !position.scores.every(isValidScore) ||
+    !UUID_PATTERN.test(position.id)
+  ) {
+    throw new PaginationError("Invalid cursor");
+  }
+
   return Buffer.from(
     JSON.stringify({
-      v: RANKED_CURSOR_VERSION,
+      v: CURSOR_VERSION,
       s: position.scores,
-      i: position.id,
+      i: position.id.toLowerCase(),
     })
   ).toString("base64url");
 }
@@ -57,7 +74,7 @@ export function encodeRankedCursor(position: RankedPosition): string {
 export function decodeRankedCursor(
   raw: string,
   scoreCount: number
-): RankedPosition {
+): RankedKeysetPosition {
   if (raw.length === 0 || raw.length > MAX_CURSOR_LENGTH) {
     throw new PaginationError("Invalid cursor");
   }
@@ -68,61 +85,71 @@ export function decodeRankedCursor(
   } catch {
     throw new PaginationError("Invalid cursor");
   }
+
   if (typeof parsed !== "object" || parsed === null) {
     throw new PaginationError("Invalid cursor");
   }
 
   const { v, s, i } = parsed as Record<string, unknown>;
   if (
-    v !== RANKED_CURSOR_VERSION ||
+    v !== CURSOR_VERSION ||
     !Array.isArray(s) ||
     s.length !== scoreCount ||
-    !s.every(n => Number.isSafeInteger(n)) ||
+    !s.every(isValidScore) ||
     typeof i !== "string" ||
     !UUID_PATTERN.test(i)
   ) {
     throw new PaginationError("Invalid cursor");
   }
 
-  return { scores: s as number[], id: i.toLowerCase() };
+  return { scores: s, id: i.toLowerCase() };
 }
 
-/**
- * Parses `limit` and `cursor`. `scoreCount` is the number of ranking columns
- * the endpoint orders by (at most MAX_SCORES); a cursor issued for a different
- * ranking is rejected.
- */
-export function parseRankedParams(
+export function parseRankedPageParams(
   searchParams: URLSearchParams,
-  scoreCount: number,
-  options: PageParamsOptions = {}
+  options: RankedPageParamsOptions
 ): RankedPageParams {
-  if (
-    !Number.isInteger(scoreCount) ||
-    scoreCount < 1 ||
-    scoreCount > MAX_SCORES
-  ) {
-    throw new RangeError(`scoreCount must be between 1 and ${MAX_SCORES}`);
+  const maxLimit = options.maxLimit ?? MAX_PAGE_SIZE;
+  const defaultLimit = Math.min(
+    options.defaultLimit ?? DEFAULT_PAGE_SIZE,
+    maxLimit
+  );
+
+  if (searchParams.has("offset")) {
+    throw new PaginationError(
+      "Offset pagination is not supported; use the cursor parameter"
+    );
   }
-  const limit = parseLimit(searchParams, options);
+
+  let limit = defaultLimit;
+  const rawLimit = searchParams.get("limit");
+  if (rawLimit !== null) {
+    if (!/^\d+$/.test(rawLimit)) {
+      throw new PaginationError("limit must be a positive integer");
+    }
+    const parsed = Number(rawLimit);
+    if (parsed < 1) {
+      throw new PaginationError("limit must be a positive integer");
+    }
+    limit = Math.min(parsed, maxLimit);
+  }
+
   const rawCursor = searchParams.get("cursor");
   const after =
-    rawCursor === null ? null : decodeRankedCursor(rawCursor, scoreCount);
+    rawCursor === null
+      ? null
+      : decodeRankedCursor(rawCursor, options.scoreCount);
+
   return { limit, after };
 }
 
-/** Route-handler variant of parseRankedParams, mirroring readPageParams. */
-export function readRankedParams(
+export function readRankedPageParams(
   searchParams: URLSearchParams,
-  scoreCount: number,
-  options: PageParamsOptions = {}
+  options: RankedPageParamsOptions
 ):
   { ok: true; page: RankedPageParams } | { ok: false; response: NextResponse } {
   try {
-    return {
-      ok: true,
-      page: parseRankedParams(searchParams, scoreCount, options),
-    };
+    return { ok: true, page: parseRankedPageParams(searchParams, options) };
   } catch (error) {
     if (error instanceof PaginationError) {
       return { ok: false, response: paginationErrorResponse(error) };
@@ -132,33 +159,30 @@ export function readRankedParams(
 }
 
 /**
- * Bind values for the keyset predicate. On the first page `isFirstPage` is
- * true and the query short-circuits on it:
- *
- *   WHERE (${isFirstPage} OR (a, b, id) < (${scores[0]}, ${scores[1]}, ${id}::uuid))
+ * Sentinel bounds for the first page: MAX_INT4 for every score column and
+ * `ffffffff-ffff-ffff-ffff-ffffffffffff` for the UUID tie-breaker, so every
+ * real row sorts strictly after the sentinel in DESC order.
  */
-export function rankedBounds(
-  after: RankedPosition | null,
+export function rankedKeysetBounds(
+  after: RankedKeysetPosition | null,
   scoreCount: number
-): { isFirstPage: boolean; scores: number[]; id: string } {
-  if (after === null) {
-    return {
-      isFirstPage: true,
-      scores: new Array<number>(scoreCount).fill(0),
-      id: NIL_UUID,
-    };
-  }
-  return { isFirstPage: false, scores: after.scores, id: after.id };
+): RankedKeysetPosition {
+  return (
+    after ?? {
+      scores: Array.from({ length: scoreCount }, () => MAX_INT4),
+      id: FIRST_PAGE_ID,
+    }
+  );
 }
 
 /**
- * Builds a page from rows fetched with `LIMIT limit + 1`. The extra row only
- * signals that another page exists; it is never returned.
+ * Builds a cursor-paginated page from rows fetched with `LIMIT limit + 1`.
  */
-export function buildRankedPage<R extends RankedRow, T>(
+export function buildRankedPage<R, T>(
   rows: R[],
   limit: number,
-  toItem: (row: R) => T
+  toItem: (row: R) => T,
+  getPosition: (row: R) => RankedKeysetPosition
 ): Page<T> {
   const hasMore = rows.length > limit;
   const pageRows = hasMore ? rows.slice(0, limit) : rows;
@@ -166,13 +190,7 @@ export function buildRankedPage<R extends RankedRow, T>(
 
   return {
     items: pageRows.map(toItem),
-    nextCursor:
-      hasMore && last
-        ? encodeRankedCursor({
-            scores: last.rank_scores.map(Number),
-            id: last.id,
-          })
-        : null,
+    nextCursor: hasMore && last ? encodeRankedCursor(getPosition(last)) : null,
     hasMore,
   };
 }
