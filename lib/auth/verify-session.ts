@@ -103,8 +103,10 @@ export async function verifySession(
     try {
       keyring = currentKeyring();
     } catch {
-      console.error(
-        "[verifySession] SESSION_SECRET not configured — privy_session cannot be verified"
+      logger.error(
+        "SESSION_SECRET not configured — privy_session cannot be verified",
+        undefined,
+        { module: "auth/verify-session", sessionType: "privy" }
       );
       return {
         ok: false,
@@ -154,9 +156,13 @@ export async function verifySession(
         // user_sessions table may not exist yet (pre-migration environment).
         // Log and continue with the legacy DB-only check so existing deployments
         // aren't broken during the rollout window.
-        console.warn(
-          "[verifySession] user_sessions check failed (table may not exist yet):",
-          sessionErr
+        logger.warn(
+          "user_sessions check failed (table may not exist yet)",
+          {
+            module: "auth/verify-session",
+            sessionType: "privy",
+            error: sessionErr,
+          }
         );
       }
 
@@ -211,8 +217,10 @@ export async function verifySession(
     try {
       keyring = currentKeyring();
     } catch {
-      console.error(
-        "[verifySession] SESSION_SECRET not configured — wallet_session cannot be verified"
+      logger.error(
+        "SESSION_SECRET not configured — wallet_session cannot be verified",
+        undefined,
+        { module: "auth/verify-session", sessionType: "wallet" }
       );
       return {
         ok: false,
@@ -252,9 +260,13 @@ export async function verifySession(
           };
         }
       } catch (sessionErr) {
-        console.warn(
-          "[verifySession] user_sessions check failed (table may not exist yet):",
-          sessionErr
+        logger.warn(
+          "user_sessions check failed (table may not exist yet)",
+          {
+            module: "auth/verify-session",
+            sessionType: "wallet",
+            error: sessionErr,
+          }
         );
       }
 
@@ -335,9 +347,13 @@ export async function verifySession(
           };
         }
       } catch (sessionErr) {
-        console.warn(
-          "[verifySession] user_sessions check failed for legacy wallet (table may not exist yet):",
-          sessionErr
+        logger.warn(
+          "user_sessions check failed for legacy wallet (table may not exist yet)",
+          {
+            module: "auth/verify-session",
+            sessionType: "legacy_wallet",
+            error: sessionErr,
+          }
         );
       }
 

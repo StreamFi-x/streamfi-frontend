@@ -1,4 +1,5 @@
 import { Networks } from "@stellar/stellar-sdk";
+import { logger } from "@/lib/logger";
 
 export type StellarNetwork = "testnet" | "mainnet";
 
@@ -16,7 +17,10 @@ export function getStellarNetwork(): StellarNetwork {
     return "testnet";
   }
   if (network) {
-    console.warn(`Invalid STELLAR_NETWORK: ${network}. Defaulting to testnet.`);
+    logger.warn("Invalid STELLAR_NETWORK; defaulting to testnet", {
+      module: "stellar/config",
+      network,
+    });
   }
   return "testnet";
 }
