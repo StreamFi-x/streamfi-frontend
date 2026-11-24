@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 export const INTERNAL_ERROR_MESSAGE = "An unexpected error occurred. Please try again later.";
 
 /**
  * Creates a sanitized JSON error response.
- * Logs the full error to console.error for debugging, but returns only a safe public message.
+ * Logs the full error via the structured logger for debugging, but returns only a safe public message.
  */
 export function createSanitizedErrorResponse(
   error: unknown,
@@ -16,13 +17,17 @@ export function createSanitizedErrorResponse(
     headers?: HeadersInit;
   }
 ): ReturnType<typeof NextResponse.json> {
-  console.error(`[${options.context}]`, error);
+  const status = options.status ?? 500;
+  logger.error("API error response", error, {
+    context: options.context,
+    status,
+  });
   const body = {
     error: options.publicMessage ?? INTERNAL_ERROR_MESSAGE,
     ...(options.extra ?? {}),
   };
   return NextResponse.json(body, {
-    status: options.status ?? 500,
+    status,
     headers: options.headers,
   });
 }

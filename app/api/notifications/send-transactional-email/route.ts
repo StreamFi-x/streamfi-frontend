@@ -224,7 +224,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         { status: 200 }
       );
     } else {
-      console.error('[Transactional Email API] Sending email failed:', result.error);
+      logger.error("Transactional email sending failed", result.error, {
+        route: "POST /api/notifications/send-transactional-email",
+      });
       return NextResponse.json(
         { success: false, error: 'Failed to send email' },
         { status: 500 },
