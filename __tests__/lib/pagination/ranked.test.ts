@@ -1,202 +1,217 @@
-﻿/**
+/**
  * @jest-environment node
  */
+import {
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+  PaginationError,
+} from "@/lib/pagination/cursor";
 import {
   buildRankedPage,
   decodeRankedCursor,
   encodeRankedCursor,
-  parseRankedParams,
-  rankedBounds,
-  readRankedParams,
+  parseRankedPageParams,
+  rankedKeysetBounds,
+  readRankedPageParams,
+  type RankedKeysetPosition,
 } from "@/lib/pagination/ranked";
-import { PaginationError } from "@/lib/pagination/cursor";
 
 const ID_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const ID_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
-const params = (q: string) => new URLSearchParams(q);
+const ID_C = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
-describe("ranked cursor", () => {
-  it("round-trips scores and id", () => {
-    const cursor = encodeRankedCursor({ scores: [3, 120], id: ID_A });
+const params = (query: string) => new URLSearchParams(query);
+
+describe("ranked cursor encoding", () => {
+  it("round-trips a ranked position without exposing it in plain text", () => {
+    const cursor = encodeRankedCursor({ scores: [42, 10], id: ID_A });
+
     expect(cursor).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(cursor).not.toContain(ID_A);
     expect(decodeRankedCursor(cursor, 2)).toEqual({
-      scores: [3, 120],
+      scores: [42, 10],
       id: ID_A,
     });
   });
 
-  it("lowercases the id", () => {
-    const cursor = encodeRankedCursor({ scores: [1], id: ID_A.toUpperCase() });
-    expect(decodeRankedCursor(cursor, 1).id).toBe(ID_A);
+  it("normalizes uppercase UUIDs to lowercase", () => {
+    const cursor = encodeRankedCursor({
+      scores: [1, 0],
+      id: ID_A.toUpperCase(),
+    });
+    expect(decodeRankedCursor(cursor, 2)).toEqual({
+      scores: [1, 0],
+      id: ID_A,
+    });
   });
+
+  it("rejects encoding invalid positions", () => {
+    expect(() => encodeRankedCursor({ scores: [], id: ID_A })).toThrow(
+      PaginationError
+    );
+    expect(() => encodeRankedCursor({ scores: [-1], id: ID_A })).toThrow(
+      PaginationError
+    );
+    expect(() => encodeRankedCursor({ scores: [1.5], id: ID_A })).toThrow(
+      PaginationError
+    );
+    expect(() =>
+      encodeRankedCursor({ scores: [2_147_483_648], id: ID_A })
+    ).toThrow(PaginationError);
+    expect(() => encodeRankedCursor({ scores: [1], id: "not-a-uuid" })).toThrow(
+      PaginationError
+    );
+  });
+
+  const forge = (payload: unknown) =>
+    Buffer.from(JSON.stringify(payload)).toString("base64url");
 
   it.each([
     ["empty", ""],
-    ["not base64 json", "!!!"],
-    ["too long", "a".repeat(300)],
-    ["json null", Buffer.from("null").toString("base64url")],
-    [
-      "wrong version",
-      Buffer.from(JSON.stringify({ v: 9, s: [1], i: ID_A })).toString(
-        "base64url"
-      ),
-    ],
-    [
-      "non-integer score",
-      Buffer.from(JSON.stringify({ v: 1, s: [1.5], i: ID_A })).toString(
-        "base64url"
-      ),
-    ],
-    [
-      "string score",
-      Buffer.from(JSON.stringify({ v: 1, s: ["1"], i: ID_A })).toString(
-        "base64url"
-      ),
-    ],
-    [
-      "bad id",
-      Buffer.from(JSON.stringify({ v: 1, s: [1], i: "nope" })).toString(
-        "base64url"
-      ),
-    ],
-  ])("rejects a %s cursor", (_label, raw) => {
-    expect(() => decodeRankedCursor(raw, 1)).toThrow(PaginationError);
-  });
-
-  it("rejects a cursor issued for a different ranking", () => {
-    const cursor = encodeRankedCursor({ scores: [1, 2], id: ID_A });
-    expect(() => decodeRankedCursor(cursor, 1)).toThrow(PaginationError);
+    ["not base64 json", "%%%"],
+    ["non-object json", forge(123)],
+    ["wrong version", forge({ v: 2, s: [10, 5], i: ID_A })],
+    ["wrong score arity", forge({ v: 1, s: [10], i: ID_A })],
+    ["negative score", forge({ v: 1, s: [10, -1], i: ID_A })],
+    ["float score", forge({ v: 1, s: [10, 1.5], i: ID_A })],
+    ["int4 overflow score", forge({ v: 1, s: [2_147_483_648, 0], i: ID_A })],
+    ["non-number score", forge({ v: 1, s: ["10", 5], i: ID_A })],
+    ["non-uuid id", forge({ v: 1, s: [10, 5], i: "1 OR 1=1" })],
+    ["oversized", "a".repeat(300)],
+  ])("rejects a %s cursor", (_name, raw) => {
+    expect(() => decodeRankedCursor(raw, 2)).toThrow(PaginationError);
   });
 });
 
-describe("parseRankedParams", () => {
-  it("uses defaults for the first page", () => {
-    expect(parseRankedParams(params(""), 2, { defaultLimit: 5 })).toEqual({
+describe("parseRankedPageParams", () => {
+  it("defaults to first page with configured default limit", () => {
+    expect(parseRankedPageParams(params(""), { scoreCount: 2 })).toEqual({
+      limit: DEFAULT_PAGE_SIZE,
+      after: null,
+    });
+    expect(
+      parseRankedPageParams(params(""), {
+        defaultLimit: 5,
+        maxLimit: 20,
+        scoreCount: 2,
+      })
+    ).toEqual({
       limit: 5,
       after: null,
     });
   });
 
-  it("clamps limit to the maximum", () => {
+  it("clamps oversized limit to maxLimit", () => {
     expect(
-      parseRankedParams(params("limit=500"), 2, { maxLimit: 20 }).limit
+      parseRankedPageParams(params("limit=999"), {
+        maxLimit: 20,
+        scoreCount: 2,
+      }).limit
     ).toBe(20);
+    expect(
+      parseRankedPageParams(params("limit=999"), { scoreCount: 2 }).limit
+    ).toBe(MAX_PAGE_SIZE);
   });
 
-  it.each(["0", "-1", "abc", "1.5", ""])("rejects limit=%s", limit => {
-    expect(() => parseRankedParams(params(`limit=${limit}`), 2)).toThrow(
-      PaginationError
-    );
+  it.each(["0", "-1", "1.5", "abc", "", "1e3"])("rejects limit=%p", raw => {
+    expect(() =>
+      parseRankedPageParams(params(`limit=${encodeURIComponent(raw)}`), {
+        scoreCount: 2,
+      })
+    ).toThrow(PaginationError);
   });
 
-  it("rejects offset so old clients fail loudly", () => {
-    expect(() => parseRankedParams(params("offset=10"), 2)).toThrow(
-      PaginationError
-    );
+  it("rejects offset parameter", () => {
+    expect(() =>
+      parseRankedPageParams(params("offset=10"), { scoreCount: 2 })
+    ).toThrow(/cursor/);
   });
 
-  it("decodes a supplied cursor", () => {
-    const cursor = encodeRankedCursor({ scores: [0, 7], id: ID_B });
-    expect(parseRankedParams(params(`cursor=${cursor}`), 2).after).toEqual({
-      scores: [0, 7],
-      id: ID_B,
-    });
-  });
+  it("decodes valid cursor and rejects tampered cursor", () => {
+    const cursor = encodeRankedCursor({ scores: [5, 2], id: ID_A });
+    expect(
+      parseRankedPageParams(params(`cursor=${cursor}`), { scoreCount: 2 }).after
+    ).toEqual({ scores: [5, 2], id: ID_A });
 
-  it("throws RangeError for an unsupported score count", () => {
-    expect(() => parseRankedParams(params(""), 0)).toThrow(RangeError);
-    expect(() => parseRankedParams(params(""), 5)).toThrow(RangeError);
+    expect(() =>
+      parseRankedPageParams(params(`cursor=${cursor.slice(0, -2)}x`), {
+        scoreCount: 2,
+      })
+    ).toThrow(PaginationError);
   });
 });
 
-describe("readRankedParams", () => {
-  it("returns ok with the page params", () => {
-    const result = readRankedParams(params("limit=3"), 2);
-    expect(result.ok && result.page.limit).toBe(3);
-  });
-
-  it("returns a 400 response for bad input", async () => {
-    const result = readRankedParams(params("cursor=junk"), 2);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.response.status).toBe(400);
-      expect(await result.response.json()).toEqual({ error: "Invalid cursor" });
+describe("readRankedPageParams", () => {
+  it("returns ok:false with 400 response on PaginationError", async () => {
+    const res = readRankedPageParams(params("offset=5"), { scoreCount: 2 });
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.response.status).toBe(400);
+      const body = await res.response.json();
+      expect(body.error).toMatch(/cursor/i);
     }
   });
 });
 
-describe("rankedBounds", () => {
-  it("short-circuits the first page with neutral bind values", () => {
-    expect(rankedBounds(null, 2)).toEqual({
-      isFirstPage: true,
-      scores: [0, 0],
-      id: "00000000-0000-0000-0000-000000000000",
+describe("rankedKeysetBounds", () => {
+  it("returns INT4 max sentinels for the first page", () => {
+    expect(rankedKeysetBounds(null, 2)).toEqual({
+      scores: [2_147_483_647, 2_147_483_647],
+      id: "ffffffff-ffff-ffff-ffff-ffffffffffff",
     });
   });
 
-  it("passes a cursor position through", () => {
-    expect(rankedBounds({ scores: [4, 9], id: ID_A }, 2)).toEqual({
-      isFirstPage: false,
-      scores: [4, 9],
-      id: ID_A,
-    });
+  it("passes through an existing cursor position", () => {
+    const pos: RankedKeysetPosition = { scores: [10, 3], id: ID_A };
+    expect(rankedKeysetBounds(pos, 2)).toBe(pos);
   });
 });
 
 describe("buildRankedPage", () => {
-  const row = (id: string, a: number, b: number) => ({
-    id,
-    rank_scores: [a, b],
-  });
+  const rows = [
+    { id: ID_C, score1: 100, score2: 50, name: "first" },
+    { id: ID_B, score1: 100, score2: 50, name: "second" },
+    { id: ID_A, score1: 80, score2: 10, name: "third" },
+  ];
 
-  it("returns a full page with a cursor at the last returned row", () => {
+  it("slices to limit and emits nextCursor when extra row is present", () => {
     const page = buildRankedPage(
-      [row(ID_A, 5, 10), row(ID_B, 4, 8), row("c", 1, 1)],
+      rows,
       2,
-      r => r.id
+      r => r.name,
+      r => ({ scores: [r.score1, r.score2], id: r.id })
     );
-    expect(page.items).toEqual([ID_A, ID_B]);
+
+    expect(page.items).toEqual(["first", "second"]);
     expect(page.hasMore).toBe(true);
-    expect(decodeRankedCursor(page.nextCursor as string, 2)).toEqual({
-      scores: [4, 8],
+    expect(page.nextCursor).not.toBeNull();
+    expect(decodeRankedCursor(page.nextCursor!, 2)).toEqual({
+      scores: [100, 50],
       id: ID_B,
     });
   });
 
-  it("ends the list when rows do not exceed the limit", () => {
-    const page = buildRankedPage([row(ID_A, 1, 1)], 2, r => r.id);
-    expect(page).toEqual({ items: [ID_A], nextCursor: null, hasMore: false });
-  });
-
-  it("is exactly full without a further page", () => {
+  it("returns hasMore=false and nextCursor=null on the final page", () => {
     const page = buildRankedPage(
-      [row(ID_A, 1, 1), row(ID_B, 1, 0)],
+      rows.slice(0, 2),
       2,
-      r => r.id
+      r => r.name,
+      r => ({ scores: [r.score1, r.score2], id: r.id })
     );
+
+    expect(page.items).toEqual(["first", "second"]);
     expect(page.hasMore).toBe(false);
     expect(page.nextCursor).toBeNull();
   });
 
-  it("returns the empty envelope", () => {
-    expect(buildRankedPage([], 5, r => r)).toEqual({
-      items: [],
-      nextCursor: null,
-      hasMore: false,
-    });
-  });
-
-  it("coerces bigint-as-string scores from the driver", () => {
+  it("handles empty results", () => {
     const page = buildRankedPage(
-      [
-        { id: ID_A, rank_scores: ["3", "4"] as unknown as number[] },
-        row(ID_B, 0, 0),
-      ],
-      1,
-      r => r.id
+      [],
+      5,
+      (r: (typeof rows)[number]) => r.name,
+      r => ({ scores: [r.score1, r.score2], id: r.id })
     );
-    expect(decodeRankedCursor(page.nextCursor as string, 2).scores).toEqual([
-      3, 4,
-    ]);
+
+    expect(page).toEqual({ items: [], nextCursor: null, hasMore: false });
   });
 });

@@ -3,74 +3,113 @@ import { sql } from "@vercel/postgres";
 import { CACHE_POLICIES } from "@/lib/cache";
 import {
   buildRankedPage,
-  rankedBounds,
-  readRankedParams,
+  rankedKeysetBounds,
+  readRankedPageParams,
 } from "@/lib/pagination/ranked";
 
-const SCORE_COUNT = 2;
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 100;
+const STREAMS_PER_PAGE = 50;
+
+interface LiveStreamRow {
+  id: string;
+  username: string;
+  avatar: string | null;
+  mux_playback_id: string | null;
+  current_viewers: number;
+  total_views: number | null;
+  stream_started_at: string | null;
+  creator: {
+    streamTitle?: string;
+    description?: string;
+    category?: string;
+    tags?: string[];
+    thumbnail?: string | null;
+  } | null;
+  is_following: number;
+}
 
 /**
- * GET /api/streams/live?limit=&cursor=&viewer_wallet=
- * Ranked by viewers (followed streams first when viewer_wallet is given).
- * Envelope: { items, nextCursor, hasMore }; `streams` mirrors `items` for
- * existing clients.
+ * GET /api/streams/live?limit=50&cursor=<nextCursor>&viewer_wallet=<wallet>
+ * Returns currently live public streams ordered by following status (when
+ * viewer_wallet is provided), viewer count descending, and id descending.
+ * Uses the shared ranked cursor contract: { items, nextCursor, hasMore } (plus
+ * `streams` alias for backwards compatibility).
  */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
+    const params = readRankedPageParams(searchParams, {
+      defaultLimit: STREAMS_PER_PAGE,
+      maxLimit: STREAMS_PER_PAGE,
+      scoreCount: 2,
+    });
+    if (!params.ok) {
+      return params.response;
+    }
+    const { page } = params;
+    const bound = rankedKeysetBounds(page.after, 2);
     const viewerWallet = searchParams.get("viewer_wallet");
 
-    const parsed = readRankedParams(searchParams, SCORE_COUNT, {
-      defaultLimit: DEFAULT_LIMIT,
-      maxLimit: MAX_LIMIT,
-    });
-    if (!parsed.ok) {
-      return parsed.response;
-    }
-    const { page } = parsed;
-    const bounds = rankedBounds(page.after, SCORE_COUNT);
-
-    // Followed streams rank first for a personalised viewer, so the ranking
-    // (and therefore the cursor) is [is_following, current_viewers, id].
-    const liveStreamsResult = await sql`
-      SELECT * FROM (
-        SELECT
-          u.id, u.username, u.avatar,
-          u.mux_playback_id,
-          u.current_viewers, u.total_views,
-          u.stream_started_at, u.creator,
-          CASE WHEN ${viewerWallet}::text IS NOT NULL AND EXISTS (
-            SELECT 1
+    const { rows } = viewerWallet
+      ? await sql<LiveStreamRow>`
+          WITH viewer_follows AS (
+            SELECT uf.followee_id
             FROM user_follows uf
             JOIN users v ON v.id = uf.follower_id AND v.deleted_at IS NULL
-            WHERE uf.followee_id = u.id
-              AND LOWER(v.wallet) = LOWER(${viewerWallet}::text)
-          ) THEN 1 ELSE 0 END AS is_following
-        FROM users u
-        WHERE u.is_live = true
-          AND u.deleted_at IS NULL
-          AND COALESCE(u.stream_privacy, 'public') = 'public'
-      ) ranked
-      WHERE (${bounds.isFirstPage}::boolean OR (
-        ranked.is_following, COALESCE(ranked.current_viewers, 0), ranked.id
-      ) < (${bounds.scores[0]}::int, ${bounds.scores[1]}::int, ${bounds.id}::uuid))
-      ORDER BY ranked.is_following DESC,
-               COALESCE(ranked.current_viewers, 0) DESC,
-               ranked.id DESC
-      LIMIT ${page.limit + 1}
-    `;
+            WHERE LOWER(v.wallet) = LOWER(${viewerWallet})
+          )
+          SELECT
+            u.id,
+            u.username,
+            u.avatar,
+            u.mux_playback_id,
+            COALESCE(u.current_viewers, 0)::int AS current_viewers,
+            u.total_views,
+            u.stream_started_at,
+            u.creator,
+            CASE WHEN vf.followee_id IS NOT NULL THEN 1 ELSE 0 END AS is_following
+          FROM users u
+          LEFT JOIN viewer_follows vf ON vf.followee_id = u.id
+          WHERE u.is_live = true
+            AND u.deleted_at IS NULL
+            AND COALESCE(u.stream_privacy, 'public') = 'public'
+            AND (
+              CASE WHEN vf.followee_id IS NOT NULL THEN 1 ELSE 0 END,
+              COALESCE(u.current_viewers, 0)::int,
+              u.id
+            ) < (
+              ${bound.scores[0]}::int,
+              ${bound.scores[1]}::int,
+              ${bound.id}::uuid
+            )
+          ORDER BY is_following DESC, current_viewers DESC, u.id DESC
+          LIMIT ${page.limit + 1}
+        `
+      : await sql<LiveStreamRow>`
+          SELECT
+            u.id,
+            u.username,
+            u.avatar,
+            u.mux_playback_id,
+            COALESCE(u.current_viewers, 0)::int AS current_viewers,
+            u.total_views,
+            u.stream_started_at,
+            u.creator,
+            0 AS is_following
+          FROM users u
+          WHERE u.is_live = true
+            AND u.deleted_at IS NULL
+            AND COALESCE(u.stream_privacy, 'public') = 'public'
+            AND (0, COALESCE(u.current_viewers, 0)::int, u.id) < (
+              ${bound.scores[0]}::int,
+              ${bound.scores[1]}::int,
+              ${bound.id}::uuid
+            )
+          ORDER BY current_viewers DESC, u.id DESC
+          LIMIT ${page.limit + 1}
+        `;
 
-    const result = buildRankedPage(
-      liveStreamsResult.rows.map(row => ({
-        ...row,
-        id: row.id as string,
-        rank_scores: [
-          Number(row.is_following),
-          Number(row.current_viewers ?? 0),
-        ],
-      })),
+    const pageData = buildRankedPage(
+      rows,
       page.limit,
       row => {
         const creator = row.creator || {};
@@ -89,11 +128,18 @@ export async function GET(req: Request) {
           isFollowing: row.is_following === 1,
           streamStartedAt: row.stream_started_at,
         };
-      }
+      },
+      row => ({
+        scores: [row.is_following, row.current_viewers],
+        id: row.id,
+      })
     );
 
     return NextResponse.json(
-      { ...result, streams: result.items },
+      {
+        ...pageData,
+        streams: pageData.items,
+      },
       {
         headers: {
           "Cache-Control": CACHE_POLICIES.liveState.cacheControl,

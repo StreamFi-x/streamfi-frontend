@@ -96,6 +96,8 @@ filter state, sign it or bump `v`.
 | `GET /api/streams/clips?username=`      | 20      | 50  | `status = 'ready'`, optional streamer | Was OFFSET + COUNT(\*). No client used it.                                                                                                                                                                   |
 | `GET /api/streams/recordings?username=` | 20      | 50  | `status = 'ready'`, optional user     | Was OFFSET + COUNT(\*). Used by the clips page, profile, stream page, explore and home.                                                                                                                      |
 | `GET /api/streams/whitelist`            | 50      | 100 | streamer = session user               | Was unbounded. `?streamer=` access check is unchanged.                                                                                                                                                       |
+| `GET /api/streams/live?viewer_wallet=`  | 50      | 50  | `is_live = true`, public              | Ranked cursor `(is_following, current_viewers, id)` via `lib/pagination/ranked.ts`. Adds `streams` alias for backwards compatibility.                                                                        |
+| `GET /api/users/top`                    | 5       | 20  | active users with username            | Ranked cursor `(follower_count, current_viewers, id)` via `lib/pagination/ranked.ts`. Adds `users` alias for backwards compatibility.                                                                        |
 | `GET /api/users/notifications`          | 20      | 50  | user = session user                   | Was the whole `users.notifications` array, sliced in JS. Now a table. Adds `unreadCount`.                                                                                                                    |
 
 ### Migration notes for API consumers
@@ -149,35 +151,9 @@ const { items, hasMore, loadMore, isLoadingMore, isLoading, error, mutate } =
 
 ## Endpoints audited and deliberately not migrated
 
-| Endpoint                                  | Current                                             | Why not in this change                                                                                                                                                  |
-| ----------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/streams/live`                   | OFFSET, ordered by `current_viewers`                | The sort key changes every few seconds, so a keyset cursor over it is not stable either. A live ranking needs a snapshot or rank-bucket design. Bounded at 50 per page. |
-| `GET /api/streams/recordings/[wallet]`    | Unbounded, creator's own list (dashboard)           | Bounded by one creator's recordings. The path segment doubles as a recording id for GET/PATCH/DELETE. Follow-up.                                                        |
-| `GET /api/admin/users`, `admin/reports/*` | `page` × 20                                         | Admin UIs use numbered pages. Bounded and admin-only.                                                                                                                   |
-| `GET /api/users/top`                      | `limit` only                                        | Top-N leaderboard, not a list to page through.                                                                                                                          |
-| `routes-f/follows`, `follow-list-mine`    | Cursor = followee id, compared by `created_at` only | Same tie-skipping bug as the old chat cursor. Follow-up: move to this contract.                                                                                         |
-| other `routes-f/*` lists                  | In-memory seed data                                 | No database access.                                                                                                                                                     |
-
-## Ranked lists (score order instead of time order)
-
-Lists ordered by a score rather than `created_at` use the same envelope, limit
-rules and errors, with a ranked cursor from `lib/pagination/ranked.ts`. The
-order is `score_1 DESC, ..., score_n DESC, id DESC` and the cursor holds the
-last row's scores and id:
-
-| Endpoint                | Default | Max | Ranking                                        |
-| ----------------------- | ------- | --- | ---------------------------------------------- |
-| `GET /api/streams/live` | 50      | 100 | followed first (with `viewer_wallet`), viewers |
-| `GET /api/users/top`    | 5       | 20  | followers, viewers                             |
-
-```sql
-WHERE (${isFirstPage} OR (score_1, score_2, id) < (${s1}, ${s2}, ${id}::uuid))
-ORDER BY score_1 DESC, score_2 DESC, id DESC
-LIMIT $limit + 1
-```
-
-A cursor issued for a different ranking (wrong number of scores) is rejected
-with 400. Both endpoints also return their previous field (`streams`, `users`)
-as an alias of `items` so existing clients keep working; new clients should
-read `items`. The `offset` and `nextOffset` fields of `/api/streams/live` are
-gone.
+| Endpoint                                  | Current                                             | Why not in this change                                                                                           |
+| ----------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `GET /api/streams/recordings/[wallet]`    | Unbounded, creator's own list (dashboard)           | Bounded by one creator's recordings. The path segment doubles as a recording id for GET/PATCH/DELETE. Follow-up. |
+| `GET /api/admin/users`, `admin/reports/*` | `page` × 20                                         | Admin UIs use numbered pages. Bounded and admin-only.                                                            |
+| `routes-f/follows`, `follow-list-mine`    | Cursor = followee id, compared by `created_at` only | Same tie-skipping bug as the old chat cursor. Follow-up: move to this contract.                                  |
+| other `routes-f/*` lists                  | In-memory seed data                                 | No database access.                                                                                              |

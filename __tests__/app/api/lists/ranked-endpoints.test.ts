@@ -36,9 +36,8 @@ const topRow = (n: number, followers: number, viewers: number) => ({
   username: `user${n}`,
   avatar: null,
   is_live: false,
-  current_viewers: 0,
+  current_viewers: viewers,
   follower_count: followers,
-  rank_viewers: viewers,
 });
 
 beforeEach(() => {
@@ -96,7 +95,7 @@ describe("GET /api/streams/live", () => {
     expect(second.items).toHaveLength(1);
     expect(second.hasMore).toBe(false);
     const { values } = mockDb.calls[0];
-    expect(values).toEqual(expect.arrayContaining([false, 0, 40, id(2)]));
+    expect(values).toEqual(expect.arrayContaining([0, 40, id(2)]));
   });
 
   it("ranks followed streams first and flags them", async () => {
@@ -129,7 +128,7 @@ describe("GET /api/streams/live", () => {
   it("clamps an oversized limit to the maximum", async () => {
     mockDb.on(/FROM users u/, { rows: [] });
     await call("?limit=9999");
-    expect(mockDb.calls[0].values).toContain(101);
+    expect(mockDb.calls[0].values).toContain(51);
   });
 
   it("returns 500 when the database fails", async () => {
@@ -154,7 +153,7 @@ describe("GET /api/users/top", () => {
       username: "user1",
       avatar: null,
       is_live: false,
-      current_viewers: 0,
+      current_viewers: 1,
       follower_count: 9,
     });
     expect(body.items[0]).not.toHaveProperty("id");
