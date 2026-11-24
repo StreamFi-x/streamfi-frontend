@@ -1,5 +1,29 @@
+const PRODUCTION_PAGE_EXTENSIONS = ["tsx", "ts", "jsx", "js"];
+const DEV_PAGE_EXTENSIONS = [
+  "dev.tsx",
+  "dev.ts",
+  "dev.jsx",
+  "dev.js",
+  ...PRODUCTION_PAGE_EXTENSIONS,
+];
+
+/**
+ * Resolve Next.js pageExtensions for the given NODE_ENV (#1720).
+ * Debug routes use the `.dev.ts` suffix (`route.dev.ts`) so Next.js excludes
+ * them from the production route table at build time while keeping them
+ * active in development.
+ */
+export function getPageExtensions(nodeEnv = process.env.NODE_ENV) {
+  return nodeEnv === "production"
+    ? PRODUCTION_PAGE_EXTENSIONS
+    : DEV_PAGE_EXTENSIONS;
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Exclude *.dev.* routes (e.g. app/api/debug/**/route.dev.ts) from
+  // production builds at build time (#1720).
+  pageExtensions: getPageExtensions(),
   // Required when webpack config is present alongside Turbopack (Next 16)
   turbopack: {},
   experimental: {

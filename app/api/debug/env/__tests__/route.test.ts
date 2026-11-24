@@ -14,7 +14,7 @@ jest.mock("next/server", () => ({
   },
 }));
 
-import { GET } from "../route";
+import { GET } from "../route.dev";
 
 const makeRequest = (search?: string) =>
   new Request(`http://localhost/api/debug/env${search ?? ""}`, {
