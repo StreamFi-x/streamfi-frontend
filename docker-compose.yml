@@ -1,0 +1,31 @@
+name: streamfi-local
+
+# Local development parity for external service dependencies (#1713).
+#
+# Standing up the real third-party services (Neon Postgres, Upstash Redis,
+# Mux, Privy, Stellar Horizon) is not practical for local dev — Postgres is
+# the one dependency with a real local equivalent, so that's what this file
+# provides. See the "Local Development Setup" section in README.md for how
+# the other services are handled (self-mocking fallback, or documented
+# sandbox credentials) without needing live production-adjacent access.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: streamfi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: streamfi_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - streamfi-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  streamfi-postgres-data:

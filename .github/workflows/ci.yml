@@ -55,6 +55,9 @@ jobs:
       - name: Check dependency licenses
         run: npm run licenses:check
 
+      - name: Verify .env.example matches process.env usage (#1712)
+        run: npm run env:check
+
       - name: Type check
         run: npm run type-check
 
