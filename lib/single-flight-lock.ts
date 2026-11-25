@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { getUpstashRedis } from "@/lib/upstash-redis";
+import { logger } from "@/lib/tracing/logger";
 
 /**
  * Mutual exclusion for expensive operations that must not overlap for the same
@@ -68,7 +69,10 @@ export async function acquireLock(
       return null;
     }
   } catch (err) {
-    console.error(`[lock] Redis acquire failed for ${key}:`, err);
+    logger.error("Redis acquire failed", err, {
+      module: "single-flight-lock",
+      key,
+    });
     return acquireMemory(key, ttlMs, now);
   }
 
@@ -78,7 +82,10 @@ export async function acquireLock(
         await redis.eval(RELEASE_SCRIPT, [key], [token]);
       } catch (err) {
         // The TTL frees it; log so a stuck lock is explainable.
-        console.error(`[lock] Redis release failed for ${key}:`, err);
+        logger.error("Redis release failed", err, {
+          module: "single-flight-lock",
+          key,
+        });
       }
     },
   };

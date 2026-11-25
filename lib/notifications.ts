@@ -1,4 +1,5 @@
 import { sql } from "@vercel/postgres";
+import { logger } from "@/lib/tracing/logger";
 import type { Tx } from "@/lib/postgres-transaction";
 import type { RenderedNotification } from "@/lib/notifications/template-engine";
 import {
@@ -56,8 +57,14 @@ export async function writeNotification(
     `;
 
     if (result.rowCount === 0) {
-      console.warn(
-        `[writeNotification] Notification with idempotencyKey=${options.idempotencyKey} already exists or user not found — skipped`
+      logger.warn(
+        "Notification with idempotencyKey already exists or user not found — skipped",
+        {
+          module: "notifications",
+          operation: "writeNotification",
+          idempotencyKey: options.idempotencyKey,
+          recipientId,
+        }
       );
     }
     return;
@@ -72,8 +79,14 @@ export async function writeNotification(
   `;
 
   if (result.rowCount === 0) {
-    console.error(
-      `[writeNotification] No active user found with id=${recipientId} — notification not written`
+    logger.error(
+      "No active user found — notification not written",
+      undefined,
+      {
+        module: "notifications",
+        operation: "writeNotification",
+        recipientId,
+      }
     );
   }
 }
@@ -122,8 +135,14 @@ export async function writeTemplatedNotification(
   `;
 
   if (result.rowCount === 0) {
-    console.error(
-      `[writeTemplatedNotification] No user found with id=${recipientId} — notification not written`
+    logger.error(
+      "No user found — templated notification not written",
+      undefined,
+      {
+        module: "notifications",
+        operation: "writeTemplatedNotification",
+        recipientId,
+      }
     );
   }
 }

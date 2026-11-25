@@ -1,4 +1,5 @@
 import { sql } from "@vercel/postgres";
+import { logger } from "@/lib/tracing/logger";
 import { invalidateTags } from "./index";
 import { cacheTags } from "./tags";
 
@@ -53,7 +54,10 @@ export async function invalidateUserCaches(ref: UserCacheRef): Promise<void> {
       usernames.push(row?.username);
       wallets.push(row?.wallet);
     } catch (err) {
-      console.error("[cache] user identity lookup failed:", err);
+      logger.error("User identity lookup failed during cache invalidation", err, {
+        module: "cache/invalidation",
+        operation: "lookupIdentity",
+      });
     }
   }
 
