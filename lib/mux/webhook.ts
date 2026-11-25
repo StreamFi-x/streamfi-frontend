@@ -57,7 +57,11 @@ export function verifyMuxWebhookSignature(
 
   const ageSeconds = Math.abs(nowMs / 1000 - parseInt(timestamp, 10));
   if (!(ageSeconds <= MUX_SIGNATURE_TOLERANCE_SECONDS)) {
-    console.error(`❌ Mux webhook too old: ${ageSeconds}s`);
+    logger.error("Mux webhook signature timestamp too old", undefined, {
+      module: "mux/webhook",
+      ageSeconds,
+      toleranceSeconds: MUX_SIGNATURE_TOLERANCE_SECONDS,
+    });
     return false;
   }
 
@@ -252,23 +256,33 @@ export async function handleMuxWebhook(
 
   if (webhookSecret) {
     if (!signatureHeader) {
-      console.error("❌ Missing Mux-Signature header");
+      logger.error("Missing Mux-Signature header", undefined, {
+        module: "mux/webhook",
+        endpoint: config.endpoint,
+      });
       return NextResponse.json({ error: "Missing signature" }, { status: 401 });
     }
     if (!verifyMuxWebhookSignature(signatureHeader, rawBody, webhookSecret)) {
-      console.error("❌ Invalid Mux webhook signature");
+      logger.error("Invalid Mux webhook signature", undefined, {
+        module: "mux/webhook",
+        endpoint: config.endpoint,
+      });
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
   } else {
     if (process.env.NODE_ENV === "production") {
-      console.error("❌ MUX_WEBHOOK_SECRET is required in production");
+      logger.error("MUX_WEBHOOK_SECRET is required in production", undefined, {
+        module: "mux/webhook",
+        endpoint: config.endpoint,
+      });
       return NextResponse.json(
         { error: "Webhook signature secret is not configured" },
         { status: 500 }
       );
     }
-    console.warn(
-      "⚠️  MUX_WEBHOOK_SECRET not set — skipping signature verification (set it in production)"
+    logger.warn(
+      "MUX_WEBHOOK_SECRET not set — skipping signature verification (set it in production)",
+      { module: "mux/webhook", endpoint: config.endpoint }
     );
   }
 
@@ -278,10 +292,18 @@ export async function handleMuxWebhook(
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  console.log(`🔔 Mux webhook received (${config.endpoint}):`, event?.type);
+  logger.info("Mux webhook received", {
+    module: "mux/webhook",
+    endpoint: config.endpoint,
+    eventType: event?.type,
+  });
 
   if (!event?.data?.id) {
-    console.error("❌ No object ID in webhook event");
+    logger.error("No object ID in Mux webhook event", undefined, {
+      module: "mux/webhook",
+      endpoint: config.endpoint,
+      eventType: event?.type,
+    });
     return NextResponse.json(
       { error: config.missingObjectIdError },
       { status: 400 }
@@ -294,13 +316,21 @@ export async function handleMuxWebhook(
     if (logOnly) {
       logOnly(event);
     } else {
-      console.log(`ℹ️ Unhandled Mux event type: ${event.type}`);
+      logger.info("Unhandled Mux event type", {
+        module: "mux/webhook",
+        endpoint: config.endpoint,
+        eventType: event.type,
+      });
     }
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
   if (typeof event.id !== "string" || event.id.length === 0) {
-    console.error("❌ Mux webhook event has no event id");
+    logger.error("Mux webhook event has no event id", undefined, {
+      module: "mux/webhook",
+      endpoint: config.endpoint,
+      eventType: event.type,
+    });
     return NextResponse.json(
       { error: "Invalid event: missing event id" },
       { status: 400 }

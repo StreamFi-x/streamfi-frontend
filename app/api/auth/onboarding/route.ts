@@ -23,6 +23,15 @@ import {
   encryptCustodialSecret,
 } from "@/lib/custodial-keys";
 import { invalidateUserCaches } from "@/lib/cache/invalidation";
+import { prepareUsername } from "@/lib/validation/username";
+import {
+  LOOKALIKE_USERNAME_MESSAGE,
+  findUsernameConflict,
+} from "@/lib/users/username-conflict";
+import { isPresetIcon } from "@/lib/profile-icons";
+import { checkUsernameReleaseHold } from "@/lib/users/username-history";
+import { logger } from "@/lib/tracing/logger";
+import { getReservedUsernameError } from "@/lib/reserved-usernames";
 
 // ─── Username validation ───────────────────────────────────────────────────────
 
@@ -32,8 +41,13 @@ function validateUsername(username: string): string | null {
   if (!username?.trim()) {
     return "Username is required";
   }
-  if (!USERNAME_RE.test(username)) {
+  const trimmed = username.trim();
+  if (!USERNAME_RE.test(trimmed)) {
     return "Username must be 3–30 characters: letters, numbers, underscores only";
+  }
+  const reservedError = getReservedUsernameError(trimmed);
+  if (reservedError) {
+    return reservedError;
   }
   return null;
 }
@@ -56,7 +70,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Parse and validate request body
-  let body: { username?: string; bio?: string };
+  let body: { username?: string; bio?: string; avatar?: string };
   try {
     body = await req.json();
   } catch {
@@ -70,24 +84,56 @@ export async function POST(req: NextRequest) {
 
   // Normalize to lowercase — all usernames stored as lowercase to prevent
   // case-variant duplicates (e.g. "DumDumboi" vs "dumdumboi")
-  const username = body.username!.trim().toLowerCase();
+  const prepared = prepareUsername(body.username!);
+  const username = prepared.username;
   const bio = body.bio?.trim() ?? null;
+  const avatar =
+    typeof body.avatar === "string" && isPresetIcon(body.avatar)
+      ? body.avatar
+      : null;
 
   // 3. Check username isn't already taken (case-insensitive via stored lowercase)
   try {
-    const { rows: existing } = await sql`
-      -- tombstone-aware: identifiers stay reserved until the account is purged
-      SELECT id FROM users WHERE username = ${username} AND id != ${session.userId}
-      LIMIT 1
-    `;
-    if (existing.length > 0) {
+    const conflict = await findUsernameConflict(prepared, session.userId);
+    if (conflict === "exact") {
       return NextResponse.json(
         { error: "Username already taken" },
         { status: 409 }
       );
     }
+    if (conflict === "lookalike") {
+      return NextResponse.json(
+        { error: LOOKALIKE_USERNAME_MESSAGE, code: "USERNAME_LOOKALIKE" },
+        { status: 409 }
+      );
+    }
+
+    const releaseHold = await checkUsernameReleaseHold({
+      username,
+      requestingUserId: session.userId,
+    });
+    if (releaseHold.held) {
+      return NextResponse.json(
+        {
+          error:
+            "This username was recently released by another account and cannot be registered during the cooldown period",
+          code: "USERNAME_RECENTLY_RELEASED",
+          availableAt: releaseHold.availableAt,
+          retryAfterSeconds: releaseHold.retryAfterSeconds,
+        },
+        {
+          status: 409,
+          headers: {
+            "Retry-After": String(releaseHold.retryAfterSeconds),
+          },
+        }
+      );
+    }
   } catch (err) {
-    console.error("[onboarding] Username check failed:", err);
+    logger.error("Onboarding username availability check failed", err, {
+      route: "POST /api/auth/onboarding",
+      userId: session.userId,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -109,10 +155,11 @@ export async function POST(req: NextRequest) {
         keypair.secret()
       );
     } catch (err) {
-      console.error(
-        "[onboarding] Encryption failed:",
-        err instanceof CustodialKeyError ? err.code : "unexpected_error"
-      );
+      logger.error("Custodial wallet encryption failed during onboarding", {
+        route: "POST /api/auth/onboarding",
+        userId: session.userId,
+        code: err instanceof CustodialKeyError ? err.code : "unexpected_error",
+      });
       const transient = err instanceof CustodialKeyError && err.transient;
       return NextResponse.json(
         {
@@ -133,10 +180,12 @@ export async function POST(req: NextRequest) {
         UPDATE users
         SET
           username              = ${username},
+          username_skeleton     = ${prepared.skeleton},
           wallet                = ${walletPublicKey},
           encrypted_stellar_key = ${encryptedSecret},
           auth_type             = 'privy',
           bio                   = COALESCE(${bio}, bio),
+          avatar                = COALESCE(${avatar}, avatar),
           updated_at            = NOW()
         WHERE id = ${session.userId}
       `;
@@ -146,14 +195,19 @@ export async function POST(req: NextRequest) {
         UPDATE users
         SET
           username   = ${username},
+          username_skeleton = ${prepared.skeleton},
           auth_type  = 'privy',
           bio        = COALESCE(${bio}, bio),
+          avatar     = COALESCE(${avatar}, avatar),
           updated_at = NOW()
         WHERE id = ${session.userId}
       `;
     }
   } catch (err: unknown) {
-    console.error("[onboarding] DB update failed:", err);
+    logger.error("Onboarding database update failed", err, {
+      route: "POST /api/auth/onboarding",
+      userId: session.userId,
+    });
     // Unique constraint on wallet (another user has this key — extremely unlikely but guard it)
     if (
       typeof err === "object" &&

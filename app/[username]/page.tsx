@@ -81,6 +81,17 @@ const ProfilePage = ({ params }: PageProps) => {
           return;
         }
 
+        if (response.status === 307 || response.status === 308) {
+          const redirectData = await response.json().catch(() => null);
+          const target =
+            redirectData?.targetUsername ||
+            response.headers.get("X-Redirect-Username");
+          if (target) {
+            window.location.replace(`/${target}`);
+            return;
+          }
+        }
+
         if (!response.ok) {
           // Server error (500, timeout, etc.) — keep showing existing data if we
           // have it, or show a toast on the initial load. Don't set userExists=false.
@@ -91,6 +102,10 @@ const ProfilePage = ({ params }: PageProps) => {
         }
 
         const data = await response.json();
+        if (data?.redirect && data?.targetUsername) {
+          window.location.replace(`/${data.targetUsername}`);
+          return;
+        }
         setUserData(data.user);
       } catch {
         // Network failure — same as above, transient, don't show "User not found".

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createSanitizedErrorResponse } from '@/lib/api/error-response';
 import { verifySession } from "@/lib/auth/verify-session";
 import { rotateApiKey } from "@/lib/api-keys/service";
 
@@ -34,10 +35,12 @@ export async function POST(req: NextRequest) {
       secretKey: result.secretKey,
     });
   } catch (error) {
-    console.error("[developer/keys/rotate] POST error:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to rotate API key";
-    const status = message.includes("not found") ? 404 : 500;
-    return NextResponse.json({ error: message }, { status });
+    if (error instanceof Error && error.message.includes('not found')) {
+      return NextResponse.json({ error: 'API key not found' }, { status: 404 });
+    }
+    return createSanitizedErrorResponse(error, {
+      context: 'developer/keys/rotate POST',
+      publicMessage: 'Failed to rotate API key',
+    });
   }
 }

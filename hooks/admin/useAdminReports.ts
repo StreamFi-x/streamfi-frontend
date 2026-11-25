@@ -13,6 +13,17 @@ export interface StreamReport {
   created_at: string;
 }
 
+export interface StreamReportFlag {
+  signal: string;
+  detail: Record<string, unknown> | string | null;
+  created_at: string;
+}
+
+export interface StreamReportDetailResponse {
+  report: StreamReport;
+  flags: StreamReportFlag[];
+}
+
 export interface BugReport {
   id: string;
   reporter_id: string;
@@ -48,6 +59,14 @@ export function useAdminStreamReports(params: {
     refreshInterval: 60_000,
     revalidateOnFocus: false,
     keepPreviousData: true,
+  });
+}
+
+export function useAdminStreamReportDetail(reportId: string | null) {
+  const url = reportId ? `/api/admin/reports/stream/${reportId}` : null;
+
+  return useSWR<StreamReportDetailResponse>(url, fetcher, {
+    revalidateOnFocus: false,
   });
 }
 

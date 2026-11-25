@@ -11,7 +11,18 @@ import { verifySession } from "@/lib/auth/verify-session";
 import { cacheHeaders } from "@/lib/cache";
 import { markRecentWrite } from "@/lib/db/replica";
 import { acquireLock } from "@/lib/single-flight-lock";
-import { createRateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { createRateLimit, rateLimitHeaders, tooManyRequests } from "@/lib/rate-limit";
+import {
+  apiBadRequest,
+  apiConflict,
+  apiInternalError,
+  apiNotFound,
+  apiRateLimited,
+  apiServiceUnavailable,
+  apiSuccess,
+} from "@/lib/api";
+import { logger } from "@/lib/tracing/logger";
+import { withTracing } from "@/lib/tracing/api-route-wrapper";
 
 export const maxDuration = 30;
 
@@ -43,19 +54,13 @@ const REFRESH_LOCK_TTL_MS = 30_000;
 const IN_PROGRESS_RETRY_SECONDS = 10;
 
 function inProgress(): NextResponse {
-  return NextResponse.json(
-    {
-      error: "Tip totals are being updated; try again shortly",
-      retryAfter: IN_PROGRESS_RETRY_SECONDS,
+  return apiConflict("Tip totals are being updated; try again shortly", {
+    headers: {
+      "Retry-After": String(IN_PROGRESS_RETRY_SECONDS),
+      ...cacheHeaders("privateNoStore"),
     },
-    {
-      status: 409,
-      headers: {
-        "Retry-After": String(IN_PROGRESS_RETRY_SECONDS),
-        ...cacheHeaders("privateNoStore"),
-      },
-    }
-  );
+    legacyExtra: { retryAfter: IN_PROGRESS_RETRY_SECONDS },
+  });
 }
 
 /**
@@ -67,23 +72,21 @@ function ledgerUnavailable(error: unknown): NextResponse {
     error instanceof CircuitOpenError
       ? Math.max(1, Math.ceil(error.retryAfterMs / 1000))
       : IN_PROGRESS_RETRY_SECONDS;
-  return NextResponse.json(
+  return apiServiceUnavailable(
+    "The Stellar network is not responding; your tip totals will refresh shortly",
     {
-      error:
-        "The Stellar network is not responding; your tip totals will refresh shortly",
-      retryAfter,
-    },
-    {
-      status: 503,
-      headers: {
-        "Retry-After": String(retryAfter),
-        ...cacheHeaders("privateNoStore"),
-      },
+      retryAfterSeconds: retryAfter,
+      headers: cacheHeaders("privateNoStore"),
+      legacyExtra: { retryAfter },
     }
   );
 }
 
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
+  logger.info("Tip total refresh requested", {
+    endpoint: "POST /api/tips/refresh-total",
+  });
+
   const session = await verifySession(request);
   if (!session.ok) {
     return session.response;
@@ -97,15 +100,19 @@ export async function POST(request: NextRequest) {
     username = "";
   }
   if (!username) {
-    return NextResponse.json(
-      { error: "Username is required" },
-      { status: 400 }
-    );
+    return apiBadRequest("Username is required");
   }
 
   const callerCheck = await callerLimit.check(session.userId);
   if (!callerCheck.success) {
-    return tooManyRequests(callerCheck, "Too many refresh requests");
+    return apiRateLimited("Too many refresh requests", {
+      retryAfterSeconds: callerCheck.retryAfterSeconds,
+      headers: {
+        ...cacheHeaders("privateNoStore"),
+        ...rateLimitHeaders(callerCheck),
+      },
+      legacyExtra: { retryAfter: callerCheck.retryAfterSeconds },
+    });
   }
 
   try {
@@ -117,7 +124,7 @@ export async function POST(request: NextRequest) {
     `;
 
     if (userResult.rows.length === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return apiNotFound("User not found");
     }
 
     const user = userResult.rows[0];
@@ -129,15 +136,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user.stellar_public_key) {
-      return NextResponse.json(
-        { error: "User has not configured Stellar wallet" },
-        { status: 400 }
-      );
+      return apiBadRequest("User has not configured Stellar wallet");
     }
 
     const cooldown = await creatorCooldown.check(String(user.id));
     if (!cooldown.success) {
-      return NextResponse.json(
+      return apiSuccess(
         {
           username: user.username,
           totalReceived: String(user.total_tips_received ?? "0.0000000"),
@@ -146,7 +150,10 @@ export async function POST(request: NextRequest) {
           refreshed: false,
           retryAfter: cooldown.retryAfterSeconds,
         },
-        { headers: cacheHeaders("privateNoStore") }
+        {
+          headers: cacheHeaders("privateNoStore"),
+          legacyFlat: true,
+        }
       );
     }
 
@@ -170,10 +177,7 @@ export async function POST(request: NextRequest) {
 
       switch (result.status) {
         case "not_found":
-          return NextResponse.json(
-            { error: "User not found" },
-            { status: 404 }
-          );
+          return apiNotFound("User not found");
         case "stale":
         case "superseded":
           return inProgress();
@@ -188,7 +192,7 @@ export async function POST(request: NextRequest) {
               deduplicationId: `tip-refresh-creator:${user.id}:${result.cursor ?? "start"}`,
             }
           );
-          return NextResponse.json(
+          return apiSuccess(
             {
               username: user.username,
               totalReceived: String(user.total_tips_received ?? "0.0000000"),
@@ -199,7 +203,11 @@ export async function POST(request: NextRequest) {
               continuesInBackground: continuation.dispatched,
               retryAfter: IN_PROGRESS_RETRY_SECONDS,
             },
-            { status: 202, headers: cacheHeaders("privateNoStore") }
+            {
+              status: 202,
+              headers: cacheHeaders("privateNoStore"),
+              legacyFlat: true,
+            }
           );
         }
         case "complete":
@@ -214,26 +222,32 @@ export async function POST(request: NextRequest) {
       // tip_transactions feed replica-routed analytics (top tippers, tip
       // recap); the caller's next reads go to the primary.
       return markRecentWrite(
-        NextResponse.json(
+        apiSuccess(
           {
             username: user.username,
             totalReceived: result.totals.totalReceived,
             totalCount: result.totals.totalCount,
             lastTipAt: result.totals.lastTipAt,
             refreshed: true,
+            batched: true,
             refreshedAt: new Date().toISOString(),
           },
-          { headers: cacheHeaders("privateNoStore") }
+          {
+            headers: cacheHeaders("privateNoStore"),
+            legacyFlat: true,
+          }
         )
       );
     } finally {
       await lock.release();
     }
   } catch (error) {
-    console.error("Refresh total error:", error);
-    return NextResponse.json(
-      { error: "Failed to refresh tip totals" },
-      { status: 500 }
-    );
+    logger.error("Refresh total error", error, {
+      route: "POST /api/tips/refresh-total",
+      username,
+    });
+    return apiInternalError("Failed to refresh tip totals");
   }
 }
+
+export const POST = withTracing(handler);

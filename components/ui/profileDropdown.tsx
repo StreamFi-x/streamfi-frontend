@@ -200,8 +200,6 @@ const UserDropdown = ({ username, avatar, onLinkClick }: UserDropdownProps) => {
   ];
 
   const handleItemClick = (item: MenuItem) => {
-    console.log(`Clicked on ${item.label}`);
-
     if (item.label === "Disconnect") {
       if (isConnected) {
         disconnect();

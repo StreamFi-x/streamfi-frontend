@@ -31,7 +31,8 @@ export type AlertCategory =
   | "mux_webhooks"
   | "custodial_keys"
   | "tip_reconciliation"
-  | "background_jobs";
+  | "background_jobs"
+  | "transactional_email";
 
 export type AlertSeverity = "warning" | "critical";
 

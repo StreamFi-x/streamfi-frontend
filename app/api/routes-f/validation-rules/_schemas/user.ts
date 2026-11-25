@@ -1,11 +1,15 @@
 import { z } from "zod";
+import { isReservedUsername } from "@/lib/reserved-usernames";
 
 export const userSchema = z.object({
   username: z
     .string()
     .min(3, "Username must be at least 3 characters")
     .max(30, "Username must not exceed 30 characters")
-    .regex(/^[a-zA-Z0-9_]+$/, "Username may only contain letters, numbers, and underscores"),
+    .regex(/^[a-zA-Z0-9_]+$/, "Username may only contain letters, numbers, and underscores")
+    .refine(val => !isReservedUsername(val), {
+      message: "This username is reserved and cannot be used",
+    }),
   email: z
     .string()
     .min(1, "Email is required")

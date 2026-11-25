@@ -12,6 +12,7 @@ import { dispatchJob } from "@/lib/jobs/qstash";
 import { liveFanoutJob } from "@/lib/jobs/definitions/live-fanout";
 import { streamOfflineCleanupJob } from "@/lib/jobs/definitions/stream-offline-cleanup";
 import { publishRealtimeMessage } from "@/lib/realtime/pubsub";
+import { logger } from "@/lib/logger";
 
 /**
  * Side-effecting Mux event handlers. Each runs inside the transaction opened
@@ -55,15 +56,17 @@ async function dispatchLiveFanout(creatorIds: string[]): Promise<void> {
         }
       );
       if (!result.dispatched) {
-        console.warn(
-          `[mux] live-fanout not dispatched for ${creatorId} (${result.reason})`
-        );
+        logger.warn("live-fanout not dispatched", {
+          module: "mux/webhook-handlers",
+          creatorId,
+          reason: result.reason,
+        });
       }
     } catch (err) {
-      console.error(
-        `[mux] live-fanout dispatch failed for ${creatorId}:`,
-        err instanceof Error ? err.message : err
-      );
+      logger.error("live-fanout dispatch failed", err, {
+        module: "mux/webhook-handlers",
+        creatorId,
+      });
     }
   }
 }
@@ -71,19 +74,30 @@ async function dispatchLiveFanout(creatorIds: string[]): Promise<void> {
 export const liveStreamHandlers: Record<string, MuxEventHandler> = {
   // The stream is actively broadcasting. This is when we mark the user live.
   "video.live_stream.active": async (tx, event, afterCommit) => {
-    console.log(`🔴 Stream ACTIVE (broadcasting): ${streamId(event)}`);
-    const userIds = await markMuxStreamLive(tx, streamId(event));
+    const id = streamId(event);
+    logger.info("Stream active (broadcasting)", {
+      module: "mux/webhook-handlers",
+      streamId: id,
+    });
+    const userIds = await markMuxStreamLive(tx, id);
     afterCommit?.(async () => {
       await invalidateUsers(userIds);
       await dispatchLiveFanout(userIds);
     });
-    console.log("✅ Stream marked as LIVE");
+    logger.info("Stream marked as live", {
+      module: "mux/webhook-handlers",
+      streamId: id,
+    });
   },
 
   // Stream is genuinely offline (reconnect window elapsed).
   "video.live_stream.idle": async (tx, event, afterCommit) => {
-    console.log(`⚫ Stream OFFLINE (idle): ${streamId(event)}`);
-    const users = await markMuxStreamOffline(tx, streamId(event));
+    const id = streamId(event);
+    logger.info("Stream offline (idle)", {
+      module: "mux/webhook-handlers",
+      streamId: id,
+    });
+    const users = await markMuxStreamOffline(tx, id);
     afterCommit?.(async () => {
       for (const user of users) {
         await invalidateUsers([user.id]);
@@ -103,32 +117,45 @@ export const liveStreamHandlers: Record<string, MuxEventHandler> = {
           { deduplicationId: `stream-offline-cleanup:${user.id}` }
         );
         if (!result.dispatched) {
-          console.warn(
-            `[mux] stream-offline-cleanup not dispatched for ${user.id} (${result.reason})`
-          );
+          logger.warn("stream-offline-cleanup not dispatched", {
+            module: "mux/webhook-handlers",
+            userId: user.id,
+            reason: result.reason,
+          });
         }
       }
     });
-    console.log("✅ Stream marked as OFFLINE");
+    logger.info("Stream marked as offline", {
+      module: "mux/webhook-handlers",
+      streamId: id,
+    });
   },
 };
 
 export const liveStreamLogOnly: MuxLogOnlyEvents = {
   // Encoder connected but not yet broadcasting — wait for "active".
   "video.live_stream.connected": event =>
-    console.log(
-      `🔌 Encoder connected (not yet live): ${streamId(event)} — waiting for active event`
-    ),
+    logger.info("Encoder connected (waiting for active event)", {
+      module: "mux/webhook-handlers",
+      streamId: streamId(event),
+    }),
   // Mux holds the slot for the reconnect window; wait for "idle" so a brief
   // network blip does not flap is_live.
   "video.live_stream.disconnected": event =>
-    console.log(
-      `⚠️ Encoder disconnected: ${streamId(event)} — waiting for reconnect or idle event before marking offline`
-    ),
+    logger.info("Encoder disconnected (waiting for reconnect or idle event)", {
+      module: "mux/webhook-handlers",
+      streamId: streamId(event),
+    }),
   "video.live_stream.created": event =>
-    console.log(`📺 New stream created: ${streamId(event)}`),
+    logger.info("New stream created", {
+      module: "mux/webhook-handlers",
+      streamId: streamId(event),
+    }),
   "video.live_stream.deleted": event =>
-    console.log(`🗑️ Stream deleted: ${streamId(event)}`),
+    logger.info("Stream deleted", {
+      module: "mux/webhook-handlers",
+      streamId: streamId(event),
+    }),
 };
 
 interface AssetHandlerOptions {
@@ -159,7 +186,10 @@ export function assetHandlers({
       const liveStreamId = data.live_stream_id ?? data.live_stream?.id;
 
       if (!playbackId) {
-        console.error(`❌ video.asset.ready missing playback_id: ${assetId}`);
+        logger.error("video.asset.ready missing playback_id", undefined, {
+          module: "mux/webhook-handlers",
+          assetId,
+        });
         return;
       }
 
@@ -185,9 +215,10 @@ export function assetHandlers({
       }
 
       if (!userId) {
-        console.warn(
-          `⚠️ video.asset.ready: could not resolve user for asset ${assetId}`
-        );
+        logger.warn("video.asset.ready could not resolve user for asset", {
+          module: "mux/webhook-handlers",
+          assetId,
+        });
         return;
       }
 
@@ -202,7 +233,11 @@ export function assetHandlers({
         },
         tx
       );
-      console.log(`✅ Stream recording saved: ${assetId}`);
+      logger.info("Stream recording saved", {
+        module: "mux/webhook-handlers",
+        assetId,
+        userId,
+      });
 
       if (notifyOwner) {
         const minutes = duration ? Math.floor(duration / 60) : 0;
@@ -223,7 +258,10 @@ export function assetHandlers({
         WHERE mux_asset_id = ${assetId}
         RETURNING user_id
       `;
-      console.log(`✅ Marked recording as error: ${assetId}`);
+      logger.info("Marked recording as error", {
+        module: "mux/webhook-handlers",
+        assetId,
+      });
 
       if (notifyOwner && rows.length > 0) {
         await writeNotification(
@@ -241,10 +279,70 @@ export function assetHandlers({
 export const assetDeletedHandler: MuxEventHandler = async (tx, event) => {
   const assetId = event.data.id as string;
   await tx.sql`DELETE FROM stream_recordings WHERE mux_asset_id = ${assetId}`;
-  console.log(`✅ Recording removed from database: ${assetId}`);
+  logger.info("Recording removed from database", {
+    module: "mux/webhook-handlers",
+    assetId,
+  });
+};
+
+/**
+ * Handle video.clip.ready webhook event - marks clips as ready for playback
+ */
+export const clipReadyHandler: MuxEventHandler = async (tx, event) => {
+  const clipAssetId = event.data.id as string;
+  const clipPlaybackIds = event.data.playback_ids as
+    | Array<{ id?: string }>
+    | undefined;
+  const clipPlaybackId = Array.isArray(clipPlaybackIds)
+    ? clipPlaybackIds[0]?.id
+    : undefined;
+
+  if (!clipPlaybackId) {
+    logger.error("video.clip.ready missing playback_id", undefined, {
+      module: "mux/webhook-handlers",
+      clipAssetId,
+    });
+    return;
+  }
+
+  try {
+    // Find and update the clip record by mux_asset_id
+    const clipResult = await tx.sql`
+      SELECT id, streamer_id FROM stream_clips WHERE mux_asset_id = ${clipAssetId}
+    `;
+
+    if (clipResult.rows.length === 0) {
+      logger.warn("video.clip.ready clip record not found", {
+        module: "mux/webhook-handlers",
+        clipAssetId,
+      });
+      return;
+    }
+
+    await tx.sql`
+      UPDATE stream_clips SET
+        playback_id = ${clipPlaybackId},
+        status = 'ready',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE mux_asset_id = ${clipAssetId}
+    `;
+
+    logger.info("Clip ready and playback enabled", {
+      module: "mux/webhook-handlers",
+      clipAssetId,
+    });
+  } catch (clipErr) {
+    logger.error("Failed to update clip status", clipErr, {
+      module: "mux/webhook-handlers",
+      clipAssetId,
+    });
+  }
 };
 
 export const assetLogOnly: MuxLogOnlyEvents = {
   "video.asset.created": event =>
-    console.log(`📹 Asset creation started: ${event.data.id}`),
+    logger.info("Asset creation started", {
+      module: "mux/webhook-handlers",
+      assetId: event.data.id,
+    }),
 };

@@ -1,11 +1,13 @@
 /**
- * Trace context stored in AsyncLocalStorage.
+ * Trace context stored in AsyncLocalStorage (on Node/server environments).
  * Provides request-scoped correlation ID and trace metadata.
  */
 export interface TraceContext {
   traceId: string;
   spanId: string;
   parentSpanId?: string;
+  /** Shared by every request of one user action; see ./correlation. */
+  correlationId?: string;
   timestamp: number;
 }
 
@@ -31,14 +33,17 @@ class FallbackAsyncLocalStorage<T> implements ALS<T> {
 }
 
 function createALS<T>(): ALS<T> {
-  if (typeof (globalThis as unknown as { AsyncLocalStorage?: new () => ALS<T> }).AsyncLocalStorage !== 'undefined') {
-    const G = (globalThis as unknown as { AsyncLocalStorage: new () => ALS<T> });
+  if (
+    typeof (globalThis as unknown as { AsyncLocalStorage?: new () => ALS<T> })
+      .AsyncLocalStorage !== "undefined"
+  ) {
+    const G = globalThis as unknown as { AsyncLocalStorage: new () => ALS<T> };
     return new G.AsyncLocalStorage();
   }
   try {
     // Use dynamic require so bundlers do not attempt to bundle async_hooks in browser/edge
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const nodeHooks = require('async_hooks');
+    const nodeHooks = require("async_hooks");
     if (nodeHooks?.AsyncLocalStorage) {
       return new nodeHooks.AsyncLocalStorage();
     }
@@ -51,7 +56,10 @@ function createALS<T>(): ALS<T> {
 const asyncLocalStorage = createALS<TraceContext>();
 
 function safeUUID(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -62,12 +70,14 @@ function safeUUID(): string {
  */
 export function createTraceContext(
   traceId?: string,
-  parentSpanId?: string
+  parentSpanId?: string,
+  correlationId?: string
 ): TraceContext {
   return {
     traceId: traceId || `trace-${safeUUID()}`,
     spanId: `span-${safeUUID()}`,
     parentSpanId,
+    correlationId,
     timestamp: Date.now(),
   };
 }
@@ -75,11 +85,11 @@ export function createTraceContext(
 /**
  * Run a function within a trace context
  */
-export function withTraceContext<T>(
-  context: TraceContext,
-  fn: () => T
-): T {
-  return asyncLocalStorage.run(context, fn);
+export function withTraceContext<T>(context: TraceContext, fn: () => T): T {
+  if (asyncLocalStorage) {
+    return asyncLocalStorage.run(context, fn);
+  }
+  return fn();
 }
 
 /**
@@ -89,14 +99,20 @@ export async function withTraceContextAsync<T>(
   context: TraceContext,
   fn: () => Promise<T>
 ): Promise<T> {
-  return asyncLocalStorage.run(context, fn);
+  if (asyncLocalStorage) {
+    return asyncLocalStorage.run(context, fn);
+  }
+  return fn();
 }
 
 /**
  * Get current trace context (returns undefined if not in a traced context)
  */
 export function getCurrentTraceContext(): TraceContext | undefined {
-  return asyncLocalStorage.getStore();
+  if (asyncLocalStorage) {
+    return asyncLocalStorage.getStore();
+  }
+  return undefined;
 }
 
 /**
@@ -114,22 +130,27 @@ export function getTraceHeaders(): Record<string, string> {
   const context = getCurrentTraceContext();
   if (!context) {
     return {
-      'x-request-id': `trace-${safeUUID()}`,
+      "x-request-id": `trace-${safeUUID()}`,
     };
   }
 
   return {
-    'x-request-id': context.traceId,
-    'x-trace-id': context.traceId,
-    'x-span-id': context.spanId,
-    'x-parent-span-id': context.parentSpanId || context.spanId,
+    ...(context.correlationId && {
+      "x-correlation-id": context.correlationId,
+    }),
+    "x-request-id": context.traceId,
+    "x-trace-id": context.traceId,
+    "x-span-id": context.spanId,
+    "x-parent-span-id": context.parentSpanId || context.spanId,
   };
 }
 
 /**
  * Format trace context for structured logging
  */
-export function formatTraceContext(context?: TraceContext): Record<string, string> {
+export function formatTraceContext(
+  context?: TraceContext
+): Record<string, string> {
   const ctx = context || getCurrentTraceContext();
   if (!ctx) {
     return {};
@@ -139,5 +160,6 @@ export function formatTraceContext(context?: TraceContext): Record<string, strin
     traceId: ctx.traceId,
     spanId: ctx.spanId,
     ...(ctx.parentSpanId && { parentSpanId: ctx.parentSpanId }),
+    ...(ctx.correlationId && { correlationId: ctx.correlationId }),
   };
 }

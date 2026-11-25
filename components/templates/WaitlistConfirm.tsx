@@ -1,4 +1,14 @@
-export function WaitlistConfirmation(name: string, email: string): string {
+export interface WaitlistEmailOptions {
+  confirmationToken?: string;
+  unsubscribeToken?: string;
+  baseUrl?: string;
+}
+
+export function WaitlistConfirmation(
+  name: string,
+  email: string,
+  options: WaitlistEmailOptions = {}
+): string {
   const cloudName = "dwjnkuvqv";
   const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/streamfi_pu5tfp.png`;
   const twitterIconUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/x_ha8udb.png`;
@@ -6,8 +16,23 @@ export function WaitlistConfirmation(name: string, email: string): string {
   const facebookIconUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/facebook_cdmnek.png`;
 
   const recipientName = name || "there";
+  const baseUrl = (
+    options.baseUrl ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://streamfi.xyz"
+  ).replace(/\/$/, "");
 
-  const messageId = `${Date.now()}.${Math.random().toString(36).substring(2)}@streamfi.xyz`;
+  const confirmUrl = options.confirmationToken
+    ? `${baseUrl}/api/waitlist/confirm?email=${encodeURIComponent(email)}&token=${encodeURIComponent(options.confirmationToken)}`
+    : `${baseUrl}`;
+
+  const unsubscribeUrl = options.unsubscribeToken
+    ? `${baseUrl}/api/waitlist/unsubscribe?email=${encodeURIComponent(email)}&token=${encodeURIComponent(options.unsubscribeToken)}`
+    : `${baseUrl}/unsubscribe?email=${encodeURIComponent(email)}`;
+
+  const ctaLabel = options.confirmationToken
+    ? "Confirm Waitlist Subscription"
+    : "Visit Our Website";
 
   return `
 <!DOCTYPE html>
@@ -36,7 +61,7 @@ export function WaitlistConfirmation(name: string, email: string): string {
                 
                 <p style="font-family: Arial, sans-serif; font-size: 16px; margin: 0 0 20px; color: #333333;">Hi ${recipientName},</p>
                 
-                <p style="font-family: Arial, sans-serif; font-size: 16px; margin: 0 0 20px; color: #333333;">Thank you for joining the StreamFi waitlist. We've recorded your email and will keep you updated on our progress.</p>
+                <p style="font-family: Arial, sans-serif; font-size: 16px; margin: 0 0 20px; color: #333333;">Thank you for requesting to join the StreamFi waitlist. Please confirm your email address using the button below to complete your subscription.</p>
                 
                 <p style="font-family: Arial, sans-serif; font-size: 16px; margin: 0 0 20px; color: #333333;">To ensure you receive our communications, please add <a href="mailto:${process.env.EMAIL_USER}" style="color: #5A189A; text-decoration: underline;">${process.env.EMAIL_USER}</a> to your contacts.</p>
                 
@@ -54,7 +79,7 @@ export function WaitlistConfirmation(name: string, email: string): string {
                 <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin: 30px 0;">
                     <tr>
                         <td align="center">
-                            <a href="https://streamfi.xyz" style="display: inline-block; background-color: #5A189A; color: #FFFFFF; font-weight: bold; text-decoration: none; padding: 12px 25px; border-radius: 6px; font-size: 16px; font-family: Arial, sans-serif;">Visit Our Website</a>
+                            <a href="${confirmUrl}" style="display: inline-block; background-color: #5A189A; color: #FFFFFF; font-weight: bold; text-decoration: none; padding: 12px 25px; border-radius: 6px; font-size: 16px; font-family: Arial, sans-serif;">${ctaLabel}</a>
                         </td>
                     </tr>
                 </table>
@@ -90,12 +115,12 @@ export function WaitlistConfirmation(name: string, email: string): string {
                 
                 <!-- Clear notice about why they're receiving this -->
                 <p style="font-family: Arial, sans-serif; font-size: 13px; color: #666666; margin: 0 0 15px;">
-                    You're receiving this email because you signed up for the StreamFi waitlist.
+                    You're receiving this email because a waitlist signup was requested for this address on StreamFi.
                 </p>
                 
                 <!-- Prominent unsubscribe link -->
                 <p style="font-family: Arial, sans-serif; font-size: 13px; color: #666666; margin: 0 0 15px;">
-                    <a href="https://streamfi.xyz/unsubscribe?email=${encodeURIComponent(email)}&id=${messageId}" style="color: #5A189A; text-decoration: underline;">Unsubscribe</a> | 
+                    <a href="${unsubscribeUrl}" style="color: #5A189A; text-decoration: underline;">Unsubscribe</a> | 
                     <a href="https://streamfi.xyz/privacy" style="color: #5A189A; text-decoration: underline;">Privacy Policy</a>
                 </p>
                 

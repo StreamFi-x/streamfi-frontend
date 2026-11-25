@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 import { handleMuxWebhook } from "@/lib/mux/webhook";
 import {
   assetDeletedHandler,
   assetHandlers,
   liveStreamHandlers,
   liveStreamLogOnly,
+  clipReadyHandler,
 } from "@/lib/mux/webhook-handlers";
 
 /**
@@ -32,6 +34,7 @@ const handlers = {
   ...liveStreamHandlers,
   ...assetHandlers({ notifyOwner: false }),
   "video.asset.deleted": assetDeletedHandler,
+  "video.clip.ready": clipReadyHandler,
 };
 
 export async function POST(req: Request) {
@@ -43,7 +46,9 @@ export async function POST(req: Request) {
       missingObjectIdError: "Invalid event",
     });
   } catch (error) {
-    console.error("❌ Webhook handler error:", error);
+    logger.error("Mux webhook handler error", error, {
+      route: "POST /api/webhooks/mux",
+    });
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 }

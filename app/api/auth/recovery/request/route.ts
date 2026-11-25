@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requestAccountRecovery } from "@/lib/auth/wallet-recovery";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +32,10 @@ export async function POST(req: NextRequest) {
     const { identifier, newWallet } = await req.json();
     if (!identifier || !newWallet) {
       return NextResponse.json(
-        { error: "Username/Old Wallet and New Stellar Wallet address are required" },
+        {
+          error:
+            "Username/Old Wallet and New Stellar Wallet address are required",
+        },
         { status: 400 }
       );
     }
@@ -67,7 +71,9 @@ export async function POST(req: NextRequest) {
         : {}),
     });
   } catch (err) {
-    console.error("[recovery/request] Error initiating recovery:", err);
+    logger.error("Error initiating wallet recovery", err, {
+      route: "POST /api/auth/recovery/request",
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -7,6 +7,7 @@ import {
   DownstreamTimeoutError,
 } from "@/lib/resilience/circuit-breaker";
 import { getNativeBalance, STELLAR_ADDRESS } from "@/lib/stellar/balance";
+import { logger } from "@/lib/tracing/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -83,7 +84,11 @@ export async function GET(req: NextRequest) {
         { status: 503, headers: { ...headers, "Retry-After": "15" } }
       );
     }
-    console.error("[wallet/funding-status] balance lookup failed:", error);
+    logger.error("Wallet funding status balance lookup failed", error, {
+      route: "GET /api/wallet/funding-status",
+      userId: session.userId,
+      address: address.substring(0, 8),
+    });
     return NextResponse.json(
       { error: "Failed to load wallet status" },
       { status: 502, headers }

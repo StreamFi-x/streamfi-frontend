@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings, X, Send, MessageCircle } from "lucide-react";
+import { X, Send, MessageCircle } from "lucide-react";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import MuxPlayer from "@/components/MuxPlayerLazy";
 import { useStreamData } from "@/hooks/useStreamData";
@@ -247,11 +247,6 @@ export default function StreamPreview() {
         <div className="flex items-center">
           <MonitorIcon size={18} className="mr-2 text-foreground" />
           <span className="text-foreground">Stream Preview</span>
-        </div>
-        <div className="flex space-x-2">
-          <button className="p-1 hover:bg-surface-hover rounded-md transition-colors">
-            <Settings size={18} className="text-muted-foreground" />
-          </button>
         </div>
       </div>
 

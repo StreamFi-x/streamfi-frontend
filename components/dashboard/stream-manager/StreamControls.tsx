@@ -41,7 +41,7 @@ export default function StreamControls({
       const response = await fetch("/api/streams/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           wallet: address,
           latencyMode: selectedLatencyMode,
         }),
@@ -60,9 +60,7 @@ export default function StreamControls({
       toast.success(`Stream started in ${selectedLatencyMode === "standard" ? "standard" : "low"}-latency mode! You're now live 🎥`);
     } catch (error) {
       console.error("Failed to start stream:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to start stream"
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to start stream");
     } finally {
       setIsLoading(false);
     }
@@ -94,9 +92,7 @@ export default function StreamControls({
       toast.success("Stream stopped successfully");
     } catch (error) {
       console.error("Failed to stop stream:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to stop stream"
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to stop stream");
     } finally {
       setIsLoading(false);
     }
@@ -131,9 +127,7 @@ export default function StreamControls({
       <div className="bg-card p-4 rounded-lg border border-border">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="text-foreground font-semibold text-sm">
-              Stream Controls
-            </h3>
+            <h3 className="text-foreground font-semibold text-sm">Stream Controls</h3>
             <p className="text-muted-foreground text-xs mt-1">
               {liveState ? "Your stream is live" : "Start streaming to go live"}
             </p>
@@ -149,8 +143,7 @@ export default function StreamControls({
         </div>
 
         <div className="text-xs text-muted-foreground mb-3 bg-muted p-2 rounded">
-          💡 <strong>Tip:</strong> Start streaming in OBS first, then click
-          &quot;Start Stream&quot; to mark yourself as live.
+          💡 <strong>Tip:</strong> Start streaming in OBS first, then click "Start Stream" to mark yourself as live.
         </div>
 
         {liveState ? (
@@ -229,15 +222,6 @@ export default function StreamControls({
         </div>
       )}
 
-      {liveState && (
-        <Button
-          onClick={handleStopStream}
-          disabled={isLoading}
-          className="w-full bg-red-600 hover:bg-red-700 text-white"
-        >
-          <Square className="w-4 h-4 mr-2" />
-          {isLoading ? "Stopping..." : "Stop Stream"}
-        </Button>
       {/* Diagnostics Panel */}
       {showDiagnostics && !liveState && (
         <PreflightDiagnosticsPanel onClose={() => setShowDiagnostics(false)} />

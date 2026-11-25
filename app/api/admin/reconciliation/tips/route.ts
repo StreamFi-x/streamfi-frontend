@@ -3,6 +3,7 @@ import { authorizeAdmin } from "@/lib/admin-auth";
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 import { TIP_RECONCILIATION_JOB } from "@/lib/alerts/tip-reconciliation-alerts";
+import { logger } from "@/lib/tracing/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +59,9 @@ export async function GET(req: NextRequest): Promise<Response> {
       unevaluatedRuns: unevaluated.rows,
     });
   } catch (err) {
-    console.error("[admin/reconciliation/tips] GET error:", err);
+    logger.error("Admin tip reconciliation GET error", err, {
+      route: "GET /api/admin/reconciliation/tips",
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

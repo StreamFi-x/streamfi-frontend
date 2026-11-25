@@ -1,24 +1,19 @@
 "use client";
 
 import { type FC, useEffect, useState } from "react";
-import {
-  motion,
-  AnimatePresence,
-  Variants,
-  Easing,
-  useReducedMotion,
-} from "framer-motion";
+import { motion, AnimatePresence, Variants, Easing, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { Home, Compass, Play, Users, Monitor, Camera } from "lucide-react";
 
 interface NotFoundProps {
-  onGoBack?: () => void;
+  onGoBack?: () => void; // Made optional since it's not used
 }
 
 const NotFound: FC<NotFoundProps> = () => {
+  // Removed unused onGoBack parameter
   const [isVisible, setIsVisible] = useState(false);
   const [currentIcon, setCurrentIcon] = useState(0);
-  const shouldReduceMotion = useReducedMotion();
+  const prefersReducedMotion = useReducedMotion();
 
   const streamingIcons = [Play, Users, Monitor, Camera];
 
@@ -28,7 +23,7 @@ const NotFound: FC<NotFoundProps> = () => {
 
   useEffect(() => {
     setIsVisible(true);
-    if (shouldReduceMotion) {
+    if (prefersReducedMotion) {
       return;
     }
     const iconInterval = setInterval(() => {
@@ -36,56 +31,60 @@ const NotFound: FC<NotFoundProps> = () => {
     }, 2000);
 
     return () => clearInterval(iconInterval);
-  }, [shouldReduceMotion, streamingIcons.length]);
+  }, [prefersReducedMotion, streamingIcons.length]); // Added missing dependency
 
   const containerVariants: Variants = {
-    hidden: { opacity: shouldReduceMotion ? 1 : 0 },
+    hidden: prefersReducedMotion ? { opacity: 1 } : { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        duration: shouldReduceMotion ? 0 : 0.6,
-        staggerChildren: shouldReduceMotion ? 0 : 0.2,
-      },
+      transition: prefersReducedMotion
+        ? { duration: 0 }
+        : {
+            duration: 0.6,
+            staggerChildren: 0.2,
+          },
     },
   };
 
   const itemVariants: Variants = {
-    hidden: { opacity: shouldReduceMotion ? 1 : 0, y: shouldReduceMotion ? 0 : 30 },
+    hidden: prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: {
-        duration: shouldReduceMotion ? 0 : 0.6,
-        ease: easeOut,
-      },
+      transition: prefersReducedMotion
+        ? { duration: 0 }
+        : {
+            duration: 0.6,
+            ease: easeOut,
+          },
     },
   };
 
   const floatingVariants: Variants = {
-    animate: {
-      y: shouldReduceMotion ? 0 : [-10, 10, -10],
-      transition: shouldReduceMotion
-        ? { duration: 0 }
-        : {
+    animate: prefersReducedMotion
+      ? { y: 0 }
+      : {
+          y: [-10, 10, -10],
+          transition: {
             duration: 3,
             repeat: Number.POSITIVE_INFINITY,
             ease: easeInOut,
           },
-    },
+        },
   };
 
   const pulseVariants: Variants = {
-    animate: {
-      scale: shouldReduceMotion ? 1 : [1, 1.1, 1],
-      opacity: shouldReduceMotion ? 0.7 : [0.7, 1, 0.7],
-      transition: shouldReduceMotion
-        ? { duration: 0 }
-        : {
+    animate: prefersReducedMotion
+      ? { scale: 1, opacity: 0.8 }
+      : {
+          scale: [1, 1.1, 1],
+          opacity: [0.7, 1, 0.7],
+          transition: {
             duration: 2,
             repeat: Number.POSITIVE_INFINITY,
             ease: easeInOut,
           },
-    },
+        },
   };
 
   const CurrentIcon = streamingIcons[currentIcon];
@@ -95,34 +94,33 @@ const NotFound: FC<NotFoundProps> = () => {
       className={`min-h-screen flex items-center justify-center p-4 bg-background relative overflow-hidden`}
     >
       {/* Animated Background Elements */}
-      {!shouldReduceMotion && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-          {/* Floating circles */}
-          {[...Array(6)].map((_, i) => (
+      <div className="absolute inset-0 overflow-hidden">
+        {/* Floating circles */}
+        {!prefersReducedMotion &&
+          [...Array(6)].map((_, i) => (
             <motion.div
               key={i}
               className="absolute rounded-full bg-highlight/10"
               style={{
-                width: 75 + (i * 20),
-                height: 75 + (i * 20),
-                left: `${(i * 18 + 10) % 90}%`,
-                top: `${(i * 23 + 15) % 85}%`,
+                width: Math.random() * 100 + 50,
+                height: Math.random() * 100 + 50,
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
               }}
               animate={{
-                x: [0, (i % 2 === 0 ? 30 : -30)],
-                y: [0, (i % 2 === 0 ? -30 : 30)],
+                x: [0, Math.random() * 100 - 50],
+                y: [0, Math.random() * 100 - 50],
                 scale: [1, 1.2, 1],
               }}
               transition={{
-                duration: 10 + i * 2,
+                duration: Math.random() * 10 + 10,
                 repeat: Number.POSITIVE_INFINITY,
                 repeatType: "reverse",
                 ease: easeInOut,
               }}
             />
           ))}
-        </div>
-      )}
+      </div>
 
       <AnimatePresence>
         {isVisible && (
@@ -137,9 +135,9 @@ const NotFound: FC<NotFoundProps> = () => {
               {/* Background 404 */}
               <motion.div
                 className={`absolute inset-0 flex items-center justify-center text-highlight opacity-10`}
-                initial={{ scale: shouldReduceMotion ? 1 : 0.8, opacity: shouldReduceMotion ? 0.1 : 0 }}
+                initial={prefersReducedMotion ? false : { scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 0.1 }}
-                transition={{ duration: shouldReduceMotion ? 0 : 1, delay: shouldReduceMotion ? 0 : 0.3 }}
+                transition={{ duration: prefersReducedMotion ? 0 : 1, delay: prefersReducedMotion ? 0 : 0.3 }}
               >
                 <span className="text-[20rem] font-black leading-none">
                   404
@@ -166,18 +164,10 @@ const NotFound: FC<NotFoundProps> = () => {
                       <AnimatePresence mode="wait">
                         <motion.div
                           key={currentIcon}
-                          initial={
-                            shouldReduceMotion
-                              ? { opacity: 1 }
-                              : { opacity: 0, rotate: -180, scale: 0.5 }
-                          }
+                          initial={{ opacity: 0, rotate: -180, scale: 0.5 }}
                           animate={{ opacity: 1, rotate: 0, scale: 1 }}
-                          exit={
-                            shouldReduceMotion
-                              ? { opacity: 1 }
-                              : { opacity: 0, rotate: 180, scale: 0.5 }
-                          }
-                          transition={{ duration: shouldReduceMotion ? 0 : 0.5 }}
+                          exit={{ opacity: 0, rotate: 180, scale: 0.5 }}
+                          transition={{ duration: 0.5 }}
                         >
                           <CurrentIcon className={`w-16 h-16 text-highlight`} />
                         </motion.div>
@@ -215,8 +205,8 @@ const NotFound: FC<NotFoundProps> = () => {
                   className="flex flex-col sm:flex-row gap-4 justify-center items-center"
                 >
                   <motion.div
-                    whileHover={shouldReduceMotion ? undefined : { scale: 1.05 }}
-                    whileTap={shouldReduceMotion ? undefined : { scale: 0.95 }}
+                    whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
+                    whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
                   >
                     <Link
                       href="/"
@@ -228,8 +218,8 @@ const NotFound: FC<NotFoundProps> = () => {
                   </motion.div>
 
                   <motion.div
-                    whileHover={shouldReduceMotion ? undefined : { scale: 1.05 }}
-                    whileTap={shouldReduceMotion ? undefined : { scale: 0.95 }}
+                    whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
+                    whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
                   >
                     <Link
                       href="/explore"
@@ -248,15 +238,11 @@ const NotFound: FC<NotFoundProps> = () => {
                 >
                   <div className="flex items-center justify-center gap-2 mb-4">
                     <motion.div
-                      animate={shouldReduceMotion ? undefined : { scale: [1, 1.2, 1] }}
-                      transition={
-                        shouldReduceMotion
-                          ? undefined
-                          : {
-                              duration: 1.5,
-                              repeat: Number.POSITIVE_INFINITY,
-                            }
-                      }
+                      animate={prefersReducedMotion ? { scale: 1 } : { scale: [1, 1.2, 1] }}
+                      transition={prefersReducedMotion ? { duration: 0 } : {
+                        duration: 1.5,
+                        repeat: Number.POSITIVE_INFINITY,
+                      }}
                       className="w-3 h-3 bg-red-500 rounded-full"
                     />
                     <span
@@ -281,9 +267,9 @@ const NotFound: FC<NotFoundProps> = () => {
                     ].map((item, index) => (
                       <motion.div
                         key={index}
-                        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, x: -20 }}
+                        initial={prefersReducedMotion ? false : { opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: shouldReduceMotion ? 0 : 1 + index * 0.1 }}
+                        transition={{ delay: prefersReducedMotion ? 0 : 1 + index * 0.1 }}
                         className="flex items-center gap-2"
                       >
                         <item.icon className={`w-4 h-4 ${item.color}`} />

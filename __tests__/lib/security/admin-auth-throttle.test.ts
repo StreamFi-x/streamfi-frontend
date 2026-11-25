@@ -28,6 +28,10 @@ jest.mock("@/lib/sessions/user-sessions", () => ({
 import { NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
 import { findActiveSession } from "@/lib/sessions/user-sessions";
+import {
+  ensureTestSessionSecret,
+  signedPrivySession,
+} from "@/testing/privy-session";
 import { GET as adminMeRoute } from "@/app/api/admin/me/route";
 import { GET as adminUserSearch } from "@/app/api/routes-f/admin-user-search/route";
 import { verifySession } from "@/lib/auth/verify-session";
@@ -63,13 +67,30 @@ const advance = (ms: number) => {
   clock += ms;
 };
 
+// One token per DID so repeated attempts with the same DID present the same
+// credential (the throttle keys on it).
+const signedSessions = new Map<string, string>();
+function signedPrivySessionCached(did: string): string {
+  // beforeEach swaps process.env, so make sure the signing key is present
+  // for every request, not just the first one that minted the token.
+  ensureTestSessionSecret();
+  let token = signedSessions.get(did);
+  if (!token) {
+    token = signedPrivySession(did);
+    signedSessions.set(did, token);
+  }
+  return token;
+}
+
 function as(ip: string, privySession?: string) {
   for (const k of Object.keys(cookieJar)) {
     delete cookieJar[k];
   }
   headerJar["x-real-ip"] = ip;
   if (privySession) {
-    cookieJar.privy_session = privySession;
+    // verifySession only accepts signed cookies (#1858); sign the DID so each
+    // scenario still exercises the allowlist / database / revocation checks.
+    cookieJar.privy_session = signedPrivySessionCached(privySession);
   }
 }
 
@@ -357,7 +378,10 @@ describe("other admin mechanisms share the guard", () => {
     return new NextRequest(
       "http://localhost/api/routes-f/admin-user-search?q=bob",
       {
-        headers: { cookie: "privy_session=did:privy:regular", "x-real-ip": ip },
+        headers: {
+          cookie: `privy_session=${signedPrivySessionCached("did:privy:regular")}`,
+          "x-real-ip": ip,
+        },
       }
     );
   }

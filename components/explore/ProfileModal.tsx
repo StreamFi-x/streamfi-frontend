@@ -3,11 +3,19 @@
 import type React from "react";
 
 import { useState } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
-import { ChevronLeft, X } from "lucide-react";
+import { Camera, ChevronLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useStellarWallet } from "@/contexts/stellar-wallet-context";
 import SimpleLoader from "@/components/ui/loader/simple-loader";
+import {
+  AvatarUploadModal,
+  type AvatarValue,
+} from "@/components/ui/avatar-upload-modal";
+import { useObjectUrl } from "@/hooks/useObjectUrl";
+import { PROFILE_ICONS } from "@/lib/profile-icons";
+import { getReservedUsernameError } from "@/lib/reserved-usernames";
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -35,6 +43,11 @@ export default function ProfileModal({
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState(privyEmail ?? "");
   const [bio, setBio] = useState("");
+  const [selectedAvatar, setSelectedAvatar] = useState<AvatarValue>(
+    PROFILE_ICONS[0]
+  );
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const avatarPreviewSrc = useObjectUrl(selectedAvatar);
 
   // Error state
   const [emailError, setEmailError] = useState("");
@@ -72,6 +85,12 @@ export default function ProfileModal({
     if (!displayName.trim()) {
       setNameError("Display name is required");
       isValid = false;
+    } else {
+      const reservedError = getReservedUsernameError(displayName);
+      if (reservedError) {
+        setNameError(reservedError);
+        isValid = false;
+      }
     }
 
     // Email required only for wallet-connect users (Privy email comes from Google)
@@ -102,6 +121,8 @@ export default function ProfileModal({
           body: JSON.stringify({
             username: displayName,
             bio: bio || undefined,
+            avatar:
+              typeof selectedAvatar === "string" ? selectedAvatar : undefined,
           }),
         });
 
@@ -134,6 +155,8 @@ export default function ProfileModal({
             email,
             wallet: publicKey,
             bio: bio || undefined,
+            avatar:
+              typeof selectedAvatar === "string" ? selectedAvatar : undefined,
           }),
         });
 
@@ -263,6 +286,43 @@ export default function ProfileModal({
 
             <form onSubmit={handleProfileSubmit}>
               <div className="space-y-5">
+                {/* Avatar selection via shared AvatarUploadModal */}
+                <div className="flex items-center gap-4">
+                  <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-purple-500/40 bg-[#2D2F31] shrink-0">
+                    {typeof avatarPreviewSrc === "string" &&
+                    (avatarPreviewSrc.startsWith("blob:") ||
+                      avatarPreviewSrc.startsWith("data:") ||
+                      avatarPreviewSrc.includes("cloudinary.com")) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={avatarPreviewSrc}
+                        alt="Selected Avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Image
+                        src={avatarPreviewSrc || PROFILE_ICONS[0]}
+                        alt="Selected Avatar"
+                        fill
+                        className="object-cover"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAvatarModal(true)}
+                      className="inline-flex items-center gap-2 bg-[#2D2F31] hover:bg-[#383A3D] text-white text-xs font-medium px-3 py-2 rounded-md transition-colors"
+                    >
+                      <Camera size={14} />
+                      Choose Avatar
+                    </button>
+                    <p className="text-gray-400 text-xs mt-1">
+                      Pick a preset icon or upload your own image.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-2">
                   <label className="block text-sm text-gray-400 font-medium">
                     Display Name{" "}
@@ -475,6 +535,15 @@ export default function ProfileModal({
           </div>
         )}
       </motion.div>
+
+      <AvatarUploadModal
+        isOpen={showAvatarModal}
+        currentAvatar={selectedAvatar}
+        onClose={() => setShowAvatarModal(false)}
+        onSaveAvatar={setSelectedAvatar}
+        avatarOptions={PROFILE_ICONS}
+        title="Choose Your Avatar"
+      />
 
       {isLoading && <SimpleLoader />}
     </div>
