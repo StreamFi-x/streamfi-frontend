@@ -70,23 +70,42 @@ export default function BrowseCategoryPage() {
     fetchCategories();
   }, []);
 
-  const filteredCategories = categories.filter(category => {
-    const matchesCategory =
-      !selectedCategory ||
-      category.title.toLowerCase() === selectedCategory.toLowerCase() ||
-      category.tags?.some(
-        tag => tag.toLowerCase() === selectedCategory.toLowerCase()
-      );
+  const filteredCategories = React.useMemo(() => {
+    const filtered = categories.filter(category => {
+      const matchesCategory =
+        !selectedCategory ||
+        category.title.toLowerCase() === selectedCategory.toLowerCase() ||
+        category.tags?.some(
+          tag => tag.toLowerCase() === selectedCategory.toLowerCase()
+        );
 
-    const matchesSearch =
-      searchQuery === "" ||
-      category.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      category.tags?.some(tag =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const matchesSearch =
+        searchQuery === "" ||
+        category.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        category.tags?.some(tag =>
+          tag.toLowerCase().includes(searchQuery.toLowerCase())
+        );
 
-    return matchesCategory && matchesSearch;
-  });
+      return matchesCategory && matchesSearch;
+    });
+
+    switch (selectedSort) {
+      case "viewers":
+      case "popular":
+      case "trending":
+        filtered.sort((a, b) => (b.viewers || 0) - (a.viewers || 0));
+        break;
+      case "recent":
+        filtered.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case "recommended":
+      default:
+        filtered.sort((a, b) => (b.viewers || 0) - (a.viewers || 0));
+        break;
+    }
+
+    return filtered;
+  }, [categories, selectedCategory, searchQuery, selectedSort]);
 
   if (error) {
     return (
