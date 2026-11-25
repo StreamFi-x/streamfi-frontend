@@ -1,7 +1,10 @@
 "use client";
+
 import type React from "react";
 import { useState, useEffect } from "react";
 import { useTheme } from "@/contexts/theme-context";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { toast } from "sonner";
 
 interface RadioOptionProps {
   label: string;
@@ -29,6 +32,7 @@ const RadioOption: React.FC<RadioOptionProps> = ({
   return (
     <div className="flex items-center">
       <button
+        type="button"
         className={`w-8 h-8 rounded-full ${isSelected ? "bg-highlight" : "bg-muted"} flex items-center justify-center mr-3 transition-colors`}
         onClick={onSelect}
       >
@@ -69,7 +73,6 @@ const OptionsSection: React.FC<OptionsSectionProps> = ({
   options,
   onChange,
 }) => {
-  // Map option values to display labels
   const getDisplayLabel = (option: string) => {
     const labels: Record<string, string> = {
       light: "Light Mode",
@@ -100,67 +103,62 @@ const OptionsSection: React.FC<OptionsSectionProps> = ({
 
 const ThemeSettingsPage: React.FC = () => {
   const { theme, setTheme } = useTheme();
-  const [settings, setSettings] = useState({
-    theme: theme,
-    display: theme,
-  });
+  const { preferences, update } = useUserPreferences();
+  const [selectedTheme, setSelectedTheme] = useState<"light" | "dark" | "system">(
+    preferences?.theme || theme || "dark"
+  );
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Sync with theme context
+  // Sync with theme context and preferences when loaded
   useEffect(() => {
-    setSettings(prev => ({
-      ...prev,
-      theme: theme,
-      display: theme,
-    }));
-  }, [theme]);
+    if (preferences?.theme) {
+      setSelectedTheme(preferences.theme);
+      setTheme(preferences.theme);
+    } else if (theme) {
+      setSelectedTheme(theme);
+    }
+  }, [preferences?.theme, theme, setTheme]);
 
-  // Universal handler for updating settings
-  const updateSetting = (key: keyof typeof settings, value: string) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: value,
-    }));
+  const handleThemeChange = (newTheme: string) => {
+    const t = newTheme as "light" | "dark" | "system";
+    setSelectedTheme(t);
+    setTheme(t);
+  };
 
-    // Update theme context immediately
-    if (key === "theme" || key === "display") {
-      setTheme(value as "light" | "dark" | "system");
+  const saveChanges = async () => {
+    try {
+      setIsSaving(true);
+      await update({ theme: selectedTheme });
+      toast.success("Appearance settings saved successfully!");
+    } catch (err) {
+      console.error("Failed to persist theme preferences:", err);
+      toast.error("Failed to save appearance settings to server");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const commonOptions = ["light", "dark", "system"];
-
-  const saveChanges = () => {
-    // Theme is already saved via context, just show confirmation
-    alert("Settings saved successfully!");
-    console.log("Settings saved:", settings);
-  };
 
   return (
     <div className="min-h-screen bg-secondary text-foreground">
       <div className="max-w-8xl mx-auto">
         <OptionsSection
           title="Theme"
-          description="Choose between light and dark interface themes"
-          value={settings.theme}
+          description="Choose between light, dark, and system interface themes"
+          value={selectedTheme}
           options={commonOptions}
-          onChange={newValue => updateSetting("theme", newValue)}
-        />
-
-        {/* Display Selection */}
-        <OptionsSection
-          title="Display"
-          description="Choose between light and dark interface themes"
-          value={settings.display}
-          options={commonOptions}
-          onChange={newValue => updateSetting("display", newValue)}
+          onChange={handleThemeChange}
         />
 
         <div className="lg:flex lg:justify-end w-full">
           <button
-            className="bg-highlight hover:bg-highlight/80 text-primary-foreground w-full lg:w-[12em] px-6 py-3 rounded-lg"
+            type="button"
+            disabled={isSaving}
+            className="bg-highlight hover:bg-highlight/80 disabled:opacity-50 text-primary-foreground w-full lg:w-[12em] px-6 py-3 rounded-lg font-medium transition-colors"
             onClick={saveChanges}
           >
-            Save Changes
+            {isSaving ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>
