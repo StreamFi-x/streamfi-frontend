@@ -38,8 +38,15 @@ CREATE TABLE IF NOT EXISTS users (
     total_tips_received NUMERIC(20, 7) DEFAULT 0,
     total_tips_count INTEGER DEFAULT 0,
     last_tip_at TIMESTAMP,
-    enable_recording BOOLEAN DEFAULT false
+    enable_recording BOOLEAN DEFAULT false,
+    latency_mode VARCHAR(10) DEFAULT 'low',
+    stream_privacy VARCHAR(20) DEFAULT 'public',
+    share_token VARCHAR(64),
+    mux_signed_playback_id VARCHAR(255)
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_stream_privacy ON users(stream_privacy);
+CREATE INDEX IF NOT EXISTS idx_users_share_token ON users(share_token);
 
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS followers UUID[];
@@ -185,8 +192,29 @@ CREATE TABLE IF NOT EXISTS stream_recordings (
     duration INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(50) DEFAULT 'processing',
+    needs_review BOOLEAN DEFAULT FALSE,
     UNIQUE(mux_asset_id)
 );
+
+CREATE TABLE IF NOT EXISTS transcription_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    recording_id UUID NOT NULL REFERENCES stream_recordings(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'processing', 'ready', 'failed')),
+    content TEXT,
+    error_reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(recording_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_transcription_jobs_recording_id
+    ON transcription_jobs(recording_id);
+CREATE INDEX IF NOT EXISTS idx_transcription_jobs_user_id
+    ON transcription_jobs(user_id);
+CREATE INDEX IF NOT EXISTS idx_transcription_jobs_status
+    ON transcription_jobs(status);
 
 
 
