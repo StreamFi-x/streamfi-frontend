@@ -29,6 +29,10 @@ jest.mock("@/lib/admin-auth", () => ({
   ),
 }));
 
+jest.mock("@/lib/security/step-up", () => ({
+  consumeStepUp: jest.fn(async () => true),
+}));
+
 jest.mock("@/lib/users/deletion", () => ({
   requestAccountDeletion: jest.fn(),
   cancelAccountDeletion: jest.fn(),
@@ -79,9 +83,18 @@ function request(
     body,
     cookie,
     auth,
-  }: { body?: unknown; cookie?: string; auth?: string } = {}
+    headers: extraHeaders,
+  }: {
+    body?: unknown;
+    cookie?: string;
+    auth?: string;
+    headers?: Record<string, string>;
+  } = {}
 ) {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    "x-step-up-challenge": "valid-step-up-challenge",
+    ...extraHeaders,
+  };
   if (cookie) {
     headers.cookie = cookie;
   }

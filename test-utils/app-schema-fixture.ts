@@ -57,7 +57,30 @@ CREATE TABLE chat_messages (
   stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE CASCADE,
   content TEXT,
   is_deleted BOOLEAN DEFAULT FALSE,
+  is_moderated BOOLEAN DEFAULT FALSE,
+  moderated_by UUID REFERENCES users(id),
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  subscriber_id UUID NOT NULL REFERENCES users(id),
+  creator_id UUID NOT NULL REFERENCES users(id),
+  streamer_id UUID REFERENCES users(id),
+  status VARCHAR(20) DEFAULT 'active',
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS watch_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  viewer_id UUID REFERENCES users(id),
+  streamer_id UUID REFERENCES users(id),
+  user_id UUID REFERENCES users(id),
+  stream_type TEXT NOT NULL,
+  stream_title TEXT,
+  watch_seconds INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE stream_viewers (
