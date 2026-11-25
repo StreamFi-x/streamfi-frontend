@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { X } from "lucide-react";
 
 interface VerificationPopupProps {
   email: string;
@@ -16,12 +17,55 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
   );
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (inputRefs.current[0]) {
       inputRefs.current[0].focus();
     }
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (e.key === "Tab") {
+        if (!dialogRef.current) return;
+        const focusableElements = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const focusable = Array.from(focusableElements).filter(
+          el => !el.hasAttribute("disabled") && el.getAttribute("aria-hidden") !== "true"
+        );
+
+        if (focusable.length === 0) return;
+
+        const firstElement = focusable[0];
+        const lastElement = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
 
   const handleInputChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) {
@@ -37,7 +81,7 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
     }
   };
 
-  const handleKeyDown = (
+  const handleInputKeyDown = (
     index: number,
     e: React.KeyboardEvent<HTMLInputElement>
   ) => {
@@ -67,13 +111,39 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#1a1a1a] rounded-lg p-8 max-w-md w-full mx-4 relative">
-        <h2 className="text-white text-2xl font-bold text-center mb-4">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={e => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="verification-dialog-title"
+        aria-describedby="verification-dialog-desc"
+        className="bg-[#1a1a1a] rounded-lg p-8 max-w-md w-full mx-4 relative"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close verification popup"
+          className="absolute top-4 right-4 text-gray-400 hover:text-white p-1 rounded-md transition focus:outline-none focus:ring-2 focus:ring-[#5A189A]"
+        >
+          <X className="w-5 h-5" aria-hidden="true" />
+        </button>
+
+        <h2
+          id="verification-dialog-title"
+          className="text-white text-2xl font-bold text-center mb-4"
+        >
           Enter Verification code
         </h2>
 
-        <p className="text-gray-400 text-center mb-2">
+        <p id="verification-dialog-desc" className="text-gray-400 text-center mb-2">
           Enter the 6-digit code sent to
         </p>
         <p className="text-white text-center font-medium mb-6">
@@ -90,11 +160,12 @@ const VerificationPopup: React.FC<VerificationPopupProps> = ({
               type="text"
               maxLength={1}
               value={digit}
+              aria-label={`Digit ${index + 1} of 6`}
               ref={el => {
                 inputRefs.current[index] = el;
               }}
               onChange={e => handleInputChange(index, e.target.value)}
-              onKeyDown={e => handleKeyDown(index, e)}
+              onKeyDown={e => handleInputKeyDown(index, e)}
               onFocus={() => handleFocus(index)}
               onBlur={handleBlur}
               className={`
