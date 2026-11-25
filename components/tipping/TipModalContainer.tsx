@@ -3,6 +3,7 @@
 import { TipModal } from "./TipModal";
 import { TipConfirmation } from "./TipConfirmation";
 import type { TipConfirmationState } from "@/hooks/useTipModal";
+import ErrorBoundary from "@/components/error/ErrorBoundary";
 
 interface TipModalContainerProps {
   // TipModal props
@@ -39,7 +40,7 @@ export function TipModalContainer({
   onRetry,
 }: TipModalContainerProps) {
   return (
-    <>
+    <ErrorBoundary>
       {recipientPublicKey && senderPublicKey && (
         <TipModal
           isOpen={isModalOpen}
@@ -67,6 +68,6 @@ export function TipModalContainer({
         }
         onSendAnother={onRetry}
       />
-    </>
+    </ErrorBoundary>
   );
 }
