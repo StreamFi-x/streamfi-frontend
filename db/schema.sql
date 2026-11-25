@@ -38,7 +38,11 @@ CREATE TABLE IF NOT EXISTS users (
     total_tips_received NUMERIC(20, 7) DEFAULT 0,
     total_tips_count INTEGER DEFAULT 0,
     last_tip_at TIMESTAMP,
-    enable_recording BOOLEAN DEFAULT false
+    enable_recording BOOLEAN DEFAULT false,
+    latency_mode VARCHAR(10) DEFAULT 'low',
+    stream_privacy VARCHAR(20) DEFAULT 'public',
+    share_token VARCHAR(64),
+    mux_signed_playback_id VARCHAR(255)
 );
 
 ALTER TABLE users
@@ -183,9 +187,23 @@ CREATE TABLE IF NOT EXISTS stream_recordings (
     playback_id VARCHAR(255) NOT NULL,
     title VARCHAR(255),
     duration INTEGER,
+    needs_review BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(50) DEFAULT 'processing',
     UNIQUE(mux_asset_id)
+);
+
+CREATE TABLE IF NOT EXISTS transcription_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    recording_id UUID NOT NULL REFERENCES stream_recordings(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'processing', 'ready', 'failed')),
+    content TEXT,
+    error_reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(recording_id)
 );
 
 
@@ -271,6 +289,12 @@ CREATE INDEX IF NOT EXISTS idx_watch_history_streamer ON watch_history(streamer_
 CREATE INDEX IF NOT EXISTS idx_stream_recordings_user_id ON stream_recordings(user_id);
 CREATE INDEX IF NOT EXISTS idx_stream_recordings_playback_id ON stream_recordings(playback_id);
 CREATE INDEX IF NOT EXISTS idx_stream_recordings_created_at ON stream_recordings(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_stream_recordings_needs_review ON stream_recordings(needs_review) WHERE needs_review = TRUE;
+CREATE INDEX IF NOT EXISTS idx_users_stream_privacy ON users(stream_privacy);
+CREATE INDEX IF NOT EXISTS idx_users_share_token ON users(share_token);
+CREATE INDEX IF NOT EXISTS idx_transcription_jobs_recording_id ON transcription_jobs(recording_id);
+CREATE INDEX IF NOT EXISTS idx_transcription_jobs_user_id ON transcription_jobs(user_id);
+CREATE INDEX IF NOT EXISTS idx_transcription_jobs_status ON transcription_jobs(status);
 
 
 -- Initial bootstrap reference data. Canonical versions are maintained and versioned
