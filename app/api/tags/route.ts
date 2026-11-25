@@ -1,9 +1,15 @@
 import { NextResponse, NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
+import { authorizeAdmin } from "@/lib/admin-auth";
 
 // TO CREATE TAGS
 export async function POST(req: NextRequest) {
   try {
+    const { response: adminDenied } = await authorizeAdmin(req, "admin/tags");
+    if (adminDenied) {
+      return adminDenied;
+    }
+
     const { title, visibility } = await req.json();
 
     if (!title) {
@@ -38,8 +44,13 @@ export async function POST(req: NextRequest) {
 }
 
 // TO UPDATE A TAG
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
+    const { response: adminDenied } = await authorizeAdmin(req, "admin/tags");
+    if (adminDenied) {
+      return adminDenied;
+    }
+
     const { searchParams } = new URL(req.url);
     const title = searchParams.get("title");
     const { newTitle, visibility } = await req.json();
@@ -76,16 +87,12 @@ export async function PATCH(req: Request) {
 }
 
 // TO GET ALL TAGS OR A TAG BY TITLE
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const title = searchParams.get("title");
 
     let result;
-
-    // Basic test to confirm DB works
-    const testResult = await sql`SELECT * FROM tags LIMIT 1`;
-    console.log("Test result:", testResult.rows);
 
     // Search by title (live match)
     if (title) {
@@ -99,7 +106,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, tags: result.rows });
     }
 
-    //To get all tags (default)
+    // To get all tags (default)
     result = await sql`
             SELECT id, title, visibility
             FROM tags
@@ -116,9 +123,14 @@ export async function GET(req: Request) {
   }
 }
 
-//TO DELETE A TAG
-export async function DELETE(req: Request) {
+// TO DELETE A TAG
+export async function DELETE(req: NextRequest) {
   try {
+    const { response: adminDenied } = await authorizeAdmin(req, "admin/tags");
+    if (adminDenied) {
+      return adminDenied;
+    }
+
     const { searchParams } = new URL(req.url);
     const title = searchParams.get("title");
 
