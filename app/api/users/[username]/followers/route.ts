@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+import { CACHE_POLICIES } from "@/lib/cache";
 
 export async function GET(
   req: NextRequest,
@@ -12,23 +13,36 @@ export async function GET(
   }
 
   try {
-    const { rows } = await sql`
-      SELECT followers FROM users WHERE username = ${username} AND deleted_at IS NULL
+    // Resolve the username to an id first (case-insensitive, non-deleted)
+    const { rows: userRows } = await sql`
+      SELECT id FROM users
+      WHERE LOWER(username) = LOWER(${username}) AND deleted_at IS NULL
+      LIMIT 1
     `;
-    if (rows.length === 0) {
+    if (userRows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const followerUsernames = rows[0].followers || [];
-    if (followerUsernames.length === 0) {
-      return NextResponse.json({ followers: [] });
-    }
+    const userId = userRows[0].id;
 
+    // Query active followers from user_follows join table
     const { rows: followerProfiles } = await sql`
-      SELECT username, avatar, bio FROM users
-      WHERE username = ANY(${followerUsernames}) AND deleted_at IS NULL
+      SELECT u.username, u.avatar, u.bio, u.is_live
+      FROM   user_follows uf
+      JOIN   users u ON u.id = uf.follower_id AND u.deleted_at IS NULL
+      WHERE  uf.followee_id = ${userId}
+      ORDER  BY uf.created_at DESC
     `;
-    return NextResponse.json({ followers: followerProfiles });
+
+    return NextResponse.json(
+      {
+        followers: followerProfiles,
+        count: followerProfiles.length,
+      },
+      {
+        headers: { "Cache-Control": CACHE_POLICIES.publicListing.cacheControl },
+      }
+    );
   } catch (error) {
     console.error("Fetch followers error:", error);
     return NextResponse.json(
