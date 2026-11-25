@@ -13,6 +13,10 @@ and recovery.
 - Files listed in `legacy-manifest.json` predate the runner and are frozen.
   Do not edit them.
 - **add-stream-recording.sql** – Adds optional stream recording: `users.enable_recording`, `stream_sessions.title`/`playback_id`, and `stream_recordings` table. Run this before using the Record Live Streams toggle and recordings APIs.
+- **add-needs-review.sql** – Adds `needs_review` flag to `stream_recordings` for dashboard acknowledgment workflows.
+- **add-latency-mode.sql** – Adds `users.latency_mode` (`low` vs `standard`) to configure DVR and playback latency preferences.
+- **add-transcription-jobs.sql** – Creates `transcription_jobs` table for auto-generated WebVTT caption processing.
+- **add-stream-privacy-and-subs.sql** – Adds `stream_privacy`, `share_token`, `mux_signed_playback_id` to `users`, and creates `subscription_tiers` and `subscriptions` tables.
 - **20260928110000_security_controls.sql** – Adds stream-password attempt state, rolling login-session/anomaly history, encrypted TOTP enrollment/recovery, action-bound step-up challenges, and key-rotation checkpoints. Apply before deploying the security-control routes; see [docs/security-controls.md](../../docs/security-controls.md) and [docs/security-key-rotation.md](../../docs/security-key-rotation.md).
 - **20260925100200_mux_webhook_idempotency.sql** – Adds `mux_webhook_events`, the persistent event-id store that makes every Mux webhook apply at most once (#1397). Run before deploying the webhook changes. See `docs/mux-webhook-idempotency.md`.
 - **20260925100100_mux_live_state_reconciliation.sql** – Adds `users.live_state_changed_at` (maintained by a trigger), an index on `users.mux_stream_id`, and `scheduled_job_runs` for cron leases/health (#1399). See `docs/mux-live-state-reconciliation.md`.
