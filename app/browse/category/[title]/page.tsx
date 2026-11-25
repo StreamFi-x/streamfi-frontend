@@ -19,6 +19,7 @@ import StreamCard from "@/components/shared/profile/StreamCard";
 import { EmptyState } from "@/components/skeletons/EmptyState";
 import { languageOptions, sortOptions } from "@/data/browse/live-content";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface LiveStream {
   id: string;
@@ -147,6 +148,19 @@ export default function CategoryDetailPage() {
   const [selectedLanguage, setSelectedLanguage] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSort, setSelectedSort] = useState("recommended");
+  const [isFollowing, setIsFollowing] = useState(false);
+
+  const handleToggleFollow = () => {
+    setIsFollowing(prev => {
+      const next = !prev;
+      toast.success(
+        next
+          ? `Following ${categoryData?.title || decodedTitle}`
+          : `Unfollowed ${categoryData?.title || decodedTitle}`
+      );
+      return next;
+    });
+  };
 
   const tabs = [
     { id: "live" as const, name: "Live channels" },
@@ -265,7 +279,14 @@ export default function CategoryDetailPage() {
           )}
 
           <div className="flex gap-3">
-            <Button className="px-7">Follow</Button>
+            <Button
+              className="px-7"
+              variant={isFollowing ? "outline" : "default"}
+              onClick={handleToggleFollow}
+              aria-label={isFollowing ? "Unfollow category" : "Follow category"}
+            >
+              {isFollowing ? "Following" : "Follow"}
+            </Button>
             <Button variant="outline" size="icon">
               <ExternalLink className="h-4 w-4" />
             </Button>
