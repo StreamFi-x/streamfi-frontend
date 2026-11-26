@@ -1,6 +1,9 @@
-import { STREAMFI_CONTRACT_INTERFACE } from "../contract-interface.fixture";
+import {
+  STREAMFI_CONTRACT_INTERFACE,
+  isContractInterfaceCompatible,
+} from "../contract-interface.fixture";
 
-describe("StreamFi frontend contract interface fixture", () => {
+describe("StreamFi frontend contract interface fixture (#1700)", () => {
   it("declares the tipping contract methods the frontend depends on", () => {
     expect(STREAMFI_CONTRACT_INTERFACE.version).toBe(1);
     expect(Object.keys(STREAMFI_CONTRACT_INTERFACE.contracts.tipping.methods)).toEqual([
@@ -23,7 +26,7 @@ describe("StreamFi frontend contract interface fixture", () => {
     });
   });
 
-  it("matches submitTransaction return-shape assumptions", () => {
+  it("matches submitTransaction argument and return-shape assumptions", () => {
     const spec = STREAMFI_CONTRACT_INTERFACE.contracts.tipping.methods.submitTransaction;
     expect(spec.args).toEqual({
       signedTransaction: "StellarTransaction",
@@ -38,10 +41,11 @@ describe("StreamFi frontend contract interface fixture", () => {
     });
   });
 
-  it("demonstrates CI catches incompatible contract shape changes", () => {
-    const required = STREAMFI_CONTRACT_INTERFACE.contracts.tipping.methods
-      .submitTransaction.returns;
-    expect(required.hash).toBe("string?");
-    expect(required.success).toBe("boolean");
+  it("fails when a deliberately breaking mock change alters a return shape", () => {
+    const broken = JSON.parse(JSON.stringify(STREAMFI_CONTRACT_INTERFACE));
+    broken.contracts.tipping.methods.submitTransaction.returns.hash = "number?";
+
+    expect(isContractInterfaceCompatible(broken)).toBe(false);
+    expect(isContractInterfaceCompatible(STREAMFI_CONTRACT_INTERFACE)).toBe(true);
   });
 });

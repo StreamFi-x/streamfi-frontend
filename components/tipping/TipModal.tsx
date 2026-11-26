@@ -57,7 +57,6 @@ interface TipModalProps {
 }
 
 type TransactionState =
-  "idle" | "building" | "signing" | "submitting" | "success" | "error";
   "idle"
   | "building"
   | "signing"
@@ -109,7 +108,6 @@ export function TipModal({
     useState<TransactionConfirmationProgress | null>(null);
   const pollAbortRef = useRef<AbortController | null>(null);
 
-  const { kit } = useStellarWallet();
   const mainnetGuard = getMainnetGuardState();
   const {
     kit,
@@ -356,7 +354,7 @@ export function TipModal({
       message.includes("not authorized")
     ) {
       const disconnectMsg =
-        "Wallet connection was lost during the transaction. Please unlock/reconnect your wallet and try again.";
+        "Wallet disconnected or locked during transaction. Please unlock/reconnect your wallet and try again.";
       disconnect(disconnectMsg);
       return disconnectMsg;
     }
@@ -657,7 +655,9 @@ export function TipModal({
       setStructuredError({
         message: errorMessage,
         details: err instanceof Error ? err.stack || err.message : String(err),
-        code: (err as any)?.code || (err as any)?.status?.toString(),
+        code: disconnectMessage
+          ? "wallet_disconnected"
+          : (err as any)?.code || (err as any)?.status?.toString(),
       });
       setTransactionState("error");
       setIsConfirmationOpen(true);
@@ -677,9 +677,9 @@ export function TipModal({
     if (!isConnected && (transactionState === "signing" || transactionState === "submitting" || transactionState === "building")) {
       const msg =
         walletError ||
-        "Wallet connection was lost during the transaction. Please unlock/reconnect your wallet and try again.";
+        "Wallet disconnected or locked during transaction. Please unlock/reconnect your wallet and try again.";
       setError(msg);
-      setStructuredError({ message: msg });
+      setStructuredError({ message: msg, code: "wallet_disconnected" });
       setTransactionState("error");
       setIsConfirmationOpen(true);
     }
@@ -731,8 +731,10 @@ export function TipModal({
     transactionState === "confirming";
 
   const canSubmit =
-    amount !== "" && transactionState === "idle" && !mainnetGuard.isBlocked;
-    amount !== "" && transactionState === "idle" && !isMainnetBlocked;
+    amount !== "" &&
+    transactionState === "idle" &&
+    !mainnetGuard.isBlocked &&
+    !isMainnetBlocked;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -794,7 +796,10 @@ export function TipModal({
               <p className="text-xs text-amber-500">
                 Unable to load XLM price — USD estimate unavailable.
               </p>
-            <div className="p-4 bg-secondary border border-border rounded-xl space-y-3">
+            </div>
+          )}
+
+          <div className="p-4 bg-secondary border border-border rounded-xl space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Recipient</span>
                 <span className="font-semibold text-foreground">@{recipientUsername}</span>

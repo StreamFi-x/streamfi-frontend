@@ -15,13 +15,14 @@ import {
   allowAllModules,
   FREIGHTER_ID,
 } from "@creit.tech/stellar-wallets-kit";
-import { getStellarNetwork } from "@/lib/stellar/config";
+import { AlertTriangle, X } from "lucide-react";
+import {
+  getStellarNetwork,
+  type StellarNetwork,
+} from "@/lib/stellar/config";
 import {
   getMainnetGuardState,
   type MainnetGuardState,
-import { AlertTriangle, X } from "lucide-react";
-import { getStellarNetwork, type StellarNetwork } from "@/lib/stellar/config";
-import {
   getStellarNetworkGuardState,
   type StellarNetworkGuardState,
 } from "@/lib/stellar/network-guard";
@@ -164,6 +165,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
   const walletConnectModuleRef = useRef<WalletConnectModule | null>(null);
   const activeWalletIdRef = useRef<string | null>(activeWalletId);
   const privyWalletRef = useRef<PrivySessionUser | null>(privyWallet);
+  const livenessCheckRef = useRef(false);
 
   useEffect(() => {
     activeWalletIdRef.current = activeWalletId;
@@ -213,7 +215,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("privy-wallet-set", handler);
   }, []);
 
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback((reason?: string | null) => {
     const wcModule = walletConnectModuleRef.current;
     if (wcModule && activeWalletIdRef.current === WALLET_CONNECT_ID) {
       void wcModule.disconnect().catch(() => {
@@ -223,6 +225,7 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     setPublicKey(null);
     setActiveWalletId(null);
     setPendingWalletSwitch(null);
+    setError(reason ?? null);
     localStorage.removeItem("stellar_address");
     localStorage.removeItem("stellar_last_wallet");
     localStorage.removeItem("stellar_auto_connect");
@@ -526,14 +529,6 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     await connectWallet(WALLET_CONNECT_ID);
   }, [connectWallet]);
 
-  const disconnect = useCallback((reason?: string | null) => {
-    setPublicKey(null);
-    setError(reason ?? null);
-    localStorage.removeItem("stellar_address");
-    localStorage.removeItem("stellar_last_wallet");
-    localStorage.removeItem("stellar_auto_connect");
-  }, []);
-
   const getWalletLivenessError = useCallback((err: unknown) => {
     const message =
       err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
@@ -564,7 +559,11 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
     const shouldCheck = localStorage.getItem("stellar_auto_connect") === "true";
     const lastWalletId = localStorage.getItem("stellar_last_wallet");
     if (!shouldCheck || !lastWalletId || !publicKey || isConnecting) return;
+    if (livenessCheckRef.current) return;
 
+    // Focus, visibility, and the interval can all fire together. Keep only one
+    // SDK lookup in flight so a mid-transaction wallet loss is detected once.
+    livenessCheckRef.current = true;
     try {
       kit.setWallet(lastWalletId);
       const { address } = await kit.getAddress();
@@ -578,6 +577,8 @@ export function StellarWalletProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       disconnect(getWalletLivenessError(err));
+    } finally {
+      livenessCheckRef.current = false;
     }
   }, [disconnect, getWalletLivenessError, isConnecting, kit, publicKey]);
 

@@ -1,6 +1,12 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import ErrorBoundary from "../ErrorBoundary";
 
+const mockCaptureException = jest.fn();
+
+jest.mock("@sentry/nextjs", () => ({
+  captureException: (error: unknown) => mockCaptureException(error),
+}));
+
 function Boom({ shouldThrow }: { shouldThrow: boolean }) {
   if (shouldThrow) {
     throw new Error("boom");
@@ -10,6 +16,11 @@ function Boom({ shouldThrow }: { shouldThrow: boolean }) {
 
 describe("ErrorBoundary", () => {
   const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+
+  beforeEach(() => {
+    mockCaptureException.mockClear();
+    consoleError.mockClear();
+  });
 
   afterAll(() => {
     consoleError.mockRestore();
@@ -59,5 +70,20 @@ describe("ErrorBoundary", () => {
     shouldThrow = false;
     fireEvent.click(screen.getByRole("button", { name: /try again/i }));
     expect(screen.getByText("recovered")).toBeInTheDocument();
+  });
+
+  it("reports caught errors to error tracking and the optional callback (#1689)", () => {
+    const onError = jest.fn();
+
+    render(
+      <ErrorBoundary onError={onError}>
+        <Boom shouldThrow={true} />
+      </ErrorBoundary>
+    );
+
+    expect(mockCaptureException).toHaveBeenCalledTimes(1);
+    expect(mockCaptureException.mock.calls[0][0]).toBeInstanceOf(Error);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0].message).toBe("boom");
   });
 });
