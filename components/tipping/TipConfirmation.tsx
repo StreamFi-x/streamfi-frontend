@@ -13,6 +13,7 @@ import {
   Share2,
   Loader2,
   Clock,
+  AlertTriangle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -318,6 +319,25 @@ export function TipConfirmation({
                     "Something went wrong while processing your tip."}
                 </DialogDescription>
               </DialogHeader>
+
+              {error?.code === "wallet_disconnected" && (
+                <div
+                  role="alert"
+                  data-testid="wallet-disconnect-guidance"
+                  className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-left"
+                >
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+                  <div className="space-y-1 text-sm">
+                    <p className="font-medium text-foreground">
+                      Your wallet disconnected during this tip.
+                    </p>
+                    <p className="text-muted-foreground">
+                      Unlock or reconnect your wallet, then try the tip again. No funds
+                      were sent unless you received a confirmed transaction hash above.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {txHash && explorerUrl && (
                 <div className="space-y-1.5">

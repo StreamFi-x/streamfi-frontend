@@ -1,5 +1,20 @@
+import type { StellarNetwork } from "./config";
+
+/**
+ * Combined deployment/network guard (#1695).
+ *
+ * The older `MainnetGuardState` API and the newer `StellarNetworkGuardState`
+ * API both remain exported: tipping and the wallet banner use the former, while
+ * the wallet provider and API routes use the latter. Keeping one implementation
+ * avoids the duplicate declarations that made this module unparseable.
+ */
 export type DeploymentContext =
-  "production" | "preview" | "development" | "test" | "unknown";
+  | "production"
+  | "preview"
+  | "staging"
+  | "development"
+  | "test"
+  | "unknown";
 
 export interface MainnetGuardState {
   network: "mainnet" | "testnet";
@@ -14,23 +29,8 @@ export interface MainnetGuardOptions {
   hostname?: string;
 }
 
-export class MainnetBlockedError extends Error {
-  readonly code = "MAINNET_BLOCKED_IN_NON_PROD";
-  readonly deploymentContext: DeploymentContext;
-
-  constructor(deploymentContext: DeploymentContext, message?: string) {
-    super(
-      message ??
-        `Stellar mainnet transactions are blocked in non-production (${deploymentContext}) deployments. Set NEXT_PUBLIC_STELLAR_NETWORK=testnet for non-production environments.`
-    );
-import type { StellarNetwork } from "./config";
-
-export type DeploymentContext =
-  "production" | "preview" | "staging" | "development" | "test" | "unknown";
-
-export interface StellarNetworkGuardState {
+export interface StellarNetworkGuardState extends MainnetGuardState {
   network: StellarNetwork;
-  deploymentContext: DeploymentContext;
   isNonProduction: boolean;
   isUnsafeMainnetConfig: boolean;
   isTransactionBlocked: boolean;
@@ -38,10 +38,32 @@ export interface StellarNetworkGuardState {
   reason: string | null;
 }
 
-export interface NetworkGuardOptions {
-  env?: Record<string, string | undefined>;
-  hostname?: string;
+export interface NetworkGuardOptions extends MainnetGuardOptions {
   network?: StellarNetwork;
+}
+
+const DEPLOYMENT_CONTEXTS: readonly DeploymentContext[] = [
+  "production",
+  "preview",
+  "staging",
+  "development",
+  "test",
+  "unknown",
+];
+
+function isDeploymentContext(value: unknown): value is DeploymentContext {
+  return DEPLOYMENT_CONTEXTS.includes(value as DeploymentContext);
+}
+
+function isGuardOptions(
+  value: unknown
+): value is Pick<NetworkGuardOptions, "env" | "hostname"> {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    ("env" in candidate && typeof candidate.env === "object") ||
+    ("hostname" in candidate && typeof candidate.hostname === "string")
+  );
 }
 
 export class MainnetBlockedError extends Error {
@@ -49,8 +71,29 @@ export class MainnetBlockedError extends Error {
   readonly deploymentContext: DeploymentContext;
   readonly network: StellarNetwork = "mainnet";
 
-  constructor(message: string, deploymentContext: DeploymentContext) {
-    super(message);
+  // Both constructor orders existed in the two merged implementations. Keep
+  // them as overloads so callers from either API remain source-compatible.
+  constructor(deploymentContext: DeploymentContext, message?: string);
+  constructor(message: string, deploymentContext: DeploymentContext);
+  constructor(
+    first: DeploymentContext | string,
+    second?: DeploymentContext | string
+  ) {
+    const deploymentContext = isDeploymentContext(first)
+      ? first
+      : isDeploymentContext(second)
+        ? second
+        : "unknown";
+    const message = isDeploymentContext(first)
+      ? typeof second === "string"
+        ? second
+        : undefined
+      : first;
+
+    super(
+      message ??
+        `Stellar mainnet transactions are blocked in ${deploymentContext} deployments.`
+    );
     this.name = "MainnetBlockedError";
     this.deploymentContext = deploymentContext;
   }
@@ -63,77 +106,10 @@ export function isMainnetConfigured(
   return raw === "mainnet" || raw === "pubnet" || raw === "public";
 }
 
-function normalizeDeploymentEnv(
-  value: string | undefined
-): DeploymentContext | null {
-  if (!value) {
-    return null;
-  }
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "production" || normalized === "prod") {
-    return "production";
-  }
-  if (
-    normalized === "preview" ||
-    normalized === "staging" ||
-    normalized === "stage"
-  ) {
-    return "preview";
-  }
-  if (normalized === "development" || normalized === "dev") {
-    return "development";
-  }
-  if (normalized === "test") {
-    return "test";
-  }
-  return null;
-}
-
-export function getDeploymentContext(
-  env: Record<string, string | undefined> = process.env,
-  hostname?: string
-): DeploymentContext {
-  // Prefer explicit Vercel / app deployment environment variables
-  const explicit =
-    normalizeDeploymentEnv(env.NEXT_PUBLIC_VERCEL_ENV) ??
-    normalizeDeploymentEnv(env.VERCEL_ENV) ??
-    normalizeDeploymentEnv(env.NEXT_PUBLIC_APP_ENV) ??
-    normalizeDeploymentEnv(env.APP_ENV);
-
-  if (explicit) {
-    return explicit;
-  }
-
-  // Infer from browser hostname if available
-  const resolvedHost =
-    hostname ??
-    (typeof window !== "undefined" ? window.location?.hostname : undefined);
-
-  if (resolvedHost) {
-    const lowerHost = resolvedHost.toLowerCase();
-    if (
-      lowerHost === "localhost" ||
-      lowerHost === "127.0.0.1" ||
-      lowerHost.endsWith(".local")
-    ) {
-      return "development";
-    }
-    if (lowerHost.endsWith(".vercel.app")) {
-      return "preview";
-    }
-  }
-
-  const nodeEnv = normalizeDeploymentEnv(env.NODE_ENV);
-  if (nodeEnv) {
-    return nodeEnv;
 function parseConfiguredNetwork(
   env: Record<string, string | undefined>
 ): StellarNetwork {
-  const raw = env.NEXT_PUBLIC_STELLAR_NETWORK?.trim().toLowerCase();
-  if (raw === "mainnet" || raw === "pubnet") {
-    return "mainnet";
-  }
-  return "testnet";
+  return isMainnetConfigured(env) ? "mainnet" : "testnet";
 }
 
 function normalizeAppContext(
@@ -142,12 +118,15 @@ function normalizeAppContext(
   const normalized = value?.trim().toLowerCase();
   switch (normalized) {
     case "production":
+    case "prod":
       return "production";
     case "preview":
+    case "stage":
       return "preview";
     case "staging":
       return "staging";
     case "development":
+    case "dev":
       return "development";
     case "test":
       return "test";
@@ -157,30 +136,34 @@ function normalizeAppContext(
 }
 
 export function getDeploymentContext(
-  options: Pick<NetworkGuardOptions, "env" | "hostname"> = {}
+  options?: Pick<NetworkGuardOptions, "env" | "hostname">
+): DeploymentContext;
+export function getDeploymentContext(
+  env: Record<string, string | undefined>,
+  hostname?: string
+): DeploymentContext;
+export function getDeploymentContext(
+  first:
+    | Record<string, string | undefined>
+    | Pick<NetworkGuardOptions, "env" | "hostname"> = {},
+  hostname?: string
 ): DeploymentContext {
-  const env = options.env ?? process.env;
+  const options = isGuardOptions(first) ? first : null;
+  const env = options
+    ? (options.env ?? process.env)
+    : (first as Record<string, string | undefined>);
+  const resolvedHost = options ? options.hostname : hostname;
 
-  // 1. Explicit Vercel deployment context (Vercel sets NODE_ENV=production on previews)
-  const vercelContext = normalizeAppContext(
-    env.VERCEL_ENV || env.NEXT_PUBLIC_VERCEL_ENV
-  );
-  if (vercelContext) {
-    return vercelContext;
+  const explicit =
+    normalizeAppContext(env.VERCEL_ENV || env.NEXT_PUBLIC_VERCEL_ENV) ??
+    normalizeAppContext(env.NEXT_PUBLIC_APP_ENV || env.APP_ENV);
+  if (explicit) {
+    return explicit;
   }
 
-  // 2. Explicit app-level deployment context
-  const appContext = normalizeAppContext(
-    env.NEXT_PUBLIC_APP_ENV || env.APP_ENV
-  );
-  if (appContext) {
-    return appContext;
-  }
-
-  // 3. Browser / request hostname heuristics
   const rawHost =
-    options.hostname !== undefined
-      ? options.hostname
+    resolvedHost !== undefined
+      ? resolvedHost
       : typeof window !== "undefined"
         ? window.location.hostname
         : "";
@@ -198,7 +181,8 @@ export function getDeploymentContext(
     if (
       host.startsWith("preview.") ||
       host.startsWith("pr-") ||
-      host.includes("-git-")
+      host.includes("-git-") ||
+      host.endsWith(".vercel.app")
     ) {
       return "preview";
     }
@@ -207,37 +191,9 @@ export function getDeploymentContext(
     }
   }
 
-  // 4. Node runtime fallback
-  const nodeContext = normalizeAppContext(env.NODE_ENV);
-  if (nodeContext) {
-    return nodeContext;
-  }
-
-  return "unknown";
+  return normalizeAppContext(env.NODE_ENV) ?? "unknown";
 }
 
-export function getMainnetGuardState(
-  options: MainnetGuardOptions = {}
-): MainnetGuardState {
-  const env = options.env ?? process.env;
-  const network: "mainnet" | "testnet" = isMainnetConfigured(env)
-    ? "mainnet"
-    : "testnet";
-  const deploymentContext = getDeploymentContext(env, options.hostname);
-
-  const isMainnetInNonProd =
-    network === "mainnet" && deploymentContext !== "production";
-
-  const allowOverride =
-    env.NEXT_PUBLIC_ALLOW_NON_PROD_MAINNET?.trim().toLowerCase() === "true";
-
-  const isBlocked = isMainnetInNonProd && !allowOverride;
-
-  let warningMessage: string | null = null;
-  if (isMainnetInNonProd) {
-    warningMessage = isBlocked
-      ? `Stellar mainnet is configured in a non-production (${deploymentContext}) deployment. Real-funds transactions are blocked to prevent accidental mainnet execution. Set NEXT_PUBLIC_STELLAR_NETWORK=testnet for non-production environments.`
-      : `WARNING: Stellar mainnet is active in a non-production (${deploymentContext}) deployment with transaction blocking overridden. Real funds are at risk.`;
 export function isNonProductionDeployment(context: DeploymentContext): boolean {
   return (
     context === "preview" ||
@@ -254,14 +210,18 @@ export function getStellarNetworkGuardState(
   const network = options.network ?? parseConfiguredNetwork(env);
   const deploymentContext = getDeploymentContext(options);
   const isNonProduction = isNonProductionDeployment(deploymentContext);
-  const isUnsafeMainnetConfig = network === "mainnet" && isNonProduction;
+  const isMainnetInNonProd = network === "mainnet" && isNonProduction;
   const overrideEnabled =
-    (env.NEXT_PUBLIC_ALLOW_MAINNET_IN_NON_PROD || "").trim().toLowerCase() ===
-    "true";
-  const isTransactionBlocked = isUnsafeMainnetConfig && !overrideEnabled;
+    (env.NEXT_PUBLIC_ALLOW_MAINNET_IN_NON_PROD ||
+      env.NEXT_PUBLIC_ALLOW_NON_PROD_MAINNET ||
+      ""
+    )
+      .trim()
+      .toLowerCase() === "true";
+  const isTransactionBlocked = isMainnetInNonProd && !overrideEnabled;
 
   let reason: string | null = null;
-  if (isUnsafeMainnetConfig) {
+  if (isMainnetInNonProd) {
     reason = isTransactionBlocked
       ? `Stellar mainnet is configured in a non-production (${deploymentContext}) deployment. Real-funds transactions are blocked to prevent accidental mainnet execution. Set NEXT_PUBLIC_STELLAR_NETWORK=testnet for non-production environments.`
       : `Warning: Stellar mainnet is active in a non-production (${deploymentContext}) deployment with an explicit override enabled. Transactions use real funds.`;
@@ -271,39 +231,41 @@ export function getStellarNetworkGuardState(
     network,
     deploymentContext,
     isMainnetInNonProd,
-    isBlocked,
-    warningMessage,
+    isBlocked: isTransactionBlocked,
+    warningMessage: reason,
     isNonProduction,
-    isUnsafeMainnetConfig,
+    isUnsafeMainnetConfig: isMainnetInNonProd,
     isTransactionBlocked,
     overrideEnabled,
     reason,
   };
 }
 
-export function assertMainnetAllowedForTransaction(
-  network: "testnet" | "mainnet",
+export function getMainnetGuardState(
   options: MainnetGuardOptions = {}
-): void {
-  if (network !== "mainnet") {
-    return;
-  }
+): MainnetGuardState {
+  const state = getStellarNetworkGuardState(options);
+  return {
+    network: state.network,
+    deploymentContext: state.deploymentContext,
+    isMainnetInNonProd: state.isMainnetInNonProd,
+    isBlocked: state.isBlocked,
+    warningMessage: state.warningMessage,
+  };
+}
 
-  const env = options.env ?? process.env;
-  const deploymentContext = getDeploymentContext(env, options.hostname);
-  const allowOverride =
-    env.NEXT_PUBLIC_ALLOW_NON_PROD_MAINNET?.trim().toLowerCase() === "true";
-
-  if (deploymentContext !== "production" && !allowOverride) {
-    throw new MainnetBlockedError(deploymentContext);
+export function assertMainnetAllowedForTransaction(
   network?: StellarNetwork,
   options: Pick<NetworkGuardOptions, "env" | "hostname"> = {}
 ): void {
+  const env = options.env ?? process.env;
+  const effectiveNetwork = network ?? parseConfiguredNetwork(env);
+  if (effectiveNetwork !== "mainnet") return;
+
   const state = getStellarNetworkGuardState({
     ...options,
-    network,
+    network: effectiveNetwork,
   });
-
   if (state.isTransactionBlocked) {
     throw new MainnetBlockedError(
       state.reason ??

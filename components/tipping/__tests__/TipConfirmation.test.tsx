@@ -89,4 +89,26 @@ describe("TipConfirmation (#1738)", () => {
       screen.getByRole("button", { name: /Try Again/i })
     ).toBeInTheDocument();
   });
+
+  it("shows actionable recovery guidance when the wallet disconnected mid-transaction (#1695)", () => {
+    render(
+      <TipConfirmation
+        isOpen={true}
+        onClose={jest.fn()}
+        state="error"
+        amount="10"
+        recipientUsername="alice"
+        error={{
+          message: "Wallet connection was lost during the transaction.",
+          code: "wallet_disconnected",
+        }}
+        onRetry={jest.fn()}
+      />
+    );
+
+    const guidance = screen.getByTestId("wallet-disconnect-guidance");
+    expect(guidance).toHaveTextContent("wallet disconnected during this tip");
+    expect(guidance).toHaveTextContent("Unlock or reconnect your wallet");
+    expect(guidance).toHaveTextContent("No funds were sent");
+  });
 });

@@ -21,6 +21,7 @@ jest.mock("@/contexts/stellar-wallet-context", () => ({
       signTransaction: (...args: unknown[]) => mockSignTransaction(...args),
     },
     disconnect: mockDisconnect,
+    isConnected: true,
   }),
 }));
 
@@ -29,11 +30,14 @@ jest.mock("@/lib/stellar/payments", () => ({
     toXDR: () => "mock-xdr",
   }),
   submitTransaction: jest.fn(),
+  pollTransactionConfirmation: jest.fn().mockResolvedValue({ status: "success" }),
   hasInsufficientBalance: jest.fn().mockResolvedValue(false),
   checkAccountBalance: jest.fn().mockResolvedValue({ status: "ok" }),
+  AccountNotFundedError: class AccountNotFundedError extends Error {},
   getXLMPrice: jest.fn().mockResolvedValue(0.12),
   calculateFeeEstimate: jest.fn().mockReturnValue(0.00001),
   getRecommendedFeeStroops: jest.fn().mockResolvedValue(100),
+  getFeeEstimateDetails: jest.fn().mockResolvedValue(null),
   MAX_TIP_AMOUNT_XLM: 1000,
   MIN_TIP_AMOUNT_XLM: 0.1,
 }));
@@ -60,8 +64,10 @@ describe("TipModal wallet disconnect handling (#1695)", () => {
     const input = screen.getByPlaceholderText("0.00");
     fireEvent.change(input, { target: { value: "10" } });
 
-    const sendBtn = screen.getByRole("button", { name: /send tip/i });
-    fireEvent.click(sendBtn);
+    fireEvent.click(screen.getByRole("button", { name: /review tip/i }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /confirm & sign/i })
+    );
 
     await waitFor(() => {
       expect(mockSignTransaction).toHaveBeenCalled();
