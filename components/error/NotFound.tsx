@@ -164,10 +164,22 @@ const NotFound: FC<NotFoundProps> = () => {
                       <AnimatePresence mode="wait">
                         <motion.div
                           key={currentIcon}
-                          initial={{ opacity: 0, rotate: -180, scale: 0.5 }}
-                          animate={{ opacity: 1, rotate: 0, scale: 1 }}
-                          exit={{ opacity: 0, rotate: 180, scale: 0.5 }}
-                          transition={{ duration: 0.5 }}
+                          initial={
+                            prefersReducedMotion
+                              ? false
+                              : { opacity: 0, rotate: -180, scale: 0.5 }
+                          }
+                          animate={
+                            prefersReducedMotion
+                              ? { opacity: 1 }
+                              : { opacity: 1, rotate: 0, scale: 1 }
+                          }
+                          exit={
+                            prefersReducedMotion
+                              ? { opacity: 1 }
+                              : { opacity: 0, rotate: 180, scale: 0.5 }
+                          }
+                          transition={{ duration: prefersReducedMotion ? 0 : 0.5 }}
                         >
                           <CurrentIcon className={`w-16 h-16 text-highlight`} />
                         </motion.div>
