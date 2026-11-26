@@ -1,8 +1,14 @@
 import { NextResponse, NextRequest } from "next/server";
 import { sql } from "@vercel/postgres";
+import { authorizeAdmin } from "@/lib/admin-auth";
 
 // TO CREATE TAGS
 export async function POST(req: NextRequest) {
+  const { response: adminDenied } = await authorizeAdmin(req, "tags");
+  if (adminDenied) {
+    return adminDenied;
+  }
+
   try {
     const { title, visibility } = await req.json();
 
@@ -38,7 +44,12 @@ export async function POST(req: NextRequest) {
 }
 
 // TO UPDATE A TAG
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
+  const { response: adminDenied } = await authorizeAdmin(req, "tags");
+  if (adminDenied) {
+    return adminDenied;
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const title = searchParams.get("title");
@@ -83,10 +94,6 @@ export async function GET(req: Request) {
 
     let result;
 
-    // Basic test to confirm DB works
-    const testResult = await sql`SELECT * FROM tags LIMIT 1`;
-    console.log("Test result:", testResult.rows);
-
     // Search by title (live match)
     if (title) {
       result = await sql`
@@ -117,7 +124,12 @@ export async function GET(req: Request) {
 }
 
 //TO DELETE A TAG
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
+  const { response: adminDenied } = await authorizeAdmin(req, "tags");
+  if (adminDenied) {
+    return adminDenied;
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const title = searchParams.get("title");
